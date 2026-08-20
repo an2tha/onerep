@@ -37,6 +37,8 @@ export type HealthMetricId =
   | "hrv"
   | "restingHeartRate"
   | "exercise"
+  | "weight"
+  | "bodyFat"
 
 export function formatHours(minutes: number) {
   const whole = Math.floor(minutes / 60)
@@ -92,6 +94,7 @@ export const AREA_TONES: Record<string, string> = {
   sleep: "var(--accent-water)",
   activity: "var(--accent-workout)",
   heart: "var(--accent-health)",
+  body: "var(--accent-food)",
 }
 
 /** The app's dial, wearing a health score. */
@@ -934,6 +937,7 @@ export function MetricTrend({
   format,
   initialRange = "M",
   range: controlledRange,
+  hideWhenEmpty = false,
 }: {
   today: string
   metric: HealthMetricId
@@ -948,6 +952,16 @@ export function MetricTrend({
    * one window, and seven switches invites a reading nobody intended.
    */
   range?: RangeKey
+  /**
+   * Render nothing at all when the range holds no readings, instead of the
+   * one-line "nothing recorded" note.
+   *
+   * The area screens set this. A screen reached by tapping a dial is about one
+   * subject, and four consecutive apologies for missing data is a worse answer
+   * than a shorter page — Trends is where the full set stays visible, gaps
+   * included, because there the absence is the comparison.
+   */
+  hideWhenEmpty?: boolean
 }) {
   const [ownRange, setRange] = useState<RangeKey>(initialRange)
   const range = controlledRange ?? ownRange
@@ -956,6 +970,9 @@ export function MetricTrend({
   const suffix =
     range === "W" ? "past week" : range === "M" ? "past month" : "past year"
   const empty = data !== undefined && (!series || series.average === null)
+  // Only once the query has resolved: bailing while `data` is undefined would
+  // pop the chart in after load rather than reserving its space.
+  if (empty && hideWhenEmpty) return null
 
   return (
     <section

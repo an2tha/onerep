@@ -146,6 +146,21 @@ export default defineSchema({
         lastSyncedAt: v.optional(v.number()),
         /** Surfaced in Settings; a background sync must never toast. */
         lastSyncError: v.optional(v.string()),
+        /**
+         * Per-signal opt-in, keyed by `lib/healthMetricCatalog.ts`. A record
+         * rather than named fields so adding a metric is a catalogue edit and
+         * not a schema migration; absent keys fall back to the catalogue
+         * default, which is what lets a new metric arrive switched on without
+         * overriding anything a user turned off.
+         */
+        metrics: v.optional(v.record(v.string(), v.boolean())),
+        /**
+         * Which dials the Health hero shows, keyed by area id. Separate from
+         * `metrics` on purpose: one is "may we read this from your phone", the
+         * other is "do you want to look at it". Someone can sync sleep for the
+         * recovery score without wanting a sleep dial in their face.
+         */
+        dials: v.optional(v.record(v.string(), v.boolean())),
       }),
     ),
     /**
@@ -587,7 +602,15 @@ export default defineSchema({
   healthMetrics: defineTable({
     userId: v.string(),
     date: v.string(), // YYYY-MM-DD, the user's local day
-    provider: v.union(v.literal("apple_health"), v.literal("health_connect")),
+    provider: v.union(
+      v.literal("apple_health"),
+      v.literal("health_connect"),
+      // "manual" is what a row nobody's watch produced calls itself: a day the
+      // user typed a figure into before any sync had reached it. The next sync
+      // to touch the day overwrites this with the real provider, which is
+      // correct — by then the platform store does have an opinion about it.
+      v.literal("manual"),
+    ),
     /** Asleep time, not time in bed. */
     sleepMinutes: v.optional(v.number()),
     steps: v.optional(v.number()),
@@ -600,6 +623,20 @@ export default defineSchema({
      */
     hrvMs: v.optional(v.number()),
     activeEnergyKcal: v.optional(v.number()),
+    /**
+     * Field names on this row the user corrected by hand, which the sync must
+     * leave alone. Per field rather than per row because the reason people edit
+     * these at all is one bad sensor: a chest strap that reported a 41bpm
+     * resting heart rate should not also freeze the step count for that day.
+     *
+     * A list rather than a record of flags because the flag would carry no
+     * information the membership does not — the value itself already lives in
+     * the field beside it — and because clearing an override has to mean
+     * removing the name entirely, so the next sync owns the field again. A
+     * record invites writing `false`, which reads as "synced" everywhere except
+     * the one place that checks `key in record`.
+     */
+    manualFields: v.optional(v.array(v.string())),
     syncedAt: v.number(),
     updatedAt: v.number(),
   })
@@ -812,6 +849,15 @@ export default defineSchema({
     calvesCm: v.optional(v.number()),
     neckCm: v.optional(v.number()),
     notes: v.optional(v.string()),
+    /**
+     * "manual" (typed in the app or through the API) or "health" (read from
+     * HealthKit / Health Connect). The sync only ever overwrites rows it wrote
+     * itself: a number someone typed outranks a scale reading for the same day.
+     */
+    source: v.optional(v.string()),
+    leanBodyMassKg: v.optional(v.number()),
+    boneMassKg: v.optional(v.number()),
+    basalMetabolicRateKcal: v.optional(v.number()),
     photoStorageId: v.optional(v.id("_storage")),
     photoUploadId: v.optional(v.id("fileUploads")),
     photoDataUrl: v.optional(v.string()), // legacy base64 image; new photos use storage
@@ -848,6 +894,18 @@ export default defineSchema({
       v.literal("workout"),
       v.literal("progress"),
     ),
+    /**
+     * A key from `lib/platformHealthMetrics.ts`. Set it and the health sync
+     * fills this metric in from Apple Health or Health Connect instead of the
+     * user typing it — which is how blood glucose, blood pressure or SpO2 get
+     * tracked without the app inventing a score for them.
+     *
+     * A synced metric still accepts a typed value: the reading is a default,
+     * not a lock, and a finger-prick someone trusts more than their monitor
+     * should win. A typed value marks the day `manual` so a later sync leaves
+     * it alone.
+     */
+    healthMetricKey: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_userId", ["userId"]),
@@ -857,6 +915,8 @@ export default defineSchema({
     metricId: v.id("customProgressMetrics"),
     date: v.string(),
     value: v.number(),
+    /** True when a person typed this figure, so the sync will not replace it. */
+    manual: v.optional(v.boolean()),
     updatedAt: v.number(),
   })
     .index("by_userId_and_metricId", ["userId", "metricId"])

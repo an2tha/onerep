@@ -37,6 +37,7 @@ export default function HealthHeart() {
       charts={
         <>
           <MetricTrend
+            hideWhenEmpty
             today={today}
             metric="hrv"
             kind="line"
@@ -45,6 +46,7 @@ export default function HealthHeart() {
             tone="var(--accent-water)"
           />
           <MetricTrend
+            hideWhenEmpty
             today={today}
             metric="restingHeartRate"
             kind="line"

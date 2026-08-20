@@ -35,6 +35,7 @@ export default function HealthSleep() {
       heroFill={pillar?.score ?? null}
       charts={
         <MetricTrend
+          hideWhenEmpty
           today={today}
           metric="sleep"
           title="Nightly sleep"

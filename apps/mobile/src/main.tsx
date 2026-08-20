@@ -88,6 +88,7 @@ import Health from "./pages/Health.tsx"
 import HealthSleep from "./pages/health/Sleep.tsx"
 import HealthRecovery from "./pages/health/Recovery.tsx"
 import HealthActivity from "./pages/health/Activity.tsx"
+import HealthBody from "./pages/health/Body.tsx"
 import HealthHeart from "./pages/health/Heart.tsx"
 import HealthTrends from "./pages/health/Trends.tsx"
 import Coach from "./pages/Coach.tsx"
@@ -1072,6 +1073,16 @@ const router = createBrowserRouter([
           <AuthGuard>
             <ErrorBoundary label="Health heart">
               <HealthHeart />
+            </ErrorBoundary>
+          </AuthGuard>
+        ),
+      },
+      {
+        path: "/health/body",
+        element: (
+          <AuthGuard>
+            <ErrorBoundary label="Health body">
+              <HealthBody />
             </ErrorBoundary>
           </AuthGuard>
         ),

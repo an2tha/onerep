@@ -11,9 +11,11 @@ import {
   Barbell,
   CheckCircle,
   ForkKnife,
+  Heartbeat,
   Minus,
   Plus,
   Sparkle,
+  PencilSimple,
   Trash,
   X,
 } from "@phosphor-icons/react"
@@ -36,6 +38,14 @@ import {
   ToolbarButton,
 } from "@repo/ui"
 import { MobileSheet } from "@/components/mobile-sheet"
+import { HealthMetricPicker } from "@/components/health-metric-picker"
+import { CheckInReadingsSheet } from "@/components/check-in-readings-sheet"
+import { CheckInHistory } from "@/components/check-in-history"
+import {
+  healthProviderLabel,
+  isHealthSyncSupportedPlatform,
+} from "@/lib/health-provider"
+import type { PlatformMetric } from "../../../../convex/lib/platformHealthMetrics"
 import { TrainingInsightsPanel } from "@/components/training-insights-panel"
 import { hapticMedium, hapticSelection } from "@/lib/haptics"
 import { toast } from "@repo/ui"
@@ -89,15 +99,37 @@ export default function Progress() {
   const [showMeasurements, setShowMeasurements] = useState(false)
   const [showNote, setShowNote] = useState(false)
   const [entryClientId, setEntryClientId] = useState<string | null>(null)
+  /**
+   * The day the form is writing to. Today unless a row in the history below was
+   * tapped — correcting last Tuesday's weigh-in used to mean going through the
+   * API, which is not a reasonable ask for a number you can see on screen.
+   */
+  const [entryDate, setEntryDate] = useState<string | null>(null)
   const [entryPrepared, setEntryPrepared] = useState(false)
   const [savingEntry, setSavingEntry] = useState(false)
   const [entryError, setEntryError] = useState("")
   const [checkInCelebration, setCheckInCelebration] = useState(false)
+  /**
+   * The flat editor, opened from the header. Separate from `entryOpen` on
+   * purpose: that sheet is the check-in ritual and prefills today from
+   * yesterday, which is exactly wrong when you only meant to fix Tuesday.
+   */
+  const [readingsOpen, setReadingsOpen] = useState(false)
   const [metricBuilderOpen, setMetricBuilderOpen] = useState(false)
   const [metricRequest, setMetricRequest] = useState("")
   const [generatingMetric, setGeneratingMetric] = useState(false)
   const [metricBuilderError, setMetricBuilderError] = useState("")
+  /**
+   * The catalogue metric this new one reads from, or null for the typed-by-hand
+   * default. Binding is a second tap on purpose: most metrics people invent
+   * ("stretched today") have no reading behind them anywhere.
+   */
+  const [healthBinding, setHealthBinding] = useState<PlatformMetric | null>(
+    null
+  )
+  const [healthPickerOpen, setHealthPickerOpen] = useState(false)
   const saveMeasurement = useMutation(api.bodyProgress.save)
+  const removeMeasurement = useMutation(api.bodyProgress.remove)
   const generateCustomMetric = useAction(
     api.ai.metricGeneration.generateCustomProgressMetric
   )
@@ -218,6 +250,16 @@ export default function Progress() {
         .find((measurement) => measurement.loggedAt.slice(0, 10) === today),
     [orderedMeasurements, today]
   )
+  const editingDate = entryDate ?? today
+  const targetMeasurement = useMemo(
+    () =>
+      [...orderedMeasurements]
+        .reverse()
+        .find(
+          (measurement) => measurement.loggedAt.slice(0, 10) === editingDate
+        ),
+    [orderedMeasurements, editingDate]
+  )
   const previousMeasurement = useMemo(
     () =>
       [...orderedMeasurements]
@@ -241,31 +283,35 @@ export default function Progress() {
       weightKg == null
         ? ""
         : formatWeightValue(unit === "lbs" ? weightKg * 2.20462 : weightKg)
-    if (todayMeasurement) {
-      setWeight(toDisplayWeight(todayMeasurement.weightKg))
+    if (targetMeasurement) {
+      setWeight(toDisplayWeight(targetMeasurement.weightKg))
       setBodyFat(
-        todayMeasurement.bodyFatPct == null
+        targetMeasurement.bodyFatPct == null
           ? ""
-          : String(todayMeasurement.bodyFatPct)
+          : String(targetMeasurement.bodyFatPct)
       )
       setWaist(
-        todayMeasurement.waistCm == null ? "" : String(todayMeasurement.waistCm)
+        targetMeasurement.waistCm == null
+          ? ""
+          : String(targetMeasurement.waistCm)
       )
       setHips(
-        todayMeasurement.hipsCm == null ? "" : String(todayMeasurement.hipsCm)
+        targetMeasurement.hipsCm == null ? "" : String(targetMeasurement.hipsCm)
       )
       setChest(
-        todayMeasurement.chestCm == null ? "" : String(todayMeasurement.chestCm)
+        targetMeasurement.chestCm == null
+          ? ""
+          : String(targetMeasurement.chestCm)
       )
-      setNotes(todayMeasurement.notes ?? "")
+      setNotes(targetMeasurement.notes ?? "")
       setShowMeasurements(
-        todayMeasurement.bodyFatPct != null ||
-          todayMeasurement.waistCm != null ||
-          todayMeasurement.hipsCm != null ||
-          todayMeasurement.chestCm != null
+        targetMeasurement.bodyFatPct != null ||
+          targetMeasurement.waistCm != null ||
+          targetMeasurement.hipsCm != null ||
+          targetMeasurement.chestCm != null
       )
-      setShowNote(Boolean(todayMeasurement.notes))
-      setEntryClientId(todayMeasurement.clientId)
+      setShowNote(Boolean(targetMeasurement.notes))
+      setEntryClientId(targetMeasurement.clientId)
     } else {
       // Start from the last known weight so a normal day is confirm-and-done
       // rather than typing the same number again.
@@ -281,7 +327,7 @@ export default function Progress() {
     }
     setEntryError("")
     setEntryPrepared(true)
-  }, [previousMeasurement, todayMeasurement, unit])
+  }, [previousMeasurement, targetMeasurement, unit])
 
   // Nothing waits on a timer here. The old shape — fade out, then swap on a
   // 260ms setTimeout — meant every tap bought 260ms of nothing happening
@@ -297,7 +343,14 @@ export default function Progress() {
   }
 
   async function createCustomMetric() {
-    const request = metricRequest.trim()
+    // A bound metric already says what it is, so the description is optional
+    // there — asking someone to write a sentence about blood glucose after
+    // they picked "Blood glucose" from a list is busywork.
+    const request =
+      metricRequest.trim() ||
+      (healthBinding
+        ? `Track ${healthBinding.label.toLowerCase()} in ${healthBinding.unit}`
+        : "")
     if (request.length < 3 || generatingMetric) {
       setMetricBuilderError("Describe what you want to track.")
       return
@@ -314,14 +367,19 @@ export default function Progress() {
         description: generated.description,
         tab: generated.tab,
         kind: generated.kind,
-        unit: generated.unit,
+        // The catalogue's unit wins over the model's guess: the sync writes
+        // mmol/L whatever the card claims to be showing, and a card labelled
+        // mg/dL over an mmol/L number is worse than no card.
+        unit: healthBinding ? healthBinding.unit : generated.unit,
         step: generated.step,
         ...(generated.target == null ? {} : { target: generated.target }),
         accent: generated.accent,
+        ...(healthBinding ? { healthMetricKey: healthBinding.key } : {}),
       })
       hapticMedium()
       toast.success(`${generated.title} added to Progress`)
       setMetricRequest("")
+      setHealthBinding(null)
       setMetricBuilderOpen(false)
     } catch (error) {
       setMetricBuilderError(
@@ -371,6 +429,27 @@ export default function Progress() {
     setEntryOpen(false)
     setEntryPrepared(false)
     setEntryError("")
+    setEntryDate(null)
+  }
+
+  /** Opens the form on a past day so the number can be corrected in place. */
+  function editCheckIn(date: string) {
+    hapticSelection()
+    setEntryDate(date)
+    setEntryPrepared(false)
+    setEntryError("")
+    setEntryOpen(true)
+  }
+
+  async function deleteCheckIn(clientId: string, date: string) {
+    try {
+      await removeMeasurement({ clientId })
+      hapticMedium()
+      toast.success(`Check-in for ${formatProgressDate(date)} deleted`)
+      if (editingDate === date) closeEntry()
+    } catch {
+      toast.error("Could not delete that check-in. Try again.")
+    }
   }
 
   useEffect(() => {
@@ -425,38 +504,33 @@ export default function Progress() {
         // `currentDateKey()`. A UTC ISO string disagrees with that for anyone
         // logging either side of midnight UTC, which orphaned the row — no
         // prefill, a duplicate on the next save, and a point on the wrong day.
-        loggedAt: today,
+        loggedAt: editingDate,
         weightKg: unit === "lbs" ? enteredWeight / 2.20462 : enteredWeight,
         ...(enteredBodyFat !== undefined ? { bodyFatPct: enteredBodyFat } : {}),
         ...(enteredWaist !== undefined ? { waistCm: enteredWaist } : {}),
         ...(enteredHips !== undefined ? { hipsCm: enteredHips } : {}),
         ...(enteredChest !== undefined ? { chestCm: enteredChest } : {}),
         ...(notes.trim() ? { notes: notes.trim() } : {}),
-        ...(todayMeasurement?.armsCm != null
-          ? { armsCm: todayMeasurement.armsCm }
-          : {}),
-        ...(todayMeasurement?.thighsCm != null
-          ? { thighsCm: todayMeasurement.thighsCm }
-          : {}),
-        ...(todayMeasurement?.calvesCm != null
-          ? { calvesCm: todayMeasurement.calvesCm }
-          : {}),
-        ...(todayMeasurement?.neckCm != null
-          ? { neckCm: todayMeasurement.neckCm }
-          : {}),
-        ...(todayMeasurement?.photoUploadId
-          ? {
-              photoUploadId:
-                todayMeasurement.photoUploadId as Id<"fileUploads">,
-            }
-          : {}),
-        ...(todayMeasurement?.photoTakenAt != null
-          ? { photoTakenAt: todayMeasurement.photoTakenAt }
-          : {}),
+        // Fields this form does not show — arms, thighs, calves, neck, the
+        // photo — used to be echoed back from today's row to stop `save`
+        // deleting them, which would have copied today's numbers onto whatever
+        // day is being edited. `save` now leaves absent fields alone, so the
+        // form sends only what it owns and names what it means to blank.
+        clearFields: [
+          ...(enteredBodyFat === undefined ? ["bodyFatPct"] : []),
+          ...(enteredWaist === undefined ? ["waistCm"] : []),
+          ...(enteredHips === undefined ? ["hipsCm"] : []),
+          ...(enteredChest === undefined ? ["chestCm"] : []),
+          ...(notes.trim() ? [] : ["notes"]),
+        ],
       })
       hapticMedium()
       toast.success(
-        entryClientId ? "Today’s check-in updated" : "Check-in saved"
+        entryClientId
+          ? editingDate === today
+            ? "Today’s check-in updated"
+            : `Check-in for ${formatProgressDate(editingDate)} updated`
+          : "Check-in saved"
       )
       if (!entryClientId) setCheckInCelebration(true)
       setWeight("")
@@ -511,6 +585,21 @@ export default function Progress() {
               aria-label={`Ask Coach to create a ${metricTab} metric`}
             >
               <Sparkle size={20} weight="bold" />
+            </button>
+            {/* Health's pencil, in Progress's own button shape: the affordance
+                should read the same across the two pages, but a lone
+                `app-translucent` circle beside two toolbar buttons looked
+                borrowed from another screen. */}
+            <button
+              type="button"
+              onClick={() => {
+                hapticSelection()
+                setReadingsOpen(true)
+              }}
+              className="native-toolbar-button"
+              aria-label="Correct a check-in"
+            >
+              <PencilSimple size={19} weight="bold" />
             </button>
             <TourAnchor anchor="progress-check-in">
               <button
@@ -589,12 +678,26 @@ export default function Progress() {
         ) : (
           <div key={shownMetric} className="progress-tab-content grid gap-6">
             {shownMetric === "body" && (
-              <BodyProgress
-                summary={summary}
-                measurements={bodyMeasurements}
-                unit={unit}
-                onAdd={openEntry}
-              />
+              <>
+                {/* Its `measurements` prop feeds one thing: a read-only copy
+                    of the check-in list. `CheckInHistory` renders that list
+                    with the edit and delete this page owns, so the built-in
+                    one is starved rather than shown twice. */}
+                <BodyProgress
+                  summary={summary}
+                  measurements={[]}
+                  unit={unit}
+                  onAdd={openEntry}
+                />
+                <CheckInHistory
+                  measurements={bodyMeasurements ?? []}
+                  unit={unit}
+                  onEdit={editCheckIn}
+                  onDelete={(clientId, date) => {
+                    void deleteCheckIn(clientId, date)
+                  }}
+                />
+              </>
             )}
             {shownMetric === "nutrition" && (
               <NutritionProgress
@@ -616,157 +719,172 @@ export default function Progress() {
               </>
             )}
 
-            {(customMetrics?.length ?? 0) > 0 && (
-              <section aria-label={`Custom ${metricTab} metrics`}>
-                <div className="mb-2 flex items-center justify-between">
-                  <p className="native-section-title">Your metrics</p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      hapticSelection()
-                      setMetricBuilderOpen(true)
-                    }}
-                    className="motion-tactile min-h-11 px-2 text-[12px] font-semibold text-muted-foreground"
-                  >
-                    Add metric
-                  </button>
-                </div>
-                <div className="grid gap-3 md:grid-cols-2">
-                  {(customMetrics ?? []).map((customMetric, metricIndex) => {
-                    const todayEntry = customMetric.entries.find(
-                      (entry) => entry.date === today
-                    )
-                    const value = todayEntry?.value ?? 0
-                    const maxValue = Math.max(
-                      customMetric.target ?? 0,
-                      value,
-                      ...customMetric.entries.map((entry) => entry.value),
-                      1
-                    )
-                    const ordered = [...customMetric.entries]
-                      .sort((a, b) => a.date.localeCompare(b.date))
-                      .slice(-14)
-                    const setValue = (next: number) => {
-                      hapticSelection()
-                      void setCustomMetricValue({
-                        metricId: customMetric._id,
-                        date: today,
-                        value: Math.max(0, next),
-                      })
-                    }
-                    return (
-                      <article
-                        key={customMetric._id}
-                        className="custom-metric-card overflow-hidden rounded-xl border border-border bg-card p-4"
-                        style={{ animationDelay: `${metricIndex * 60}ms` }}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="text-[15px] font-semibold">
-                              {customMetric.title}
-                            </p>
-                            <p className="mt-0.5 text-[12px] leading-4 text-muted-foreground">
-                              {customMetric.description}
-                            </p>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (
-                                window.confirm(`Remove ${customMetric.title}?`)
-                              )
-                                void removeCustomMetric({
-                                  metricId: customMetric._id,
-                                })
-                            }}
-                            aria-label={`Remove ${customMetric.title}`}
-                            className="motion-tactile -mt-1 -mr-1 flex size-9 shrink-0 items-center justify-center rounded-full text-muted-foreground/70 active:bg-muted"
-                          >
-                            <Trash size={15} />
-                          </button>
-                        </div>
-
-                        <div className="mt-4 flex items-end justify-between gap-4">
-                          <p className="text-[26px] leading-none font-bold tabular-nums">
-                            {customMetric.kind === "toggle"
-                              ? value > 0
-                                ? "Done"
-                                : "Not yet"
-                              : value.toLocaleString()}
-                            {customMetric.kind !== "toggle" &&
-                              customMetric.unit && (
-                                <span className="ml-1 text-[11px] font-medium text-muted-foreground">
-                                  {customMetric.unit}
-                                </span>
-                              )}
+            {/* The builder used to be reachable only from a link inside this
+                section, which only existed once you already had a metric —
+                so the first one was unreachable unless you found Coach. The
+                header stays, empty or not, and the row below it is the door. */}
+            <section aria-label={`Custom ${metricTab} metrics`}>
+              <p className="native-section-title mb-2">Your metrics</p>
+              <div className="grid gap-3 md:grid-cols-2">
+                {(customMetrics ?? []).map((customMetric, metricIndex) => {
+                  const todayEntry = customMetric.entries.find(
+                    (entry) => entry.date === today
+                  )
+                  const value = todayEntry?.value ?? 0
+                  const maxValue = Math.max(
+                    customMetric.target ?? 0,
+                    value,
+                    ...customMetric.entries.map((entry) => entry.value),
+                    1
+                  )
+                  const ordered = [...customMetric.entries]
+                    .sort((a, b) => a.date.localeCompare(b.date))
+                    .slice(-14)
+                  const setValue = (next: number) => {
+                    hapticSelection()
+                    void setCustomMetricValue({
+                      metricId: customMetric._id,
+                      date: today,
+                      value: Math.max(0, next),
+                    })
+                  }
+                  return (
+                    <article
+                      key={customMetric._id}
+                      className="custom-metric-card overflow-hidden rounded-xl border border-border bg-card p-4"
+                      style={{ animationDelay: `${metricIndex * 60}ms` }}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-[15px] font-semibold">
+                            {customMetric.title}
                           </p>
-                          {customMetric.kind === "toggle" ? (
-                            <button
-                              type="button"
-                              aria-pressed={value > 0}
-                              onClick={() => setValue(value > 0 ? 0 : 1)}
-                              className="motion-tactile min-h-10 rounded-xl bg-foreground px-4 text-[11px] font-bold text-background"
-                            >
-                              {value > 0 ? "Undo" : "Mark done"}
-                            </button>
-                          ) : (
-                            <div className="flex items-center gap-1">
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setValue(value - customMetric.step)
-                                }
-                                aria-label={`Decrease ${customMetric.title}`}
-                                className="motion-tactile flex size-10 items-center justify-center rounded-full border border-border"
-                              >
-                                <Minus size={14} weight="bold" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setValue(value + customMetric.step)
-                                }
-                                aria-label={`Increase ${customMetric.title}`}
-                                className="motion-tactile flex size-10 items-center justify-center rounded-full bg-foreground text-background"
-                              >
-                                <Plus size={14} weight="bold" />
-                              </button>
-                            </div>
+                          <p className="mt-0.5 text-[12px] leading-4 text-muted-foreground">
+                            {customMetric.description}
+                          </p>
+                          {customMetric.healthMetricKey && (
+                            <p className="mt-1.5 flex items-center gap-1 text-[11px] text-muted-foreground">
+                              <Heartbeat size={12} aria-hidden />
+                              Read from {healthProviderLabel()}
+                            </p>
                           )}
                         </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (window.confirm(`Remove ${customMetric.title}?`))
+                              void removeCustomMetric({
+                                metricId: customMetric._id,
+                              })
+                          }}
+                          aria-label={`Remove ${customMetric.title}`}
+                          className="motion-tactile -mt-1 -mr-1 flex size-9 shrink-0 items-center justify-center rounded-full text-muted-foreground/70 active:bg-muted"
+                        >
+                          <Trash size={15} />
+                        </button>
+                      </div>
 
-                        {ordered.length > 0 && (
-                          <div
-                            className="mt-4 flex h-10 items-end gap-1"
-                            role="img"
-                            aria-label={`${customMetric.title} recent trend`}
+                      <div className="mt-4 flex items-end justify-between gap-4">
+                        <p className="text-[26px] leading-none font-bold tabular-nums">
+                          {customMetric.kind === "toggle"
+                            ? value > 0
+                              ? "Done"
+                              : "Not yet"
+                            : value.toLocaleString()}
+                          {customMetric.kind !== "toggle" &&
+                            customMetric.unit && (
+                              <span className="ml-1 text-[11px] font-medium text-muted-foreground">
+                                {customMetric.unit}
+                              </span>
+                            )}
+                        </p>
+                        {customMetric.kind === "toggle" ? (
+                          <button
+                            type="button"
+                            aria-pressed={value > 0}
+                            onClick={() => setValue(value > 0 ? 0 : 1)}
+                            className="motion-tactile min-h-10 rounded-xl bg-foreground px-4 text-[11px] font-bold text-background"
                           >
-                            {ordered.map((entry, entryIndex) => (
-                              <span
-                                key={entry._id}
-                                className={`custom-metric-bar min-h-1 flex-1 rounded-t-sm bg-[var(--accent-progress)] ${
-                                  entry.date === today ? "" : "opacity-55"
-                                }`}
-                                style={{
-                                  height: `${Math.max(8, (entry.value / maxValue) * 100)}%`,
-                                  animationDelay: `${entryIndex * 30}ms`,
-                                }}
-                              />
-                            ))}
+                            {value > 0 ? "Undo" : "Mark done"}
+                          </button>
+                        ) : (
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setValue(value - customMetric.step)
+                              }
+                              aria-label={`Decrease ${customMetric.title}`}
+                              className="motion-tactile flex size-10 items-center justify-center rounded-full border border-border"
+                            >
+                              <Minus size={14} weight="bold" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setValue(value + customMetric.step)
+                              }
+                              aria-label={`Increase ${customMetric.title}`}
+                              className="motion-tactile flex size-10 items-center justify-center rounded-full bg-foreground text-background"
+                            >
+                              <Plus size={14} weight="bold" />
+                            </button>
                           </div>
                         )}
-                        {customMetric.target != null && (
-                          <p className="mt-2 text-[11px] text-muted-foreground tabular-nums">
-                            Daily guide: {customMetric.target}{" "}
-                            {customMetric.unit}
-                          </p>
-                        )}
-                      </article>
-                    )
-                  })}
-                </div>
-              </section>
-            )}
+                      </div>
+
+                      {ordered.length > 0 && (
+                        <div
+                          className="mt-4 flex h-10 items-end gap-1"
+                          role="img"
+                          aria-label={`${customMetric.title} recent trend`}
+                        >
+                          {ordered.map((entry, entryIndex) => (
+                            <span
+                              key={entry._id}
+                              className={`custom-metric-bar min-h-1 flex-1 rounded-t-sm bg-[var(--accent-progress)] ${
+                                entry.date === today ? "" : "opacity-55"
+                              }`}
+                              style={{
+                                height: `${Math.max(8, (entry.value / maxValue) * 100)}%`,
+                                animationDelay: `${entryIndex * 30}ms`,
+                              }}
+                            />
+                          ))}
+                        </div>
+                      )}
+                      {customMetric.target != null && (
+                        <p className="mt-2 text-[11px] text-muted-foreground tabular-nums">
+                          Daily guide: {customMetric.target} {customMetric.unit}
+                        </p>
+                      )}
+                    </article>
+                  )
+                })}
+              </div>
+
+              {/* The gap is conditional because the grid collapses to nothing
+                  when you have no metrics yet, and a top margin against a
+                  zero-height row reads as a stray band of space. */}
+              <GroupedList
+                label="Add a metric"
+                className={(customMetrics?.length ?? 0) > 0 ? "mt-3" : ""}
+              >
+                <DisclosureRow
+                  title="Track something else"
+                  detail={
+                    metricTab === "body"
+                      ? "Waist, resting heart rate, anything you weigh in on"
+                      : `Anything you want counted alongside ${metricTab}`
+                  }
+                  leading={<Sparkle size={19} />}
+                  onClick={() => {
+                    hapticSelection()
+                    setMetricBuilderOpen(true)
+                  }}
+                />
+              </GroupedList>
+            </section>
 
             <GroupedList label="Related history">
               <DisclosureRow
@@ -800,7 +918,9 @@ export default function Progress() {
       {metricBuilderOpen && (
         <MobileSheet
           onClose={() => {
-            if (!generatingMetric) setMetricBuilderOpen(false)
+            if (generatingMetric) return
+            setMetricBuilderOpen(false)
+            setHealthBinding(null)
           }}
           overlayClassName="bg-black/45"
           panelClassName="sheet-panel mx-auto w-full max-w-md rounded-t-2xl border-t border-border bg-card"
@@ -819,7 +939,10 @@ export default function Progress() {
               <button
                 type="button"
                 disabled={generatingMetric}
-                onClick={() => setMetricBuilderOpen(false)}
+                onClick={() => {
+                  setMetricBuilderOpen(false)
+                  setHealthBinding(null)
+                }}
                 aria-label="Close metric builder"
                 className="native-toolbar-button -mt-1 -mr-2 px-0"
               >
@@ -841,6 +964,28 @@ export default function Progress() {
                 className="w-full resize-none rounded-xl border border-border bg-background px-4 py-3 text-[14px] leading-5 outline-none focus:border-foreground/35"
               />
             </label>
+            {isHealthSyncSupportedPlatform() && (
+              <div className="mt-4">
+                <GroupedList label="Where the numbers come from">
+                  <DisclosureRow
+                    title={
+                      healthBinding
+                        ? healthBinding.label
+                        : `Fill from ${healthProviderLabel()}`
+                    }
+                    detail={
+                      healthBinding
+                        ? `Read each day in ${healthBinding.unit}. Type a value and that day stays yours.`
+                        : "Optional. Otherwise you type it in yourself."
+                    }
+                    onClick={() => {
+                      hapticSelection()
+                      setHealthPickerOpen(true)
+                    }}
+                  />
+                </GroupedList>
+              </div>
+            )}
             {metricBuilderError && (
               <p className="mt-2 text-[11px] text-destructive" role="alert">
                 {metricBuilderError}
@@ -848,7 +993,10 @@ export default function Progress() {
             )}
             <button
               type="submit"
-              disabled={generatingMetric || metricRequest.trim().length < 3}
+              disabled={
+                generatingMetric ||
+                (metricRequest.trim().length < 3 && !healthBinding)
+              }
               className="motion-tactile mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-foreground text-[13px] font-bold text-background disabled:opacity-35"
             >
               <Sparkle
@@ -860,6 +1008,26 @@ export default function Progress() {
             </button>
           </form>
         </MobileSheet>
+      )}
+
+      {readingsOpen && (
+        <CheckInReadingsSheet
+          today={today}
+          unit={unit}
+          measurements={bodyMeasurements}
+          onClose={() => setReadingsOpen(false)}
+        />
+      )}
+
+      {healthPickerOpen && (
+        <HealthMetricPicker
+          selectedKey={healthBinding?.key ?? null}
+          onSelect={(metric) => {
+            setHealthBinding(metric)
+            setHealthPickerOpen(false)
+          }}
+          onClose={() => setHealthPickerOpen(false)}
+        />
       )}
 
       {checkInCelebration && (

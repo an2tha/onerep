@@ -54,19 +54,34 @@ type HealthWorkoutQuery = {
 }
 
 /**
- * One local day of ambient recovery signals.
+ * One local day of ambient signals.
  *
  * Every field is optional because every field is a different sensor with a
  * different failure mode. A phone with no paired watch reports steps and
  * nothing else, which is an ordinary row rather than a broken one.
+ *
+ * The named fields are the handful the app scores on and can therefore rely on
+ * by name. The index signature carries the rest of the platform catalogue —
+ * blood glucose, cadence, whatever a custom metric was bound to. The plugins
+ * emit whichever keys the device actually holds, so enumerating them here would
+ * be a second catalogue to keep in step with `platformHealthMetrics.ts`, and it
+ * would go stale the first time either store adds a type.
  */
 export type HealthDailyMetrics = {
   date: string
+  [key: string]: number | string | undefined
   sleepMinutes?: number
   steps?: number
   restingHeartRateBpm?: number
   hrvMs?: number
   activeEnergyKcal?: number
+  // Body readings ride the same daily payload; the server files them as
+  // check-ins rather than recovery rows.
+  weightKg?: number
+  bodyFatPct?: number
+  leanBodyMassKg?: number
+  boneMassKg?: number
+  basalMetabolicRateKcal?: number
 }
 
 type HealthPlugin = {
@@ -76,12 +91,22 @@ type HealthPlugin = {
     options?: HealthWorkoutQuery
   ): Promise<{ workouts: HealthWorkout[] }>
   getDailyMetrics?(options?: {
+    /**
+     * Which catalogue keys to read. Omitted means everything the plugin
+     * supports, which is what an older shell running newer JS will do.
+     */
+    metrics?: string[]
     daysBack?: number
   }): Promise<{ days: HealthDailyMetrics[] }>
   saveWorkout(options: {
     startedAt: number
     endedAt: number
     title: string
+  }): Promise<{ saved: boolean }>
+  saveDailyMetric?(options: {
+    metric: string
+    date: string
+    value: number
   }): Promise<{ saved: boolean }>
   openHealthSettings?(): Promise<void>
   openProviderListing?(): Promise<void>
@@ -153,13 +178,14 @@ export async function getRecentHealthWorkouts(
  * rather than theoretical.
  */
 export async function getHealthDailyMetrics(
-  options: { daysBack?: number } = {}
+  options: { daysBack?: number; metrics?: string[] } = {}
 ): Promise<HealthDailyMetrics[]> {
   const active = plugin()
   if (!active?.getDailyMetrics) return []
   try {
     const { days } = await active.getDailyMetrics({
       daysBack: options.daysBack ?? 30,
+      ...(options.metrics ? { metrics: options.metrics } : {}),
     })
     return Array.isArray(days) ? days : []
   } catch {
@@ -184,6 +210,32 @@ export async function saveWorkoutToHealth(options: {
   if (!active) return { saved: false }
   try {
     return await active.saveWorkout(options)
+  } catch {
+    return { saved: false }
+  }
+}
+
+/**
+ * Pushes a corrected reading back to the health store.
+ *
+ * Per-edit and optional: the correction has already been saved in OneRep by the
+ * time this runs, so a refusal here is a shrug rather than a failure. Optional
+ * on the plugin interface for the same reason `getDailyMetrics` is — the OTA
+ * channel ships JS ahead of the native layer routinely.
+ *
+ * Neither store lets an app amend a sample another app wrote, so this adds our
+ * number next to the original rather than replacing it, and Health will show
+ * two readings for that day. That is the platforms' answer, not ours.
+ */
+export async function saveHealthDailyMetric(options: {
+  metric: string
+  date: string
+  value: number
+}): Promise<{ saved: boolean }> {
+  const active = plugin()
+  if (!active?.saveDailyMetric) return { saved: false }
+  try {
+    return await active.saveDailyMetric(options)
   } catch {
     return { saved: false }
   }

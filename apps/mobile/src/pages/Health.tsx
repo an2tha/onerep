@@ -1,13 +1,24 @@
-import { type CSSProperties } from "react"
-import { CaretRight, HeartbeatIcon } from "@phosphor-icons/react"
-import { useQuery } from "convex/react"
+import { type CSSProperties, useState } from "react"
+import {
+  CaretRight,
+  HeartbeatIcon,
+  PencilSimple,
+  SlidersHorizontal,
+} from "@phosphor-icons/react"
+import { useMutation, useQuery } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
 import { currentDateKey } from "@/lib/food-log"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { isHealthSyncSupportedPlatform } from "@/lib/health-provider"
 import { hapticSelection } from "@/lib/haptics"
 import { cn } from "@/lib/utils"
-import { EmptyState, PrimaryButton } from "@repo/ui"
+import { MobileSheet } from "@/components/mobile-sheet"
+import { HealthReadingsSheet } from "@/components/health-readings-sheet"
+import { EmptyState, MetricToggleList, PrimaryButton } from "@repo/ui"
+import {
+  HEALTH_DIALS,
+  resolveHealthDialSelection,
+} from "../../../../convex/lib/healthMetricCatalog"
 import {
   AREA_TONES,
   ActionMotif,
@@ -53,6 +64,14 @@ export default function Health() {
   const today = currentDateKey()
   const data = useQuery(api.logs.healthMetrics.dashboard, { today })
   const scored = data?.score ?? null
+  const [dialsOpen, setDialsOpen] = useState(false)
+  const [editorOpen, setEditorOpen] = useState(false)
+  const preferences = useQuery(api.users.users.getPreferences)
+  const setHealthSync = useMutation(api.users.users.setHealthSync)
+  const dialSelection = resolveHealthDialSelection(
+    (preferences as { healthSync?: { dials?: Record<string, boolean> } } | null)
+      ?.healthSync?.dials
+  )
 
   return (
     <div
@@ -73,8 +92,29 @@ export default function Health() {
     >
       {scored !== null && <span className="app-hero-wash" aria-hidden="true" />}
       <main className="app-page pb-28">
-        <header className="app-header">
+        <header className="app-header flex items-center justify-between gap-3">
           <h1 className="app-title">Health</h1>
+          {/* The pair sits tight enough to read as one control cluster; two
+              free-floating circles at the usual header gap looked like the
+              second one had wandered in from another screen. */}
+          <div className="flex shrink-0 items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setEditorOpen(true)}
+              aria-label="Correct a reading"
+              className="app-translucent motion-tactile inline-flex size-10 shrink-0 items-center justify-center rounded-full"
+            >
+              <PencilSimple size={17} weight="bold" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setDialsOpen(true)}
+              aria-label="Choose which dials to show"
+              className="app-translucent motion-tactile inline-flex size-10 shrink-0 items-center justify-center rounded-full"
+            >
+              <SlidersHorizontal size={17} weight="bold" />
+            </button>
+          </div>
         </header>
 
         {data === undefined ? (
@@ -100,6 +140,50 @@ export default function Health() {
           <HealthHub data={data} />
         )}
       </main>
+
+      {editorOpen && (
+        <HealthReadingsSheet
+          today={today}
+          onClose={() => setEditorOpen(false)}
+        />
+      )}
+
+      {dialsOpen && (
+        <MobileSheet
+          ariaLabel="Choose which dials to show"
+          onClose={() => setDialsOpen(false)}
+          overlayClassName="bg-black/45"
+          panelClassName="mx-auto w-full max-w-md"
+        >
+          <div className="px-1 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+            <div className="px-4 pb-1">
+              <h2 className="text-[19px] font-bold tracking-tight">Dials</h2>
+              <p className="mt-1 text-[13px] leading-5 text-muted-foreground">
+                Which areas sit at the top of this page. Switching one off hides
+                the dial; its charts stay in Trends.
+              </p>
+            </div>
+            <MetricToggleList
+              onInteract={hapticSelection}
+              onToggle={(key, enabled) => {
+                void setHealthSync({ dials: { [key]: enabled } })
+              }}
+              groups={[
+                {
+                  key: "dials",
+                  label: "Show on Health",
+                  items: HEALTH_DIALS.map((dial) => ({
+                    key: dial.key,
+                    label: dial.label,
+                    detail: dial.detail,
+                    enabled: dialSelection[dial.key] === true,
+                  })),
+                },
+              ]}
+            />
+          </div>
+        </MobileSheet>
+      )}
     </div>
   )
 }
@@ -120,6 +204,75 @@ function HealthHub({ data }: { data: Dashboard }) {
   const sleep = data.pillars.find((pillar) => pillar.id === "sleep")
   const exercise = data.pillars.find((pillar) => pillar.id === "exercise")
   const cardio = data.pillars.find((pillar) => pillar.id === "cardio")
+  const preferences = useQuery(api.users.users.getPreferences)
+  const measurements = useQuery(api.bodyProgress.list) as
+    { loggedAt: string; weightKg?: number }[] | undefined
+  const weighed = (measurements ?? []).filter((row) => row.weightKg != null)
+  const latestWeightKg = weighed.length
+    ? weighed[weighed.length - 1].weightKg
+    : undefined
+  const weightUnit =
+    (preferences as { weightUnit?: string } | null)?.weightUnit === "lbs"
+      ? "lbs"
+      : "kg"
+  const weightCaption =
+    latestWeightKg == null
+      ? "nothing recorded"
+      : weightUnit === "lbs"
+        ? `${(latestWeightKg * 2.20462).toFixed(1)}lbs`
+        : `${latestWeightKg.toFixed(1)}kg`
+  const selection = resolveHealthDialSelection(
+    (preferences as { healthSync?: { dials?: Record<string, boolean> } } | null)
+      ?.healthSync?.dials
+  )
+
+  // Body carries no score: there is no honest target to grade a weight
+  // against, so its ring stays empty and the label does the work.
+  const detailFor: Record<string, { score: number | null; detail: string }> = {
+    recovery: {
+      score: data.recoveryScore,
+      detail:
+        recovery?.status === "ready"
+          ? "nothing in your way"
+          : recovery?.status === "steady"
+            ? "hold something back"
+            : recovery?.status === "compromised"
+              ? "back off today"
+              : "needs a week of data",
+    },
+    sleep: {
+      score: sleep?.score ?? null,
+      detail: recovery?.sleep
+        ? `${formatHours(recovery.sleep.recent)} a night`
+        : "nothing recorded",
+    },
+    activity: {
+      score: exercise?.score ?? null,
+      detail:
+        exercise?.value == null
+          ? "nothing recorded"
+          : `${Math.round(exercise.value)} of ${exercise.target} minutes`,
+    },
+    heart: {
+      score: cardio?.score ?? null,
+      detail: recovery?.restingHeartRate
+        ? `${Math.round(recovery.restingHeartRate.recent)}bpm resting`
+        : "needs a week of data",
+    },
+    body: {
+      score: null,
+      detail: latestWeightKg == null ? "nothing recorded" : weightCaption,
+    },
+  }
+
+  const visibleDials = HEALTH_DIALS.filter((dial) => selection[dial.key]).map(
+    (dial) => ({
+      ...dial,
+      score: detailFor[dial.key]?.score ?? null,
+      detail: detailFor[dial.key]?.detail ?? dial.detail,
+    })
+  )
+  const dialSize = visibleDials.length >= 5 ? 84 : 104
 
   return (
     <>
@@ -147,66 +300,33 @@ function HealthHub({ data }: { data: Dashboard }) {
           signals
         </p>
 
+        {/*
+          Five dials do not fit at the four-dial size on a 360px phone, so the
+          size falls out of how many are actually shown rather than being fixed:
+          somebody who switches two off gets the bigger, more readable ring back.
+        */}
         <div
-          className="relative mt-9 flex items-end justify-center gap-2 pb-1 sm:mt-12 sm:gap-4"
-          style={{ "--dial-arc": "clamp(10px, 3.6vw, 38px)" } as CSSProperties}
+          className="relative mt-9 flex items-end justify-center gap-1.5 pb-1 sm:mt-12 sm:gap-4"
+          style={{ "--dial-arc": "clamp(8px, 3.2vw, 38px)" } as CSSProperties}
         >
-          <DialButton
-            score={data.recoveryScore}
-            label="Recovery"
-            detail={
-              recovery?.status === "ready"
-                ? "nothing in your way"
-                : recovery?.status === "steady"
-                  ? "hold something back"
-                  : recovery?.status === "compromised"
-                    ? "back off today"
-                    : "needs a week of data"
-            }
-            to="/health/recovery"
-            index={0}
-            lift={1}
-            tone={AREA_TONES.recovery}
-          />
-          <DialButton
-            score={sleep?.score ?? null}
-            label="Sleep"
-            detail={
-              recovery?.sleep
-                ? `${formatHours(recovery.sleep.recent)} a night`
-                : "nothing recorded"
-            }
-            to="/health/sleep"
-            index={1}
-            lift={1 / 9}
-            tone={AREA_TONES.sleep}
-          />
-          <DialButton
-            score={exercise?.score ?? null}
-            label="Activity"
-            detail={
-              exercise?.value == null
-                ? "nothing recorded"
-                : `${Math.round(exercise.value)} of ${exercise.target} minutes`
-            }
-            to="/health/activity"
-            index={2}
-            lift={1 / 9}
-            tone={AREA_TONES.activity}
-          />
-          <DialButton
-            score={cardio?.score ?? null}
-            label="Heart"
-            detail={
-              recovery?.restingHeartRate
-                ? `${Math.round(recovery.restingHeartRate.recent)}bpm resting`
-                : "needs a week of data"
-            }
-            to="/health/heart"
-            index={3}
-            lift={1}
-            tone={AREA_TONES.heart}
-          />
+          {visibleDials.map((dial, index) => (
+            <DialButton
+              key={dial.key}
+              score={dial.score}
+              label={dial.label}
+              detail={dial.detail}
+              to={dial.route}
+              size={dialSize}
+              index={index}
+              // The ends of the arc sit highest, the middle lowest, whatever
+              // the count: a fixed table of lifts only ever looked right for
+              // exactly four.
+              lift={
+                index === 0 || index === visibleDials.length - 1 ? 1 : 1 / 9
+              }
+              tone={AREA_TONES[dial.key] ?? AREA_TONES.recovery}
+            />
+          ))}
         </div>
       </section>
 

@@ -108,6 +108,110 @@ describe("syncing daily metrics", () => {
   });
 });
 
+describe("corrections a person typed", () => {
+  test("an overridden field survives the sync that used to clobber it", async () => {
+    const t = convexTest(schema, modules);
+    const user = asUser(t);
+
+    await user.mutation(api.logs.healthMetrics.sync, {
+      provider: "apple_health",
+      days: [{ date: TODAY, restingHeartRateBpm: 41, steps: 8000 }],
+    });
+
+    await user.mutation(api.logs.healthMetrics.setDailyMetric, {
+      date: TODAY,
+      field: "restingHeartRateBpm",
+      value: 58,
+    });
+
+    // The client re-reads the same window every time the app foregrounds, so
+    // this is the write that used to undo the correction within minutes.
+    await user.mutation(api.logs.healthMetrics.sync, {
+      provider: "apple_health",
+      days: [{ date: TODAY, restingHeartRateBpm: 41, steps: 11000 }],
+    });
+
+    const row = await t.run((ctx) => ctx.db.query("healthMetrics").first());
+    expect(row!.restingHeartRateBpm).toBe(58);
+    // Correcting one bad sensor must not freeze the rest of the day.
+    expect(row!.steps).toBe(11000);
+  });
+
+  test("clearing an override hands the field back rather than zeroing it", async () => {
+    const t = convexTest(schema, modules);
+    const user = asUser(t);
+
+    await user.mutation(api.logs.healthMetrics.sync, {
+      provider: "apple_health",
+      days: [{ date: TODAY, steps: 8000 }],
+    });
+    await user.mutation(api.logs.healthMetrics.setDailyMetric, {
+      date: TODAY,
+      field: "steps",
+      value: 12000,
+    });
+    const cleared = await user.mutation(api.logs.healthMetrics.setDailyMetric, {
+      date: TODAY,
+      field: "steps",
+      value: null,
+    });
+    expect(cleared.manualFields).toEqual([]);
+
+    const pending = await t.run((ctx) => ctx.db.query("healthMetrics").first());
+    // Still the typed figure until the phone says otherwise: blanking it here
+    // would show a day of no steps to anyone who looked before the next sync.
+    expect(pending!.steps).toBe(12000);
+
+    await user.mutation(api.logs.healthMetrics.sync, {
+      provider: "apple_health",
+      days: [{ date: TODAY, steps: 8000 }],
+    });
+    const row = await t.run((ctx) => ctx.db.query("healthMetrics").first());
+    expect(row!.steps).toBe(8000);
+  });
+
+  test("a correction on a day the phone never reached gets its own row", async () => {
+    const t = convexTest(schema, modules);
+    const user = asUser(t);
+
+    await user.mutation(api.logs.healthMetrics.setDailyMetric, {
+      date: TODAY,
+      field: "sleepMinutes",
+      value: 430,
+    });
+
+    const row = await t.run((ctx) => ctx.db.query("healthMetrics").first());
+    expect(row!.provider).toBe("manual");
+    expect(row!.sleepMinutes).toBe(430);
+    expect(row!.manualFields).toEqual(["sleepMinutes"]);
+  });
+
+  test("nonsense is refused rather than stored", async () => {
+    const t = convexTest(schema, modules);
+    const user = asUser(t);
+
+    await expect(
+      user.mutation(api.logs.healthMetrics.setDailyMetric, {
+        date: TODAY,
+        field: "restingHeartRateBpm",
+        value: 400,
+      }),
+    ).rejects.toThrow(/out of range/);
+
+    await expect(
+      user.mutation(api.logs.healthMetrics.setDailyMetric, {
+        date: TODAY,
+        field: "weightKg",
+        value: 80,
+      }),
+    ).rejects.toThrow(/editable daily metric/);
+
+    expect(
+      await t.run((ctx) => ctx.db.query("healthMetrics").collect()),
+    ).toEqual([]);
+  });
+});
+
 describe("recovery reaching the coach", () => {
   /** Three weeks of steady nights, with the last three cut short. */
   async function seedTiredUser(

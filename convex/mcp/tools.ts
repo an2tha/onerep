@@ -1,4 +1,8 @@
 import { internal } from "../_generated/api";
+import {
+  bindableMetrics,
+  PLATFORM_METRICS,
+} from "../lib/platformHealthMetrics";
 import type { ActionCtx } from "../_generated/server";
 
 /**
@@ -6,7 +10,7 @@ import type { ActionCtx } from "../_generated/server";
  *
  * Deliberately small and coarse. Forty one-to-one wrappers around every Convex
  * function would blow the context of anything that connects and would still
- * not describe what this app is for. Eleven tools cover the log.
+ * not describe what this app is for. A couple of dozen cover the log.
  *
  * Deleting is its own scope, not a flavour of writing. "Remove my last month of
  * workouts" is a sentence an agent can produce by accident, so a key has to be
@@ -69,6 +73,32 @@ function optionalNumber(value: unknown, field: string) {
 }
 
 /** The original log surface: nutrition, training, body, goals. */
+/** Numeric check-in fields, plus notes, picked out of a tool call's arguments. */
+const MEASUREMENT_FIELDS = [
+  "weightKg",
+  "bodyFatPct",
+  "waistCm",
+  "hipsCm",
+  "chestCm",
+  "armsCm",
+  "thighsCm",
+  "calvesCm",
+  "neckCm",
+  "leanBodyMassKg",
+  "boneMassKg",
+  "basalMetabolicRateKcal",
+] as const;
+
+function measurementFields(args: Record<string, unknown>) {
+  const fields: Record<string, number | string> = {};
+  for (const key of MEASUREMENT_FIELDS) {
+    if (args[key] === undefined) continue;
+    fields[key] = requireNumber(args[key], key);
+  }
+  if (typeof args.notes === "string") fields.notes = args.notes;
+  return fields;
+}
+
 const CORE_TOOLS: McpTool[] = [
   {
     name: "get_day",
@@ -164,7 +194,7 @@ const CORE_TOOLS: McpTool[] = [
     name: "list_body_measurements",
     title: "List body measurements",
     description:
-      "Recent weigh-ins and body measurements, newest first, in kilograms and centimetres.",
+      "Recent check-ins, newest first, in kilograms and centimetres. Returns every field the check-in holds — weight, body fat, all circumferences, lean and bone mass, notes — plus whether each row was entered by hand or read from the health store.",
     scope: "read",
     inputSchema: {
       type: "object",
@@ -256,6 +286,47 @@ const CORE_TOOLS: McpTool[] = [
         userId,
         date: requireDate(args.date),
         weightKg: requireNumber(args.weightKg, "weightKg"),
+      }),
+  },
+  {
+    name: "log_body_measurement",
+    title: "Log or correct a check-in",
+    description:
+      "Writes any part of a day's check-in — weight, body fat, circumferences, notes — and corrects one that already exists. Only the fields you pass change; everything else on that day is left alone. Use clearFields to blank a value you cannot express as a number.",
+    scope: "write",
+    inputSchema: {
+      type: "object",
+      properties: {
+        date: dateProperty("Defaults to today (UTC)."),
+        weightKg: { type: "number", minimum: 20, maximum: 500 },
+        bodyFatPct: { type: "number", minimum: 1, maximum: 75 },
+        waistCm: { type: "number", minimum: 1, maximum: 300 },
+        hipsCm: { type: "number", minimum: 1, maximum: 300 },
+        chestCm: { type: "number", minimum: 1, maximum: 300 },
+        armsCm: { type: "number", minimum: 1, maximum: 300 },
+        thighsCm: { type: "number", minimum: 1, maximum: 300 },
+        calvesCm: { type: "number", minimum: 1, maximum: 300 },
+        neckCm: { type: "number", minimum: 1, maximum: 300 },
+        leanBodyMassKg: { type: "number", minimum: 10, maximum: 300 },
+        boneMassKg: { type: "number", minimum: 0.5, maximum: 20 },
+        basalMetabolicRateKcal: { type: "number", minimum: 500, maximum: 6000 },
+        notes: { type: "string", maxLength: 2000 },
+        clearFields: {
+          type: "array",
+          items: { type: "string" },
+          description: "Field names to blank on this check-in.",
+        },
+      },
+      additionalProperties: false,
+    },
+    run: (ctx, userId, args) =>
+      ctx.runMutation(internal.mcp.data.saveBodyMeasurement, {
+        userId,
+        date: requireDate(args.date),
+        ...measurementFields(args),
+        ...(Array.isArray(args.clearFields)
+          ? { clearFields: args.clearFields.map((field) => String(field)) }
+          : {}),
       }),
   },
   {
@@ -376,6 +447,45 @@ export const HEALTH_TOOLS: McpTool[] = [
         userId,
         start: requireDate(args.start),
         end: requireDate(args.end),
+      }),
+  },
+  {
+    name: "set_health_metric",
+    title: "Correct a daily health reading",
+    description:
+      "Pins one field of one day — sleepMinutes, steps, restingHeartRateBpm, hrvMs or activeEnergyKcal — to a figure the user gives you, and keeps the phone from overwriting it on the next sync. Pass value: null to release the field again, after which the next sync restores whatever the health store says. Values outside the plausible range for the metric are rejected, not clamped.",
+    scope: "write",
+    inputSchema: {
+      type: "object",
+      properties: {
+        date: dateProperty("Defaults to today (UTC)."),
+        field: {
+          type: "string",
+          enum: [
+            "sleepMinutes",
+            "steps",
+            "restingHeartRateBpm",
+            "hrvMs",
+            "activeEnergyKcal",
+          ],
+        },
+        value: {
+          type: ["number", "null"],
+          description: "The corrected reading, or null to un-pin the field.",
+        },
+      },
+      required: ["field", "value"],
+      additionalProperties: false,
+    },
+    run: (ctx, userId, args) =>
+      ctx.runMutation(internal.mcp.data.setHealthMetric, {
+        userId,
+        date: requireDate(args.date),
+        field: String(args.field ?? ""),
+        value:
+          args.value === null || args.value === undefined
+            ? null
+            : requireNumber(args.value, "value"),
       }),
   },
   {
@@ -614,9 +724,284 @@ export const DELETE_TOOLS: McpTool[] = [
   },
 ];
 
+/**
+ * Custom metrics: the things the app does not have a screen for.
+ *
+ * A user can define one ("migraines", "blood glucose", "espressos") and either
+ * type it in or bind it to a platform health signal, after which the sync
+ * fills it. Without these tools an agent can read somebody's entire log and
+ * still miss the number they actually opened the app for.
+ */
+export const CUSTOM_METRIC_TOOLS: McpTool[] = [
+  {
+    name: "list_custom_metrics",
+    title: "List custom metrics",
+    description:
+      "The user's own tracked metrics — the ones the app has no built-in screen for — with each definition (unit, step, target, which tab it lives on) and its recent daily values, newest first. `healthMetricKey` is the platform signal the metric is bound to, or null when the user types it; each value says whether it was typed (`manual`) or came off the health sync (`synced`).",
+    scope: "read",
+    inputSchema: {
+      type: "object",
+      properties: {
+        tab: {
+          type: "string",
+          enum: ["body", "nutrition", "training"],
+          description: "Only metrics on this tab.",
+        },
+        days: {
+          type: "integer",
+          minimum: 7,
+          maximum: 90,
+          default: 30,
+          description: "How many recent values to return per metric.",
+        },
+      },
+      additionalProperties: false,
+    },
+    run: (ctx, userId, args) =>
+      ctx.runQuery(internal.mcp.data.listCustomMetrics, {
+        userId,
+        tab: args.tab === undefined ? undefined : String(args.tab),
+        days: optionalNumber(args.days, "days"),
+      }),
+  },
+  {
+    name: "list_platform_metrics",
+    title: "List bindable health metrics",
+    description:
+      "The catalogue of Apple Health and Health Connect signals a custom metric can be bound to, with each one's key, label, unit, how a day's readings collapse into one number, the HealthKit identifier, the Health Connect record, and a `gap` note where one platform cannot supply it. Read this before creating a metric with a healthMetricKey, rather than guessing a key. By default it lists only the bindable ones; the metrics the app already scores on and draws its own screens for are excluded unless you ask for all.",
+    scope: "read",
+    inputSchema: {
+      type: "object",
+      properties: {
+        all: {
+          type: "boolean",
+          default: false,
+          description:
+            "Include the built-in metrics (steps, sleep, resting heart rate and the rest) that cannot be bound.",
+        },
+        group: {
+          type: "string",
+          enum: [
+            "activity",
+            "vitals",
+            "body",
+            "nutrition",
+            "sleep",
+            "reproductive",
+            "mindfulness",
+          ],
+        },
+      },
+      additionalProperties: false,
+    },
+    // Answered from the catalogue in the process, with no database behind it:
+    // a Convex round trip to read a constant array is latency for nothing.
+    run: async (_ctx, _userId, args) => {
+      // Over REST this arrives as the string "true" from the query string.
+      const all = args.all === true || args.all === "true";
+      const group = args.group === undefined ? null : String(args.group);
+      return (all ? PLATFORM_METRICS : bindableMetrics())
+        .filter((metric) => group === null || metric.group === group)
+        .map((metric) => ({
+          key: metric.key,
+          label: metric.label,
+          detail: metric.detail,
+          group: metric.group,
+          unit: metric.unit,
+          aggregation: metric.aggregation,
+          apple: metric.apple,
+          google: metric.google,
+          gap: metric.gap ?? null,
+          min: metric.min,
+          max: metric.max,
+          bindable: metric.builtIn !== true,
+        }));
+    },
+  },
+  {
+    name: "create_custom_metric",
+    title: "Create a custom metric",
+    description:
+      "Defines a new metric for the user to track. `kind` decides how the app draws it: counter for whole things tallied through the day, number for a figure typed once, toggle for did-it-or-not. Pass a `healthMetricKey` from list_platform_metrics to have the health sync fill it in instead; a key the catalogue does not know is refused rather than stored, because a metric waiting on a reading nobody will ever send looks broken and is not. This does not touch existing metrics — use update_custom_metric to change one.",
+    scope: "write",
+    inputSchema: {
+      type: "object",
+      properties: {
+        title: { type: "string", maxLength: 48 },
+        description: { type: "string", maxLength: 180, default: "" },
+        tab: {
+          type: "string",
+          enum: ["body", "nutrition", "training"],
+          description: "Which tab of the app it appears on.",
+        },
+        kind: { type: "string", enum: ["counter", "number", "toggle"] },
+        unit: { type: "string", maxLength: 16 },
+        step: {
+          type: "number",
+          minimum: 0.01,
+          maximum: 10000,
+          default: 1,
+          description: "How much one tap adds.",
+        },
+        target: { type: "number", minimum: 0, maximum: 1000000 },
+        accent: {
+          type: "string",
+          enum: ["food", "water", "workout", "progress"],
+          default: "progress",
+          description: "Which colour the app draws it in.",
+        },
+        healthMetricKey: {
+          type: "string",
+          maxLength: 60,
+          description: "A key from list_platform_metrics, to have it synced.",
+        },
+      },
+      required: ["title", "tab", "kind", "unit"],
+      additionalProperties: false,
+    },
+    run: (ctx, userId, args) =>
+      ctx.runMutation(internal.mcp.data.createCustomMetric, {
+        userId,
+        title: String(args.title ?? ""),
+        description:
+          args.description === undefined ? undefined : String(args.description),
+        tab: String(args.tab ?? ""),
+        kind: String(args.kind ?? ""),
+        unit: String(args.unit ?? ""),
+        step: optionalNumber(args.step, "step"),
+        target: optionalNumber(args.target, "target"),
+        accent: args.accent === undefined ? undefined : String(args.accent),
+        healthMetricKey:
+          args.healthMetricKey === undefined
+            ? undefined
+            : String(args.healthMetricKey),
+      }),
+  },
+  {
+    name: "update_custom_metric",
+    title: "Update a custom metric",
+    description:
+      "Changes the definition of an existing metric, keeping every value already logged against it — renaming one or moving its target should not cost the user their history. Only the fields you pass move. Pass target: null to drop a target and healthMetricKey: null to unbind it from the health sync, which leaves the values already stored alone. An unknown healthMetricKey is refused.",
+    scope: "write",
+    inputSchema: {
+      type: "object",
+      properties: {
+        metricId: {
+          type: "string",
+          maxLength: 64,
+          description: "The id from list_custom_metrics.",
+        },
+        title: { type: "string", maxLength: 48 },
+        description: { type: "string", maxLength: 180 },
+        tab: { type: "string", enum: ["body", "nutrition", "training"] },
+        kind: { type: "string", enum: ["counter", "number", "toggle"] },
+        unit: { type: "string", maxLength: 16 },
+        step: { type: "number", minimum: 0.01, maximum: 10000 },
+        target: { type: ["number", "null"], minimum: 0, maximum: 1000000 },
+        accent: {
+          type: "string",
+          enum: ["food", "water", "workout", "progress"],
+        },
+        healthMetricKey: {
+          type: ["string", "null"],
+          maxLength: 60,
+          description: "A key from list_platform_metrics, or null to unbind.",
+        },
+      },
+      required: ["metricId"],
+      additionalProperties: false,
+    },
+    run: (ctx, userId, args) =>
+      ctx.runMutation(internal.mcp.data.updateCustomMetric, {
+        userId,
+        metricId: String(args.metricId ?? ""),
+        title: args.title === undefined ? undefined : String(args.title),
+        description:
+          args.description === undefined ? undefined : String(args.description),
+        tab: args.tab === undefined ? undefined : String(args.tab),
+        kind: args.kind === undefined ? undefined : String(args.kind),
+        unit: args.unit === undefined ? undefined : String(args.unit),
+        step: optionalNumber(args.step, "step"),
+        target:
+          args.target === undefined
+            ? undefined
+            : args.target === null
+              ? null
+              : requireNumber(args.target, "target"),
+        accent: args.accent === undefined ? undefined : String(args.accent),
+        healthMetricKey:
+          args.healthMetricKey === undefined
+            ? undefined
+            : args.healthMetricKey === null
+              ? null
+              : String(args.healthMetricKey),
+      }),
+  },
+  {
+    name: "set_custom_metric_value",
+    title: "Set a custom metric value",
+    description:
+      "Writes one metric's value for one date, replacing whatever was there. The day is marked as typed, so a metric bound to the health sync will not have this figure overwritten on the next sync. Pass value: null to clear the day instead, after which a bound metric goes back to whatever the health store says. Clearing a day that has nothing on it is an error, not a silent success.",
+    scope: "write",
+    inputSchema: {
+      type: "object",
+      properties: {
+        metricId: {
+          type: "string",
+          maxLength: 64,
+          description: "The id from list_custom_metrics.",
+        },
+        date: dateProperty("Defaults to today (UTC)."),
+        value: {
+          type: ["number", "null"],
+          minimum: 0,
+          description: "The figure, or null to clear the day.",
+        },
+      },
+      required: ["metricId", "value"],
+      additionalProperties: false,
+    },
+    run: (ctx, userId, args) =>
+      ctx.runMutation(internal.mcp.data.setCustomMetricValue, {
+        userId,
+        metricId: String(args.metricId ?? ""),
+        date: requireDate(args.date),
+        value:
+          args.value === null || args.value === undefined
+            ? null
+            : requireNumber(args.value, "value"),
+      }),
+  },
+  {
+    name: "delete_custom_metric",
+    title: "Delete a custom metric",
+    description:
+      "Removes a metric definition, every value ever logged against it, and any dashboard widget built on it. There is no way to get the history back except undo. To stop a metric syncing without losing it, unbind it with update_custom_metric instead.",
+    scope: "delete",
+    inputSchema: {
+      type: "object",
+      properties: {
+        metricId: {
+          type: "string",
+          maxLength: 64,
+          description: "The id from list_custom_metrics.",
+        },
+      },
+      required: ["metricId"],
+      additionalProperties: false,
+    },
+    run: (ctx, userId, args) =>
+      ctx.runMutation(internal.mcp.data.deleteCustomMetric, {
+        userId,
+        metricId: String(args.metricId ?? ""),
+      }),
+  },
+];
+
 export const MCP_TOOLS: McpTool[] = [
   ...CORE_TOOLS,
   ...HEALTH_TOOLS,
+  ...CUSTOM_METRIC_TOOLS,
   ...DELETE_TOOLS,
 ];
 
