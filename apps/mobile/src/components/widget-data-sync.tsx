@@ -12,7 +12,7 @@ import {
 import { updateOneRepWidgets } from "@/lib/home-widgets"
 import { updateWatchToday, onWatchAction } from "@/lib/watch-sync"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
-import { calcStreak } from "@/lib/training-consistency"
+import { calcTrailingSessions } from "@/lib/training-consistency"
 import { toast } from "@repo/ui"
 import { logDevWarn } from "@/lib/utils"
 
@@ -146,8 +146,8 @@ export function WidgetDataSync() {
         .map((log) => log.date)
         .filter(Boolean)
     )
-    const streakDate = new Date()
-    streakDate.setUTCHours(12, 0, 0, 0)
+    const trailingDate = new Date()
+    trailingDate.setUTCHours(12, 0, 0, 0)
 
     return {
       calories: payload.calories,
@@ -161,7 +161,7 @@ export function WidgetDataSync() {
       fatGoal: payload.fatGoal,
       waterMl: entries.reduce((sum, entry) => sum + entry.amountMl, 0),
       waterGoalMl: preferences?.waterGoalMl ?? 2500,
-      streakDays: calcStreak(trainedDates, streakDate),
+      daysLast28: calcTrailingSessions(trainedDates, trailingDate, 28),
       workoutBrief: payload.workoutBrief,
     }
   }, [payload, preferences?.waterGoalMl, waterLogs, workoutHistory])

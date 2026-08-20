@@ -84,7 +84,12 @@ import {
   type SupplementLogEntry,
 } from "@/lib/supplements"
 import { hapticHeavy, hapticMedium, hapticSelection } from "@/lib/haptics"
-import { calcStreak, calcWorkoutsThisWeek } from "@/lib/training-consistency"
+import {
+  ACTIVITY_WEEKS,
+  buildActivityGrid,
+  calcTrailingSessions,
+  calcWorkoutsThisWeek,
+} from "@/lib/training-consistency"
 import { useReplayKey } from "@repo/ui"
 import { MACRO_COLORS } from "@repo/ui"
 import { isTrendMetric, type TrendMetric } from "@repo/ui"
@@ -124,7 +129,8 @@ import {
 } from "@/dashboard/helpers"
 import { DateNav } from "@/dashboard/date-nav"
 import { WorkoutCard } from "@/dashboard/workout-card"
-import { StreakCard, WaterWidget } from "@/dashboard/water-streak"
+import { ActivityGraph } from "@/dashboard/activity-graph"
+import { WaterWidget } from "@/dashboard/water"
 import { UnloggedWorkoutNudge, WelcomeNudge } from "@/dashboard/nudges"
 
 // ─── App ──────────────────────────────────────────────────────────────────────
@@ -718,8 +724,29 @@ export default function App() {
     date.setUTCHours(12, 0, 0, 0)
     return date
   }, [])
-  const trainingStreak = calcStreak(workoutDates, trainingStatsDate)
   const workoutsThisWeek = calcWorkoutsThisWeek(workoutDates, trainingStatsDate)
+  const trainingDaysLast28 = calcTrailingSessions(
+    workoutDates,
+    trainingStatsDate,
+    28
+  )
+
+  // Completed sets per day, which is what shades a square. A logged session
+  // with nothing ticked off still counts as one set: the day happened.
+  const activityCells = useMemo(() => {
+    const setsByDate = new Map<string, number>()
+    for (const log of (workoutHistoryQuery ??
+      []) as unknown as CachedWorkoutLog[]) {
+      if (!log.date) continue
+      const sets = (log.exercises ?? []).reduce(
+        (total, exercise) =>
+          total + (exercise.sets ?? []).filter((set) => set.completed).length,
+        0
+      )
+      setsByDate.set(log.date, (setsByDate.get(log.date) ?? 0) + Math.max(1, sets))
+    }
+    return buildActivityGrid(setsByDate, trainingStatsDate, ACTIVITY_WEEKS)
+  }, [trainingStatsDate, workoutHistoryQuery])
 
   const consistency = useMemo(() => {
     const foodDays = new Map<string, number>()
@@ -1285,16 +1312,19 @@ export default function App() {
             </TourAnchor>
           )}
           {homeBodyReady && (
-            <div className="mx-[var(--app-page-x)] mt-6 md:mx-8">
-              <StreakCard
+            <div className="mx-[var(--app-page-x)] mt-6 flex flex-col gap-6 md:mx-8 md:flex-row md:items-center md:gap-10">
+              {/* Phone: the grid above the rings. Desktop: the hero is wide
+                  enough for both, so the rings ride alongside instead of
+                  pushing everything down a row. */}
+              <ActivityGraph
                 translucent
-                streak={trainingStreak}
-                workoutsThisWeek={workoutsThisWeek}
-                workoutDates={workoutDates}
-                today={trainingStatsDate}
+                cells={activityCells}
+                weeks={ACTIVITY_WEEKS}
+                sessions={trainingDaysLast28}
+                windowDays={28}
               />
               <DashboardWeekRings
-                className="mt-6"
+                className="md:min-w-0 md:flex-1"
                 readiness={dashboardReadiness}
                 story={dashboardWeeklyStory}
                 health={
@@ -1376,7 +1406,7 @@ export default function App() {
                   scheduledWorkout={scheduledWorkout}
                   workoutLogged={workoutLogs.length > 0}
                   workoutsThisWeek={workoutsThisWeek}
-                  streak={trainingStreak}
+                  daysLast28={trainingDaysLast28}
                   onDismiss={dismissWelcomeNudge}
                 />
               </div>

@@ -20,7 +20,7 @@ struct TodaySnapshot: Codable, Equatable {
     var fatGoal = 0
     var waterMl = 0
     var waterGoalMl = 0
-    var streakDays = 0
+    var daysLast28 = 0
     var workoutBrief = ""
     /// Seconds since the epoch. Zero means the phone has never reported in,
     /// which the watch shows as "Open OneRep on your iPhone" rather than as a
@@ -53,7 +53,7 @@ extension TodaySnapshot {
             "fatGoal": fatGoal,
             "waterMl": waterMl,
             "waterGoalMl": waterGoalMl,
-            "streakDays": streakDays,
+            "daysLast28": daysLast28,
             "workoutBrief": workoutBrief,
             "updatedAt": updatedAt,
         ]
@@ -72,7 +72,7 @@ extension TodaySnapshot {
         fatGoal = int("fatGoal")
         waterMl = int("waterMl")
         waterGoalMl = int("waterGoalMl")
-        streakDays = int("streakDays")
+        daysLast28 = int("daysLast28")
         workoutBrief = dictionary["workoutBrief"] as? String ?? ""
         updatedAt = dictionary["updatedAt"] as? Double ?? 0
     }

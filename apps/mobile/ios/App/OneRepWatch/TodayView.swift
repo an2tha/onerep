@@ -107,10 +107,10 @@ struct TodayView: View {
 
                     WaterRow(store: store)
 
-                    if snapshot.streakDays > 0 {
+                    if snapshot.daysLast28 > 0 {
                         Label(
-                            "\(snapshot.streakDays) day streak",
-                            systemImage: "flame.fill"
+                            "\(snapshot.daysLast28) days in 4 weeks",
+                            systemImage: "square.grid.3x3.fill"
                         )
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(.orange)

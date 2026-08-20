@@ -24,13 +24,14 @@ export function WelcomeNudge({
   scheduledWorkout,
   workoutLogged,
   workoutsThisWeek,
-  streak,
+  daysLast28,
   onDismiss,
 }: {
   scheduledWorkout: WorkoutPresetCard | null
   workoutLogged: boolean
   workoutsThisWeek: number
-  streak: number
+  /** Days trained in the trailing four weeks — the graph's headline number. */
+  daysLast28: number
   onDismiss: () => void
 }) {
   const navigate = useSmoothNavigate()
@@ -68,7 +69,7 @@ export function WelcomeNudge({
       : workoutsThisWeek === 1
         ? "1 workout"
         : `${workoutsThisWeek} workouts`
-  } this week${streak > 1 ? ` · ${streak}-day streak` : ""}`
+  } this week${daysLast28 > 0 ? ` · ${daysLast28} days in 4 weeks` : ""}`
 
   const actionCls =
     "motion-tactile flex h-9 items-center gap-1.5 rounded-xl bg-muted/40 px-3 text-[12px] font-semibold text-foreground/80 transition-colors active:bg-muted/70"

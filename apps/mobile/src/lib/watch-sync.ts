@@ -22,7 +22,7 @@ export type WatchTodayState = {
   fatGoal?: number
   waterMl?: number
   waterGoalMl?: number
-  streakDays?: number
+  daysLast28?: number
   workoutBrief?: string
 }
 

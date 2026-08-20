@@ -3,7 +3,9 @@ import {
   dateToIso,
   localNoon,
   subtractDays,
-  calcStreak,
+  activityLevel,
+  buildActivityGrid,
+  calcTrailingSessions,
   calcWorkoutsThisWeek,
   buildCalendarDays,
 } from "../training-consistency"
@@ -75,45 +77,118 @@ describe("subtractDays", () => {
   })
 })
 
-describe("calcStreak", () => {
-  test("counts today's workout using the local calendar day", () => {
+describe("calcTrailingSessions", () => {
+  test("counts today using the local calendar day", () => {
     const earlyLocalMorning = new Date(2026, 0, 1, 0, 30)
-    expect(calcStreak(new Set(["2026-01-01"]), earlyLocalMorning)).toBe(1)
-  })
-
-  test("returns 0 when today has no workout", () => {
-    const dates = new Set(["2026-04-13", "2026-04-14"])
-    expect(calcStreak(dates, REF)).toBe(0)
-  })
-
-  test("returns 1 for only today", () => {
-    const dates = new Set(["2026-04-15"])
-    expect(calcStreak(dates, REF)).toBe(1)
-  })
-
-  test("counts consecutive days including today", () => {
-    // REF = 2026-04-15 (Wed)
-    const dates = new Set(["2026-04-13", "2026-04-14", "2026-04-15"])
-    expect(calcStreak(dates, REF)).toBe(3)
-  })
-
-  test("stops at a gap", () => {
-    // Missing 2026-04-13 — streak starts at 14
-    const dates = new Set(["2026-04-12", "2026-04-14", "2026-04-15"])
-    expect(calcStreak(dates, REF)).toBe(2)
-  })
-
-  test("long streak of 10 days", () => {
-    const dates = new Set(
-      Array.from({ length: 10 }, (_, i) =>
-        dateToIso(subtractDays(REF, 9 - i))
-      )
-    )
-    expect(calcStreak(dates, REF)).toBe(10)
+    expect(calcTrailingSessions(new Set(["2026-01-01"]), earlyLocalMorning, 28)).toBe(1)
   })
 
   test("empty set returns 0", () => {
-    expect(calcStreak(new Set(), REF)).toBe(0)
+    expect(calcTrailingSessions(new Set(), REF, 28)).toBe(0)
+  })
+
+  test("gaps cost one day each rather than the whole count", () => {
+    // Missing 2026-04-13, which a streak would have reset to 1.
+    const dates = new Set(["2026-04-12", "2026-04-14", "2026-04-15"])
+    expect(calcTrailingSessions(dates, REF, 28)).toBe(3)
+  })
+
+  test("ignores days outside the window", () => {
+    const dates = new Set(["2026-04-15", "2026-03-01"])
+    expect(calcTrailingSessions(dates, REF, 28)).toBe(1)
+  })
+
+  test("ignores days after today", () => {
+    const dates = new Set(["2026-04-15", "2026-04-16"])
+    expect(calcTrailingSessions(dates, REF, 28)).toBe(1)
+  })
+
+  test("a full window counts every day", () => {
+    const dates = new Set(
+      Array.from({ length: 28 }, (_, i) => dateToIso(subtractDays(REF, i)))
+    )
+    expect(calcTrailingSessions(dates, REF, 28)).toBe(28)
+  })
+})
+
+describe("activityLevel", () => {
+  test("no sets is level 0", () => {
+    expect(activityLevel(0)).toBe(0)
+    expect(activityLevel(-3)).toBe(0)
+  })
+
+  test("one set already lifts the day off the floor", () => {
+    expect(activityLevel(1)).toBe(1)
+  })
+
+  test("climbs through the bands", () => {
+    expect(activityLevel(7)).toBe(1)
+    expect(activityLevel(8)).toBe(2)
+    expect(activityLevel(14)).toBe(2)
+    expect(activityLevel(15)).toBe(3)
+    expect(activityLevel(21)).toBe(3)
+    expect(activityLevel(22)).toBe(4)
+    expect(activityLevel(400)).toBe(4)
+  })
+})
+
+describe("buildActivityGrid", () => {
+  // REF = Wednesday 2026-04-15; its week runs Mon 2026-04-13 … Sun 2026-04-19
+  test("emits seven rows per week column", () => {
+    expect(buildActivityGrid(new Map(), REF, 18)).toHaveLength(126)
+  })
+
+  test("starts on the Monday (weeks - 1) weeks back", () => {
+    const cells = buildActivityGrid(new Map(), REF, 4)
+    expect(cells[0]!.date).toBe("2026-03-23")
+  })
+
+  test("ends on the Sunday of the current week", () => {
+    const cells = buildActivityGrid(new Map(), REF, 4)
+    expect(cells[cells.length - 1]!.date).toBe("2026-04-19")
+  })
+
+  test("column-major order: the first seven cells are one week", () => {
+    const cells = buildActivityGrid(new Map(), REF, 4)
+    expect(cells.slice(0, 7).map((cell) => cell.date)).toEqual([
+      "2026-03-23",
+      "2026-03-24",
+      "2026-03-25",
+      "2026-03-26",
+      "2026-03-27",
+      "2026-03-28",
+      "2026-03-29",
+    ])
+    expect(cells[7]!.date).toBe("2026-03-30")
+  })
+
+  test("marks days after today as future and leaves them unshaded", () => {
+    const cells = buildActivityGrid(new Map([["2026-04-16", 20]]), REF, 4)
+    const thursday = cells.find((cell) => cell.date === "2026-04-16")!
+    expect(thursday.future).toBe(true)
+    expect(thursday.level).toBe(0)
+    expect(cells.find((cell) => cell.date === "2026-04-15")!.future).toBe(false)
+  })
+
+  test("shades a day from its set count", () => {
+    const cells = buildActivityGrid(
+      new Map([
+        ["2026-04-13", 3],
+        ["2026-04-15", 30],
+      ]),
+      REF,
+      4
+    )
+    expect(cells.find((cell) => cell.date === "2026-04-13")!.level).toBe(1)
+    expect(cells.find((cell) => cell.date === "2026-04-15")!.level).toBe(4)
+    expect(cells.find((cell) => cell.date === "2026-04-14")!.sets).toBe(0)
+  })
+
+  test("uses the local calendar day for early-morning users", () => {
+    const earlyLocalMorning = new Date(2026, 3, 15, 0, 30)
+    const cells = buildActivityGrid(new Map(), earlyLocalMorning, 4)
+    expect(cells.find((cell) => cell.date === "2026-04-15")!.future).toBe(false)
+    expect(cells.find((cell) => cell.date === "2026-04-16")!.future).toBe(true)
   })
 })
 
