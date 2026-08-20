@@ -13,7 +13,8 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "requestAuthorization", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "getRecentWorkouts", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "getDailyMetrics", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "saveWorkout", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "saveWorkout", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "saveDailyMetric", returnType: CAPPluginReturnPromise)
     ]
 
     private let healthStore = HKHealthStore()
@@ -95,11 +96,13 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     /**
-     Daily recovery signals: sleep, steps, resting heart rate, and HRV.
+     Every catalogue metric HealthKit can deliver, by local day.
 
      Returns one entry per local calendar day, oldest first, with every field
      optional — each is a different sensor with a different failure mode, and a
-     phone with no watch legitimately has steps and nothing else.
+     phone with no watch legitimately has steps and nothing else. The keys are
+     `convex/lib/platformHealthMetrics.ts`; the tables below are that
+     catalogue's `apple` column made executable.
 
      Days are keyed by the *local* calendar, and sleep is attributed to the day
      it was woken up on. Somebody who goes to bed at 23:30 on Monday and wakes
@@ -113,6 +116,14 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
         }
 
         let daysBack = min(max(call.getInt("daysBack") ?? 30, 1), 90)
+        // An absent list means "everything", which is what an older shell
+        // running newer JS sends. An empty one means the user switched them all
+        // off, and is honoured as such.
+        let requested: Set<String>? = (call.getArray("metrics") as? [String]).map(Set.init)
+        func wants(_ metric: String) -> Bool {
+            guard let requested else { return true }
+            return requested.contains(metric)
+        }
         let calendar = Calendar.current
         // The window ends *now*, not at midnight. Ending at startOfDay excluded
         // today's steps and heart data entirely, and — worse — dropped last
@@ -138,51 +149,66 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
             lock.unlock()
         }
 
-        // Steps and active energy: summed over each local day.
-        for (identifier, field) in [
-            (HKQuantityTypeIdentifier.stepCount, "steps"),
-            (HKQuantityTypeIdentifier.activeEnergyBurned, "activeEnergyKcal")
-        ] {
-            guard let type = HKObjectType.quantityType(forIdentifier: identifier) else { continue }
+        // Every catalogue quantity, driven by the table rather than a chain
+        // of special cases: adding a metric to platformHealthMetrics.ts means
+        // adding one row to `dailyQuantities()` and nothing else.
+        for quantity in dailyQuantities() {
+            guard wants(quantity.key),
+                  let type = quantityType(quantity.identifier) else { continue }
             group.enter()
-            collectDailyStatistics(
+            switch quantity.rollup {
+            case .sum, .average:
+                collectDailyStatistics(
+                    type: type,
+                    unit: quantity.unit,
+                    options: quantity.rollup == .sum ? .cumulativeSum : .discreteAverage,
+                    start: start,
+                    end: end,
+                    calendar: calendar
+                ) { results in
+                    results.forEach { record($0.key, quantity.key, $0.value * quantity.scale) }
+                    group.leave()
+                }
+            case .latest:
+                collectDailyLatest(
+                    type: type,
+                    unit: quantity.unit,
+                    start: start,
+                    end: end,
+                    calendar: calendar
+                ) { results in
+                    results.forEach { record($0.key, quantity.key, $0.value * quantity.scale) }
+                    group.leave()
+                }
+            }
+        }
+
+        for category in dailyCategories() {
+            guard wants(category.key),
+                  let type = categoryType(category.identifier) else { continue }
+            group.enter()
+            collectDailyCategory(
                 type: type,
-                unit: identifier == .stepCount ? HKUnit.count() : HKUnit.kilocalorie(),
-                options: .cumulativeSum,
+                rollup: category.rollup,
+                level: category.level,
                 start: start,
                 end: end,
                 calendar: calendar
             ) { results in
-                results.forEach { record($0.key, field, $0.value) }
+                results.forEach { record($0.key, category.key, $0.value) }
                 group.leave()
             }
         }
 
-        // Resting heart rate and HRV: averaged, because a day may carry
-        // several readings and none of them is more true than the others.
-        for (identifier, field, unit) in [
-            (HKQuantityTypeIdentifier.restingHeartRate, "restingHeartRateBpm", HKUnit.count().unitDivided(by: .minute())),
-            (HKQuantityTypeIdentifier.heartRateVariabilitySDNN, "hrvMs", HKUnit.secondUnit(with: .milli))
-        ] {
-            guard let type = HKObjectType.quantityType(forIdentifier: identifier) else { continue }
+        // Sleep keeps its own reader: it is the only category where the sample
+        // value decides whether the sample counts at all, and where two
+        // sources recording the same night have to be merged rather than added.
+        if wants("sleepMinutes") {
             group.enter()
-            collectDailyStatistics(
-                type: type,
-                unit: unit,
-                options: .discreteAverage,
-                start: start,
-                end: end,
-                calendar: calendar
-            ) { results in
-                results.forEach { record($0.key, field, $0.value) }
+            collectDailySleepMinutes(start: start, end: end, calendar: calendar) { results in
+                results.forEach { record($0.key, "sleepMinutes", $0.value) }
                 group.leave()
             }
-        }
-
-        group.enter()
-        collectDailySleepMinutes(start: start, end: end, calendar: calendar) { results in
-            results.forEach { record($0.key, "sleepMinutes", $0.value) }
-            group.leave()
         }
 
         group.notify(queue: .main) {
@@ -191,6 +217,203 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
             }
             call.resolve(["days": days])
         }
+    }
+
+    // MARK: - The catalogue, in HealthKit terms
+
+    /// How a day's readings for one type collapse into a single number.
+    private enum DailyRollup {
+        case sum
+        case average
+        case latest
+    }
+
+    private struct DailyQuantity {
+        /// Catalogue key, verbatim from `platformHealthMetrics.ts`.
+        let key: String
+        /// The catalogue's `apple` column: the identifier minus its prefix.
+        let identifier: String
+        let unit: HKUnit
+        let rollup: DailyRollup
+        /// HealthKit states ratios as fractions; the app talks whole percent.
+        var scale: Double = 1
+    }
+
+    /**
+     Resolves a catalogue identifier to a HealthKit type by raw string.
+
+     Deliberately not the `HKQuantityTypeIdentifier` constants: cycling power,
+     cycling cadence and running speed only exist from iOS 16 and 17, and naming
+     the constants makes the whole file refuse to compile against an older
+     deployment target — for metrics most users will never have written. An
+     identifier this OS has never heard of comes back nil and the metric is
+     skipped, which is exactly what happens to one the user declined.
+     */
+    private func quantityType(_ identifier: String) -> HKQuantityType? {
+        HKObjectType.quantityType(
+            forIdentifier: HKQuantityTypeIdentifier(rawValue: "HKQuantityTypeIdentifier" + identifier)
+        )
+    }
+
+    private func categoryType(_ identifier: String) -> HKCategoryType? {
+        HKObjectType.categoryType(
+            forIdentifier: HKCategoryTypeIdentifier(rawValue: "HKCategoryTypeIdentifier" + identifier)
+        )
+    }
+
+    private func dailyQuantities() -> [DailyQuantity] {
+        let perMinute = HKUnit.count().unitDivided(by: HKUnit.minute())
+        // Spelled out rather than HKUnit(from: "ml/(kg*min)"): that initialiser
+        // raises an Objective-C exception on a string it dislikes, and there is
+        // no catching that from Swift.
+        let vo2Unit = HKUnit.literUnit(with: .milli)
+            .unitDivided(by: HKUnit.gramUnit(with: .kilo).unitMultiplied(by: HKUnit.minute()))
+        let mmolPerLitre = HKUnit
+            .moleUnit(with: .milli, molarMass: HKUnitMolarMassBloodGlucose)
+            .unitDivided(by: HKUnit.liter())
+
+        return [
+            // Activity
+            DailyQuantity(key: "steps", identifier: "StepCount", unit: .count(), rollup: .sum),
+            DailyQuantity(key: "activeEnergyKcal", identifier: "ActiveEnergyBurned", unit: .kilocalorie(), rollup: .sum),
+            DailyQuantity(key: "exerciseMinutes", identifier: "AppleExerciseTime", unit: .minute(), rollup: .sum),
+            DailyQuantity(key: "distanceWalkingRunningM", identifier: "DistanceWalkingRunning", unit: .meter(), rollup: .sum),
+            DailyQuantity(key: "distanceCyclingM", identifier: "DistanceCycling", unit: .meter(), rollup: .sum),
+            DailyQuantity(key: "distanceSwimmingM", identifier: "DistanceSwimming", unit: .meter(), rollup: .sum),
+            DailyQuantity(key: "floorsClimbed", identifier: "FlightsClimbed", unit: .count(), rollup: .sum),
+            DailyQuantity(key: "wheelchairPushes", identifier: "PushCount", unit: .count(), rollup: .sum),
+            DailyQuantity(key: "vo2Max", identifier: "VO2Max", unit: vo2Unit, rollup: .latest),
+            DailyQuantity(key: "cyclingCadenceRpm", identifier: "CyclingCadence", unit: perMinute, rollup: .average),
+            DailyQuantity(key: "powerWatts", identifier: "CyclingPower", unit: .watt(), rollup: .average),
+            DailyQuantity(key: "speedMps", identifier: "RunningSpeed", unit: HKUnit.meter().unitDivided(by: .second()), rollup: .average),
+
+            // Vitals. Averaged, because a day carries several readings and none
+            // of them is more true than the others.
+            DailyQuantity(key: "restingHeartRateBpm", identifier: "RestingHeartRate", unit: perMinute, rollup: .average),
+            DailyQuantity(key: "heartRateBpm", identifier: "HeartRate", unit: perMinute, rollup: .average),
+            DailyQuantity(key: "hrvMs", identifier: "HeartRateVariabilitySDNN", unit: HKUnit.secondUnit(with: .milli), rollup: .average),
+            DailyQuantity(key: "bloodGlucoseMmolL", identifier: "BloodGlucose", unit: mmolPerLitre, rollup: .average),
+            // Apple keeps systolic and diastolic as two independent quantities
+            // where Health Connect keeps one record with both numbers. Two rows
+            // here, one read on the other side; the catalogue keys match.
+            DailyQuantity(key: "bloodPressureSystolic", identifier: "BloodPressureSystolic", unit: .millimeterOfMercury(), rollup: .average),
+            DailyQuantity(key: "bloodPressureDiastolic", identifier: "BloodPressureDiastolic", unit: .millimeterOfMercury(), rollup: .average),
+            DailyQuantity(key: "oxygenSaturationPct", identifier: "OxygenSaturation", unit: .percent(), rollup: .average, scale: 100),
+            DailyQuantity(key: "respiratoryRateBpm", identifier: "RespiratoryRate", unit: perMinute, rollup: .average),
+            DailyQuantity(key: "bodyTemperatureC", identifier: "BodyTemperature", unit: .degreeCelsius(), rollup: .latest),
+            DailyQuantity(key: "basalBodyTemperatureC", identifier: "BasalBodyTemperature", unit: .degreeCelsius(), rollup: .latest),
+
+            // Body. Point measurements off a scale or a tape, so the day's last
+            // reading wins: someone who weighs twice wants the second number,
+            // not the mean of a shoe-on and a shoe-off attempt.
+            DailyQuantity(key: "weightKg", identifier: "BodyMass", unit: HKUnit.gramUnit(with: .kilo), rollup: .latest),
+            DailyQuantity(key: "bodyFatPct", identifier: "BodyFatPercentage", unit: .percent(), rollup: .latest, scale: 100),
+            DailyQuantity(key: "leanBodyMassKg", identifier: "LeanBodyMass", unit: HKUnit.gramUnit(with: .kilo), rollup: .latest),
+            DailyQuantity(key: "heightCm", identifier: "Height", unit: HKUnit.meterUnit(with: .centi), rollup: .latest),
+            DailyQuantity(key: "waistCircumferenceCm", identifier: "WaistCircumference", unit: HKUnit.meterUnit(with: .centi), rollup: .latest),
+            // Summed rather than treated as a rate: HealthKit reports resting
+            // energy as kilocalories accumulated across the day, not as the
+            // per-day figure Health Connect hands back.
+            DailyQuantity(key: "basalMetabolicRateKcal", identifier: "BasalEnergyBurned", unit: .kilocalorie(), rollup: .sum),
+
+            // Nutrition, whatever another app wrote.
+            DailyQuantity(key: "dietaryEnergyKcal", identifier: "DietaryEnergyConsumed", unit: .kilocalorie(), rollup: .sum),
+            DailyQuantity(key: "dietaryProteinG", identifier: "DietaryProtein", unit: .gram(), rollup: .sum),
+            DailyQuantity(key: "dietaryCarbsG", identifier: "DietaryCarbohydrates", unit: .gram(), rollup: .sum),
+            DailyQuantity(key: "dietaryFatG", identifier: "DietaryFatTotal", unit: .gram(), rollup: .sum),
+            DailyQuantity(key: "hydrationMl", identifier: "DietaryWater", unit: HKUnit.literUnit(with: .milli), rollup: .sum),
+            DailyQuantity(key: "caffeineMg", identifier: "DietaryCaffeine", unit: HKUnit.gramUnit(with: .milli), rollup: .sum)
+        ]
+    }
+
+    /// What a day's category samples amount to.
+    private enum DailyCategoryRollup {
+        /// Minutes of recorded session, summed.
+        case minutes
+        /// The last sample's value, as a level.
+        case level
+        /// There is no level; the reading is that it happened at all.
+        case occurred
+    }
+
+    private struct DailyCategory {
+        let key: String
+        let identifier: String
+        let rollup: DailyCategoryRollup
+        /// Maps HealthKit's enum onto the catalogue's range.
+        var level: (Int) -> Double = { Double($0) }
+    }
+
+    private func dailyCategories() -> [DailyCategory] {
+        [
+            DailyCategory(key: "mindfulMinutes", identifier: "MindfulSession", rollup: .minutes),
+            // HealthKit numbers flow from 1 (unspecified) to 4 (heavy) and puts
+            // "none" above heavy; the catalogue's 0–3 follows Health Connect.
+            // Passing the raw value through put every heavy day outside the
+            // plausible range, where the server drops it silently.
+            DailyCategory(key: "menstruationFlow", identifier: "MenstrualFlow", rollup: .level) { value in
+                switch value {
+                case 2: return 1
+                case 3: return 2
+                case 4: return 3
+                default: return 0
+                }
+            },
+            // Mucus and ovulation happen to agree with Health Connect's
+            // numbering, so they go through as themselves.
+            DailyCategory(key: "cervicalMucus", identifier: "CervicalMucusQuality", rollup: .level),
+            DailyCategory(key: "ovulationTest", identifier: "OvulationTestResult", rollup: .level),
+            DailyCategory(key: "intermenstrualBleeding", identifier: "IntermenstrualBleeding", rollup: .occurred)
+        ]
+    }
+
+    /**
+     One category type, per local day.
+
+     Category samples carry an enum rather than a quantity, so there is no
+     statistics query to lean on — the samples are read in order and folded by
+     hand, the same way `collectDailyLatest` does for quantities.
+     */
+    private func collectDailyCategory(
+        type: HKCategoryType,
+        rollup: DailyCategoryRollup,
+        level: @escaping (Int) -> Double,
+        start: Date,
+        end: Date,
+        calendar: Calendar,
+        completion: @escaping ([String: Double]) -> Void
+    ) {
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
+        let query = HKSampleQuery(
+            sampleType: type,
+            predicate: predicate,
+            limit: HKObjectQueryNoLimit,
+            sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)]
+        ) { [weak self] _, samples, _ in
+            guard let self = self, let samples = samples as? [HKCategorySample] else {
+                completion([:])
+                return
+            }
+
+            var results: [String: Double] = [:]
+            for sample in samples {
+                let key = self.dayKey(sample.startDate, calendar: calendar)
+                switch rollup {
+                case .minutes:
+                    let minutes = sample.endDate.timeIntervalSince(sample.startDate) / 60
+                    results[key] = (results[key] ?? 0) + minutes
+                case .level:
+                    // Ascending order means a later sample overwrites an
+                    // earlier one for the same day.
+                    results[key] = level(sample.value)
+                case .occurred:
+                    results[key] = 1
+                }
+            }
+            completion(results)
+        }
+
+        healthStore.execute(query)
     }
 
     /// Bucketed statistics for one quantity type, keyed by local day.
@@ -226,6 +449,46 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
                 guard let quantity = quantity else { return }
                 let key = self.dayKey(statistics.startDate, calendar: calendar)
                 results[key] = quantity.doubleValue(for: unit)
+            }
+            completion(results)
+        }
+
+        healthStore.execute(query)
+    }
+
+    /**
+     The last reading of each local day for one quantity type.
+
+     Deliberately not `HKStatisticsCollectionQuery` with `.discreteMostRecent`:
+     that option only exists from iOS 12 in some SDK combinations and reports
+     the most recent sample in the *whole* window on others. Sorting samples and
+     keeping the last per day is boring and behaves identically everywhere.
+     */
+    private func collectDailyLatest(
+        type: HKQuantityType,
+        unit: HKUnit,
+        start: Date,
+        end: Date,
+        calendar: Calendar,
+        completion: @escaping ([String: Double]) -> Void
+    ) {
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
+        let query = HKSampleQuery(
+            sampleType: type,
+            predicate: predicate,
+            limit: HKObjectQueryNoLimit,
+            sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)]
+        ) { [weak self] _, samples, _ in
+            guard let self = self, let samples = samples as? [HKQuantitySample] else {
+                completion([:])
+                return
+            }
+            // Ascending order means a later sample simply overwrites an
+            // earlier one for the same day.
+            var results: [String: Double] = [:]
+            for sample in samples {
+                let key = self.dayKey(sample.startDate, calendar: calendar)
+                results[key] = sample.quantity.doubleValue(for: unit)
             }
             completion(results)
         }
@@ -390,26 +653,124 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     private func healthShareTypes() -> Set<HKSampleType> {
-        // Workouts only. The app has no business writing anything else, and a
-        // wider share set is an App Review question we do not need to answer.
-        [HKObjectType.workoutType()]
+        // Workouts, plus every quantity a user can correct in the app. The
+        // write-back is per-edit and opt-in, so most of these will never be
+        // used by most people; HealthKit still wants them declared up front,
+        // and asking for a second sheet later is the thing that looks shady.
+        var types: Set<HKSampleType> = [HKObjectType.workoutType()]
+        dailyQuantities().forEach { quantity in
+            if let type = quantityType(quantity.identifier) {
+                types.insert(type)
+            }
+        }
+        return types
+    }
+
+    /**
+     Writes a corrected reading back into HealthKit.
+
+     Called after the edit has already been saved in OneRep, so every failure
+     path resolves `saved: false` instead of rejecting — a health store that
+     says no must not undo a number the user just fixed.
+
+     Worth being honest about: HealthKit will not let an app delete or amend a
+     sample another app wrote. This adds our reading alongside the original, so
+     the Health app will show two entries for that day, ours and the scale's. We
+     cannot overwrite, and pretending otherwise in the UI would be a lie.
+     */
+    @objc func saveDailyMetric(_ call: CAPPluginCall) {
+        guard HKHealthStore.isHealthDataAvailable() else {
+            call.resolve(["saved": false])
+            return
+        }
+
+        guard let metric = call.getString("metric"),
+              let value = call.getDouble("value"),
+              let date = call.getString("date"),
+              // Category metrics — sleep, the reproductive levels — are not
+              // quantity samples and have no sensible single-number write.
+              let quantity = dailyQuantities().first(where: { $0.key == metric }),
+              let type = quantityType(quantity.identifier) else {
+            call.resolve(["saved": false])
+            return
+        }
+
+        guard healthStore.authorizationStatus(for: type) == .sharingAuthorized else {
+            call.resolve(["saved": false])
+            return
+        }
+
+        let calendar = Calendar.current
+        let formatter = DateFormatter()
+        formatter.calendar = calendar
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = calendar.timeZone
+        formatter.dateFormat = "yyyy-MM-dd"
+        guard let dayStart = formatter.date(from: date) else {
+            call.resolve(["saved": false])
+            return
+        }
+
+        // Nothing may be written in the future, so today's edits stop at now.
+        let now = Date()
+        let dayEnd = min(calendar.date(byAdding: .day, value: 1, to: dayStart) ?? dayStart, now)
+        // Point measurements land at midday rather than midnight: a sample at
+        // 00:00 sits on the boundary, and any reader rounding the other way
+        // files it under the previous day.
+        let midday = min(calendar.date(byAdding: .hour, value: 12, to: dayStart) ?? dayStart, now)
+
+        let start: Date
+        let finish: Date
+        switch quantity.rollup {
+        case .sum:
+            start = dayStart
+            finish = max(dayEnd, dayStart)
+        case .average, .latest:
+            start = midday
+            finish = midday
+        }
+
+        // The table stores whole percent for the app's sake; HealthKit wants
+        // the fraction back.
+        let sample = HKQuantitySample(
+            type: type,
+            quantity: HKQuantity(unit: quantity.unit, doubleValue: value / quantity.scale),
+            start: start,
+            end: finish
+        )
+
+        healthStore.save(sample) { success, _ in
+            DispatchQueue.main.async {
+                call.resolve(["saved": success])
+            }
+        }
     }
 
     private func healthReadTypes() -> Set<HKObjectType> {
         var types: Set<HKObjectType> = [HKObjectType.workoutType()]
 
+        // Everything the daily tables can read, asked for in one go. HealthKit
+        // will not say which of these the user granted — `requestAuthorization`
+        // succeeding means the sheet was shown, not that anything was ticked —
+        // so the read side treats an empty result and a refusal identically.
+        dailyQuantities().forEach { quantity in
+            if let type = quantityType(quantity.identifier) {
+                types.insert(type)
+            }
+        }
+        dailyCategories().forEach { category in
+            if let type = categoryType(category.identifier) {
+                types.insert(type)
+            }
+        }
+
+        // Read for workout serialisation rather than for the daily rollup.
         [
             HKQuantityTypeIdentifier.distanceWalkingRunning,
             HKQuantityTypeIdentifier.distanceCycling,
             HKQuantityTypeIdentifier.distanceSwimming,
             HKQuantityTypeIdentifier.heartRate,
-            HKQuantityTypeIdentifier.activeEnergyBurned,
-            // Recovery signals. Read-only, and read as daily aggregates rather
-            // than raw samples — the coach reasons about "an hour less than
-            // usual", never about individual beats.
-            HKQuantityTypeIdentifier.stepCount,
-            HKQuantityTypeIdentifier.restingHeartRate,
-            HKQuantityTypeIdentifier.heartRateVariabilitySDNN
+            HKQuantityTypeIdentifier.activeEnergyBurned
         ].forEach { identifier in
             if let type = HKObjectType.quantityType(forIdentifier: identifier) {
                 types.insert(type)

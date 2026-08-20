@@ -116,4 +116,90 @@ describe("custom progress metrics", () => {
       ).resolves.toEqual([]);
     });
   });
+
+  test("updates a definition in place, keeping the values logged against it", async () => {
+    const t = convexTest(schema, modules);
+    const as = t.withIdentity({ name: "metric-editor" });
+    const metricId = await as.mutation(
+      api.customProgressMetrics.saveDefinition,
+      {
+        title: "Migranes",
+        description: "Typo and all",
+        tab: "body",
+        kind: "counter",
+        unit: "",
+        step: 1,
+        target: 3,
+        accent: "progress",
+      },
+    );
+    await as.mutation(api.customProgressMetrics.setValue, {
+      metricId,
+      date: "2026-07-20",
+      value: 2,
+    });
+
+    await as.mutation(api.customProgressMetrics.updateDefinition, {
+      metricId,
+      title: "Migraines",
+      target: null,
+      healthMetricKey: "bloodGlucoseMmolL",
+    });
+
+    const [metric] = await as.query(api.customProgressMetrics.list, {});
+    expect(metric.title).toBe("Migraines");
+    // A partial edit leaves everything it did not name alone.
+    expect(metric.description).toBe("Typo and all");
+    expect(metric.target).toBeUndefined();
+    expect(metric.healthMetricKey).toBe("bloodGlucoseMmolL");
+    // The point of editing rather than recreating: the history survives.
+    expect(metric.entries).toHaveLength(1);
+    expect(metric.entries[0].value).toBe(2);
+  });
+
+  test("refuses an unknown health metric key instead of storing it", async () => {
+    const t = convexTest(schema, modules);
+    const as = t.withIdentity({ name: "metric-binder" });
+    const metricId = await as.mutation(
+      api.customProgressMetrics.saveDefinition,
+      {
+        title: "Glucose",
+        description: "",
+        tab: "body",
+        kind: "number",
+        unit: "mg/dL",
+        step: 1,
+        accent: "progress",
+      },
+    );
+    await expect(
+      as.mutation(api.customProgressMetrics.updateDefinition, {
+        metricId,
+        healthMetricKey: "vibes",
+      }),
+    ).rejects.toThrow(/Unknown health metric key/);
+  });
+
+  test("refuses to edit somebody else's metric", async () => {
+    const t = convexTest(schema, modules);
+    const metricId = await t
+      .withIdentity({ name: "metric-owner" })
+      .mutation(api.customProgressMetrics.saveDefinition, {
+        title: "Steps to the fridge",
+        description: "",
+        tab: "training",
+        kind: "counter",
+        unit: "",
+        step: 1,
+        accent: "workout",
+      });
+    await expect(
+      t
+        .withIdentity({ name: "metric-stranger" })
+        .mutation(api.customProgressMetrics.updateDefinition, {
+          metricId,
+          title: "Mine now",
+        }),
+    ).rejects.toThrow(/not found/i);
+  });
 });

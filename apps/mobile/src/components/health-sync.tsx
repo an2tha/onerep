@@ -17,6 +17,7 @@ import {
   healthWorkoutToImport,
   shouldSyncHealth,
 } from "@/lib/health-sync"
+import { enabledHealthMetricKeys } from "../../../../convex/lib/healthMetricCatalog"
 import { logDevWarn } from "@/lib/utils"
 
 /**
@@ -33,6 +34,44 @@ import { logDevWarn } from "@/lib/utils"
  * health batch offline is pointless (the next foreground sync re-reads the same
  * data from the store) and would bloat localStorage.
  */
+/** The fields the daily payload names outright; everything else is a reading. */
+const NAMED_DAY_FIELDS = new Set([
+  "date",
+  "sleepMinutes",
+  "steps",
+  "restingHeartRateBpm",
+  "hrvMs",
+  "activeEnergyKcal",
+  "weightKg",
+  "bodyFatPct",
+  "leanBodyMassKg",
+  "boneMassKg",
+  "basalMetabolicRateKcal",
+])
+
+/**
+ * Folds anything the plugin returned that the server does not name into
+ * `readings`.
+ *
+ * The server validator is strict, so an unrecognised top-level key would be
+ * rejected outright and take the whole day's sync with it. Custom metrics bind
+ * to catalogue keys that arrive this way — blood glucose, SpO2 — and the bag
+ * is what lets a phone send a signal this build of the server has never heard
+ * of without anything breaking.
+ */
+function toSyncDay(day: Record<string, unknown>) {
+  const named: Record<string, unknown> = {}
+  const readings: Record<string, number> = {}
+  for (const [key, value] of Object.entries(day)) {
+    if (NAMED_DAY_FIELDS.has(key)) {
+      named[key] = value
+    } else if (typeof value === "number" && Number.isFinite(value)) {
+      readings[key] = value
+    }
+  }
+  return Object.keys(readings).length > 0 ? { ...named, readings } : named
+}
+
 export function HealthSync() {
   const { user } = useAppAuth()
   const preferences = useQuery(
@@ -76,11 +115,16 @@ export function HealthSync() {
         // workouts these rows are upserted per day — re-reading the same
         // fortnight every sync is the intended behaviour, not waste. A watch
         // writes last night's sleep hours after the fact.
-        getHealthDailyMetrics({ daysBack: HEALTH_METRICS_DAYS_BACK }),
+        getHealthDailyMetrics({
+          daysBack: HEALTH_METRICS_DAYS_BACK,
+          // Only what the user left switched on, so a metric they declined is
+          // never read from the store in the first place.
+          metrics: enabledHealthMetricKeys(healthSync?.metrics),
+        }),
       ])
 
       if (days.length > 0) {
-        await syncMetrics({ provider, days })
+        await syncMetrics({ provider, days: days.map(toSyncDay) })
       }
 
       if (workouts.length === 0) return

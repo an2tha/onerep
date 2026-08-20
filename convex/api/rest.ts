@@ -125,6 +125,13 @@ const ROUTES: Route[] = [
   },
   {
     method: "POST",
+    path: "/v1/body-measurements",
+    tool: "log_body_measurement",
+    summary:
+      "Write or correct any part of a day's check-in; omitted fields are left alone.",
+  },
+  {
+    method: "POST",
     path: "/v1/rest-days",
     tool: "mark_rest_day",
     summary: "Mark dates as deliberate rest.",
@@ -152,6 +159,14 @@ const ROUTES: Route[] = [
     tool: "delete_health_day",
     summary: "Clear the stored health readings for one date.",
     args: ({ params }) => ({ date: params.date }),
+  },
+  {
+    method: "POST",
+    path: "/v1/health/days/:date",
+    tool: "set_health_metric",
+    summary:
+      "Correct one field of a day's readings and keep the sync off it. Body: {field, value}, value null to release it.",
+    args: ({ params, body }) => ({ ...body, date: params.date }),
   },
   {
     method: "GET",
@@ -197,6 +212,53 @@ const ROUTES: Route[] = [
       date: params.date,
       sessionId: params.sessionId,
     }),
+  },
+  {
+    method: "GET",
+    path: "/v1/custom-metrics",
+    tool: "list_custom_metrics",
+    summary:
+      "The user's own tracked metrics and their recent values. Optional ?tab= and ?days=.",
+    args: ({ query }) =>
+      optional({ tab: query.get("tab"), days: query.get("days") }),
+  },
+  {
+    method: "POST",
+    path: "/v1/custom-metrics",
+    tool: "create_custom_metric",
+    summary: "Define a new custom metric, optionally bound to a health signal.",
+  },
+  {
+    method: "POST",
+    path: "/v1/custom-metrics/:metricId",
+    tool: "update_custom_metric",
+    summary:
+      "Change a metric definition without losing its history; null clears target or healthMetricKey.",
+    args: ({ params, body }) => ({ ...body, metricId: params.metricId }),
+  },
+  {
+    method: "DELETE",
+    path: "/v1/custom-metrics/:metricId",
+    tool: "delete_custom_metric",
+    summary: "Remove a metric, its values and any widget built on it.",
+    args: ({ params }) => ({ metricId: params.metricId }),
+  },
+  {
+    method: "POST",
+    path: "/v1/custom-metrics/:metricId/values",
+    tool: "set_custom_metric_value",
+    summary:
+      "Set one metric's value for a date. Body: {date, value}, value null to clear the day.",
+    args: ({ params, body }) => ({ ...body, metricId: params.metricId }),
+  },
+  {
+    method: "GET",
+    path: "/v1/health/metrics",
+    tool: "list_platform_metrics",
+    summary:
+      "The Apple Health and Health Connect catalogue a custom metric can bind to. Optional ?group= and ?all=true.",
+    args: ({ query }) =>
+      optional({ group: query.get("group"), all: query.get("all") }),
   },
   {
     method: "DELETE",

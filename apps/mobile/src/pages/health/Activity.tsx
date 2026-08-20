@@ -41,6 +41,7 @@ export default function HealthActivity() {
       charts={
         <>
           <MetricTrend
+            hideWhenEmpty
             today={today}
             metric="exercise"
             title="Exercise minutes"
@@ -48,6 +49,7 @@ export default function HealthActivity() {
             tone={AREA_TONES.activity}
           />
           <MetricTrend
+            hideWhenEmpty
             today={today}
             metric="steps"
             title="Steps"
@@ -55,6 +57,7 @@ export default function HealthActivity() {
             tone="var(--accent-health)"
           />
           <MetricTrend
+            hideWhenEmpty
             today={today}
             metric="energy"
             title="Active calories"

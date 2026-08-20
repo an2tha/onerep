@@ -38,6 +38,7 @@ export async function listRecoveryWindow(
       restingHeartRateBpm: row.restingHeartRateBpm,
       hrvMs: row.hrvMs,
       activeEnergyKcal: row.activeEnergyKcal,
+      ...(row.manualFields?.length ? { manualFields: row.manualFields } : {}),
     }));
 }
 

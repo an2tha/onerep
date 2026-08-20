@@ -1,8 +1,16 @@
 import { v } from "convex/values";
 import { internalMutation, internalQuery } from "../_generated/server";
+import type { MutationCtx } from "../_generated/server";
 import type { Doc } from "../_generated/dataModel";
 import { upsertWorkoutLog, findFreeWorkoutSlot } from "../lib/workoutLogs";
 import { recordUndoableAction } from "../ai/coachState";
+import { applyManualHealthMetric } from "../logs/healthMetrics";
+import { listCustomMetricsWithEntries } from "../lib/customProgressMetrics";
+import { platformMetric } from "../lib/platformHealthMetrics";
+import {
+  clampCustomMetricValue,
+  sanitizeCustomMetricDefinition,
+} from "../customProgressMetrics";
 
 /**
  * Everything the MCP tools actually do, keyed by an explicit `userId`.
@@ -244,13 +252,127 @@ export const listBodyMeasurements = internalQuery({
       .order("desc")
       .take(limit);
 
+    // Every field, not the three the charts happen to plot. A client asked to
+    // correct a check-in cannot correct what it was never shown.
     return rows.map((row) => ({
       id: row._id,
       date: row.loggedAt,
+      source: row.source ?? "manual",
       weightKg: row.weightKg ?? null,
       bodyFatPct: row.bodyFatPct ?? null,
       waistCm: row.waistCm ?? null,
+      hipsCm: row.hipsCm ?? null,
+      chestCm: row.chestCm ?? null,
+      armsCm: row.armsCm ?? null,
+      thighsCm: row.thighsCm ?? null,
+      calvesCm: row.calvesCm ?? null,
+      neckCm: row.neckCm ?? null,
+      leanBodyMassKg: row.leanBodyMassKg ?? null,
+      boneMassKg: row.boneMassKg ?? null,
+      basalMetabolicRateKcal: row.basalMetabolicRateKcal ?? null,
+      notes: row.notes ?? null,
     }));
+  },
+});
+
+/** The fields `saveBodyMeasurement` accepts, and the units they are in. */
+const MEASUREMENT_ARGS = {
+  weightKg: v.optional(v.number()),
+  bodyFatPct: v.optional(v.number()),
+  waistCm: v.optional(v.number()),
+  hipsCm: v.optional(v.number()),
+  chestCm: v.optional(v.number()),
+  armsCm: v.optional(v.number()),
+  thighsCm: v.optional(v.number()),
+  calvesCm: v.optional(v.number()),
+  neckCm: v.optional(v.number()),
+  leanBodyMassKg: v.optional(v.number()),
+  boneMassKg: v.optional(v.number()),
+  basalMetabolicRateKcal: v.optional(v.number()),
+  notes: v.optional(v.string()),
+};
+
+const MEASUREMENT_KEYS = Object.keys(MEASUREMENT_ARGS);
+
+/**
+ * Writes or corrects any part of a day's check-in.
+ *
+ * Partial by design: sending only `bodyFatPct` leaves the weight alone. The
+ * undo payload carries the previous values of exactly the fields touched, so
+ * undoing a correction restores what was there rather than blanking the row.
+ */
+export const saveBodyMeasurement = internalMutation({
+  args: {
+    userId: v.string(),
+    date: v.string(),
+    clearFields: v.optional(v.array(v.string())),
+    ...MEASUREMENT_ARGS,
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    const fields: Record<string, unknown> = {};
+    for (const key of MEASUREMENT_KEYS) {
+      const value = (args as Record<string, unknown>)[key];
+      if (value !== undefined) fields[key] = value;
+    }
+    for (const key of args.clearFields ?? []) {
+      if (MEASUREMENT_KEYS.includes(key)) fields[key] = undefined;
+    }
+    if (Object.keys(fields).length === 0) {
+      throw new Error("Nothing to change: pass at least one field.");
+    }
+
+    const existing = await ctx.db
+      .query("bodyMeasurements")
+      .withIndex("by_userId_and_loggedAt", (q) =>
+        q.eq("userId", args.userId).eq("loggedAt", args.date),
+      )
+      .first();
+
+    const changed = Object.keys(fields);
+    if (existing) {
+      const previous: Record<string, unknown> = {};
+      for (const key of changed) {
+        previous[key] = (existing as Record<string, unknown>)[key] ?? null;
+      }
+      await ctx.db.patch(existing._id, {
+        ...fields,
+        source: "manual",
+        updatedAt: now,
+      });
+      await recordUndoableAction(ctx, {
+        userId: args.userId,
+        kind: "api_save_body_measurement",
+        summary: `Updated ${changed.join(", ")} on ${args.date}`,
+        targetType: "body_measurement",
+        targetId: String(existing._id),
+        undoPayload: {
+          kind: "restore_body_measurement_fields",
+          id: String(existing._id),
+          fields: previous,
+        },
+      });
+      return { ok: true, date: args.date, changed, created: false };
+    }
+
+    const id = await ctx.db.insert("bodyMeasurements", {
+      userId: args.userId,
+      clientId: `mcp-${now}-${Math.floor(Math.random() * 1e6)}`,
+      loggedAt: args.date,
+      source: "manual",
+      ...fields,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await recordUndoableAction(ctx, {
+      userId: args.userId,
+      kind: "api_save_body_measurement",
+      summary: `Logged ${changed.join(", ")} on ${args.date}`,
+      targetType: "body_measurement",
+      targetId: String(id),
+      undoPayload: { kind: "delete_body_measurement", id: String(id) },
+    });
+    return { ok: true, date: args.date, changed, created: true };
   },
 });
 
@@ -419,6 +541,9 @@ export const logWeight = internalMutation({
         userId: args.userId,
         clientId: `mcp-${now}-${Math.floor(Math.random() * 1e6)}`,
         loggedAt: args.date,
+        // Through the API is still someone deciding the number, so it outranks
+        // a scale reading the same way a typed one does.
+        source: "manual",
         weightKg: args.weightKg,
         createdAt: now,
         updatedAt: now,
@@ -563,9 +688,11 @@ export const markRestDays = internalMutation({
 /**
  * The daily recovery signals the phone syncs out of Apple Health or Health
  * Connect. Read-only from here: the table is a cache of the platform health
- * store keyed on the local day, so a value written over the API would be
- * overwritten by the next device sync without warning. Deleting a day is
- * offered because a bad sensor reading is worth removing; inventing one is not.
+ * store keyed on the local day. Writing one figure is offered, but only through
+ * the override list: a plain patch here would survive about as long as it took
+ * the phone to foreground, and an agent would have no way of telling that its
+ * correction had been quietly undone. Deleting a day is offered too, because a
+ * bad sensor reading is worth removing.
  */
 export const listHealthDays = internalQuery({
   args: { userId: v.string(), start: v.string(), end: v.string() },
@@ -591,6 +718,8 @@ export const listHealthDays = internalQuery({
         restingHeartRateBpm: row.restingHeartRateBpm ?? null,
         hrvMs: row.hrvMs ?? null,
         activeEnergyKcal: row.activeEnergyKcal ?? null,
+        /** Fields on this day the user typed; the sync will not touch them. */
+        manualFields: row.manualFields ?? [],
       })),
     };
   },
@@ -872,6 +1001,60 @@ export const deleteHealthWorkout = internalMutation({
   },
 });
 
+/**
+ * Overrides — or releases — one field of one day's readings.
+ *
+ * The whole write lives in `logs/healthMetrics` so the app's own edit screen
+ * and an agent hitting this cannot disagree about what an override means. All
+ * this adds is the undo entry, since the coach's history is where a user goes
+ * looking for something they did not do themselves.
+ */
+export const setHealthMetric = internalMutation({
+  args: {
+    userId: v.string(),
+    date: v.string(),
+    field: v.string(),
+    value: v.union(v.number(), v.null()),
+  },
+  handler: async (ctx, args) => {
+    const result = await applyManualHealthMetric(
+      ctx,
+      args.userId,
+      args.date,
+      args.field,
+      args.value,
+    );
+
+    await recordUndoableAction(ctx, {
+      userId: args.userId,
+      kind: "api_set_health_metric",
+      summary:
+        args.value === null
+          ? `Handed ${args.field} on ${args.date} back to the health sync`
+          : `Set ${args.field} to ${args.value} on ${args.date}`,
+      targetType: "health_day",
+      targetId: args.date,
+      // Restoring the row wholesale is the only verb the undo handler knows for
+      // this table, and it is the right one: it puts the old manualFields back
+      // along with the old number. A day this call had to invent has no "old
+      // row" to name, so it files an undo the handler will refuse — the event
+      // is still worth recording, and delete_health_day is the way out.
+      undoPayload: result.previous
+        ? { kind: "restore_health_metrics", body: result.previous }
+        : { kind: "created_health_metrics_day", date: args.date },
+    });
+
+    return {
+      ok: true,
+      date: result.date,
+      field: result.field,
+      value: result.value,
+      manualFields: result.manualFields,
+      created: result.created,
+    };
+  },
+});
+
 export const deleteHealthDay = internalMutation({
   args: { userId: v.string(), date: v.string() },
   handler: async (ctx, args) => {
@@ -925,5 +1108,385 @@ export const unmarkRestDays = internalMutation({
       });
     }
     return { ok: true, unmarked: removed.length };
+  },
+});
+
+// ── Custom progress metrics ──────────────────────────────────────────────────
+//
+// The app lets somebody invent a metric — "migraines", "blood glucose",
+// "espressos" — and either type it or bind it to a platform health signal.
+// None of that was reachable over the API, which meant an agent could read a
+// user's whole log and still not see the number they cared most about.
+//
+// Every write here files an undo. The payload kinds below (`delete_custom_metric`,
+// `restore_custom_metric*`) are NOT yet handled by `undoPayload` in
+// `convex/ai/coachState.ts`, so pressing undo on one of these actions throws
+// "This action cannot be undone" until the matching branches are added there.
+// The payloads carry everything a restore needs; only the handlers are missing.
+
+/** Resolves a metric id from an untrusted string, and proves it is the caller's. */
+async function loadCustomMetric(
+  ctx: { db: MutationCtx["db"] },
+  userId: string,
+  metricId: string,
+) {
+  const id = ctx.db.normalizeId("customProgressMetrics", metricId);
+  const metric = id ? await ctx.db.get(id) : null;
+  // One message for "no such metric" and "not yours": the difference tells a
+  // caller holding somebody else's id that the id was real.
+  if (!metric || metric.userId !== userId) throw new Error("Metric not found");
+  return metric;
+}
+
+const CUSTOM_METRIC_TABS = new Set(["body", "nutrition", "training"]);
+const CUSTOM_METRIC_KINDS = new Set(["counter", "number", "toggle"]);
+const CUSTOM_METRIC_ACCENTS = new Set(["food", "water", "workout", "progress"]);
+
+function customMetricEnum(
+  value: string,
+  allowed: Set<string>,
+  field: string,
+): never | string {
+  if (!allowed.has(value)) {
+    throw new Error(
+      `${field} must be one of ${[...allowed].join(", ")}, not ${value}`,
+    );
+  }
+  return value;
+}
+
+/**
+ * An unknown catalogue key is refused here rather than dropped.
+ *
+ * `saveDefinition` silently ignores one because the app's picker cannot
+ * produce a bad key. An agent can, and a metric that silently never syncs is
+ * the kind of bug someone notices three weeks later.
+ */
+function requireHealthMetricKey(key: string) {
+  if (!platformMetric(key)) {
+    throw new Error(
+      `Unknown health metric key: ${key}. Call list_platform_metrics for the catalogue.`,
+    );
+  }
+  return key;
+}
+
+/** A definition and its entries, in the shape the API promises. */
+function shapeCustomMetric(
+  metric: Doc<"customProgressMetrics">,
+  entries: Doc<"customProgressMetricEntries">[],
+) {
+  const bound = metric.healthMetricKey
+    ? (platformMetric(metric.healthMetricKey) ?? null)
+    : null;
+  return {
+    id: metric._id,
+    title: metric.title,
+    description: metric.description,
+    tab: metric.tab,
+    kind: metric.kind,
+    unit: metric.unit,
+    step: metric.step,
+    target: metric.target ?? null,
+    accent: metric.accent,
+    healthMetricKey: metric.healthMetricKey ?? null,
+    healthMetricLabel: bound?.label ?? null,
+    entries: entries.map((entry) => ({
+      date: entry.date,
+      value: entry.value,
+      // Every path a person can type through sets `manual`, so a row without
+      // it came off the health sync. Old rows predate the flag and read as
+      // synced; there is nothing stored that can tell them apart.
+      source: entry.manual === true ? "manual" : "synced",
+    })),
+  };
+}
+
+export const listCustomMetrics = internalQuery({
+  args: {
+    userId: v.string(),
+    tab: v.optional(v.string()),
+    days: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const days = Math.max(7, Math.min(Math.floor(args.days ?? 30), 90));
+    const metrics = await listCustomMetricsWithEntries(ctx, args.userId, days);
+    const filtered = args.tab
+      ? metrics.filter((metric) => metric.tab === args.tab)
+      : metrics;
+    return filtered.map(({ entries, ...metric }) =>
+      shapeCustomMetric(metric as Doc<"customProgressMetrics">, entries),
+    );
+  },
+});
+
+export const createCustomMetric = internalMutation({
+  args: {
+    userId: v.string(),
+    title: v.string(),
+    description: v.optional(v.string()),
+    tab: v.string(),
+    kind: v.string(),
+    unit: v.string(),
+    step: v.optional(v.number()),
+    target: v.optional(v.number()),
+    accent: v.optional(v.string()),
+    healthMetricKey: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const title = args.title.trim();
+    if (title === "") throw new Error("title is required");
+    const now = Date.now();
+    const definition = sanitizeCustomMetricDefinition({
+      title,
+      description: args.description ?? "",
+      tab: customMetricEnum(args.tab, CUSTOM_METRIC_TABS, "tab") as "body",
+      kind: customMetricEnum(
+        args.kind,
+        CUSTOM_METRIC_KINDS,
+        "kind",
+      ) as "number",
+      unit: args.unit,
+      step: args.step ?? 1,
+      target: args.target,
+      accent: customMetricEnum(
+        args.accent ?? "progress",
+        CUSTOM_METRIC_ACCENTS,
+        "accent",
+      ) as "progress",
+      healthMetricKey:
+        args.healthMetricKey === undefined
+          ? undefined
+          : requireHealthMetricKey(args.healthMetricKey),
+    });
+
+    const id = await ctx.db.insert("customProgressMetrics", {
+      userId: args.userId,
+      ...definition,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await recordUndoableAction(ctx, {
+      userId: args.userId,
+      kind: "api_create_custom_metric",
+      summary: `Created the custom metric ${definition.title}`,
+      targetType: "custom_metric",
+      targetId: String(id),
+      undoPayload: { kind: "delete_custom_metric", id: String(id) },
+    });
+    return { ok: true, id, ...definition };
+  },
+});
+
+export const updateCustomMetric = internalMutation({
+  args: {
+    userId: v.string(),
+    metricId: v.string(),
+    title: v.optional(v.string()),
+    description: v.optional(v.string()),
+    tab: v.optional(v.string()),
+    kind: v.optional(v.string()),
+    unit: v.optional(v.string()),
+    step: v.optional(v.number()),
+    target: v.optional(v.union(v.number(), v.null())),
+    accent: v.optional(v.string()),
+    healthMetricKey: v.optional(v.union(v.string(), v.null())),
+  },
+  handler: async (ctx, args) => {
+    const metric = await loadCustomMetric(ctx, args.userId, args.metricId);
+
+    const merged = sanitizeCustomMetricDefinition({
+      title: args.title?.trim() || metric.title,
+      description: args.description ?? metric.description,
+      tab: (args.tab === undefined
+        ? metric.tab
+        : customMetricEnum(args.tab, CUSTOM_METRIC_TABS, "tab")) as "body",
+      kind: (args.kind === undefined
+        ? metric.kind
+        : customMetricEnum(args.kind, CUSTOM_METRIC_KINDS, "kind")) as "number",
+      unit: args.unit ?? metric.unit,
+      step: args.step ?? metric.step,
+      target:
+        args.target === undefined ? metric.target : (args.target ?? undefined),
+      accent: (args.accent === undefined
+        ? metric.accent
+        : customMetricEnum(
+            args.accent,
+            CUSTOM_METRIC_ACCENTS,
+            "accent",
+          )) as "progress",
+      healthMetricKey:
+        args.healthMetricKey === undefined
+          ? metric.healthMetricKey
+          : args.healthMetricKey === null
+            ? undefined
+            : requireHealthMetricKey(args.healthMetricKey),
+    });
+
+    // The undo restores exactly the fields this call could have moved, with
+    // null standing for "was not set", the way the check-in undo does.
+    const previous = {
+      title: metric.title,
+      description: metric.description,
+      tab: metric.tab,
+      kind: metric.kind,
+      unit: metric.unit,
+      step: metric.step,
+      target: metric.target ?? null,
+      accent: metric.accent,
+      healthMetricKey: metric.healthMetricKey ?? null,
+    };
+
+    await ctx.db.patch(metric._id, {
+      ...merged,
+      target: merged.target ?? undefined,
+      healthMetricKey: merged.healthMetricKey ?? undefined,
+      updatedAt: Date.now(),
+    });
+    await recordUndoableAction(ctx, {
+      userId: args.userId,
+      kind: "api_update_custom_metric",
+      summary: `Updated the custom metric ${merged.title}`,
+      targetType: "custom_metric",
+      targetId: String(metric._id),
+      undoPayload: {
+        kind: "restore_custom_metric_fields",
+        id: String(metric._id),
+        fields: previous,
+      },
+    });
+    return { ok: true, id: metric._id, ...merged };
+  },
+});
+
+export const setCustomMetricValue = internalMutation({
+  args: {
+    userId: v.string(),
+    metricId: v.string(),
+    date: v.string(),
+    value: v.union(v.number(), v.null()),
+  },
+  handler: async (ctx, args) => {
+    const metric = await loadCustomMetric(ctx, args.userId, args.metricId);
+    const existing = await ctx.db
+      .query("customProgressMetricEntries")
+      .withIndex("by_userId_and_metricId_and_date", (q) =>
+        q
+          .eq("userId", args.userId)
+          .eq("metricId", metric._id)
+          .eq("date", args.date),
+      )
+      .unique();
+
+    if (args.value === null) {
+      if (!existing) throw new Error(`Nothing logged for ${args.date}`);
+      const body = stripSystemFields(existing);
+      await ctx.db.delete(existing._id);
+      await recordUndoableAction(ctx, {
+        userId: args.userId,
+        kind: "api_clear_custom_metric",
+        summary: `Cleared ${metric.title} on ${args.date}`,
+        targetType: "custom_metric_entry",
+        targetId: String(existing._id),
+        undoPayload: { kind: "restore_custom_metric_entry", body },
+      });
+      // Clearing a bound metric is not permanent: the next sync refills the
+      // day, because deleting the row takes the manual flag with it.
+      return { ok: true, date: args.date, value: null, cleared: true };
+    }
+
+    if (!Number.isFinite(args.value)) throw new Error("value must be a number");
+    const value = clampCustomMetricValue(args.value);
+    // Anything arriving here was asked for by a person, so the day is marked
+    // manual and the health sync stops overwriting it.
+    if (existing) {
+      const previous = existing.value;
+      const previousManual = existing.manual ?? null;
+      await ctx.db.patch(existing._id, {
+        value,
+        manual: true,
+        updatedAt: Date.now(),
+      });
+      await recordUndoableAction(ctx, {
+        userId: args.userId,
+        kind: "api_set_custom_metric",
+        summary: `Set ${metric.title} to ${value} on ${args.date}`,
+        targetType: "custom_metric_entry",
+        targetId: String(existing._id),
+        undoPayload: {
+          kind: "restore_custom_metric_entry_value",
+          id: String(existing._id),
+          value: previous,
+          manual: previousManual,
+        },
+      });
+      return { ok: true, date: args.date, value, created: false };
+    }
+
+    const id = await ctx.db.insert("customProgressMetricEntries", {
+      userId: args.userId,
+      metricId: metric._id,
+      date: args.date,
+      value,
+      manual: true,
+      updatedAt: Date.now(),
+    });
+    await recordUndoableAction(ctx, {
+      userId: args.userId,
+      kind: "api_set_custom_metric",
+      summary: `Logged ${metric.title} ${value} on ${args.date}`,
+      targetType: "custom_metric_entry",
+      targetId: String(id),
+      undoPayload: { kind: "delete_custom_metric_entry", id: String(id) },
+    });
+    return { ok: true, date: args.date, value, created: true };
+  },
+});
+
+export const deleteCustomMetric = internalMutation({
+  args: { userId: v.string(), metricId: v.string() },
+  handler: async (ctx, args) => {
+    const metric = await loadCustomMetric(ctx, args.userId, args.metricId);
+
+    const entries: Array<Record<string, unknown>> = [];
+    for await (const entry of ctx.db
+      .query("customProgressMetricEntries")
+      .withIndex("by_userId_and_metricId", (q) =>
+        q.eq("userId", args.userId).eq("metricId", metric._id),
+      )) {
+      entries.push(stripSystemFields(entry));
+      await ctx.db.delete(entry._id);
+    }
+    // The dashboard widgets pointing at this metric go too — the app does the
+    // same, because a widget with no source renders as an empty box nobody can
+    // remove.
+    const widgets: Array<Record<string, unknown>> = [];
+    for await (const widget of ctx.db
+      .query("dashboardWidgets")
+      .withIndex("by_userId", (q) => q.eq("userId", args.userId))) {
+      if (widget.sourceMetricId !== metric._id) continue;
+      widgets.push(stripSystemFields(widget));
+      await ctx.db.delete(widget._id);
+    }
+    const body = stripSystemFields(metric);
+    await ctx.db.delete(metric._id);
+
+    await recordUndoableAction(ctx, {
+      userId: args.userId,
+      kind: "api_delete_custom_metric",
+      summary: `Deleted the custom metric ${metric.title}`,
+      targetType: "custom_metric",
+      targetId: String(metric._id),
+      // The entries and widgets carry the old metric id, so a handler putting
+      // this back has to insert the definition first and rewrite `metricId` /
+      // `sourceMetricId` to whatever id the insert returns.
+      undoPayload: { kind: "restore_custom_metric", body, entries, widgets },
+    });
+    return {
+      ok: true,
+      deleted: metric.title,
+      entries: entries.length,
+      widgets: widgets.length,
+    };
   },
 });

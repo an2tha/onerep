@@ -41,6 +41,10 @@ import {
   healthWorkoutToImport,
 } from "@/lib/health-sync"
 import { api } from "../../../../convex/_generated/api"
+import {
+  healthMetricGroups,
+  resolveHealthMetricSelection,
+} from "../../../../convex/lib/healthMetricCatalog"
 import { useTour } from "@/components/walkthrough/tour-context"
 import { WALKTHROUGH_CHAPTERS } from "@/lib/walkthrough/chapters"
 import { walkthroughStatusLabel } from "@/lib/walkthrough/resolve"
@@ -175,6 +179,7 @@ import {
   SettingsRow,
   SettingsLoadingState,
   SettingsSectionIntro,
+  MetricToggleList,
   SettingsSectionLabel,
   SettingsStatusPill as StatusPill,
   SyncStatusIcon,
@@ -290,6 +295,11 @@ export default function Settings({ onClose }: { onClose: () => void }) {
   const healthSyncEnabled =
     healthSync?.healthSyncEnabled ?? healthSync?.appleHealthEnabled ?? false
   const healthWriteEnabled = healthSync?.writeEnabled ?? false
+  // Merged over the catalogue defaults, so a metric added after this user last
+  // opened the screen arrives switched on rather than silently absent.
+  const healthMetricSelection = resolveHealthMetricSelection(
+    healthSync?.metrics
+  )
   const liveWorkoutStatusEnabled = preferences?.liveWorkoutStatusEnabled ?? true
   const [healthAvailability, setHealthAvailability] =
     useState<HealthAvailability | null>(null)
@@ -2253,6 +2263,31 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                         {healthBusy ? "Syncing…" : "Sync now"}
                       </PrimaryButton>
                     </div>
+
+                    <MetricToggleList
+                      busy={!healthSyncEnabled}
+                      onInteract={hapticSelection}
+                      onToggle={(key, enabled) => {
+                        // One key per change: sending the resolved map back
+                        // would let this build switch off any metric a newer
+                        // one had added.
+                        void setHealthSync({ metrics: { [key]: enabled } })
+                      }}
+                      groups={healthMetricGroups().map((group) => ({
+                        key: group.group,
+                        label: group.label,
+                        items: group.metrics.map((metric) => ({
+                          key: metric.key,
+                          label: metric.label,
+                          detail: metric.detail,
+                          enabled: healthMetricSelection[metric.key] === true,
+                          disabled: !healthSyncEnabled,
+                          disabledReason: healthSyncEnabled
+                            ? undefined
+                            : `Turn on ${healthLabel} sync first`,
+                        })),
+                      }))}
+                    />
 
                     <SettingsSectionLabel
                       title="Recent imports"

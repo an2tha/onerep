@@ -14,6 +14,11 @@ export type BodyMeasurementEntry = {
   calvesCm?: number
   neckCm?: number
   notes?: string
+  /** "manual" for a typed or API entry, "health" for a scale reading. */
+  source?: string
+  leanBodyMassKg?: number
+  boneMassKg?: number
+  basalMetabolicRateKcal?: number
   photoUploadId?: string
   photoUrl?: string | null
   photoTakenAt?: number // timestamp when photo was taken

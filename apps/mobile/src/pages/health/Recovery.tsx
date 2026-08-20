@@ -41,6 +41,7 @@ export default function HealthRecovery() {
       charts={
         <>
           <MetricTrend
+            hideWhenEmpty
             today={today}
             metric="recovery"
             title="Recovery score"
@@ -48,6 +49,7 @@ export default function HealthRecovery() {
             tone={AREA_TONES.recovery}
           />
           <MetricTrend
+            hideWhenEmpty
             today={today}
             metric="sleep"
             title="Sleep"
@@ -55,6 +57,7 @@ export default function HealthRecovery() {
             tone="var(--accent-health)"
           />
           <MetricTrend
+            hideWhenEmpty
             today={today}
             metric="hrv"
             kind="line"
@@ -63,6 +66,7 @@ export default function HealthRecovery() {
             tone="var(--accent-water)"
           />
           <MetricTrend
+            hideWhenEmpty
             today={today}
             metric="restingHeartRate"
             kind="line"

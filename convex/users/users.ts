@@ -6,6 +6,10 @@ import { calculateCalories } from "../lib/calculateCalories";
 import { estimateOnboardingCalories } from "../lib/estimateOnboardingCalories";
 import { deleteUserDataBatch } from "../lib/deleteUserData";
 import { getLatestOnboardingProfile } from "../lib/onboardingProfiles";
+import {
+  HEALTH_DIAL_KEYS,
+  HEALTH_METRIC_KEYS,
+} from "../lib/healthMetricCatalog";
 import { getHealthProfile } from "../lib/healthProfiles";
 import { buildNutritionPlan } from "../lib/nutritionPlan";
 import {
@@ -1200,11 +1204,50 @@ export const getNutritionPlan = query({
   },
 });
 
+/**
+ * Folds a partial switch change over what is already stored, dropping keys the
+ * catalogue does not define so a typo or a stale client cannot park unreachable
+ * entries in the document forever.
+ */
+function mergeHealthMetricSelection(
+  stored: Record<string, boolean> | undefined,
+  patch: Record<string, boolean> | undefined,
+) {
+  if (!patch) return stored;
+  const merged: Record<string, boolean> = { ...(stored ?? {}) };
+  for (const [key, enabled] of Object.entries(patch)) {
+    if (!HEALTH_METRIC_KEYS.includes(key)) continue;
+    merged[key] = enabled === true;
+  }
+  return merged;
+}
+
+function mergeDialSelection(
+  stored: Record<string, boolean> | undefined,
+  patch: Record<string, boolean> | undefined,
+) {
+  if (!patch) return stored;
+  const merged: Record<string, boolean> = { ...(stored ?? {}) };
+  for (const [key, enabled] of Object.entries(patch)) {
+    if (!HEALTH_DIAL_KEYS.includes(key)) continue;
+    merged[key] = enabled === true;
+  }
+  return merged;
+}
+
 export const setHealthSync = mutation({
   args: {
     healthSyncEnabled: v.optional(v.boolean()),
     autoSyncOnForeground: v.optional(v.boolean()),
     writeEnabled: v.optional(v.boolean()),
+    /**
+     * A partial patch, not a replacement: Settings sends the one switch that
+     * moved. Sending the whole map would let a client built against an older
+     * catalogue silently switch off metrics it had never heard of.
+     */
+    metrics: v.optional(v.record(v.string(), v.boolean())),
+    /** Same partial-patch contract as `metrics`. */
+    dials: v.optional(v.record(v.string(), v.boolean())),
   },
   handler: async (ctx, args) => {
     const user = await requireUser(ctx);
@@ -1232,6 +1275,11 @@ export const setHealthSync = mutation({
         args.writeEnabled ?? existing?.healthSync?.writeEnabled ?? false,
       lastSyncedAt: existing?.healthSync?.lastSyncedAt,
       lastSyncError: existing?.healthSync?.lastSyncError,
+      metrics: mergeHealthMetricSelection(
+        existing?.healthSync?.metrics,
+        args.metrics,
+      ),
+      dials: mergeDialSelection(existing?.healthSync?.dials, args.dials),
     };
 
     if (existing) {

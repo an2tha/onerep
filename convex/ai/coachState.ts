@@ -1084,6 +1084,29 @@ async function undoPayload(ctx: MutationCtx, userId: string, payload: unknown) {
     return;
   }
 
+  // Restores exactly the fields a correction touched. `null` in the payload
+  // means the field was absent before, so undoing has to remove it again
+  // rather than leave the new value sitting there.
+  if (
+    payload.kind === "restore_body_measurement_fields" &&
+    typeof payload.id === "string" &&
+    payload.fields !== null &&
+    typeof payload.fields === "object"
+  ) {
+    const id = ctx.db.normalizeId("bodyMeasurements", payload.id);
+    const row = id ? await ctx.db.get(id) : null;
+    if (row && row.userId === userId) {
+      const restored: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(
+        payload.fields as Record<string, unknown>,
+      )) {
+        restored[key] = value === null ? undefined : value;
+      }
+      await ctx.db.patch(row._id, { ...restored, updatedAt: Date.now() });
+    }
+    return;
+  }
+
   if (
     payload.kind === "restore_body_measurement_weight" &&
     typeof payload.id === "string"
@@ -1175,6 +1198,125 @@ async function undoPayload(ctx: MutationCtx, userId: string, payload: unknown) {
       "healthMetrics",
       payload.body as Parameters<typeof ctx.db.insert<"healthMetrics">>[1],
     );
+    return;
+  }
+
+  // Undo of a correction that had to invent the day's row. There was no prior
+  // document to put back, so the row goes away entirely — leaving it with the
+  // corrected number still in it would make undo a no-op that claims to have
+  // worked.
+  if (
+    payload.kind === "created_health_metrics_day" &&
+    typeof payload.date === "string"
+  ) {
+    const existing = await ctx.db
+      .query("healthMetrics")
+      .withIndex("by_userId_and_date", (q) =>
+        q.eq("userId", userId).eq("date", payload.date as string),
+      )
+      .unique();
+    if (existing) await ctx.db.delete(existing._id);
+    return;
+  }
+
+  // ── Custom metrics ─────────────────────────────────────────────────────────
+  // Six kinds because the API can create, edit, value, clear and delete a
+  // metric, and each of those loses something different. Without these the
+  // write tools filed audit entries that looked undoable and were not, which is
+  // worse than refusing up front.
+
+  if (payload.kind === "delete_custom_metric" && typeof payload.id === "string") {
+    const id = ctx.db.normalizeId("customProgressMetrics", payload.id);
+    const row = id ? await ctx.db.get(id) : null;
+    if (row && row.userId === userId) await ctx.db.delete(row._id);
+    return;
+  }
+
+  if (
+    payload.kind === "restore_custom_metric_fields" &&
+    typeof payload.id === "string" &&
+    isRecord(payload.fields)
+  ) {
+    const id = ctx.db.normalizeId("customProgressMetrics", payload.id);
+    const row = id ? await ctx.db.get(id) : null;
+    if (row && row.userId === userId) {
+      const restored: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(
+        payload.fields as Record<string, unknown>,
+      )) {
+        restored[key] = value === null ? undefined : value;
+      }
+      await ctx.db.patch(row._id, { ...restored, updatedAt: Date.now() });
+    }
+    return;
+  }
+
+  if (payload.kind === "delete_custom_metric_entry" && typeof payload.id === "string") {
+    const id = ctx.db.normalizeId("customProgressMetricEntries", payload.id);
+    const row = id ? await ctx.db.get(id) : null;
+    if (row && row.userId === userId) await ctx.db.delete(row._id);
+    return;
+  }
+
+  if (
+    payload.kind === "restore_custom_metric_entry_value" &&
+    typeof payload.id === "string" &&
+    typeof payload.value === "number"
+  ) {
+    const id = ctx.db.normalizeId("customProgressMetricEntries", payload.id);
+    const row = id ? await ctx.db.get(id) : null;
+    if (row && row.userId === userId) {
+      await ctx.db.patch(row._id, {
+        value: payload.value,
+        // Absent means the entry predates the flag, which reads as synced.
+        manual: payload.manual === true ? true : undefined,
+        updatedAt: Date.now(),
+      });
+    }
+    return;
+  }
+
+  if (payload.kind === "restore_custom_metric_entry" && isRecord(payload.body)) {
+    const body = payload.body as { userId?: unknown };
+    if (body.userId !== userId) return;
+    await ctx.db.insert(
+      "customProgressMetricEntries",
+      payload.body as Parameters<
+        typeof ctx.db.insert<"customProgressMetricEntries">
+      >[1],
+    );
+    return;
+  }
+
+  if (payload.kind === "restore_custom_metric" && isRecord(payload.body)) {
+    const body = payload.body as { userId?: unknown };
+    if (body.userId !== userId) return;
+    // The definition comes back under a NEW id, so every row that pointed at
+    // the old one has to be repointed as it is reinserted. Restoring the
+    // entries verbatim would file orphans keyed to an id that no longer
+    // exists — invisible until someone wonders why the chart is empty.
+    const metricId = await ctx.db.insert(
+      "customProgressMetrics",
+      payload.body as Parameters<
+        typeof ctx.db.insert<"customProgressMetrics">
+      >[1],
+    );
+    for (const entry of Array.isArray(payload.entries) ? payload.entries : []) {
+      if (!isRecord(entry)) continue;
+      await ctx.db.insert("customProgressMetricEntries", {
+        ...(entry as Record<string, unknown>),
+        metricId,
+      } as Parameters<
+        typeof ctx.db.insert<"customProgressMetricEntries">
+      >[1]);
+    }
+    for (const widget of Array.isArray(payload.widgets) ? payload.widgets : []) {
+      if (!isRecord(widget)) continue;
+      await ctx.db.insert("dashboardWidgets", {
+        ...(widget as Record<string, unknown>),
+        sourceMetricId: metricId,
+      } as Parameters<typeof ctx.db.insert<"dashboardWidgets">>[1]);
+    }
     return;
   }
 

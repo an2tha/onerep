@@ -76,6 +76,20 @@ const CHARTS: Array<{
     format: (value) => `${formatCount(value)} kcal`,
     tone: AREA_TONES.activity,
   },
+  {
+    metric: "weight",
+    title: "Weight",
+    kind: "line",
+    format: (value) => `${value.toFixed(1)}kg`,
+    tone: AREA_TONES.recovery,
+  },
+  {
+    metric: "bodyFat",
+    title: "Body fat",
+    kind: "line",
+    format: (value) => `${value.toFixed(1)}%`,
+    tone: AREA_TONES.activity,
+  },
 ]
 
 const RANGE_CAPTION: Record<RangeKey, string> = {

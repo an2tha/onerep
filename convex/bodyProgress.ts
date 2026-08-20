@@ -50,6 +50,41 @@ export const generateUploadUrl = mutation({
   },
 });
 
+/** Every numeric or text field a check-in carries, in one place. */
+const MEASUREMENT_FIELDS = [
+  "weightKg",
+  "bodyFatPct",
+  "waistCm",
+  "hipsCm",
+  "chestCm",
+  "armsCm",
+  "thighsCm",
+  "calvesCm",
+  "neckCm",
+  "leanBodyMassKg",
+  "boneMassKg",
+  "basalMetabolicRateKcal",
+  "notes",
+] as const;
+
+function definedMeasurementFields(args: Record<string, unknown>) {
+  const fields: Record<string, unknown> = {};
+  for (const key of MEASUREMENT_FIELDS) {
+    if (args[key] !== undefined) fields[key] = args[key];
+  }
+  return fields;
+}
+
+function clearedMeasurementFields(clearFields: string[] | undefined) {
+  const fields: Record<string, undefined> = {};
+  for (const key of clearFields ?? []) {
+    if ((MEASUREMENT_FIELDS as readonly string[]).includes(key)) {
+      fields[key] = undefined;
+    }
+  }
+  return fields;
+}
+
 // ── save ──────────────────────────────────────────────────────────────────────
 
 export const save = mutation({
@@ -70,6 +105,15 @@ export const save = mutation({
     photoDataUrl: v.optional(v.string()),
     photoUploadId: v.optional(v.id("fileUploads")),
     photoTakenAt: v.optional(v.number()),
+    leanBodyMassKg: v.optional(v.number()),
+    boneMassKg: v.optional(v.number()),
+    basalMetabolicRateKcal: v.optional(v.number()),
+    /**
+     * Fields to blank, named explicitly. Omission used to mean "delete this",
+     * which made every partial write a data-loss risk and forced callers to
+     * echo back fields they had no interest in. Now omission means "leave it".
+     */
+    clearFields: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
     const user = await getAuthUser(ctx);
@@ -104,20 +148,17 @@ export const save = mutation({
     if (existing) {
       await ctx.db.patch(existing._id, {
         loggedAt: args.loggedAt,
-        weightKg: args.weightKg,
-        bodyFatPct: args.bodyFatPct,
-        waistCm: args.waistCm,
-        hipsCm: args.hipsCm,
-        chestCm: args.chestCm,
-        armsCm: args.armsCm,
-        thighsCm: args.thighsCm,
-        calvesCm: args.calvesCm,
-        neckCm: args.neckCm,
-        notes: args.notes,
+        ...definedMeasurementFields(args),
+        ...clearedMeasurementFields(args.clearFields),
         ...(args.photoUploadId !== undefined
           ? { photoUploadId: args.photoUploadId }
           : {}),
-        photoTakenAt: args.photoTakenAt,
+        ...(args.photoTakenAt !== undefined
+          ? { photoTakenAt: args.photoTakenAt }
+          : {}),
+        // Editing a scale reading makes it a decision someone made, so later
+        // syncs stop treating the row as theirs to overwrite.
+        source: "manual",
         updatedAt: now,
       });
       if (args.photoUploadId) {
@@ -145,16 +186,10 @@ export const save = mutation({
         userId: user._id,
         clientId: args.clientId,
         loggedAt: args.loggedAt,
-        weightKg: args.weightKg,
-        bodyFatPct: args.bodyFatPct,
-        waistCm: args.waistCm,
-        hipsCm: args.hipsCm,
-        chestCm: args.chestCm,
-        armsCm: args.armsCm,
-        thighsCm: args.thighsCm,
-        calvesCm: args.calvesCm,
-        neckCm: args.neckCm,
-        notes: args.notes,
+        // Marks the row as hand-entered so the health sync will not overwrite
+        // it with a later scale reading for the same day.
+        source: "manual",
+        ...definedMeasurementFields(args),
         photoUploadId: args.photoUploadId,
         photoTakenAt: args.photoTakenAt,
         createdAt: now,

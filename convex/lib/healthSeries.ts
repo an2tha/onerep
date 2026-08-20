@@ -39,7 +39,9 @@ export type HealthMetricId =
   | "energy"
   | "hrv"
   | "restingHeartRate"
-  | "exercise";
+  | "exercise"
+  | "weight"
+  | "bodyFat";
 
 export type SeriesPoint = {
   /** The day, or the first day of the bucket. */
@@ -85,6 +87,11 @@ const METRIC_META: Record<
     betterWhen: "lower",
   },
   exercise: { label: "Exercise minutes", unit: "min", betterWhen: "higher" },
+  // "Lower is better" is the wrong reading for someone in a gaining phase, but
+  // the delta chip is a hint rather than a verdict, and the overwhelming
+  // majority of people watching a weight chart are watching it come down.
+  weight: { label: "Weight", unit: "kg", betterWhen: "lower" },
+  bodyFat: { label: "Body fat", unit: "%", betterWhen: "lower" },
 };
 
 /** YYYY-MM-DD arithmetic, anchored at noon so DST cannot shift the day. */
@@ -175,6 +182,12 @@ export type HealthSeriesInput = {
   /** Rows covering the range *and* the preceding comparison period. */
   rows: DailyMetrics[];
   exerciseMinutesByDate: Record<string, number>;
+  /**
+   * Check-ins by day. Body readings live on `bodyMeasurements` rather than the
+   * daily recovery row, because a weigh-in is something a person does — and
+   * corrects — rather than something a sensor accumulates.
+   */
+  bodyByDate?: Record<string, { weightKg?: number; bodyFatPct?: number }>;
   today: string;
   range: HealthRange;
 };
@@ -190,6 +203,7 @@ export type HealthSeriesInput = {
 export function buildHealthSeries({
   rows,
   exerciseMinutesByDate,
+  bodyByDate,
   today,
   range,
 }: HealthSeriesInput): {
@@ -227,6 +241,10 @@ export function buildHealthSeries({
       byDate.has(date) || exerciseMinutesByDate[date] !== undefined
         ? Math.round(exerciseMinutesByDate[date] ?? 0)
         : null,
+    // A day nobody stepped on the scale is a gap, never a zero — the line has
+    // to break rather than dive to the floor and back.
+    weight: (date) => bodyByDate?.[date]?.weightKg ?? null,
+    bodyFat: (date) => bodyByDate?.[date]?.bodyFatPct ?? null,
   };
 
   const metrics = {} as Record<HealthMetricId, MetricSeries>;

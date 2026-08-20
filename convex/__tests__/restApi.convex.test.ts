@@ -650,4 +650,136 @@ describe("health data over the API", () => {
     // dropped the name — not as it was first written.
     expect(restored.body[0].activityName).toBe("Workout");
   });
+
+  test("custom metrics go the whole way round over HTTP", async () => {
+    const t = convexTest(schema, modules);
+    await grantKey(t, "rest-metrics", ["read", "write", "delete"]);
+    const key = "rest-metrics";
+
+    const created = await call(t, "POST", "/v1/custom-metrics", {
+      key,
+      body: {
+        title: "Blood glucose",
+        tab: "body",
+        kind: "number",
+        unit: "mmol/L",
+        step: 0.1,
+        healthMetricKey: "bloodGlucoseMmolL",
+      },
+    });
+    expect(created.status).toBe(200);
+    const metricId = created.body.id;
+
+    expect(
+      (
+        await call(t, "POST", `/v1/custom-metrics/${metricId}/values`, {
+          key,
+          body: { date: "2026-07-20", value: 5.4 },
+        })
+      ).status,
+    ).toBe(200);
+
+    const listed = await call(t, "GET", "/v1/custom-metrics?tab=body", { key });
+    expect(listed.body).toHaveLength(1);
+    expect(listed.body[0].healthMetricKey).toBe("bloodGlucoseMmolL");
+    // A value written through the API is a typed one, so the sync leaves it be.
+    expect(listed.body[0].entries).toEqual([
+      { date: "2026-07-20", value: 5.4, source: "manual" },
+    ]);
+
+    expect(
+      (
+        await call(t, "POST", `/v1/custom-metrics/${metricId}`, {
+          key,
+          body: { title: "Glucose", target: 6 },
+        })
+      ).status,
+    ).toBe(200);
+
+    // Clearing a day is not the same as deleting the metric.
+    expect(
+      (
+        await call(t, "POST", `/v1/custom-metrics/${metricId}/values`, {
+          key,
+          body: { date: "2026-07-20", value: null },
+        })
+      ).status,
+    ).toBe(200);
+
+    const afterClear = await call(t, "GET", "/v1/custom-metrics", { key });
+    expect(afterClear.body[0].title).toBe("Glucose");
+    expect(afterClear.body[0].target).toBe(6);
+    expect(afterClear.body[0].entries).toEqual([]);
+
+    expect(
+      (await call(t, "DELETE", `/v1/custom-metrics/${metricId}`, { key }))
+        .status,
+    ).toBe(200);
+    expect((await call(t, "GET", "/v1/custom-metrics", { key })).body).toEqual(
+      [],
+    );
+  });
+
+  test("a custom metric bound to a key nobody has heard of is refused", async () => {
+    const t = convexTest(schema, modules);
+    await grantKey(t, "rest-badkey", ["write"]);
+
+    const { status, body } = await call(t, "POST", "/v1/custom-metrics", {
+      key: "rest-badkey",
+      body: {
+        title: "Vibes",
+        tab: "body",
+        kind: "number",
+        unit: "vibe",
+        healthMetricKey: "vibes",
+      },
+    });
+    expect(status).toBe(400);
+    expect(body.error.message).toMatch(/Unknown health metric key/);
+  });
+
+  test("deleting a custom metric needs a delete key, not a write one", async () => {
+    const t = convexTest(schema, modules);
+    await grantKey(t, "rest-metric-scope", ["read", "write"]);
+    const { status, body } = await call(
+      t,
+      "DELETE",
+      "/v1/custom-metrics/whatever",
+      { key: "rest-metric-scope" },
+    );
+    expect(status).toBe(403);
+    expect(body.error.code).toBe("insufficient_scope");
+  });
+
+  test("the platform catalogue tells an agent what can be bound", async () => {
+    const t = convexTest(schema, modules);
+    await grantKey(t, "rest-catalogue", ["read"]);
+
+    const { status, body } = await call(
+      t,
+      "GET",
+      "/v1/health/metrics?group=vitals",
+      { key: "rest-catalogue" },
+    );
+    expect(status).toBe(200);
+    const glucose = body.find(
+      (metric: { key: string }) => metric.key === "bloodGlucoseMmolL",
+    );
+    expect(glucose).toMatchObject({
+      unit: "mmol/L",
+      aggregation: "average",
+      bindable: true,
+    });
+    expect(glucose.apple).toBeTruthy();
+    // Steps is built in, so it is not on offer until ?all=true.
+    expect(body.some((metric: { key: string }) => metric.key === "steps")).toBe(
+      false,
+    );
+    const all = await call(t, "GET", "/v1/health/metrics?all=true", {
+      key: "rest-catalogue",
+    });
+    expect(
+      all.body.some((metric: { key: string }) => metric.key === "steps"),
+    ).toBe(true);
+  });
 });

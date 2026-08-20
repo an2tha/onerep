@@ -22,6 +22,15 @@ export type DailyMetrics = {
   hrvMs?: number;
   /** Read by the health score rather than by the recovery summary. */
   activeEnergyKcal?: number;
+  /**
+   * Fields on this day the user pinned by hand. Carried through the projection
+   * purely so the client can label them: without it the edit sheet forgets
+   * which numbers were corrections the moment the app restarts, and offers to
+   * "use synced" on a figure that already is.
+   *
+   * The scoring never reads this — an overridden number is just a number.
+   */
+  manualFields?: string[];
 };
 
 /** Days of history the baseline is drawn from. */
