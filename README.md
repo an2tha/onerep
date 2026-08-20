@@ -18,22 +18,37 @@
 <h3 align="center">OneRep</h3>
 
   <p align="center">
-    Training, nutrition, recovery, and progress in one place, with an AI coach that does the bookkeeping.
+    The open-source personal fitness OS.
+    <br />
+    Training, nutrition, recovery, progress, and an AI coach, all running on
+    your own infrastructure.
+    <br />
     <br />
     <a href="https://docs.onerep.life"><strong>Explore the docs »</strong></a>
     <br />
     <br />
-    <a href="https://app.onerep.life">Use the app</a>
+    <a href="https://app.onerep.life">Try it</a>
     &middot;
-    <a href="https://github.com/an2tha/onerep/issues/new?labels=bug">Report Bug</a>
+    <a href="https://docs.onerep.life/selfhost/overview">Self-host it</a>
     &middot;
-    <a href="https://github.com/an2tha/onerep/issues/new?labels=enhancement">Request Feature</a>
+    <a href="#contributing">Contribute</a>
   </p>
 </div>
 
 <div align="center">
   <img src="assets/onerep-tour.gif" alt="A walkthrough of OneRep: daily dashboard with calorie and macro rings, nutrition logging, training, progress charts, and the AI Coach" width="900">
 </div>
+
+## Why OneRep?
+
+Most workout apps are a single feature wearing a subscription. OneRep is the
+whole stack: training, nutrition, recovery, and progress, backed by an AI
+coach, a REST API, an MCP endpoint, and data export, all self-hostable on
+infrastructure you control.
+
+Built around a single idea: your fitness data should belong to you.
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## What it is
 
