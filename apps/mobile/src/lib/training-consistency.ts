@@ -23,18 +23,81 @@ export function subtractDays(date: Date, days: number): Date {
   return d
 }
 
+/** Number of week columns the dashboard activity graph draws. */
+export const ACTIVITY_WEEKS = 18
+
+/** 0 = the day was skipped, 4 = the day was a lot. */
+export type ActivityLevel = 0 | 1 | 2 | 3 | 4
+
+export type ActivityCell = {
+  date: string
+  sets: number
+  level: ActivityLevel
+  /** Days after today, which the grid draws as holes rather than as rest. */
+  future: boolean
+}
+
 /**
- * Count the current consecutive-day streak ending on `today`.
- * A day counts if its ISO string is present in `workoutDates`.
+ * Set count to shading. The bands are deliberately wide at the bottom: the
+ * difference between one set and none is the whole argument, and the
+ * difference between thirty and forty is a matter for someone else.
  */
-export function calcStreak(workoutDates: Set<string>, today: Date): number {
-  let streak = 0
-  let cursor = localNoon(today)
-  while (workoutDates.has(dateToIso(cursor))) {
-    streak++
-    cursor = subtractDays(cursor, 1)
+export function activityLevel(sets: number): ActivityLevel {
+  if (sets <= 0) return 0
+  if (sets < 8) return 1
+  if (sets < 15) return 2
+  if (sets < 22) return 3
+  return 4
+}
+
+/**
+ * Build the activity grid in column-major order: one column per week, Monday
+ * at the top, the last column being the week `today` falls in. Days past today
+ * are still emitted so every column is seven tall — they carry `future`.
+ */
+export function buildActivityGrid(
+  setsByDate: Map<string, number>,
+  today: Date,
+  weeks: number = ACTIVITY_WEEKS
+): ActivityCell[] {
+  const ref = localNoon(today)
+  const todayIso = dateToIso(ref)
+  const dow = ref.getDay() // 0 = Sun
+  const monday = subtractDays(ref, dow === 0 ? 6 : dow - 1)
+  const firstMonday = subtractDays(monday, (weeks - 1) * 7)
+
+  const cells: ActivityCell[] = []
+  for (let week = 0; week < weeks; week++) {
+    for (let day = 0; day < 7; day++) {
+      const date = dateToIso(subtractDays(firstMonday, -(week * 7 + day)))
+      const sets = setsByDate.get(date) ?? 0
+      cells.push({
+        date,
+        sets,
+        level: date > todayIso ? 0 : activityLevel(sets),
+        future: date > todayIso,
+      })
+    }
   }
-  return streak
+  return cells
+}
+
+/**
+ * Days trained in the trailing `days`-day window ending on `today`. Unlike a
+ * streak this one bends instead of breaking: a missed Tuesday costs it a
+ * point, not the whole thing.
+ */
+export function calcTrailingSessions(
+  workoutDates: Set<string>,
+  today: Date,
+  days: number
+): number {
+  const ref = localNoon(today)
+  let count = 0
+  for (let i = 0; i < days; i++) {
+    if (workoutDates.has(dateToIso(subtractDays(ref, i)))) count++
+  }
+  return count
 }
 
 /**

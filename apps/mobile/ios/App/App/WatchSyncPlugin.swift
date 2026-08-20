@@ -56,7 +56,7 @@ public class WatchSyncPlugin: CAPPlugin, CAPBridgedPlugin {
         for key in [
             "calories", "calorieGoal", "caloriesLeft", "protein", "proteinGoal",
             "carbs", "carbsGoal", "fat", "fatGoal", "waterMl", "waterGoalMl",
-            "streakDays",
+            "daysLast28",
         ] {
             if let value = call.getInt(key) { context[key] = value }
         }

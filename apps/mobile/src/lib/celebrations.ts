@@ -6,7 +6,6 @@ export type CelebrationKind =
   | "water-goal"
   | "calorie-goal"
   | "fast-complete"
-  | "streak-milestone"
   | "workout"
 
 type Spec = {
@@ -19,7 +18,6 @@ const SPECS: Record<CelebrationKind, Spec> = {
   "water-goal": { attribute: "waterGoalCelebration" },
   "calorie-goal": { attribute: "calorieGoalCelebration" },
   "fast-complete": { confetti: "target", attribute: "fastGoalCelebration" },
-  "streak-milestone": { confetti: "target" },
   workout: { confetti: "workout" },
 }
 

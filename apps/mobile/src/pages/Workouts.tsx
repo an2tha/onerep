@@ -178,7 +178,10 @@ function formatDateLabel(dateKey: string, todayKey: string) {
   })
 }
 
-import { calcStreak, calcWorkoutsThisWeek } from "@/lib/training-consistency"
+import {
+  calcTrailingSessions,
+  calcWorkoutsThisWeek,
+} from "@/lib/training-consistency"
 
 function PresetSteps({
   preset,
@@ -933,7 +936,11 @@ export default function Workouts() {
     date.setUTCHours(12, 0, 0, 0)
     return date
   }, [])
-  const trainingStreak = calcStreak(workoutDates, trainingStatsDate)
+  const trainingDaysLast28 = calcTrailingSessions(
+    workoutDates,
+    trainingStatsDate,
+    28
+  )
   const workoutsThisWeek = calcWorkoutsThisWeek(workoutDates, trainingStatsDate)
 
   const hasMoved =
@@ -1279,16 +1286,19 @@ export default function Workouts() {
       color: APP_ACCENT_COLORS.complete,
     },
     {
-      name: "Streak",
-      value: trainingStreak,
-      target: Math.max(7, trainingStreak),
+      // Four weeks of density rather than a streak: it dips on a missed day
+      // instead of going to zero, which is the difference between a reading
+      // and a punishment.
+      name: "Month",
+      value: trainingDaysLast28,
+      target: scheduledDaysThisWeek * 4,
       suffix: "d",
       color: APP_ACCENT_COLORS.progress,
     },
   ]
 
   // Days since the last completed session — the number that quietly explains
-  // why a streak of zero isn't the same as never having trained.
+  // why a quiet fortnight isn't the same as never having trained.
   const daysSinceLastWorkout = (() => {
     for (let back = 0; back <= 30; back++) {
       if (workoutDates.has(offsetDateKey(todayKey, -back))) return back

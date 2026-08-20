@@ -38,10 +38,12 @@ test("active workout communicates time, progress, and next action", () => {
 })
 
 test("training and preset creation use task-oriented hierarchy", () => {
-  // Consistency is reported as this week's sessions and the current streak.
+  // Consistency is reported as this week's sessions and the trailing four
+  // weeks of training density — the reading that replaced the streak.
   assert.match(workouts, /This week/)
-  assert.match(workouts, /Streak/)
-  assert.match(workouts, /calcStreak/)
+  assert.match(workouts, /"Month"/)
+  assert.match(workouts, /calcTrailingSessions/)
+  assert.doesNotMatch(workouts, /calcStreak/)
   assert.match(workouts, /calcWorkoutsThisWeek/)
   assert.match(workouts, /Edit routine/)
   assert.match(workouts, /New preset/)

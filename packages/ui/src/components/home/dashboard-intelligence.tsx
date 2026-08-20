@@ -159,27 +159,37 @@ export function DashboardWeekRings({
 
   return (
     <div
-      className={cn("flex items-start justify-between gap-2", className)}
+      className={cn(
+        // Centred and close together: the three readings are one instrument,
+        // and spread across the full width they read as three unrelated
+        // tiles that happen to share a row.
+        "flex items-start justify-center gap-5 pb-[26px] sm:gap-8",
+        className
+      )}
       aria-label="Your week at a glance"
     >
-      {rings.map((ring) => (
+      {rings.map((ring, index) => (
         <button
           key={ring.id}
           type="button"
           onClick={ring.onOpen}
           disabled={!ring.onOpen}
           aria-label={ring.describe}
-          className="motion-tactile flex min-w-0 flex-1 flex-col items-center gap-1 disabled:opacity-100"
+          className="motion-tactile flex w-[86px] shrink-0 flex-col items-center gap-1.5 disabled:opacity-100"
+          // The three sit on an arc — the middle ring at its crown, the outer
+          // two settled lower — so the row reads as one gauge rather than
+          // three tiles that happen to share a baseline.
+          style={{ transform: `translateY(${index === 1 ? 0 : 26}px)` }}
         >
-          <ScoreRing score={ring.score} tone={ring.tone} size={46} stroke={4}>
-            <span className="text-[13px] font-bold tabular-nums">
+          <ScoreRing score={ring.score} tone={ring.tone} size={68} stroke={5}>
+            <span className="text-[19px] font-bold tabular-nums">
               {ring.value}
             </span>
           </ScoreRing>
-          <span className="max-w-full truncate text-[11.5px] font-semibold">
+          <span className="max-w-full truncate text-[13px] font-semibold">
             {ring.label}
           </span>
-          <span className="max-w-full truncate text-[11px] text-muted-foreground">
+          <span className="max-w-full truncate text-[11.5px] text-muted-foreground">
             {ring.hint}
           </span>
         </button>
