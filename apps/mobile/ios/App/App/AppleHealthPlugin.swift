@@ -157,11 +157,11 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
                   let type = quantityType(quantity.identifier) else { continue }
             group.enter()
             switch quantity.rollup {
-            case .sum, .average:
+            case .sum, .average, .max:
                 collectDailyStatistics(
                     type: type,
                     unit: quantity.unit,
-                    options: quantity.rollup == .sum ? .cumulativeSum : .discreteAverage,
+                    options: quantity.statisticsOptions,
                     start: start,
                     end: end,
                     calendar: calendar
@@ -203,10 +203,17 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
         // Sleep keeps its own reader: it is the only category where the sample
         // value decides whether the sample counts at all, and where two
         // sources recording the same night have to be merged rather than added.
-        if wants("sleepMinutes") {
+        // Total and stages come out of one query because they are one query on
+        // Apple's side too — the stages are values of `sleepAnalysis`, not
+        // types of their own, so asking five times would read the same samples
+        // five times for the same answer.
+        let wantedSleepKeys = sleepStages().map(\.key).filter(wants)
+        if !wantedSleepKeys.isEmpty {
             group.enter()
-            collectDailySleepMinutes(start: start, end: end, calendar: calendar) { results in
-                results.forEach { record($0.key, "sleepMinutes", $0.value) }
+            collectDailySleepMinutes(start: start, end: end, calendar: calendar) { staged in
+                for (metric, results) in staged where wantedSleepKeys.contains(metric) {
+                    results.forEach { record($0.key, metric, $0.value) }
+                }
                 group.leave()
             }
         }
@@ -226,6 +233,10 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
         case sum
         case average
         case latest
+        /// The day's largest reading. Only heart rate recovery wants this: the
+        /// day's best rebound is the signal, and averaging it with a lazier
+        /// interval an hour later buries exactly the number being watched.
+        case max
     }
 
     private struct DailyQuantity {
@@ -237,6 +248,24 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
         let rollup: DailyRollup
         /// HealthKit states ratios as fractions; the app talks whole percent.
         var scale: Double = 1
+        /**
+         Whether HealthKit will accept a sample of this type from us.
+
+         Apple's own derived types are read-only, and asking to *share* one does
+         not fail quietly on that type alone — `requestAuthorization` rejects the
+         entire request, so a single unwritable entry in this table costs the
+         user every permission in the app. Exercise time and sleeping wrist
+         temperature are computed by watchOS and belong to it.
+         */
+        var writable: Bool = true
+
+        var statisticsOptions: HKStatisticsOptions {
+            switch rollup {
+            case .sum: return .cumulativeSum
+            case .max: return .discreteMax
+            default: return .discreteAverage
+            }
+        }
     }
 
     /**
@@ -271,12 +300,14 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
         let mmolPerLitre = HKUnit
             .moleUnit(with: .milli, molarMass: HKUnitMolarMassBloodGlucose)
             .unitDivided(by: HKUnit.liter())
+        let milligram = HKUnit.gramUnit(with: .milli)
+        let microgram = HKUnit.gramUnit(with: .micro)
 
         return [
             // Activity
             DailyQuantity(key: "steps", identifier: "StepCount", unit: .count(), rollup: .sum),
             DailyQuantity(key: "activeEnergyKcal", identifier: "ActiveEnergyBurned", unit: .kilocalorie(), rollup: .sum),
-            DailyQuantity(key: "exerciseMinutes", identifier: "AppleExerciseTime", unit: .minute(), rollup: .sum),
+            DailyQuantity(key: "exerciseMinutes", identifier: "AppleExerciseTime", unit: .minute(), rollup: .sum, writable: false),
             DailyQuantity(key: "distanceWalkingRunningM", identifier: "DistanceWalkingRunning", unit: .meter(), rollup: .sum),
             DailyQuantity(key: "distanceCyclingM", identifier: "DistanceCycling", unit: .meter(), rollup: .sum),
             DailyQuantity(key: "distanceSwimmingM", identifier: "DistanceSwimming", unit: .meter(), rollup: .sum),
@@ -302,6 +333,12 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
             DailyQuantity(key: "respiratoryRateBpm", identifier: "RespiratoryRate", unit: perMinute, rollup: .average),
             DailyQuantity(key: "bodyTemperatureC", identifier: "BodyTemperature", unit: .degreeCelsius(), rollup: .latest),
             DailyQuantity(key: "basalBodyTemperatureC", identifier: "BasalBodyTemperature", unit: .degreeCelsius(), rollup: .latest),
+            DailyQuantity(key: "walkingHeartRateAvgBpm", identifier: "WalkingHeartRateAverage", unit: perMinute, rollup: .average),
+            DailyQuantity(key: "heartRateRecoveryBpm", identifier: "HeartRateRecoveryOneMinute", unit: perMinute, rollup: .max),
+            // iOS 16 and a Series 8 or later; on anything older the identifier
+            // resolves to nil and the row drops out on its own, which is the
+            // same path a declined permission takes.
+            DailyQuantity(key: "wristTemperatureC", identifier: "AppleSleepingWristTemperature", unit: .degreeCelsius(), rollup: .latest, writable: false),
 
             // Body. Point measurements off a scale or a tape, so the day's last
             // reading wins: someone who weighs twice wants the second number,
@@ -311,6 +348,11 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
             DailyQuantity(key: "leanBodyMassKg", identifier: "LeanBodyMass", unit: HKUnit.gramUnit(with: .kilo), rollup: .latest),
             DailyQuantity(key: "heightCm", identifier: "Height", unit: HKUnit.meterUnit(with: .centi), rollup: .latest),
             DailyQuantity(key: "waistCircumferenceCm", identifier: "WaistCircumference", unit: HKUnit.meterUnit(with: .centi), rollup: .latest),
+            // A real stored type, so it is read rather than divided out of the
+            // day's height and weight. A number nobody measured, appearing on a
+            // day nobody stepped on a scale, reads as a measurement and is not.
+            // HealthKit files it as dimensionless, hence `count()`.
+            DailyQuantity(key: "bodyMassIndex", identifier: "BodyMassIndex", unit: .count(), rollup: .latest),
             // Summed rather than treated as a rate: HealthKit reports resting
             // energy as kilocalories accumulated across the day, not as the
             // per-day figure Health Connect hands back.
@@ -322,7 +364,25 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
             DailyQuantity(key: "dietaryCarbsG", identifier: "DietaryCarbohydrates", unit: .gram(), rollup: .sum),
             DailyQuantity(key: "dietaryFatG", identifier: "DietaryFatTotal", unit: .gram(), rollup: .sum),
             DailyQuantity(key: "hydrationMl", identifier: "DietaryWater", unit: HKUnit.literUnit(with: .milli), rollup: .sum),
-            DailyQuantity(key: "caffeineMg", identifier: "DietaryCaffeine", unit: HKUnit.gramUnit(with: .milli), rollup: .sum)
+            DailyQuantity(key: "caffeineMg", identifier: "DietaryCaffeine", unit: milligram, rollup: .sum),
+            // One cumulative type per nutrient, where Health Connect has a
+            // single record with a field each. Note the noun-first spelling of
+            // the fat breakdown: `DietaryFatSaturated`, not `DietarySaturatedFat`
+            // — the obvious guess resolves to nil and the metric never arrives,
+            // silently, which is how the last three went missing for a release.
+            DailyQuantity(key: "dietaryFiberG", identifier: "DietaryFiber", unit: .gram(), rollup: .sum),
+            DailyQuantity(key: "dietarySugarG", identifier: "DietarySugar", unit: .gram(), rollup: .sum),
+            DailyQuantity(key: "dietarySodiumMg", identifier: "DietarySodium", unit: milligram, rollup: .sum),
+            DailyQuantity(key: "dietaryCholesterolMg", identifier: "DietaryCholesterol", unit: milligram, rollup: .sum),
+            DailyQuantity(key: "dietarySaturatedFatG", identifier: "DietaryFatSaturated", unit: .gram(), rollup: .sum),
+            DailyQuantity(key: "dietaryMonounsaturatedFatG", identifier: "DietaryFatMonounsaturated", unit: .gram(), rollup: .sum),
+            DailyQuantity(key: "dietaryPolyunsaturatedFatG", identifier: "DietaryFatPolyunsaturated", unit: .gram(), rollup: .sum),
+            DailyQuantity(key: "dietaryPotassiumMg", identifier: "DietaryPotassium", unit: milligram, rollup: .sum),
+            DailyQuantity(key: "dietaryCalciumMg", identifier: "DietaryCalcium", unit: milligram, rollup: .sum),
+            DailyQuantity(key: "dietaryIronMg", identifier: "DietaryIron", unit: milligram, rollup: .sum),
+            DailyQuantity(key: "dietaryVitaminAMcg", identifier: "DietaryVitaminA", unit: microgram, rollup: .sum),
+            DailyQuantity(key: "dietaryVitaminCMg", identifier: "DietaryVitaminC", unit: milligram, rollup: .sum),
+            DailyQuantity(key: "dietaryVitaminDMcg", identifier: "DietaryVitaminD", unit: microgram, rollup: .sum)
         ]
     }
 
@@ -334,6 +394,10 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
         case level
         /// There is no level; the reading is that it happened at all.
         case occurred
+        /// How many times it happened. Distinct from `.occurred`, which flattens
+        /// a day to one — the catalogue asks for a count here, and collapsing it
+        /// would quietly under-report anyone who logged twice.
+        case count
     }
 
     private struct DailyCategory {
@@ -363,7 +427,10 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
             // numbering, so they go through as themselves.
             DailyCategory(key: "cervicalMucus", identifier: "CervicalMucusQuality", rollup: .level),
             DailyCategory(key: "ovulationTest", identifier: "OvulationTestResult", rollup: .level),
-            DailyCategory(key: "intermenstrualBleeding", identifier: "IntermenstrualBleeding", rollup: .occurred)
+            DailyCategory(key: "intermenstrualBleeding", identifier: "IntermenstrualBleeding", rollup: .occurred),
+            // The sample's value is only whether protection was used, which we
+            // neither ask for nor store; the day's tally is the whole reading.
+            DailyCategory(key: "sexualActivity", identifier: "SexualActivity", rollup: .count)
         ]
     }
 
@@ -408,6 +475,8 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
                     results[key] = level(sample.value)
                 case .occurred:
                     results[key] = 1
+                case .count:
+                    results[key] = (results[key] ?? 0) + 1
                 }
             }
             completion(results)
@@ -443,10 +512,15 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
 
             var results: [String: Double] = [:]
             collection.enumerateStatistics(from: start, to: end) { statistics, _ in
-                let quantity = options.contains(.cumulativeSum)
-                    ? statistics.sumQuantity()
-                    : statistics.averageQuantity()
-                guard let quantity = quantity else { return }
+                let picked: HKQuantity?
+                if options.contains(.cumulativeSum) {
+                    picked = statistics.sumQuantity()
+                } else if options.contains(.discreteMax) {
+                    picked = statistics.maximumQuantity()
+                } else {
+                    picked = statistics.averageQuantity()
+                }
+                guard let quantity = picked else { return }
                 let key = self.dayKey(statistics.startDate, calendar: calendar)
                 results[key] = quantity.doubleValue(for: unit)
             }
@@ -496,20 +570,62 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
         healthStore.execute(query)
     }
 
-    /**
-     Asleep minutes per local day, attributed to the wake-up day.
+    private struct SleepStage {
+        /// Catalogue key, verbatim from `platformHealthMetrics.ts`.
+        let key: String
+        /// The `HKCategoryValueSleepAnalysis` raw values this row is made of.
+        let values: Set<Int>
+    }
 
-     Only genuinely-asleep categories are counted; `inBed` is excluded, because
-     time spent reading in bed is not recovery and counting it would flatter
-     every baseline. Overlapping samples from several sources are merged rather
-     than summed — a phone and a watch both recording the same night must not
-     produce sixteen hours of sleep.
+    /**
+     The catalogue's five sleep rows, as sets of sleep-analysis values.
+
+     Apple has no per-stage sample type: a night is a run of `sleepAnalysis`
+     samples whose *value* says which stage it was, so the rows below are five
+     readings of one series rather than five types. Before iOS 16 there were no
+     stages at all, only `asleepUnspecified`, and the stage rows come back empty
+     on those devices — which is the truth, not a failure.
+
+     `inBed` is in none of them: time spent reading in bed is not recovery, and
+     counting it flatters every baseline.
+     */
+    private func sleepStages() -> [SleepStage] {
+        var asleep: Set<Int> = [HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue]
+        var deep: Set<Int> = []
+        var rem: Set<Int> = []
+        var light: Set<Int> = []
+        if #available(iOS 16.0, *) {
+            deep = [HKCategoryValueSleepAnalysis.asleepDeep.rawValue]
+            rem = [HKCategoryValueSleepAnalysis.asleepREM.rawValue]
+            // "Core" is Apple's name for what everyone else calls light sleep.
+            light = [HKCategoryValueSleepAnalysis.asleepCore.rawValue]
+            asleep.formUnion(deep)
+            asleep.formUnion(rem)
+            asleep.formUnion(light)
+        }
+        return [
+            SleepStage(key: "sleepMinutes", values: asleep),
+            SleepStage(key: "sleepDeepMinutes", values: deep),
+            SleepStage(key: "sleepRemMinutes", values: rem),
+            SleepStage(key: "sleepLightMinutes", values: light),
+            SleepStage(key: "sleepAwakeMinutes", values: [HKCategoryValueSleepAnalysis.awake.rawValue])
+        ]
+    }
+
+    /**
+     Sleep minutes per local day, per stage, attributed to the wake-up day.
+
+     Overlapping samples from several sources are merged rather than summed — a
+     phone and a watch both recording the same night must not produce sixteen
+     hours of sleep. The merge runs once per stage rather than once overall:
+     merging across stages would fuse a deep block into the light block beside
+     it, and the stage totals would no longer add up to anything.
      */
     private func collectDailySleepMinutes(
         start: Date,
         end: Date,
         calendar: Calendar,
-        completion: @escaping ([String: Double]) -> Void
+        completion: @escaping ([String: [String: Double]]) -> Void
     ) {
         guard let type = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) else {
             completion([:])
@@ -528,37 +644,33 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
                 return
             }
 
-            var asleepValues: Set<Int> = [HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue]
-            if #available(iOS 16.0, *) {
-                asleepValues.formUnion([
-                    HKCategoryValueSleepAnalysis.asleepCore.rawValue,
-                    HKCategoryValueSleepAnalysis.asleepDeep.rawValue,
-                    HKCategoryValueSleepAnalysis.asleepREM.rawValue
-                ])
-            }
-
-            let asleep = (samples as? [HKCategorySample] ?? [])
-                .filter { asleepValues.contains($0.value) }
+            let all = (samples as? [HKCategorySample] ?? [])
                 .sorted { $0.startDate < $1.startDate }
 
-            // Merge overlaps first, then attribute. Two devices recording the
-            // same night are one night's sleep.
-            var merged: [(start: Date, end: Date)] = []
-            for sample in asleep {
-                if let last = merged.last, sample.startDate <= last.end {
-                    merged[merged.count - 1].end = max(last.end, sample.endDate)
-                } else {
-                    merged.append((sample.startDate, sample.endDate))
+            var staged: [String: [String: Double]] = [:]
+            for stage in self.sleepStages() where !stage.values.isEmpty {
+                // Merge overlaps first, then attribute. Two devices recording
+                // the same night are one night's sleep.
+                var merged: [(start: Date, end: Date)] = []
+                for sample in all where stage.values.contains(sample.value) {
+                    if let last = merged.last, sample.startDate <= last.end {
+                        merged[merged.count - 1].end = max(last.end, sample.endDate)
+                    } else {
+                        merged.append((sample.startDate, sample.endDate))
+                    }
+                }
+
+                var results: [String: Double] = [:]
+                for interval in merged {
+                    let key = self.dayKey(interval.end, calendar: calendar)
+                    let minutes = interval.end.timeIntervalSince(interval.start) / 60
+                    results[key] = (results[key] ?? 0) + minutes
+                }
+                if !results.isEmpty {
+                    staged[stage.key] = results
                 }
             }
-
-            var results: [String: Double] = [:]
-            for interval in merged {
-                let key = self.dayKey(interval.end, calendar: calendar)
-                let minutes = interval.end.timeIntervalSince(interval.start) / 60
-                results[key] = (results[key] ?? 0) + minutes
-            }
-            completion(results)
+            completion(staged)
         }
 
         healthStore.execute(query)
@@ -657,8 +769,12 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
         // write-back is per-edit and opt-in, so most of these will never be
         // used by most people; HealthKit still wants them declared up front,
         // and asking for a second sheet later is the thing that looks shady.
+        //
+        // Only the ones HealthKit will actually take: one read-only type in a
+        // share request fails the request outright, taking every other
+        // permission down with it.
         var types: Set<HKSampleType> = [HKObjectType.workoutType()]
-        dailyQuantities().forEach { quantity in
+        dailyQuantities().filter(\.writable).forEach { quantity in
             if let type = quantityType(quantity.identifier) {
                 types.insert(type)
             }
@@ -687,9 +803,13 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
         guard let metric = call.getString("metric"),
               let value = call.getDouble("value"),
               let date = call.getString("date"),
-              // Category metrics — sleep, the reproductive levels — are not
-              // quantity samples and have no sensible single-number write.
-              let quantity = dailyQuantities().first(where: { $0.key == metric }),
+              // Only quantities, and only the ones Apple lets an app write.
+              // Category metrics — sleep and its stages, menstrual flow,
+              // cervical mucus, ovulation tests, sexual activity — carry an
+              // enum and a span, not a number, so "the user typed 2" does not
+              // describe a sample that could be written. They fall through to
+              // `saved: false` rather than guessing at a value.
+              let quantity = dailyQuantities().first(where: { $0.key == metric && $0.writable }),
               let type = quantityType(quantity.identifier) else {
             call.resolve(["saved": false])
             return
@@ -725,7 +845,7 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
         case .sum:
             start = dayStart
             finish = max(dayEnd, dayStart)
-        case .average, .latest:
+        case .average, .latest, .max:
             start = midday
             finish = midday
         }
