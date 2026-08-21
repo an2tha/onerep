@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 
 import { MACRO_COLORS } from "../lib/design-tokens"
+import { useEnergyUnitLabel } from "../lib/energy-unit"
 
 const MACROS = [
   {
@@ -109,6 +110,7 @@ export function FoodProductHeader({
   /** A larger file for the expanded view; falls back to `imageUrl`. */
   expandedImageUrl?: string
 }) {
+  const energyUnit = useEnergyUnitLabel()
   // Set when the photo is open full-screen. Held here rather than raised to the
   // caller: nothing outside this header needs to know a picture is being looked
   // at, and every screen that shows a food would otherwise have to carry it.
@@ -155,7 +157,7 @@ export function FoodProductHeader({
             <span>{portionLabel}</span>
             <span aria-hidden>·</span>
             <strong className="font-semibold text-foreground tabular-nums">
-              {formatNutrient(calories, 0)} kcal
+              {formatNutrient(calories, 0)} {energyUnit}
             </strong>
           </div>
         </div>

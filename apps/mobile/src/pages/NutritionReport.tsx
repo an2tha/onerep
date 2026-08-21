@@ -6,6 +6,7 @@ import { NavigationBar, ToolbarButton, toast } from "@repo/ui"
 import { api } from "../../../../convex/_generated/api"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { cn } from "@/lib/utils"
+import { useEnergyUnit } from "@/lib/use-energy-unit"
 import {
   currentDateKey,
   FOOD_MICRONUTRIENT_KEYS,
@@ -37,6 +38,7 @@ const RECEIPT_BARCODE = [
 ]
 
 export default function NutritionReport() {
+  const energyUnit = useEnergyUnit()
   const navigate = useSmoothNavigate()
   const today = currentDateKey()
 
@@ -253,7 +255,7 @@ export default function NutritionReport() {
                     Day
                   </th>
                   <th scope="col" className="text-right font-bold">
-                    kcal
+                    {energyUnit}
                   </th>
                   <th scope="col" className="w-10 text-right font-bold">
                     P
@@ -299,7 +301,7 @@ export default function NutritionReport() {
 
           <section className="print-block mt-4" aria-label="Daily averages">
             <div className="receipt-row font-bold">
-              <span>Avg kcal</span>
+              <span>Avg {energyUnit}</span>
               <span>
                 {report.averagesPerLoggedDay.calories}
                 {report.goals?.calories ? ` / ${report.goals.calories}` : ""}
@@ -367,7 +369,7 @@ export default function NutritionReport() {
                 <div key={meal.meal} className="receipt-row">
                   <span>{meal.label}</span>
                   <span>
-                    {meal.totals.calories} kcal · {meal.shareOfCalories}%
+                    {meal.totals.calories} {energyUnit} · {meal.shareOfCalories}%
                     {/* Planned vs actual: the daily budget times the number
                         of logged days is the fair comparison for a range. */}
                     {mealTargetByMeal.has(meal.meal)
@@ -409,7 +411,7 @@ export default function NutritionReport() {
                 <div key={food.name} className="receipt-row">
                   <span className="min-w-0 truncate">{food.name}</span>
                   <span className="shrink-0">
-                    ×{food.count} · {food.calories} kcal
+                    ×{food.count} · {food.calories} {energyUnit}
                   </span>
                 </div>
               ))}
@@ -429,7 +431,7 @@ export default function NutritionReport() {
                   <div key={day.date} className="print-block mt-2">
                     <h3 className="receipt-row font-bold">
                       <span>{formatReportDate(day.date)}</span>
-                      <span>{Math.round(day.totals.calories)} kcal</span>
+                      <span>{Math.round(day.totals.calories)} {energyUnit}</span>
                     </h3>
                     {day.entries.map((entry, index) => (
                       <div

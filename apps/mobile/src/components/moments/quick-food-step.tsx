@@ -16,6 +16,7 @@ import {
 } from "@repo/ui"
 import { api } from "../../../../../convex/_generated/api"
 import { useSmoothNavigate } from "@/lib/navigation"
+import { useEnergyUnit, type EnergyUnit } from "@/lib/use-energy-unit"
 import { hapticMedium, hapticSelection } from "@/lib/haptics"
 import { createClientId, logDevWarn } from "@/lib/utils"
 import { recipeTotals } from "@/lib/coach-chat"
@@ -57,12 +58,15 @@ type Choice = {
   entries: () => FoodLogEntry[]
 }
 
-function macroLine(entry: { calories?: number; protein?: number }) {
+function macroLine(
+  entry: { calories?: number; protein?: number },
+  energyUnit: EnergyUnit
+) {
   const calories = Math.round(entry.calories ?? 0)
   const protein = Math.round(entry.protein ?? 0)
   return protein > 0
-    ? `${calories} kcal · ${protein}g protein`
-    : `${calories} kcal`
+    ? `${calories} ${energyUnit} · ${protein}g protein`
+    : `${calories} ${energyUnit}`
 }
 
 const ICONS = {
@@ -94,6 +98,7 @@ export function QuickFoodStep({
   onClose: (outcome: FullScreenEventOutcome) => void
 }) {
   const navigate = useSmoothNavigate()
+  const energyUnit = useEnergyUnit()
   const [query, setQuery] = useState("")
   const [busy, setBusy] = useState(false)
   const [logged, setLogged] = useState(0)
@@ -170,7 +175,7 @@ export function QuickFoodStep({
       items.push({
         key: `again:${food.key}`,
         name: food.entry.name,
-        detail: macroLine(food.entry),
+        detail: macroLine(food.entry, energyUnit),
         icon: "again",
         entries: () => [food.entry],
       })
@@ -187,7 +192,7 @@ export function QuickFoodStep({
       items.push({
         key: `saved:${preset.id}`,
         name: preset.name,
-        detail: `${preset.entries.length} items · ${macroLine(totals)}`,
+        detail: `${preset.entries.length} items · ${macroLine(totals, energyUnit)}`,
         icon: "saved",
         entries: () =>
           foodLogEntriesFromMealPreset({
@@ -202,7 +207,7 @@ export function QuickFoodStep({
       items.push({
         key: `recipe:${recipe._id}`,
         name: recipe.name,
-        detail: `One serving · ${macroLine(totals)}`,
+        detail: `One serving · ${macroLine(totals, energyUnit)}`,
         icon: "recipe",
         entries: () => [
           stripUndefined({
@@ -409,7 +414,7 @@ export function QuickFoodStep({
                     detail={[
                       item.brand,
                       item.serving,
-                      `${Math.round(item.calories)} kcal`,
+                      `${Math.round(item.calories)} ${energyUnit}`,
                     ]
                       .filter(Boolean)
                       .join(" · ")}

@@ -30,6 +30,7 @@ import { useSmoothNavigate } from "@/lib/navigation"
 import { reportOfflineMutationError } from "@/lib/offline-mutation-errors"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { cn } from "@/lib/utils"
+import { useEnergyUnit } from "@/lib/use-energy-unit"
 import {
   currentDateKey,
   DEFAULT_MEAL_CATEGORIES,
@@ -52,6 +53,7 @@ import {
 } from "@/lib/custom-foods"
 
 export default function CustomFoods() {
+  const energyUnit = useEnergyUnit()
   const navigate = useSmoothNavigate()
   const [searchParams] = useSearchParams()
   const today = currentDateKey()
@@ -287,7 +289,7 @@ export default function CustomFoods() {
                     {food.name}
                   </span>
                   <span className="native-row-detail mt-0.5 block tabular-nums">
-                    {food.nutrientsPerServing.calories} kcal ·{" "}
+                    {food.nutrientsPerServing.calories} {energyUnit} ·{" "}
                     {food.nutrientsPerServing.protein} P ·{" "}
                     {food.nutrientsPerServing.carbs} C ·{" "}
                     {food.nutrientsPerServing.fat} F per {food.servingLabel}
@@ -350,6 +352,7 @@ function LogCustomFoodSheet({
   onClose: () => void
   onLog: (options: { servings: number; meal: string }) => void
 }) {
+  const energyUnit = useEnergyUnit()
   const [servings, setServings] = useState("1")
   const [meal, setMeal] = useState(defaultMeal())
 
@@ -409,7 +412,7 @@ function LogCustomFoodSheet({
         </div>
 
         <p className="native-field-hint mt-3 tabular-nums">
-          {preview.calories} kcal · {preview.protein} g protein ·{" "}
+          {preview.calories} {energyUnit} · {preview.protein} g protein ·{" "}
           {preview.carbs} g carbs · {preview.fat} g fat
         </p>
 
@@ -442,6 +445,7 @@ function CustomFoodEditorSheet({
   onSave: () => void
   onDelete?: () => void
 }) {
+  const energyUnit = useEnergyUnit()
   const [microsOpen, setMicrosOpen] = useState(false)
   const validation = validateCustomFoodDraft(draft)
   const nutrients = customFoodNutrientsFromDraft(draft)
@@ -562,7 +566,7 @@ function CustomFoodEditorSheet({
                 className="native-field-hint mt-2 flex items-center gap-1.5 text-[var(--accent-food)]"
               >
                 <Warning size={14} weight="bold" aria-hidden />
-                Macros add up to {caloriesFromMacros(nutrients)} kcal. Double check
+                Macros add up to {caloriesFromMacros(nutrients)} {energyUnit}. Double check
                 the numbers.
               </p>
             )}

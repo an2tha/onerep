@@ -38,6 +38,7 @@ import { useSmoothNavigate } from "@/lib/navigation"
 import { updateOneRepWidgets } from "@/lib/home-widgets"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { cn, safeLocalStorageGet, safeLocalStorageSet } from "@/lib/utils"
+import { useEnergyUnit } from "@/lib/use-energy-unit"
 import {
   FOOD_MICRONUTRIENT_KEYS,
   currentDateKey,
@@ -827,6 +828,7 @@ function MealBudgetPanel({
   entries: FoodLogEntry[]
   targets: { meal: string; percent: number; calories: number }[]
 }) {
+  const energyUnit = useEnergyUnit()
   const consumedByMeal = useMemo(() => {
     const totals = new Map<string, number>()
     for (const entry of entries) {
@@ -867,9 +869,9 @@ function MealBudgetPanel({
                   className="native-row-detail tabular-nums"
                   aria-label={`${mealLabel(target.meal)}: ${consumed} of ${
                     target.calories
-                  } kcal`}
+                  } ${energyUnit}`}
                 >
-                  {consumed} / {target.calories} kcal
+                  {consumed} / {target.calories} {energyUnit}
                 </span>
               </div>
               <div
@@ -903,6 +905,7 @@ function GoalsCardWrapper({
   onSave: (goals: GoalOverride) => void | Promise<void>
   carbMode: CarbDisplayMode
 }) {
+  const energyUnit = useEnergyUnit()
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState<GoalOverride>(goals)
 
@@ -955,7 +958,7 @@ function GoalsCardWrapper({
                 <div className="flex items-baseline gap-1">
                   <span className="text-[13px] font-medium">{label}</span>
                   <span className="text-[13px] text-muted-foreground">
-                    {unit}
+                    {key === "calories" ? energyUnit : unit}
                   </span>
                 </div>
                 <div className="flex items-center rounded-[10px] bg-muted/50 p-0.5">
@@ -1064,6 +1067,7 @@ function SmartMealPresetCard({
   onDismiss: () => void
   busy: boolean
 }) {
+  const energyUnit = useEnergyUnit()
   const totals = mealPresetTotals(suggestion.entries)
   const summary = mealPresetItemSummary(suggestion.entries)
   const meal = suggestion.mealLabel.toLowerCase()
@@ -1094,7 +1098,7 @@ function SmartMealPresetCard({
           </p>
           <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1">
             <span className="text-[13px] font-medium text-muted-foreground tabular-nums">
-              {Math.round(totals.calories)} kcal
+              {Math.round(totals.calories)} {energyUnit}
             </span>
             <span className="text-[13px] text-muted-foreground tabular-nums">
               P{Math.round(totals.protein)} C{Math.round(totals.carbs)} F
@@ -1350,6 +1354,7 @@ function FoodEntrySheet({
   onEditRecipe?: () => void
   onClose: () => void
 }) {
+  const energyUnit = useEnergyUnit()
   const [name, setName] = useState(entry.name)
   const [meal, setMeal] = useState<string>(entry.meal)
   const [macros, setMacros] = useState({
@@ -1441,7 +1446,7 @@ function FoodEntrySheet({
       <div className="mt-3 grid grid-cols-4 gap-2">
         {(
           [
-            ["calories", "kcal"],
+            ["calories", energyUnit],
             ["protein", "Protein"],
             ["carbs", "Carbs"],
             ["fat", "Fat"],
@@ -1551,6 +1556,7 @@ function RecipeLogSheet({
   onEdit?: () => void
   onClose: () => void
 }) {
+  const energyUnit = useEnergyUnit()
   const totals = recipeTotals(recipe.ingredients)
   const suggested = defaultMeal()
 
@@ -1568,7 +1574,7 @@ function RecipeLogSheet({
         {recipe.name}
       </p>
       <p className="mb-3 text-[13px] text-muted-foreground tabular-nums">
-        {totals.calories} kcal · P{totals.protein} C{totals.carbs} F{totals.fat}
+        {totals.calories} {energyUnit} · P{totals.protein} C{totals.carbs} F{totals.fat}
         g
       </p>
       {onEdit && (
@@ -1641,6 +1647,7 @@ function RecipeManagementBox({
   onDelete: (recipe: Recipe) => void
   embedded?: boolean
 }) {
+  const energyUnit = useEnergyUnit()
   return (
     <section
       className={cn(embedded ? "py-3" : "mt-4 border-y border-border py-4")}
@@ -1696,7 +1703,7 @@ function RecipeManagementBox({
                 <div className="min-w-0 flex-1">
                   <p className="native-row-title truncate">{recipe.name}</p>
                   <p className="native-row-detail mt-0.5 tabular-nums">
-                    {totals.calories} kcal · {recipe.ingredients.length}{" "}
+                    {totals.calories} {energyUnit} · {recipe.ingredients.length}{" "}
                     ingredient{recipe.ingredients.length === 1 ? "" : "s"}
                   </p>
                 </div>
@@ -2041,6 +2048,7 @@ function SupplementRow({
 }
 
 export default function Nutrition() {
+  const energyUnit = useEnergyUnit()
   const navigate = useSmoothNavigate()
   const nutritionHeaderRef = useTourAnchor("nutrition-header")
   const [searchParams, setSearchParams] = useSearchParams()
@@ -2125,6 +2133,10 @@ export default function Nutrition() {
     date: dateKey,
   })
 
+  const removeFoodEntryById = useOfflineMutation(
+    api.logs.foodLogs.removeEntry,
+    "logs.foodLogs.removeEntry"
+  )
   const setFoodDay = useOfflineMutation(
     api.logs.foodLogs.setDay,
     "logs.foodLogs.setDay"
@@ -2649,10 +2661,9 @@ export default function Nutrition() {
   }
 
   function removeFoodEntry(entryId: string) {
-    void setFoodDay({
-      date: dateKey,
-      entries: entries.filter((entry) => entry.id !== entryId),
-    })
+    // Targeted removal: rewriting the whole day from this client's snapshot
+    // erases concurrent adds and lets racing writes resurrect the entry.
+    void removeFoodEntryById({ date: dateKey, entryId })
   }
 
   async function saveFoodEntry(updated: FoodLogEntry) {
@@ -3035,7 +3046,7 @@ export default function Nutrition() {
               <div className="min-w-0">
                 <p className="native-supporting">{dateLabel}</p>
                 <p className="mt-1 text-[1.55rem] leading-none font-extrabold tabular-nums">
-                  {fmt(intakeTotals.calories)} kcal
+                  {fmt(intakeTotals.calories)} {energyUnit}
                 </p>
                 <p className="mt-1 text-[13px] text-muted-foreground">
                   {entries.length} food{" "}
@@ -3117,7 +3128,7 @@ export default function Nutrition() {
                           </p>
                           <p className="native-row-detail mt-0.5">
                             {timeLabel(entry.loggedAt)} · {fmt(entry.calories)}{" "}
-                            kcal · {fmt(entry.protein)}P {fmt(entry.carbs)}C{" "}
+                            {energyUnit} · {fmt(entry.protein)}P {fmt(entry.carbs)}C{" "}
                             {fmt(entry.fat)}F
                           </p>
                         </button>
@@ -3311,7 +3322,7 @@ export default function Nutrition() {
                         ? ` of ${formatFastDuration(fastTargetSeconds)}`
                         : ""}
                       {visibleMetrics.calories
-                        ? ` · ${fmt(intakeTotals.calories)} kcal logged`
+                        ? ` · ${fmt(intakeTotals.calories)} ${energyUnit} logged`
                         : ""}
                       {supplementHint ? ` · ${supplementHint}` : ""}
                     </p>
@@ -3375,11 +3386,11 @@ export default function Nutrition() {
                       {fmt(Math.abs(caloriesLeft))}
                     </span>
                     <span className="text-[1.05rem] font-semibold text-muted-foreground">
-                      kcal {caloriesLeft >= 0 ? "left" : "over"}
+                      {energyUnit} {caloriesLeft >= 0 ? "left" : "over"}
                     </span>
                   </p>
                   <p className="mt-1.5 text-[13px] text-muted-foreground tabular-nums">
-                    {fmt(intakeTotals.calories)} of {fmt(calorieTarget)} kcal ·{" "}
+                    {fmt(intakeTotals.calories)} of {fmt(calorieTarget)} {energyUnit} ·{" "}
                     {loggedToday} entries
                     {supplementHint ? ` · ${supplementHint}` : ""}
                   </p>
@@ -3461,7 +3472,7 @@ export default function Nutrition() {
                     </p>
                     <p className="mt-0.5 text-[13px] leading-5 text-muted-foreground tabular-nums">
                       {workoutAdjustmentEnabled
-                        ? `+${fmt(workoutCalories)} kcal for training`
+                        ? `+${fmt(workoutCalories)} ${energyUnit} for training`
                         : "Fixed target, workout adjustment off"}
                     </p>
                   </div>
@@ -3530,7 +3541,7 @@ export default function Nutrition() {
                             </button>
                           )}
                           <span className="shrink-0 text-[14px] font-semibold tabular-nums">
-                            {fmt(entry.calories)} kcal
+                            {fmt(entry.calories)} {energyUnit}
                           </span>
                         </SlideToDeleteRow>
                       ))}
@@ -3938,7 +3949,7 @@ export default function Nutrition() {
                             {food.entry.name}
                           </span>
                           <span className="native-row-detail block tabular-nums">
-                            {fmt(food.entry.calories)} kcal
+                            {fmt(food.entry.calories)} {energyUnit}
                             {food.count > 1
                               ? ` · logged ${food.count} times recently`
                               : ""}
@@ -4043,7 +4054,7 @@ export default function Nutrition() {
                               {recipe.name}
                             </p>
                             <p className="native-row-detail mt-0.5">
-                              {totals.calories} kcal ·{" "}
+                              {totals.calories} {energyUnit} ·{" "}
                               {recipe.ingredients.length} ingredient
                               {recipe.ingredients.length === 1 ? "" : "s"}
                             </p>

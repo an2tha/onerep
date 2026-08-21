@@ -1,5 +1,6 @@
 import { Card } from "./ui/card"
 import { MuscleBodySvg, type MuscleRecoveryItem } from "./muscle-body-svg"
+import { useEnergyUnitLabel } from "../lib/energy-unit"
 
 export type DashboardBodyMeasurementView = {
   weightKg?: number
@@ -194,6 +195,7 @@ export function DashboardProgressPanels({
   muscleRecovery?: MuscleRecoveryItem[]
   weightUnit: "kg" | "lbs"
 }) {
+  const energyUnit = useEnergyUnitLabel()
   const selected = METRICS.find((item) => item.id === metric) ?? METRICS[0]
   const checkInCount = Math.min(14, measurements.length)
   const weightValues = measurements.flatMap((entry) =>
@@ -230,7 +232,7 @@ export function DashboardProgressPanels({
         </div>
         <div className="text-right">
           <p className="rounded-full bg-muted px-2 py-1 text-[12px] font-bold tabular-nums">
-            {calorieTarget.toLocaleString("en-US")} kcal
+            {calorieTarget.toLocaleString("en-US")} {energyUnit}
           </p>
           <p className="text-[11px] text-muted-foreground">
             daily target{deficit > 0 ? ` · ${deficit} deficit` : ""}

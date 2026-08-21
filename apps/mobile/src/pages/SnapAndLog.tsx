@@ -40,6 +40,7 @@ import { usePostHog } from "@posthog/react"
 import { captureFeatureUsage } from "@/lib/analytics"
 import { toast } from "@repo/ui"
 import { hapticMedium, hapticTap } from "@/lib/haptics"
+import { useEnergyUnit } from "@/lib/use-energy-unit"
 import type { FoodResult } from "@repo/models"
 import {
   getFoodByBarcode,
@@ -125,6 +126,9 @@ export default function SnapAndLog() {
   )
   const [flash, setFlash] = useState(false)
   const [fired, setFired] = useState(false)
+  // Guard lives in a ref: two taps in the same React batch both read stale
+  // `fired` state, and in snap mode each capture burns an AI credit.
+  const firedRef = useRef(false)
 
   // Snap & AI results
   const [snapPhase, setSnapPhase] = useState<SnapPhase>("idle")
@@ -473,7 +477,7 @@ export default function SnapAndLog() {
 
   function handleShutter() {
     if (
-      fired ||
+      firedRef.current ||
       (!useNativeCapture && cameraState !== "active") ||
       snapPhase === "uploading"
     )
@@ -481,8 +485,12 @@ export default function SnapAndLog() {
 
     if (mode === "snap" && !requireAiAccess(1, "snap_capture")) return
     void hapticMedium()
+    firedRef.current = true
     setFired(true)
-    setTimeout(() => setFired(false), 500)
+    setTimeout(() => {
+      firedRef.current = false
+      setFired(false)
+    }, 500)
 
     if (useNativeCapture) {
       void handleNativeCapture()
@@ -542,6 +550,10 @@ export default function SnapAndLog() {
         item_count: 1,
         source: mode,
       })
+      // The camera stays open after a barcode log, so without an explicit
+      // confirmation people scan again "to make sure" and double-log.
+      void hapticMedium()
+      toast.success(item.name ? `${item.name} logged` : "Food logged")
       setAdded(item.id)
       setTimeout(() => setAdded(null), 1800)
     } catch (error) {
@@ -553,7 +565,9 @@ export default function SnapAndLog() {
   }
 
   async function handleConfirmSnapLog() {
-    if (snapLogging) return
+    // Shares the barcode path's ref: both paths read-modify-write the same
+    // day via setDay, so a concurrent add from the other path loses entries.
+    if (snapLogging || loggingTargetRef.current) return
 
     const entries = snapReviewItems
       .map((item) => buildSnapFoodLogEntry(item, meal))
@@ -564,6 +578,7 @@ export default function SnapAndLog() {
       return
     }
 
+    loggingTargetRef.current = "snap-review"
     setSnapLogging(true)
     try {
       const existingEntries = foodLogs ?? []
@@ -589,6 +604,7 @@ export default function SnapAndLog() {
       console.error("Failed to log snapped meal:", error)
       toast.error("Could not log meal")
     } finally {
+      loggingTargetRef.current = null
       setSnapLogging(false)
     }
   }
@@ -1202,6 +1218,7 @@ function SnapReviewRow({
   meal: MealType
   onChange: (updater: (item: SnapReviewItem) => SnapReviewItem) => void
 }) {
+  const energyUnit = useEnergyUnit()
   const food = item.food
   const scaled = food ? scaleFoodForGrams(food, item.grams) : null
   const selected = Boolean(item.selected && food)
@@ -1233,7 +1250,7 @@ function SnapReviewRow({
           {scaled && (
             <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
               <span className="text-[13px] font-medium text-white/80 tabular-nums">
-                {scaled.calories} kcal
+                {scaled.calories} {energyUnit}
               </span>
               <DarkMacroPill
                 label="Protein"
@@ -1440,6 +1457,7 @@ function BarcodeResultRow({
   disabled: boolean
   onAdd: (item: FoodResult) => void
 }) {
+  const energyUnit = useEnergyUnit()
   const mealCfg = mealConfig(meal)
 
   return (
@@ -1459,7 +1477,7 @@ function BarcodeResultRow({
         </div>
         <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
           <span className="text-[13px] font-medium text-white/80 tabular-nums">
-            {item.calories} kcal
+            {item.calories} {energyUnit}
           </span>
           <DarkMacroPill
             label="Protein"

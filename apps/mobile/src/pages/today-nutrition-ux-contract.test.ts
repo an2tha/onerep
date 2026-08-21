@@ -59,7 +59,7 @@ describe("Today and nutrition UX contract", () => {
     assert.match(APP_SOURCE, /combineMacroTotals\(/)
     assert.match(APP_SOURCE, /supplementNutritionTotals/)
     assert.match(APP_SOURCE, /supplementCalories=\{supplementCalories\}/)
-    assert.match(HOME_SOURCE, /kcal from supplements/)
+    assert.match(HOME_SOURCE, /\{energyUnit\} from\s+supplements/)
   })
 
   test("Nutrition no longer pushes automatic target adjustments", () => {

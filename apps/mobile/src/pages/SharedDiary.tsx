@@ -27,6 +27,7 @@ import { useSmoothNavigate } from "@/lib/navigation"
 import { reportOfflineMutationError } from "@/lib/offline-mutation-errors"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { cn } from "@/lib/utils"
+import { useEnergyUnit } from "@/lib/use-energy-unit"
 import {
   currentDateKey,
   mealLabel,
@@ -299,6 +300,7 @@ export default function SharedDiary() {
  */
 export function SharedDiaryDay() {
   const navigate = useSmoothNavigate()
+  const energyUnit = useEnergyUnit()
   const params = useParams()
   const ownerUserId = params.ownerUserId as string | undefined
 
@@ -476,14 +478,14 @@ export function SharedDiaryDay() {
               title="That day"
               value={
                 <span className="tabular-nums">
-                  {Math.round(totals.calories)} kcal
+                  {Math.round(totals.calories)} {energyUnit}
                 </span>
               }
               detail={
                 goals
                   ? `${Math.round(totals.protein)} g protein · goal ${
                       goals.calories
-                    } kcal`
+                    } ${energyUnit}`
                   : `${Math.round(totals.protein)} g protein`
               }
             />
@@ -508,7 +510,7 @@ export function SharedDiaryDay() {
                           {entry.name}
                         </p>
                         <p className="native-row-detail tabular-nums">
-                          {Math.round(entry.calories)} kcal
+                          {Math.round(entry.calories)} {energyUnit}
                         </p>
                       </div>
                     ))}

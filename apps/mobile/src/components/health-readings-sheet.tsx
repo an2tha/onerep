@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { useWeightUnit } from "@/lib/use-weight-unit"
+import { useEnergyUnit, type EnergyUnit } from "@/lib/use-energy-unit"
 import { CalendarBlank, CaretLeft, CaretRight, X } from "@phosphor-icons/react"
 import { useMutation, useQuery } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
@@ -60,7 +61,7 @@ function identity(value: number) {
  * rather than at the input so the sanity bounds, which the catalogue states in
  * stored units, keep applying to what actually gets written.
  */
-function fields(weightUnit: "kg" | "lbs"): Field[] {
+function fields(weightUnit: "kg" | "lbs", energyUnit: EnergyUnit): Field[] {
   return [
     {
       key: "sleepMinutes",
@@ -102,7 +103,7 @@ function fields(weightUnit: "kg" | "lbs"): Field[] {
       key: "activeEnergyKcal",
       kind: "daily",
       label: "Active energy",
-      unit: "kcal",
+      unit: energyUnit,
       decimals: 0,
       toDisplay: identity,
       toStored: (shown) => Math.round(shown),
@@ -200,7 +201,11 @@ export function HealthReadingsSheet({
   const [justEdited, setJustEdited] = useState<ManualByDate>({})
 
   const weightUnit = useWeightUnit()
-  const rows = useMemo(() => fields(weightUnit), [weightUnit])
+  const energyUnit = useEnergyUnit()
+  const rows = useMemo(
+    () => fields(weightUnit, energyUnit),
+    [weightUnit, energyUnit]
+  )
   const storeName = healthProvider.healthProviderLabel()
   const canWriteBack = healthProvider.isHealthSyncSupportedPlatform()
 

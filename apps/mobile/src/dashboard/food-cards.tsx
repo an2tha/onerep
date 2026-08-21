@@ -8,6 +8,7 @@ import {
 } from "@phosphor-icons/react"
 import { Card, CardTitle, MACRO_COLORS, SlideToDeleteRow } from "@repo/ui"
 import { cn } from "@/lib/utils"
+import { useEnergyUnit } from "@/lib/use-energy-unit"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { DEFAULT_MEAL_CATEGORIES, type FoodLogEntry } from "@/lib/food-log"
 import { DateNav } from "./date-nav"
@@ -40,6 +41,7 @@ export function CalorieCard({
   timeZone: string
   onDayOffsetChange: (o: number) => void
 }) {
+  const energyUnit = useEnergyUnit()
   const [breakdownOpen, setBreakdownOpen] = useState(false)
   const [barMounted, setBarMounted] = useState(false)
 
@@ -104,7 +106,7 @@ export function CalorieCard({
                   {fmtKcal(consumed)}
                 </span>
                 <span className="ml-1 text-[11px] text-muted-foreground/50">
-                  kcal
+                  {energyUnit}
                 </span>
               </div>
               <div className="text-right">
@@ -318,6 +320,7 @@ export function LoggedTodayCard({
   entries: FoodLogEntry[]
   onEntriesChange: (entries: FoodLogEntry[]) => void
 }) {
+  const energyUnit = useEnergyUnit()
   function handleRemove(id: string) {
     onEntriesChange(entries.filter((e) => e.id !== id))
   }
@@ -381,7 +384,7 @@ export function LoggedTodayCard({
                       {cfg.label}
                     </span>
                     <span className="text-[9.5px] text-muted-foreground/35 tabular-nums">
-                      {gKcal} kcal
+                      {gKcal} {energyUnit}
                     </span>
                   </div>
                   {ge.map((entry) => (
@@ -409,7 +412,7 @@ export function LoggedTodayCard({
                   {total.kcal}
                   <span className="ml-0.5 text-[10px] font-normal text-muted-foreground/45">
                     {" "}
-                    kcal
+                    {energyUnit}
                   </span>
                 </span>
               </div>
@@ -440,6 +443,7 @@ export function CalorieSmall({
   fat: number
   onAdd: () => void
 }) {
+  const energyUnit = useEnergyUnit()
   const [expanded, setExpanded] = useState(false)
   const expandTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pressStartRef = useRef<number>(0)
@@ -544,7 +548,9 @@ export function CalorieSmall({
             <span className="text-[1.35rem] leading-none font-bold tracking-tight tabular-nums">
               {fmtKcal(consumed)}
             </span>
-            <span className="text-[9.5px] text-muted-foreground/40">kcal</span>
+            <span className="text-[9.5px] text-muted-foreground/40">
+              {energyUnit}
+            </span>
           </div>
           <div className="mt-2 h-[2px] w-full rounded bg-muted/40">
             <div
@@ -577,7 +583,9 @@ export function CalorieSmall({
             <span className="text-[1.4rem] leading-none font-bold tracking-tight tabular-nums">
               {fmtKcal(consumed)}
             </span>
-            <span className="text-[10px] text-muted-foreground/50">kcal</span>
+            <span className="text-[10px] text-muted-foreground/50">
+              {energyUnit}
+            </span>
           </div>
 
           {/* Macro pills */}
@@ -648,6 +656,7 @@ export function FoodSmall({
   entries: FoodLogEntry[]
   onAdd: () => void
 }) {
+  const energyUnit = useEnergyUnit()
   const [expanded, setExpanded] = useState(false)
   const pressStartRef = useRef<number>(0)
   const isPressingRef = useRef(false)
@@ -780,7 +789,9 @@ export function FoodSmall({
             <span className="text-[1.35rem] leading-none font-bold tracking-tight tabular-nums">
               {fmtKcal(total)}
             </span>
-            <span className="text-[9.5px] text-muted-foreground/40">kcal</span>
+            <span className="text-[9.5px] text-muted-foreground/40">
+              {energyUnit}
+            </span>
           </div>
           <p className="mt-0.5 text-[9px] text-muted-foreground/35">
             {entries.length === 0
@@ -837,7 +848,7 @@ export function FoodSmall({
                         {cfg.label}
                       </span>
                       <span className="text-[8.5px] text-muted-foreground/30 tabular-nums">
-                        {ge.reduce((s, e) => s + e.calories, 0)} kcal
+                        {ge.reduce((s, e) => s + e.calories, 0)} {energyUnit}
                       </span>
                     </div>
                     {ge.map((entry) => (
@@ -866,7 +877,7 @@ export function FoodSmall({
                       {total}
                     </span>
                     <span className="text-[9px] text-muted-foreground/40">
-                      kcal
+                      {energyUnit}
                     </span>
                   </div>
                   {macroTotals.p > 0 && (

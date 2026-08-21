@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { readCachedWeightUnit } from "@/lib/use-weight-unit"
+import { useEnergyUnit } from "@/lib/use-energy-unit"
 import { useLocation } from "react-router"
 import {
   ArrowRight,
@@ -335,13 +336,14 @@ import { MultiSelectList, NumberQuestion } from "@repo/ui"
  * anything is written. Nothing here animates or pretends to be tappable.
  */
 function CoachPreviewExchange() {
+  const energyUnit = useEnergyUnit()
   return (
     <figure className="onboarding-coach-preview">
       <figcaption className="onboarding-coach-preview-ask">
         Logged a chicken rice bowl. What's left today?
       </figcaption>
       <div className="onboarding-coach-preview-reply">
-        <p>That bowl is about 520 kcal. Here's the rest of your day.</p>
+        <p>That bowl is about 520 {energyUnit}. Here's the rest of your day.</p>
         <dl className="onboarding-coach-preview-stats">
           <div>
             <dt>Calories left</dt>
@@ -622,6 +624,7 @@ function QuickReplies<T extends string>({
 
 export function OnboardingMobile() {
   const navigate = useSmoothNavigate()
+  const energyUnit = useEnergyUnit()
   const location = useLocation()
   const coachReplay =
     new URLSearchParams(location.search).get("replay") === "coach"
@@ -2048,7 +2051,7 @@ export function OnboardingMobile() {
             <p className="native-supporting">Calories</p>
             <p className="native-summary-value mt-1 tabular-nums">
               {preview?.targetCalories?.toLocaleString() ?? "Calculating…"}
-              {preview?.targetCalories != null ? " kcal" : ""}
+              {preview?.targetCalories != null ? ` ${energyUnit}` : ""}
             </p>
             <p className="native-row-detail mt-2">
               {preview?.calorieStrategy ??
@@ -2058,7 +2061,7 @@ export function OnboardingMobile() {
           {[
             [
               "Maintenance estimate",
-              preview ? `${preview.tdee.toLocaleString()} kcal` : "—",
+              preview ? `${preview.tdee.toLocaleString()} ${energyUnit}` : "—",
             ],
             ["Protein", preview ? `${preview.protein} g` : "—"],
             ["Carbohydrates", preview ? `${preview.carbs} g` : "—"],

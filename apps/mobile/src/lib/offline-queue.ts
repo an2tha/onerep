@@ -29,6 +29,7 @@ const PERSISTENCE_ERROR_MESSAGE =
 const MUTATION_REGISTRY = {
   "logs.foodLogs.setDay": api.logs.foodLogs.setDay,
   "logs.foodLogs.addEntry": api.logs.foodLogs.addEntry,
+  "logs.foodLogs.removeEntry": api.logs.foodLogs.removeEntry,
   "logs.water.setDay": api.logs.water.setDay,
   "logs.water.addEntry": api.logs.water.addEntry,
   "logs.water.removeEntry": api.logs.water.removeEntry,
@@ -49,6 +50,7 @@ const MUTATION_REGISTRY = {
   "users.users.setPrivacySettings": api.users.users.setPrivacySettings,
   "users.users.setWaterGoal": api.users.users.setWaterGoal,
   "users.users.setWeightUnit": api.users.users.setWeightUnit,
+  "users.users.setEnergyUnit": api.users.users.setEnergyUnit,
   "users.users.setFoodSearchLanguage": api.users.users.setFoodSearchLanguage,
   "users.users.setDashboardSettings": api.users.users.setDashboardSettings,
   "users.users.setDashboardTrendMetric":
@@ -115,6 +117,7 @@ const SINGLETON_COALESCE_MUTATIONS = new Set<OfflineMutationName>([
   "users.users.setPrivacySettings",
   "users.users.setWaterGoal",
   "users.users.setWeightUnit",
+  "users.users.setEnergyUnit",
   "users.users.setFoodSearchLanguage",
   "users.users.setDashboardSettings",
   "users.users.setDashboardTrendMetric",

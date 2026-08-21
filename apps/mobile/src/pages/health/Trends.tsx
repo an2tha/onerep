@@ -2,6 +2,7 @@ import { useMemo, useState } from "react"
 import { useQuery } from "convex/react"
 import { api } from "../../../../../convex/_generated/api"
 import { currentDateKey } from "@/lib/food-log"
+import { useEnergyUnit } from "@/lib/use-energy-unit"
 import { healthProviderLabel } from "@/lib/health-provider"
 import { platformMetric } from "../../../../../convex/lib/platformHealthMetrics"
 import {
@@ -89,7 +90,9 @@ const CHARTS: Array<{
     metric: "energy",
     title: "Active calories",
     kind: "bars",
-    format: (value) => `${formatCount(value)} kcal`,
+    // Unitless here on purpose: the unit label is a per-user preference, so
+    // the render site appends it where the hook can be called.
+    format: formatCount,
     tone: AREA_TONES.activity,
   },
   {
@@ -127,6 +130,7 @@ const ENTRY_DAYS = 90
 
 export default function HealthTrends() {
   const today = currentDateKey()
+  const energyUnit = useEnergyUnit()
   const [range, setRange] = useState<RangeKey>("M")
   const custom = useQuery(api.customProgressMetrics.list, { days: ENTRY_DAYS })
 
@@ -180,7 +184,11 @@ export default function HealthTrends() {
             metric={chart.metric}
             kind={chart.kind}
             title={chart.title}
-            format={chart.format}
+            format={
+              chart.metric === "energy"
+                ? (value: number) => `${chart.format(value)} ${energyUnit}`
+                : chart.format
+            }
             tone={chart.tone}
             range={range}
           />

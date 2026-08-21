@@ -1,4 +1,5 @@
 import React, { useCallback, useState, useEffect, useMemo } from "react"
+import { useSearchParams } from "react-router"
 import {
   Compass,
   ArrowLeft,
@@ -48,6 +49,11 @@ import {
 } from "../../../../convex/lib/healthMetricCatalog"
 import { AboutApp } from "@/components/about-app"
 import { cacheWeightUnit, readCachedWeightUnit } from "@/lib/use-weight-unit"
+import {
+  cacheEnergyUnit,
+  readCachedEnergyUnit,
+  type EnergyUnit,
+} from "@/lib/use-energy-unit"
 import { useTour } from "@/components/walkthrough/tour-context"
 import { WALKTHROUGH_CHAPTERS } from "@/lib/walkthrough/chapters"
 import { walkthroughStatusLabel } from "@/lib/walkthrough/resolve"
@@ -333,6 +339,10 @@ export default function Settings({ onClose }: { onClose: () => void }) {
     api.users.users.setFoodSearchLanguage,
     "users.users.setFoodSearchLanguage"
   )
+  const setEnergyUnit = useOfflineMutation(
+    api.users.users.setEnergyUnit,
+    "users.users.setEnergyUnit"
+  )
   const setWaterGoal = useOfflineMutation(
     api.users.users.setWaterGoal,
     "users.users.setWaterGoal"
@@ -405,6 +415,9 @@ export default function Settings({ onClose }: { onClose: () => void }) {
   )
   const [weightUnit, setWeightUnitState] = useState<WeightUnit>(
     (preferences?.weightUnit as WeightUnit) || readCachedWeightUnit()
+  )
+  const [energyUnit, setEnergyUnitState] = useState<EnergyUnit>(
+    (preferences?.energyUnit as EnergyUnit) || readCachedEnergyUnit()
   )
   const [foodSearchLanguage, setFoodSearchLanguageState] =
     useState<FoodSearchLanguage>(
@@ -479,7 +492,15 @@ export default function Settings({ onClose }: { onClose: () => void }) {
   const [sendingTestEmail, setSendingTestEmail] = useState<string | null>(null)
   const sendTestEmail = useMutation(api.users.devEmails.sendTest)
   const [clearingMoments, setClearingMoments] = useState(false)
-  const [activeView, setActiveView] = useState<SettingsView>("overview")
+  // The subview lives in the URL, not component state: each drill-down pushes
+  // a history entry, so the system back gesture unwinds subview → overview →
+  // out instead of skipping straight past the overview.
+  const [searchParams] = useSearchParams()
+  const viewParam = searchParams.get("view")
+  const activeView: SettingsView =
+    viewParam && viewParam in SETTINGS_VIEW_TITLE_KEYS
+      ? (viewParam as SettingsView)
+      : "overview"
   const [hapticsOn, setHapticsOn] = useState(() => {
     if (typeof window === "undefined") return true
     return hapticsEnabled()
@@ -595,6 +616,9 @@ export default function Settings({ onClose }: { onClose: () => void }) {
     if (preferences?.weightUnit) {
       setWeightUnitState(preferences.weightUnit as WeightUnit)
     }
+    if (preferences?.energyUnit) {
+      setEnergyUnitState(preferences.energyUnit as EnergyUnit)
+    }
     if (preferences?.foodSearchLanguage) {
       setFoodSearchLanguageState(
         preferences.foodSearchLanguage as FoodSearchLanguage
@@ -671,6 +695,8 @@ export default function Settings({ onClose }: { onClose: () => void }) {
       // Write through immediately: every other screen opens on this value
       // before its own preferences query resolves.
       cacheWeightUnit(weightUnit)
+      await setEnergyUnit({ unit: energyUnit })
+      cacheEnergyUnit(energyUnit)
       await setFoodSearchLanguage({ language: foodSearchLanguage })
     }, "Workout settings saved")
   }
@@ -1107,7 +1133,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
 
   function showView(view: SettingsView) {
     hapticSelection()
-    setActiveView(view)
+    navigate(`/settings?view=${view}`, { motion: "forward" })
     window.scrollTo({ top: 0, behavior: "auto" })
   }
 
@@ -1117,7 +1143,9 @@ export default function Settings({ onClose }: { onClose: () => void }) {
       return
     }
     hapticSelection()
-    setActiveView("overview")
+    // Pop the history entry the drill-down pushed, so the toolbar chevron and
+    // the system back gesture leave the stack in the same place.
+    navigate(-1)
     window.scrollTo({ top: 0, behavior: "auto" })
   }
 
@@ -1576,6 +1604,23 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                       options={[
                         { value: "kg", label: "kg" },
                         { value: "lbs", label: "lb" },
+                      ]}
+                    />
+                  </SettingsRow>
+                  <SettingsRow
+                    label="Energy unit"
+                    detail="Same number either way — a Calorie is a kilocalorie"
+                  >
+                    <SegmentedControl
+                      onInteract={hapticSelection}
+                      label="Energy unit"
+                      value={energyUnit}
+                      onChange={(value) =>
+                        setEnergyUnitState(value as EnergyUnit)
+                      }
+                      options={[
+                        { value: "kcal", label: "kcal" },
+                        { value: "Cal", label: "Cal" },
                       ]}
                     />
                   </SettingsRow>
