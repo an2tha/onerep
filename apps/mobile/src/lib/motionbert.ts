@@ -14,7 +14,12 @@ import {
   cocoToH36m,
   h36mToBlazePoseWorld,
 } from "@/lib/pose-joints"
-import { SAMPLE_FPS, base64ToBlob, sampleClip, shrinkToStill } from "@/lib/clip-decode"
+import {
+  SAMPLE_FPS,
+  base64ToBlob,
+  sampleClip,
+  shrinkToStill,
+} from "@/lib/clip-decode"
 import { loadSession, releaseSessions } from "@/lib/onnx-runtime"
 import {
   detectKeypoints,
@@ -101,7 +106,8 @@ const MIN_JOINT_SCORE = 0.3
 
 /** True when the CoreML lifter is present and should be preferred over wasm. */
 const nativeLiftAvailable = () =>
-  Capacitor.getPlatform() === "ios" && Capacitor.isPluginAvailable("PoseEstimation")
+  Capacitor.getPlatform() === "ios" &&
+  Capacitor.isPluginAvailable("PoseEstimation")
 
 /**
  * The normalization MotionBERT was trained under, from `crop_scale` in
@@ -115,7 +121,9 @@ const nativeLiftAvailable = () =>
  * Returns null when too little was tracked to define a box, matching the
  * reference's early return.
  */
-export function cropScale(frames: (Keypoint2D[] | null)[]): Float32Array | null {
+export function cropScale(
+  frames: (Keypoint2D[] | null)[]
+): Float32Array | null {
   let xmin = Infinity
   let xmax = -Infinity
   let ymin = Infinity
@@ -213,11 +221,17 @@ async function lift(
 
   for (let start = 0; start < frameCount; start += MAX_CLIP_LEN) {
     const length = Math.min(MAX_CLIP_LEN, frameCount - start)
-    const window = normalized.subarray(start * stride, (start + length) * stride)
+    const window = normalized.subarray(
+      start * stride,
+      (start + length) * stride
+    )
 
     if (native) {
       try {
-        lifted.set(await liftWindowNative(window, length, stride), start * stride)
+        lifted.set(
+          await liftWindowNative(window, length, stride),
+          start * stride
+        )
         continue
       } catch (error) {
         // A CoreML failure should degrade to a slower clip, not a broken one.
@@ -230,7 +244,10 @@ async function lift(
     const fallback = session ?? (await loadSession(MOTIONBERT_MODEL))
     const input = new ort.Tensor("float32", window, [1, length, H36M_JOINTS, 3])
     const outputs = await fallback.run({ [fallback.inputNames[0]]: input })
-    lifted.set(outputs[fallback.outputNames[0]].data as Float32Array, start * stride)
+    lifted.set(
+      outputs[fallback.outputNames[0]].data as Float32Array,
+      start * stride
+    )
   }
 
   return lifted
@@ -280,7 +297,9 @@ export function metricScale(
 /** Per-joint confidence for one frame, in H36M order, for `visibility`. */
 function jointConfidence(keypoints: Keypoint2D[] | null) {
   if (!keypoints) return new Array<number>(H36M_JOINTS).fill(0)
-  return keypoints.map((point) => (point.score >= MIN_JOINT_SCORE ? point.score : 0))
+  return keypoints.map((point) =>
+    point.score >= MIN_JOINT_SCORE ? point.score : 0
+  )
 }
 
 /** An untracked frame: present on the timeline, with nothing found in it. */
@@ -295,7 +314,12 @@ const emptyFrame = (timeMs: number): FormCoachFrame => ({
  * 33-slot layout the rest of the pipeline reads.
  */
 async function assemble(
-  detections: { timeMs: number; keypoints: Keypoint2D[] | null; width: number; height: number }[],
+  detections: {
+    timeMs: number
+    keypoints: Keypoint2D[] | null
+    width: number
+    height: number
+  }[],
   heightCm?: number
 ): Promise<FormCoachFrame[]> {
   const h36m = detections.map(({ keypoints }) =>

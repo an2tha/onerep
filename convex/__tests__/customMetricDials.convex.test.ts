@@ -225,9 +225,9 @@ describe("the dashboard payload", () => {
     expect(mind!.score).toBeNull();
 
     // Dials nobody filed a metric under are absent rather than empty.
-    expect(
-      dashboard!.customDials.some((d) => d.dial === "reproductive"),
-    ).toBe(false);
+    expect(dashboard!.customDials.some((d) => d.dial === "reproductive")).toBe(
+      false,
+    );
     expect(dashboard!.dials.map((d) => d.key)).toContain("vitals");
   });
 });

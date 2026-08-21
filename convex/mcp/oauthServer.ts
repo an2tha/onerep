@@ -166,7 +166,8 @@ export const register = httpAction(async (ctx, request) => {
     // https everywhere, except loopback — which is where a desktop client
     // parks its callback listener and is not a network hop at all — and
     // private schemes, which are how a native app gets called back.
-    const privateScheme = parsed.protocol !== "http:" && parsed.protocol !== "https:";
+    const privateScheme =
+      parsed.protocol !== "http:" && parsed.protocol !== "https:";
     if (parsed.protocol === "http:" && !loopback) {
       return oauthError(
         "invalid_redirect_uri",
@@ -202,7 +203,10 @@ export const register = httpAction(async (ctx, request) => {
       registration: "dynamic",
     });
   } catch (error) {
-    if (error instanceof Error && error.message.includes("REGISTRATION_RATE_LIMITED")) {
+    if (
+      error instanceof Error &&
+      error.message.includes("REGISTRATION_RATE_LIMITED")
+    ) {
       return oauthError(
         "temporarily_unavailable",
         "Too many registrations right now. Try again shortly.",
@@ -304,7 +308,10 @@ export const authorize = httpAction(async (ctx, request) => {
   };
 
   if ((params.get("response_type") ?? "") !== "code") {
-    return fail("unsupported_response_type", "Only response_type=code is supported.");
+    return fail(
+      "unsupported_response_type",
+      "Only response_type=code is supported.",
+    );
   }
 
   const challenge = params.get("code_challenge") ?? "";
@@ -455,7 +462,10 @@ export const token = httpAction(async (ctx, request) => {
     // A refresh may narrow the grant but never widen it.
     const requested = parseScopes(form.get("scope"));
     if (requested === null) {
-      return oauthError("invalid_scope", "Scopes must be some of: read, write.");
+      return oauthError(
+        "invalid_scope",
+        "Scopes must be some of: read, write.",
+      );
     }
     const explicit = (form.get("scope") ?? "").trim().length > 0;
     const scopes = explicit

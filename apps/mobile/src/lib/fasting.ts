@@ -74,7 +74,10 @@ export function formatFastDuration(seconds: number): string {
 
 /** Never negative, even if the device clock jumps backwards mid-fast. */
 export function fastElapsedSeconds(startedAt: number, now: number): number {
-  return Math.max(0, Math.floor((safeNumber(now) - safeNumber(startedAt)) / 1000))
+  return Math.max(
+    0,
+    Math.floor((safeNumber(now) - safeNumber(startedAt)) / 1000)
+  )
 }
 
 /** 0 at the start, 1 at target, and beyond 1 once the target is passed. */

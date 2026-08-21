@@ -66,8 +66,9 @@ describe("retentionProperties", () => {
 
   test("carries the ISO week the account was created in", () => {
     // 2026-08-03 is a Monday, so it starts its own ISO week.
-    expect(retentionProperties(signup, new Date("2026-09-01T10:00:00"))?.cohort)
-      .toBe("2026-W32")
+    expect(
+      retentionProperties(signup, new Date("2026-09-01T10:00:00"))?.cohort
+    ).toBe("2026-W32")
   })
 
   test("the cohort does not move as the account ages", () => {
@@ -84,7 +85,9 @@ describe("retentionProperties", () => {
   // A phone with its clock set backwards would otherwise report a negative age
   // and pad whichever bucket it landed in.
   test("drops an open that predates the signup", () => {
-    expect(retentionProperties(signup, new Date("2026-08-01T10:00:00"))).toBeNull()
+    expect(
+      retentionProperties(signup, new Date("2026-08-01T10:00:00"))
+    ).toBeNull()
   })
 
   test("drops a missing or nonsense signup", () => {

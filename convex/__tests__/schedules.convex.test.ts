@@ -27,7 +27,7 @@ describe("schedules Convex functions", () => {
       t.mutation(api.users.schedules.set, {
         routine,
         presetOrder: ["preset-1", "preset-2"],
-      })
+      }),
     ).rejects.toThrow();
   });
 
@@ -38,7 +38,7 @@ describe("schedules Convex functions", () => {
       ctx.db
         .query("schedules")
         .withIndex("by_userId", (q) => q.eq("userId", "no-schedule-user"))
-        .unique()
+        .unique(),
     );
 
     expect(result).toBeNull();
@@ -53,7 +53,7 @@ describe("schedules Convex functions", () => {
         routine,
         presetOrder: ["preset-1", "preset-2"],
         updatedAt: Date.now(),
-      })
+      }),
     );
 
     const stored = await t.run(async (ctx) => ctx.db.get(id));
@@ -73,7 +73,7 @@ describe("schedules Convex functions", () => {
         routine,
         presetOrder: ["preset-1"],
         updatedAt: Date.now(),
-      })
+      }),
     );
 
     // Simulate the set mutation's upsert logic
@@ -96,7 +96,7 @@ describe("schedules Convex functions", () => {
       ctx.db
         .query("schedules")
         .withIndex("by_userId", (q) => q.eq("userId", userId))
-        .collect()
+        .collect(),
     );
 
     // Should still be exactly one document
@@ -128,7 +128,7 @@ describe("schedules Convex functions", () => {
       ctx.db
         .query("schedules")
         .withIndex("by_userId", (q) => q.eq("userId", "sched-user-a"))
-        .unique()
+        .unique(),
     );
 
     expect(userASchedule!.routine.Mon).toBe("preset-a");
@@ -141,10 +141,18 @@ describe("schedules Convex functions", () => {
     const id = await t.run(async (ctx) =>
       ctx.db.insert("schedules", {
         userId: "schedule-empty-user",
-        routine: { Mon: null, Tue: null, Wed: null, Thu: null, Fri: null, Sat: null, Sun: null },
+        routine: {
+          Mon: null,
+          Tue: null,
+          Wed: null,
+          Thu: null,
+          Fri: null,
+          Sat: null,
+          Sun: null,
+        },
         presetOrder: [],
         updatedAt: Date.now(),
-      })
+      }),
     );
 
     const stored = await t.run(async (ctx) => ctx.db.get(id));

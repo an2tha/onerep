@@ -61,7 +61,11 @@ describe("exercise catalog Convex functions", () => {
 
   test("search filters by categories, deduplicates categories, and excludes non-global exercises", async () => {
     const t = convexTest(schema, modules);
-    await seedExercise(t, { exerciseId: "rower", name: "Rower", category: "cardio" });
+    await seedExercise(t, {
+      exerciseId: "rower",
+      name: "Rower",
+      category: "cardio",
+    });
     await seedExercise(t, {
       exerciseId: "dead-bug",
       name: "Dead Bug",
@@ -135,12 +139,12 @@ describe("exercise catalog Convex functions", () => {
       });
     }
 
-    await expect(t.query(api.exercises.search, { limit: 500 })).resolves.toHaveLength(
-      50,
-    );
-    await expect(t.query(api.exercises.search, { limit: -10 })).resolves.toHaveLength(
-      1,
-    );
+    await expect(
+      t.query(api.exercises.search, { limit: 500 }),
+    ).resolves.toHaveLength(50);
+    await expect(
+      t.query(api.exercises.search, { limit: -10 }),
+    ).resolves.toHaveLength(1);
   });
 
   test("resolve deduplicates ids, ignores blanks and missing ids, and preserves requested keys", async () => {
@@ -164,7 +168,8 @@ describe("exercise catalog Convex functions", () => {
     expect(result["child-pose"]).toMatchObject({
       category: "mobility",
       muscle: "Full Body",
-      description: "Child Pose exercise using bodyweight or available equipment.",
+      description:
+        "Child Pose exercise using bodyweight or available equipment.",
       sets: "2–3 × 60 s",
       color: "#10b981",
       equipment: null,

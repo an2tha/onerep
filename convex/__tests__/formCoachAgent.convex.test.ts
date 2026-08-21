@@ -216,13 +216,13 @@ describe("exerciseReference", () => {
       isSaneReferenceMatch("Barbell Full Squat", "Front Squat", "squat"),
     ).toBe(true);
     // A search hit that shares a word but not a movement.
-    expect(
-      isSaneReferenceMatch("Barbell Curl", "Barbell Squat", "squat"),
-    ).toBe(false);
+    expect(isSaneReferenceMatch("Barbell Curl", "Barbell Squat", "squat")).toBe(
+      false,
+    );
     // `general` matches everything, so agreeing on it proves nothing.
-    expect(
-      isSaneReferenceMatch("Cable Fly", "Zercher Carry", "general"),
-    ).toBe(false);
+    expect(isSaneReferenceMatch("Cable Fly", "Zercher Carry", "general")).toBe(
+      false,
+    );
     expect(isSaneReferenceMatch("", "Squat", "squat")).toBe(false);
   });
 });
@@ -366,11 +366,14 @@ describe("a capture with no detected reps", () => {
 
   // "No angle matched that view" would send it hunting for a view that exists.
   test("tells the model no rep was found rather than blaming the view", async () => {
-    const result = await call(buildFormCoachTools(repless).measure_joint_angle, {
-      joint: "knee",
-      side: "left",
-      phase: "turnaround",
-    });
+    const result = await call(
+      buildFormCoachTools(repless).measure_joint_angle,
+      {
+        joint: "knee",
+        side: "left",
+        phase: "turnaround",
+      },
+    );
     expect(result.unavailable).toContain("no rep was detected");
   });
 });
@@ -434,7 +437,9 @@ describe("buildPointCloud", () => {
     })!;
     const kneeAt = cloud.joints.indexOf("leftKnee");
     expect(cloud.samples[0].xyz[kneeAt]).toBeNull();
-    expect(cloud.samples[0].xyz[cloud.joints.indexOf("leftHip")]).not.toBeNull();
+    expect(
+      cloud.samples[0].xyz[cloud.joints.indexOf("leftHip")],
+    ).not.toBeNull();
   });
 });
 

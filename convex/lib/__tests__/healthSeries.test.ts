@@ -1,10 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { DailyMetrics } from "../recovery";
-import {
-  RANGE_DAYS,
-  buildHealthSeries,
-  shiftDate,
-} from "../healthSeries";
+import { RANGE_DAYS, buildHealthSeries, shiftDate } from "../healthSeries";
 
 const TODAY = "2026-08-09";
 

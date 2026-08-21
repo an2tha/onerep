@@ -27,9 +27,7 @@ describe("shouldSyncHealth", () => {
   })
 
   test("refuses without wearable consent", () => {
-    expect(shouldSyncHealth({ ...READY, consentGranted: false })).toBe(
-      false
-    )
+    expect(shouldSyncHealth({ ...READY, consentGranted: false })).toBe(false)
   })
 
   test("refuses when the integration is switched off", () => {
@@ -108,9 +106,7 @@ describe("healthWorkoutToImport", () => {
       startedAt: "2026-07-30T23:00:00.000Z",
       endedAt: "2026-07-30T23:45:00.000Z",
     }
-    expect(healthWorkoutToImport(morning, "Asia/Tokyo").date).toBe(
-      "2026-07-31"
-    )
+    expect(healthWorkoutToImport(morning, "Asia/Tokyo").date).toBe("2026-07-31")
   })
 
   test("passes through the metrics HealthKit provided", () => {

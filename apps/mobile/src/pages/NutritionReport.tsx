@@ -7,6 +7,7 @@ import { api } from "../../../../convex/_generated/api"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { cn } from "@/lib/utils"
 import { useEnergyUnit } from "@/lib/use-energy-unit"
+import { energyDisplay } from "@repo/ui"
 import {
   currentDateKey,
   FOOD_MICRONUTRIENT_KEYS,
@@ -33,8 +34,8 @@ import {
 // Decorative bar widths for the receipt footer. It scans as a barcode and
 // encodes nothing.
 const RECEIPT_BARCODE = [
-  3, 1, 2, 1, 1, 3, 1, 2, 4, 1, 1, 2, 1, 3, 1, 1, 2, 4, 1, 2, 1, 1, 3, 1, 2,
-  1, 4, 1, 1, 3,
+  3, 1, 2, 1, 1, 3, 1, 2, 4, 1, 1, 2, 1, 3, 1, 1, 2, 4, 1, 2, 1, 1, 3, 1, 2, 1,
+  4, 1, 1, 3,
 ]
 
 export default function NutritionReport() {
@@ -369,7 +370,8 @@ export default function NutritionReport() {
                 <div key={meal.meal} className="receipt-row">
                   <span>{meal.label}</span>
                   <span>
-                    {meal.totals.calories} {energyUnit} · {meal.shareOfCalories}%
+                    {energyDisplay(meal.totals.calories, energyUnit)}{" "}
+                    {energyUnit} · {meal.shareOfCalories}%
                     {/* Planned vs actual: the daily budget times the number
                         of logged days is the fair comparison for a range. */}
                     {mealTargetByMeal.has(meal.meal)
@@ -405,13 +407,17 @@ export default function NutritionReport() {
           )}
 
           {report.topFoods.length > 0 && (
-            <section className="print-block mt-4" aria-label="Most logged foods">
+            <section
+              className="print-block mt-4"
+              aria-label="Most logged foods"
+            >
               <h2 className="font-bold">Most logged</h2>
               {report.topFoods.map((food) => (
                 <div key={food.name} className="receipt-row">
                   <span className="min-w-0 truncate">{food.name}</span>
                   <span className="shrink-0">
-                    ×{food.count} · {food.calories} {energyUnit}
+                    ×{food.count} · {energyDisplay(food.calories, energyUnit)}{" "}
+                    {energyUnit}
                   </span>
                 </div>
               ))}
@@ -431,7 +437,10 @@ export default function NutritionReport() {
                   <div key={day.date} className="print-block mt-2">
                     <h3 className="receipt-row font-bold">
                       <span>{formatReportDate(day.date)}</span>
-                      <span>{Math.round(day.totals.calories)} {energyUnit}</span>
+                      <span>
+                        {energyDisplay(day.totals.calories, energyUnit)}{" "}
+                        {energyUnit}
+                      </span>
                     </h3>
                     {day.entries.map((entry, index) => (
                       <div

@@ -1,6 +1,6 @@
 import { Card } from "./ui/card"
 import { MuscleBodySvg, type MuscleRecoveryItem } from "./muscle-body-svg"
-import { useEnergyUnitLabel } from "../lib/energy-unit"
+import { energyDisplay, useEnergyUnitLabel } from "../lib/energy-unit"
 
 export type DashboardBodyMeasurementView = {
   weightKg?: number
@@ -232,7 +232,8 @@ export function DashboardProgressPanels({
         </div>
         <div className="text-right">
           <p className="rounded-full bg-muted px-2 py-1 text-[12px] font-bold tabular-nums">
-            {calorieTarget.toLocaleString("en-US")} {energyUnit}
+            {energyDisplay(calorieTarget, energyUnit).toLocaleString("en-US")}{" "}
+            {energyUnit}
           </p>
           <p className="text-[11px] text-muted-foreground">
             daily target{deficit > 0 ? ` · ${deficit} deficit` : ""}
@@ -240,7 +241,6 @@ export function DashboardProgressPanels({
         </div>
       </div>
       <Card className="overflow-hidden p-0">
-
         <div className="grid divide-border md:grid-cols-2 md:divide-x md:divide-y-0">
           <div className="border-b border-border px-4 pt-4 pb-2 md:border-b-0">
             <p className="text-[13px] font-semibold text-muted-foreground">

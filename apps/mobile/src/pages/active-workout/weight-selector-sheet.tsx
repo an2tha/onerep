@@ -575,7 +575,6 @@ export function WeightSelectorSheet({
               ))}
             </div>
           </div>
-
         </div>
 
         <div

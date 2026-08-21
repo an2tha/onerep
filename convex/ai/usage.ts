@@ -150,7 +150,10 @@ export const consumeMonthlyQuota = internalMutation({
       v.literal("data_import"),
     ),
   },
-  handler: async (ctx, args): Promise<AiUsageQuota & { apiKey: string | null }> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<AiUsageQuota & { apiKey: string | null }> => {
     const month = utcMonthKey();
     const [existing, isPro, byokKey] = await Promise.all([
       ctx.db

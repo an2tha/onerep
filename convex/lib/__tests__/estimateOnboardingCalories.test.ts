@@ -35,7 +35,10 @@ describe("estimateOnboardingCalories", () => {
 
     test("unknown goal maps to 'maintain' (health-like)", () => {
       const health = estimateOnboardingCalories({ ...base, goal: "health" });
-      const unknown = estimateOnboardingCalories({ ...base, goal: "some_unknown" });
+      const unknown = estimateOnboardingCalories({
+        ...base,
+        goal: "some_unknown",
+      });
       expect(unknown.targetCalories).toBe(health.targetCalories);
     });
   });
@@ -43,19 +46,31 @@ describe("estimateOnboardingCalories", () => {
   describe("BMR floor", () => {
     test("BMR never falls below 1200 kcal", () => {
       // Very old, short person
-      const result = estimateOnboardingCalories({ age: 90, heightCm: 140, goal: "health" });
+      const result = estimateOnboardingCalories({
+        age: 90,
+        heightCm: 140,
+        goal: "health",
+      });
       expect(result.bmr).toBeGreaterThanOrEqual(1200);
     });
 
     test("BMR minimum applies for extreme inputs", () => {
-      const result = estimateOnboardingCalories({ age: 100, heightCm: 100, goal: "health" });
+      const result = estimateOnboardingCalories({
+        age: 100,
+        heightCm: 100,
+        goal: "health",
+      });
       expect(result.bmr).toBeGreaterThanOrEqual(1200);
     });
   });
 
   describe("targetCalories floor", () => {
     test("targetCalories never falls below 1400 kcal", () => {
-      const result = estimateOnboardingCalories({ age: 90, heightCm: 140, goal: "lose" });
+      const result = estimateOnboardingCalories({
+        age: 90,
+        heightCm: 140,
+        goal: "lose",
+      });
       expect(result.targetCalories).toBeGreaterThanOrEqual(1400);
     });
   });
@@ -84,7 +99,9 @@ describe("estimateOnboardingCalories", () => {
   describe("macro calculations", () => {
     test("protein is 30% of targetCalories / 4 kcal per gram", () => {
       const result = estimateOnboardingCalories(base);
-      expect(result.protein).toBe(Math.round((result.targetCalories * 0.3) / 4));
+      expect(result.protein).toBe(
+        Math.round((result.targetCalories * 0.3) / 4),
+      );
     });
 
     test("carbs is 40% of targetCalories / 4 kcal per gram", () => {

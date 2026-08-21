@@ -17,10 +17,7 @@ import { PushNotifications } from "@capacitor/push-notifications"
 import { ensureNotificationChannels } from "./notification-channels"
 
 export type PushRegistrationOutcome =
-  | "registered"
-  | "denied"
-  | "unsupported"
-  | "failed"
+  "registered" | "denied" | "unsupported" | "failed"
 
 /** Where a tapped notification should land, by the link the server sent. */
 export const PUSH_LINK_ROUTES: Record<string, string> = {
@@ -40,7 +37,10 @@ export function routeForPushLink(link: unknown): string | null {
  * mocked plugin ends up ignored.
  */
 function pushSupported() {
-  return Capacitor.isNativePlatform() && Capacitor.isPluginAvailable("PushNotifications")
+  return (
+    Capacitor.isNativePlatform() &&
+    Capacitor.isPluginAvailable("PushNotifications")
+  )
 }
 
 const pushSupport = registerPlugin<{
@@ -133,7 +133,8 @@ export async function registerForCoachPush({
 
     const existing = await PushNotifications.checkPermissions()
     const permission =
-      existing.receive === "prompt" || existing.receive === "prompt-with-rationale"
+      existing.receive === "prompt" ||
+      existing.receive === "prompt-with-rationale"
         ? await PushNotifications.requestPermissions()
         : existing
     if (permission.receive !== "granted") return "denied"

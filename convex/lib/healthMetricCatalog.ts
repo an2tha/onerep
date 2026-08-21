@@ -396,7 +396,6 @@ export function healthDialForCustomMetric(metric: {
   return metric.tab ? (DIAL_BY_TAB[metric.tab] ?? null) : null;
 }
 
-
 export function resolveHealthDialSelection(
   stored: Record<string, boolean> | undefined,
 ): Record<string, boolean> {

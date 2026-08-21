@@ -17,7 +17,10 @@ import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
 
 const SHEET_SOURCE = readFileSync(
-  new URL("../../../../packages/ui/src/components/mobile-sheet.tsx", import.meta.url),
+  new URL(
+    "../../../../packages/ui/src/components/mobile-sheet.tsx",
+    import.meta.url
+  ),
   "utf8"
 )
 

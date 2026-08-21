@@ -368,11 +368,12 @@ export function fallbackPlan(headers: string[]): ImportPlan {
         exerciseName,
         reps,
         workoutName: find("workout name", "workout", "routine", "session"),
-        weight: headers[
-          lower.findIndex(
-            (header) => header.includes("weight") && !header.includes("body"),
-          )
-        ],
+        weight:
+          headers[
+            lower.findIndex(
+              (header) => header.includes("weight") && !header.includes("body"),
+            )
+          ],
         rpe: find("rpe"),
         setType: find("set type", "type"),
       },
@@ -419,7 +420,8 @@ function toDateKey(year: number, month: number, day: number): string | null {
   if (year < 1970 || year > 2100) return null;
   if (month < 1 || month > 12 || day < 1 || day > 31) return null;
   const date = new Date(Date.UTC(year, month - 1, day));
-  if (date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return null;
+  if (date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day)
+    return null;
   return `${year}-${pad2(month)}-${pad2(day)}`;
 }
 
@@ -645,7 +647,9 @@ function applyWorkoutsPlan(
     const weightValue = parseCellNumber(weightRaw);
     const unit =
       unitFromCell(weightRaw) ??
-      unitFromCell(columns.weightUnit ? record[columns.weightUnit] : undefined) ??
+      unitFromCell(
+        columns.weightUnit ? record[columns.weightUnit] : undefined,
+      ) ??
       plan.weightUnit ??
       "kg";
     const weightKg =
@@ -657,7 +661,9 @@ function applyWorkoutsPlan(
     const rpe = columns.rpe ? parseCellNumber(record[columns.rpe]) : null;
 
     exercise.sets.push({
-      type: importSetType(columns.setType ? record[columns.setType] : undefined),
+      type: importSetType(
+        columns.setType ? record[columns.setType] : undefined,
+      ),
       weight: Math.min(Math.max(weightKg, 0), 600),
       reps: clampNumber(
         columns.reps ? parseCellNumber(record[columns.reps]) : 0,
@@ -743,7 +749,9 @@ function applyMeasurementsPlan(
       continue;
     }
 
-    const weightRaw = columns.bodyWeight ? record[columns.bodyWeight] : undefined;
+    const weightRaw = columns.bodyWeight
+      ? record[columns.bodyWeight]
+      : undefined;
     const weightValue = parseCellNumber(weightRaw);
     const unit = unitFromCell(weightRaw) ?? plan.weightUnit ?? "kg";
     const weightKg =
@@ -763,7 +771,10 @@ function applyMeasurementsPlan(
         : undefined;
 
     const girth = (column: string | undefined) =>
-      convertLength(column ? parseCellNumber(record[column]) : null, lengthUnit);
+      convertLength(
+        column ? parseCellNumber(record[column]) : null,
+        lengthUnit,
+      );
 
     const fields: Omit<ImportedMeasurement, "clientId" | "loggedAt"> = {
       weightKg,

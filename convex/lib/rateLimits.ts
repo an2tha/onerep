@@ -36,4 +36,3 @@ export async function claimRateLimit(
     expiresAt: windowStart + windowMs * 2,
   });
 }
-

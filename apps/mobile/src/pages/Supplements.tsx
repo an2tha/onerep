@@ -62,6 +62,7 @@ import {
 } from "@/lib/supplements"
 import { cn } from "@/lib/utils"
 import { useEnergyUnit } from "@/lib/use-energy-unit"
+import { energyDisplay } from "@repo/ui"
 import { hapticSelection } from "@/lib/haptics"
 import type { FoodDetail, FoodResult } from "@repo/models"
 import { api } from "../../../../convex/_generated/api"
@@ -1087,7 +1088,8 @@ function ItemSheet({
                             {result.serving}
                           </p>
                           <p className="mt-1 text-[13px] text-muted-foreground tabular-nums">
-                            {result.calories} {energyUnit} · P{" "}
+                            {energyDisplay(result.calories, energyUnit)}{" "}
+                            {energyUnit} · P{" "}
                             {formatNutrientValue(result.protein)}g · C{" "}
                             {formatNutrientValue(result.carbs)}g · F{" "}
                             {formatNutrientValue(result.fat)}g

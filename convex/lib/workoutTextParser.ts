@@ -88,7 +88,9 @@ export function parseWeightValueKg(
 
   // Only an `@`/`at`/`with` marker makes a bare number a weight; otherwise
   // "3x8" and "rows 60" would both be misread.
-  const implied = raw.match(/(?:@|\bat\b|\bwith\b|\busing\b)\s*(\d+(?:\.\d+)?)/i);
+  const implied = raw.match(
+    /(?:@|\bat\b|\bwith\b|\busing\b)\s*(\d+(?:\.\d+)?)/i,
+  );
   if (!implied) return null;
   const amount = Number(implied[1]);
   if (!Number.isFinite(amount)) return null;
@@ -220,7 +222,12 @@ export function parseDurationMinutes(text: string): number | undefined {
     const hours = Number(hoursAndMinutes[1]);
     const minutes = Number(hoursAndMinutes[2] ?? 0);
     if (Number.isFinite(hours)) {
-      return clampNumber(hours * 60 + (Number.isFinite(minutes) ? minutes : 0), 1, 360, 60);
+      return clampNumber(
+        hours * 60 + (Number.isFinite(minutes) ? minutes : 0),
+        1,
+        360,
+        60,
+      );
     }
   }
   if (/\b(?:about\s+)?an?\s+hour\b/i.test(text)) return 60;

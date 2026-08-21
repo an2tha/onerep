@@ -120,9 +120,7 @@ function signalFor(
 
   values.sort((a, b) => a.date.localeCompare(b.date));
   const baseline = median(values.map((entry) => entry.value));
-  const recent = mean(
-    values.slice(-RECENT_DAYS).map((entry) => entry.value),
-  );
+  const recent = mean(values.slice(-RECENT_DAYS).map((entry) => entry.value));
   if (baseline === null || recent === null || baseline <= 0) return null;
 
   return {

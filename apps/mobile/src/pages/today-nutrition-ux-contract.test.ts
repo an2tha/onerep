@@ -6,7 +6,9 @@ function source(path: string) {
   return readFileSync(new URL(path, import.meta.url), "utf8")
 }
 
-const HOME_SOURCE = source("../../../../packages/ui/src/components/home/index.tsx")
+const HOME_SOURCE = source(
+  "../../../../packages/ui/src/components/home/index.tsx"
+)
 const NUTRITION_SOURCE = source("./Nutrition.tsx")
 const SEARCH_SOURCE = source("./SearchFoods.tsx")
 const RECIPE_SOURCE = source("./NewRecipe.tsx")
@@ -59,7 +61,7 @@ describe("Today and nutrition UX contract", () => {
     assert.match(APP_SOURCE, /combineMacroTotals\(/)
     assert.match(APP_SOURCE, /supplementNutritionTotals/)
     assert.match(APP_SOURCE, /supplementCalories=\{supplementCalories\}/)
-    assert.match(HOME_SOURCE, /\{energyUnit\} from\s+supplements/)
+    assert.match(HOME_SOURCE, /\{energyUnit\} from supplements/)
   })
 
   test("Nutrition no longer pushes automatic target adjustments", () => {

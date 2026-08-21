@@ -54,8 +54,13 @@ export const createIntent = mutation({
     const user = await getAuthUser(ctx);
     const mimeType = normalizedMimeType(args.mimeType);
     const rule = PURPOSE_RULES[args.purpose];
-    if (!rule.types.has(mimeType as never)) throw new Error("Unsupported file type");
-    if (!Number.isSafeInteger(args.size) || args.size <= 0 || args.size > rule.maxBytes) {
+    if (!rule.types.has(mimeType as never))
+      throw new Error("Unsupported file type");
+    if (
+      !Number.isSafeInteger(args.size) ||
+      args.size <= 0 ||
+      args.size > rule.maxBytes
+    ) {
       throw new Error("Invalid file size");
     }
 
@@ -126,7 +131,10 @@ export const finalize = mutation({
       throw new Error("Uploaded file does not match its intent");
     }
     const rule = PURPOSE_RULES[upload.purpose];
-    if (!rule.types.has(actualMimeType as never) || metadata.size > rule.maxBytes) {
+    if (
+      !rule.types.has(actualMimeType as never) ||
+      metadata.size > rule.maxBytes
+    ) {
       throw new Error("Uploaded file violates purpose limits");
     }
 
@@ -149,7 +157,8 @@ export const discard = mutation({
     if (!upload || upload.userId !== user._id) {
       throw new Error("Upload not found or access denied");
     }
-    if (upload.status === "attached") throw new Error("Attached uploads cannot be discarded");
+    if (upload.status === "attached")
+      throw new Error("Attached uploads cannot be discarded");
     await deleteOwnedUpload(ctx, upload._id, user._id);
     return { ok: true };
   },

@@ -3,25 +3,37 @@ import { useQuery } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
 import { safeLocalStorageGet, safeLocalStorageSet } from "@/lib/utils"
 
-export type EnergyUnit = "kcal" | "Cal"
+/** Stored on the account. The UI renders "Cal" as lowercase "cal". */
+export type EnergyUnitStored = "kcal" | "Cal" | "kJ"
+/** What screens render, and what `energyDisplay` accepts. */
+export type EnergyUnit = "kcal" | "cal" | "kJ"
 
 const ENERGY_UNIT_KEY = "onerep:energy-unit"
 
 /**
- * How food energy is labeled: "kcal" or "Cal".
+ * How food energy is shown: "kcal", "Cal", or "kJ".
  *
- * The number is identical either way — a food Calorie is a kilocalorie — but
- * a US label reader who sees "kcal" assumes there is math to do, and there
- * isn't. This is a labeling preference, never a conversion.
+ * kcal and Cal are the same number under two spellings — a food Calorie is a
+ * kilocalorie. kJ is a real conversion (×4.184), applied at display time
+ * only; everything stored and computed stays kcal. Convert with
+ * `energyDisplay` from @repo/ui.
  *
- * Cached on-device like the weight unit, so the label doesn't flip between
- * spellings while the preferences query loads.
+ * Cached on-device like the weight unit, so the unit doesn't flip while the
+ * preferences query loads.
  */
 export function readCachedEnergyUnit(): EnergyUnit {
-  return safeLocalStorageGet(ENERGY_UNIT_KEY) === "Cal" ? "Cal" : "kcal"
+  const stored = safeLocalStorageGet(ENERGY_UNIT_KEY)
+  if (stored === "Cal") return "cal"
+  return stored === "kJ" ? "kJ" : "kcal"
 }
 
-export function cacheEnergyUnit(unit: EnergyUnit) {
+/** The stored form, for the settings control that writes it back. */
+export function readCachedEnergyUnitStored(): EnergyUnitStored {
+  const stored = safeLocalStorageGet(ENERGY_UNIT_KEY)
+  return stored === "Cal" || stored === "kJ" ? stored : "kcal"
+}
+
+export function cacheEnergyUnit(unit: EnergyUnitStored) {
   safeLocalStorageSet(ENERGY_UNIT_KEY, unit)
 }
 
@@ -29,13 +41,17 @@ export function useEnergyUnit(): EnergyUnit {
   const preferences = useQuery(api.users.users.getPreferences)
   const stored = preferences?.energyUnit
   const known: EnergyUnit | null =
-    stored === "Cal" || stored === "kcal" ? stored : null
+    stored === "Cal"
+      ? "cal"
+      : stored === "kcal" || stored === "kJ"
+        ? stored
+        : null
   // Read once: localStorage during render is fine, but re-reading on every
   // render of every screen is not.
   const [cached] = useState(readCachedEnergyUnit)
 
   useEffect(() => {
-    if (known) cacheEnergyUnit(known)
+    if (known) cacheEnergyUnit(known === "cal" ? "Cal" : known)
   }, [known])
 
   return known ?? cached

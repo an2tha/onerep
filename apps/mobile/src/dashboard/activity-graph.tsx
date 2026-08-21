@@ -95,7 +95,11 @@ export function ActivityGraph({
       >
         {cells.map((cell) =>
           cell.future ? (
-            <span key={cell.date} className="aspect-square" aria-hidden="true" />
+            <span
+              key={cell.date}
+              className="aspect-square"
+              aria-hidden="true"
+            />
           ) : (
             <button
               key={cell.date}

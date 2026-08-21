@@ -433,7 +433,10 @@ function FormCoachDetailSheet({
               </p>
               <div className="flex flex-col gap-1">
                 {detail.drills.map((drill, index) => (
-                  <p key={`${drill.name}-${index}`} className="text-[13px] leading-5">
+                  <p
+                    key={`${drill.name}-${index}`}
+                    className="text-[13px] leading-5"
+                  >
                     {drill.name}
                     <span className="text-muted-foreground">
                       {" · "}

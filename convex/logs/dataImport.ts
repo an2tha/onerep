@@ -224,14 +224,16 @@ export const preview = action({
 
 export const commit = action({
   args: {
-    files: v.array(
-      v.object({ uploadId: v.id("fileUploads"), plan: v.any() }),
-    ),
+    files: v.array(v.object({ uploadId: v.id("fileUploads"), plan: v.any() })),
   },
   handler: async (
     ctx,
     args,
-  ): Promise<{ workouts: number; workoutsSkipped: number; measurements: number }> => {
+  ): Promise<{
+    workouts: number;
+    workoutsSkipped: number;
+    measurements: number;
+  }> => {
     const user = await getAuthUser(ctx);
     if (!user) throw new Error("Not authenticated");
     await ctx.runMutation(internal.logs.dataImport.claimImportRun, {

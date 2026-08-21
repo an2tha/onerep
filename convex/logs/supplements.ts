@@ -418,37 +418,39 @@ export const getOverview = query({
       };
     }
 
-    const [items, logs, legacyDoc, recentLogs, workoutLogs] = await Promise.all([
-      ctx.db
-        .query("supplementItems")
-        .withIndex("by_userId", (q) => q.eq("userId", user._id))
-        .take(200),
-      ctx.db
-        .query("supplementIntakeLogs")
-        .withIndex("by_userId_and_date", (q) =>
-          q.eq("userId", user._id).eq("date", args.date),
-        )
-        .take(200),
-      ctx.db
-        .query("supplementLogs")
-        .withIndex("by_userId_date", (q) =>
-          q.eq("userId", user._id).eq("date", args.date),
-        )
-        .unique(),
-      ctx.db
-        .query("supplementIntakeLogs")
-        .withIndex("by_userId_and_date", (q) =>
-          q.eq("userId", user._id).lt("date", args.date),
-        )
-        .order("desc")
-        .take(300),
-      ctx.db
-        .query("workoutLogs")
-        .withIndex("by_userId_date", (q) =>
-          q.eq("userId", user._id).eq("date", args.date),
-        )
-        .take(1),
-    ]);
+    const [items, logs, legacyDoc, recentLogs, workoutLogs] = await Promise.all(
+      [
+        ctx.db
+          .query("supplementItems")
+          .withIndex("by_userId", (q) => q.eq("userId", user._id))
+          .take(200),
+        ctx.db
+          .query("supplementIntakeLogs")
+          .withIndex("by_userId_and_date", (q) =>
+            q.eq("userId", user._id).eq("date", args.date),
+          )
+          .take(200),
+        ctx.db
+          .query("supplementLogs")
+          .withIndex("by_userId_date", (q) =>
+            q.eq("userId", user._id).eq("date", args.date),
+          )
+          .unique(),
+        ctx.db
+          .query("supplementIntakeLogs")
+          .withIndex("by_userId_and_date", (q) =>
+            q.eq("userId", user._id).lt("date", args.date),
+          )
+          .order("desc")
+          .take(300),
+        ctx.db
+          .query("workoutLogs")
+          .withIndex("by_userId_date", (q) =>
+            q.eq("userId", user._id).eq("date", args.date),
+          )
+          .take(1),
+      ],
+    );
 
     const legacyEntries = (legacyDoc?.entries ?? []).map((entry: unknown) => {
       const parsed = entry as {

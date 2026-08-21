@@ -192,7 +192,9 @@ export const listIncoming = query({
       ? await ctx.db
           .query("diaryShares")
           .withIndex("by_inviteeEmail_and_status", (q) =>
-            q.eq("inviteeEmail", normalizeEmail(user.email!)).eq("status", "pending"),
+            q
+              .eq("inviteeEmail", normalizeEmail(user.email!))
+              .eq("status", "pending"),
           )
           .take(MAX_OUTGOING_SHARES * 2)
       : [];

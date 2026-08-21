@@ -93,9 +93,7 @@ export function computeReadiness({
   // Renormalize weights over the signals that actually have data, so a
   // missing check-in stops skewing the score instead of being silently
   // replaced by another signal.
-  const available = components.filter(
-    (component) => component.score !== null
-  )
+  const available = components.filter((component) => component.score !== null)
   const totalWeight = available.reduce(
     (sum, component) => sum + component.weight,
     0

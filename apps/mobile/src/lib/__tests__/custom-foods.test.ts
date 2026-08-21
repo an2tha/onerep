@@ -117,8 +117,9 @@ describe("macro sanity check", () => {
     expect(
       macroCalorieMismatch({ calories: 1200, protein: 24, carbs: 3, fat: 1.5 })
     ).toBe(true)
-    expect(caloriesFromMacros({ calories: 0, protein: 24, carbs: 3, fat: 1.5 }))
-      .toBe(122)
+    expect(
+      caloriesFromMacros({ calories: 0, protein: 24, carbs: 3, fat: 1.5 })
+    ).toBe(122)
   })
 
   test("no warning when calories were left blank", () => {

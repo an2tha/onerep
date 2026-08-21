@@ -9,14 +9,14 @@ describe("waterLogs Convex functions", () => {
   test("getDay returns empty array when unauthenticated", async () => {
     const t = convexTest(schema, modules);
     await expect(
-      t.query(api.logs.water.getDay, { date: "2024-01-15" })
+      t.query(api.logs.water.getDay, { date: "2024-01-15" }),
     ).resolves.toEqual([]);
   });
 
   test("setDay throws when unauthenticated", async () => {
     const t = convexTest(schema, modules);
     await expect(
-      t.mutation(api.logs.water.setDay, { date: "2024-01-15", entries: [] })
+      t.mutation(api.logs.water.setDay, { date: "2024-01-15", entries: [] }),
     ).rejects.toThrow();
   });
 
@@ -30,7 +30,10 @@ describe("waterLogs Convex functions", () => {
 
     await t.run(async (ctx) => {
       await ctx.db.insert("waterLogs", {
-        userId, date: "2024-01-15", entries, updatedAt: Date.now(),
+        userId,
+        date: "2024-01-15",
+        entries,
+        updatedAt: Date.now(),
       });
     });
 
@@ -52,21 +55,30 @@ describe("waterLogs Convex functions", () => {
 
     const id = await t.run(async (ctx) => {
       return ctx.db.insert("waterLogs", {
-        userId: "water-update-user", date: "2024-01-16",
-        entries: [{ id: "1", ml: 250 }], updatedAt: Date.now(),
+        userId: "water-update-user",
+        date: "2024-01-16",
+        entries: [{ id: "1", ml: 250 }],
+        updatedAt: Date.now(),
       });
     });
 
     await t.run(async (ctx) => {
       await ctx.db.patch(id, {
-        entries: [{ id: "1", ml: 250 }, { id: "2", ml: 500 }, { id: "3", ml: 300 }],
+        entries: [
+          { id: "1", ml: 250 },
+          { id: "2", ml: 500 },
+          { id: "3", ml: 300 },
+        ],
         updatedAt: Date.now(),
       });
     });
 
     const updated = await t.run(async (ctx) => ctx.db.get(id));
     expect(updated!.entries).toHaveLength(3);
-    const totalMl = updated!.entries.reduce((sum: number, e: any) => sum + e.ml, 0);
+    const totalMl = updated!.entries.reduce(
+      (sum: number, e: any) => sum + e.ml,
+      0,
+    );
     expect(totalMl).toBe(1050);
   });
 
@@ -76,10 +88,16 @@ describe("waterLogs Convex functions", () => {
 
     await t.run(async (ctx) => {
       await ctx.db.insert("waterLogs", {
-        userId, date: "2024-01-15", entries: [{ id: "a", ml: 2000 }], updatedAt: Date.now(),
+        userId,
+        date: "2024-01-15",
+        entries: [{ id: "a", ml: 2000 }],
+        updatedAt: Date.now(),
       });
       await ctx.db.insert("waterLogs", {
-        userId, date: "2024-01-16", entries: [{ id: "b", ml: 1500 }], updatedAt: Date.now(),
+        userId,
+        date: "2024-01-16",
+        entries: [{ id: "b", ml: 1500 }],
+        updatedAt: Date.now(),
       });
     });
 
@@ -107,7 +125,7 @@ describe("addEntry Convex mutation", () => {
       t.mutation(api.logs.water.addEntry, {
         date: "2024-01-15",
         entry: { id: "e1", amountMl: 250, loggedAt: "2024-01-15T08:00:00Z" },
-      })
+      }),
     ).rejects.toThrow();
   });
 
@@ -117,14 +135,20 @@ describe("addEntry Convex mutation", () => {
     await t.withIdentity({ name: "test-user" }, async () => {
       const result = await t.mutation(api.logs.water.addEntry, {
         date: "2024-03-01",
-        entry: { id: "entry-1", amountMl: 500, loggedAt: "2024-03-01T09:00:00Z" },
+        entry: {
+          id: "entry-1",
+          amountMl: 500,
+          loggedAt: "2024-03-01T09:00:00Z",
+        },
       });
       expect(result).toEqual({ ok: true });
     });
 
     // Verify the entry was persisted via getDay
     await t.withIdentity({ name: "test-user" }, async () => {
-      const entries = await t.query(api.logs.water.getDay, { date: "2024-03-01" });
+      const entries = await t.query(api.logs.water.getDay, {
+        date: "2024-03-01",
+      });
       expect(entries).toHaveLength(1);
       expect((entries as any[])[0].id).toBe("entry-1");
       expect((entries as any[])[0].amountMl).toBe(500);
@@ -138,17 +162,27 @@ describe("addEntry Convex mutation", () => {
       // Add first entry
       await t.mutation(api.logs.water.addEntry, {
         date: "2024-03-02",
-        entry: { id: "entry-a", amountMl: 250, loggedAt: "2024-03-02T08:00:00Z" },
+        entry: {
+          id: "entry-a",
+          amountMl: 250,
+          loggedAt: "2024-03-02T08:00:00Z",
+        },
       });
       // Add second entry to the same day
       await t.mutation(api.logs.water.addEntry, {
         date: "2024-03-02",
-        entry: { id: "entry-b", amountMl: 750, loggedAt: "2024-03-02T10:00:00Z" },
+        entry: {
+          id: "entry-b",
+          amountMl: 750,
+          loggedAt: "2024-03-02T10:00:00Z",
+        },
       });
     });
 
     await t.withIdentity({ name: "test-user" }, async () => {
-      const entries = await t.query(api.logs.water.getDay, { date: "2024-03-02" });
+      const entries = await t.query(api.logs.water.getDay, {
+        date: "2024-03-02",
+      });
       expect(entries).toHaveLength(2);
       const ids = (entries as any[]).map((e) => e.id);
       expect(ids).toContain("entry-a");
@@ -171,7 +205,9 @@ describe("addEntry Convex mutation", () => {
     });
 
     await t.withIdentity({ name: "test-user" }, async () => {
-      const entries = await t.query(api.logs.water.getDay, { date: "2024-03-03" }) as any[];
+      const entries = (await t.query(api.logs.water.getDay, {
+        date: "2024-03-03",
+      })) as any[];
       const orig = entries.find((e) => e.id === "orig");
       expect(orig).toBeDefined();
       expect(orig.amountMl).toBe(1000);
@@ -193,8 +229,12 @@ describe("addEntry Convex mutation", () => {
     });
 
     await t.withIdentity({ name: "test-user" }, async () => {
-      const day10 = await t.query(api.logs.water.getDay, { date: "2024-03-10" }) as any[];
-      const day11 = await t.query(api.logs.water.getDay, { date: "2024-03-11" }) as any[];
+      const day10 = (await t.query(api.logs.water.getDay, {
+        date: "2024-03-10",
+      })) as any[];
+      const day11 = (await t.query(api.logs.water.getDay, {
+        date: "2024-03-11",
+      })) as any[];
       expect(day10).toHaveLength(1);
       expect(day11).toHaveLength(1);
       expect(day10[0].amountMl).toBe(500);
@@ -220,9 +260,14 @@ describe("addEntry Convex mutation", () => {
     });
 
     await t.withIdentity({ name: "test-user" }, async () => {
-      const entries = await t.query(api.logs.water.getDay, { date: "2024-03-15" }) as any[];
+      const entries = (await t.query(api.logs.water.getDay, {
+        date: "2024-03-15",
+      })) as any[];
       expect(entries).toHaveLength(5);
-      const total = entries.reduce((sum: number, e: any) => sum + e.amountMl, 0);
+      const total = entries.reduce(
+        (sum: number, e: any) => sum + e.amountMl,
+        0,
+      );
       expect(total).toBe(2650);
     });
   });
@@ -243,7 +288,9 @@ describe("addEntry Convex mutation", () => {
     });
 
     await t.withIdentity({ name: "test-user" }, async () => {
-      const entries = await t.query(api.logs.water.getDay, { date: "2024-04-01" }) as any[];
+      const entries = (await t.query(api.logs.water.getDay, {
+        date: "2024-04-01",
+      })) as any[];
       expect(entries).toHaveLength(1);
       expect(entries[0].id).toBe(entryData.id);
       expect(entries[0].amountMl).toBe(entryData.amountMl);
@@ -261,7 +308,7 @@ describe("removeEntry Convex mutation", () => {
       t.mutation(api.logs.water.removeEntry, {
         date: "2024-01-15",
         id: "entry-1",
-      })
+      }),
     ).rejects.toThrow();
   });
 
@@ -271,11 +318,19 @@ describe("removeEntry Convex mutation", () => {
     await t.withIdentity({ name: "test-user" }, async () => {
       await t.mutation(api.logs.water.addEntry, {
         date: "2024-05-01",
-        entry: { id: "entry-a", amountMl: 250, loggedAt: "2024-05-01T08:00:00Z" },
+        entry: {
+          id: "entry-a",
+          amountMl: 250,
+          loggedAt: "2024-05-01T08:00:00Z",
+        },
       });
       await t.mutation(api.logs.water.addEntry, {
         date: "2024-05-01",
-        entry: { id: "entry-b", amountMl: 500, loggedAt: "2024-05-01T09:00:00Z" },
+        entry: {
+          id: "entry-b",
+          amountMl: 500,
+          loggedAt: "2024-05-01T09:00:00Z",
+        },
       });
 
       const result = await t.mutation(api.logs.water.removeEntry, {
@@ -286,7 +341,9 @@ describe("removeEntry Convex mutation", () => {
     });
 
     await t.withIdentity({ name: "test-user" }, async () => {
-      const entries = await t.query(api.logs.water.getDay, { date: "2024-05-01" }) as any[];
+      const entries = (await t.query(api.logs.water.getDay, {
+        date: "2024-05-01",
+      })) as any[];
       expect(entries).toHaveLength(1);
       expect(entries[0].id).toBe("entry-b");
     });
@@ -298,17 +355,23 @@ describe("removeEntry Convex mutation", () => {
     await t.withIdentity({ name: "test-user" }, async () => {
       await t.mutation(api.logs.water.addEntry, {
         date: "2024-05-02",
-        entry: { id: "entry-a", amountMl: 250, loggedAt: "2024-05-02T08:00:00Z" },
+        entry: {
+          id: "entry-a",
+          amountMl: 250,
+          loggedAt: "2024-05-02T08:00:00Z",
+        },
       });
 
       await expect(
         t.mutation(api.logs.water.removeEntry, {
           date: "2024-05-02",
           id: "missing",
-        })
+        }),
       ).resolves.toEqual({ ok: true });
 
-      const entries = await t.query(api.logs.water.getDay, { date: "2024-05-02" }) as any[];
+      const entries = (await t.query(api.logs.water.getDay, {
+        date: "2024-05-02",
+      })) as any[];
       expect(entries).toHaveLength(1);
       expect(entries[0].id).toBe("entry-a");
     });

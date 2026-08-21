@@ -93,7 +93,7 @@ export function AboutApp() {
       // The active web bundle, which is what an OTA release actually changes.
       bundle: isStampedVersion(bundle)
         ? bundle
-        : (shortCommit(build?.commit) || "Development"),
+        : shortCommit(build?.commit) || "Development",
       native: diagnostics.native,
       staged: diagnostics.staged,
       build,
@@ -130,9 +130,7 @@ export function AboutApp() {
   }
 
   const staged =
-    otaState.phase === "ready"
-      ? otaState.version
-      : (info?.staged ?? null)
+    otaState.phase === "ready" ? otaState.version : (info?.staged ?? null)
 
   return (
     <>

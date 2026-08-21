@@ -42,11 +42,7 @@ function clampStartedAt(startedAt: number | undefined, now: number) {
   return Math.min(now, Math.max(now - MAX_BACKDATE_MS, Math.round(startedAt)));
 }
 
-async function ownedSession(
-  ctx: MutationCtx,
-  id: string,
-  userId: string,
-) {
+async function ownedSession(ctx: MutationCtx, id: string, userId: string) {
   const doc = await ctx.db.get(id as never);
   if (!doc || (doc as { userId?: string }).userId !== userId) {
     throw new Error("Fast not found or access denied");
@@ -143,7 +139,9 @@ export const start = mutation({
       )
       .first();
     if (running) {
-      throw new Error("A fast is already running. End it before starting another.");
+      throw new Error(
+        "A fast is already running. End it before starting another.",
+      );
     }
 
     const now = Date.now();

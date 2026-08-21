@@ -5,10 +5,7 @@ import { claimRateLimit } from "./lib/rateLimits";
 export const claim = internalMutation({
   args: {
     userId: v.string(),
-    action: v.union(
-      v.literal("checkout"),
-      v.literal("purchase_restore"),
-    ),
+    action: v.union(v.literal("checkout"), v.literal("purchase_restore")),
     limit: v.number(),
     windowMs: v.number(),
   },
@@ -23,4 +20,3 @@ export const claim = internalMutation({
     return null;
   },
 });
-

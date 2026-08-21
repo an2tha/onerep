@@ -51,6 +51,7 @@ const MUTATION_REGISTRY = {
   "users.users.setWaterGoal": api.users.users.setWaterGoal,
   "users.users.setWeightUnit": api.users.users.setWeightUnit,
   "users.users.setEnergyUnit": api.users.users.setEnergyUnit,
+  "users.users.setShowCalorieNumbers": api.users.users.setShowCalorieNumbers,
   "users.users.setFoodSearchLanguage": api.users.users.setFoodSearchLanguage,
   "users.users.setDashboardSettings": api.users.users.setDashboardSettings,
   "users.users.setDashboardTrendMetric":
@@ -118,6 +119,7 @@ const SINGLETON_COALESCE_MUTATIONS = new Set<OfflineMutationName>([
   "users.users.setWaterGoal",
   "users.users.setWeightUnit",
   "users.users.setEnergyUnit",
+  "users.users.setShowCalorieNumbers",
   "users.users.setFoodSearchLanguage",
   "users.users.setDashboardSettings",
   "users.users.setDashboardTrendMetric",

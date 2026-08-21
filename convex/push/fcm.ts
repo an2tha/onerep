@@ -126,7 +126,8 @@ async function accessToken(config: FcmConfig) {
     access_token?: string;
     expires_in?: number;
   };
-  if (!body.access_token) throw new Error("FCM token exchange returned no token");
+  if (!body.access_token)
+    throw new Error("FCM token exchange returned no token");
   cachedToken = {
     value: body.access_token,
     expiresAt: Date.now() + (body.expires_in ?? 3600) * 1000,

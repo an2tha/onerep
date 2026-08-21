@@ -117,7 +117,10 @@ export function rangeDays(range: NutritionReportRange) {
 }
 
 /** Inclusive [start, end] date keys ending on `endDate`. */
-export function reportRangeBounds(endDate: string, range: NutritionReportRange) {
+export function reportRangeBounds(
+  endDate: string,
+  range: NutritionReportRange
+) {
   const days = rangeDays(range)
   return { start: offsetDateKey(endDate, -(days - 1)), end: endDate }
 }
@@ -292,7 +295,9 @@ function mealBreakdown(
           netCarbs: round(totals.netCarbs),
         },
         shareOfCalories:
-          totalCalories > 0 ? round((totals.calories / totalCalories) * 100) : 0,
+          totalCalories > 0
+            ? round((totals.calories / totalCalories) * 100)
+            : 0,
       }
     })
     .sort((a, b) => b.totals.calories - a.totals.calories)

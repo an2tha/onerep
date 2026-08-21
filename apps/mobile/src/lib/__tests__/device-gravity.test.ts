@@ -52,7 +52,9 @@ describe("normalizeEventGravity", () => {
   it("rejects missing or partial readings", () => {
     expect(normalizeEventGravity(null, "ios")).toBeNull()
     expect(normalizeEventGravity({ x: 0, y: null, z: 0 }, "ios")).toBeNull()
-    expect(normalizeEventGravity({ x: 0, y: Number.NaN, z: 0 }, "ios")).toBeNull()
+    expect(
+      normalizeEventGravity({ x: 0, y: Number.NaN, z: 0 }, "ios")
+    ).toBeNull()
   })
 })
 

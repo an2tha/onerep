@@ -1,4 +1,8 @@
-import { Capacitor, registerPlugin, type PluginListenerHandle } from "@capacitor/core"
+import {
+  Capacitor,
+  registerPlugin,
+  type PluginListenerHandle,
+} from "@capacitor/core"
 
 /**
  * The web app's view of the Apple Watch companion.

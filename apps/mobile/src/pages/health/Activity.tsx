@@ -2,6 +2,7 @@ import { useQuery } from "convex/react"
 import { api } from "../../../../../convex/_generated/api"
 import { currentDateKey } from "@/lib/food-log"
 import { useEnergyUnit } from "@/lib/use-energy-unit"
+import { energyDisplay } from "@repo/ui"
 import {
   AREA_TONES,
   DialHero,
@@ -65,7 +66,9 @@ export default function HealthActivity() {
             today={today}
             metric="energy"
             title="Active calories"
-            format={(value) => `${formatCount(value)} ${energyUnit}`}
+            format={(value) =>
+              `${formatCount(energyDisplay(value, energyUnit))} ${energyUnit}`
+            }
             tone="var(--accent-food)"
           />
         </>

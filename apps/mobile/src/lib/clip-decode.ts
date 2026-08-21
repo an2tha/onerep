@@ -218,7 +218,10 @@ export async function sampleClip<T>(
     const stills: ClipStill[] = []
     const step = 1000 / SAMPLE_FPS
     const sampleCount = Math.max(1, Math.ceil(durationMs / step))
-    const stillEvery = Math.max(1, Math.ceil(sampleCount / STILL_POOL_PER_ANGLE))
+    const stillEvery = Math.max(
+      1,
+      Math.ceil(sampleCount / STILL_POOL_PER_ANGLE)
+    )
 
     let sample = 0
     for (let timeMs = 0; timeMs < durationMs; timeMs += step) {

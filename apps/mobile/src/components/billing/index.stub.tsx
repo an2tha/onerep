@@ -99,7 +99,9 @@ export function BillingSubscriptionPanel({
                 : "This build doesn’t sell subscriptions. Pro is granted by whoever runs the server — ask them, not us."}
             </p>
           </div>
-          <span className="profile-pro-status">{active ? "Active" : "Free"}</span>
+          <span className="profile-pro-status">
+            {active ? "Active" : "Free"}
+          </span>
         </div>
       </div>
     </div>

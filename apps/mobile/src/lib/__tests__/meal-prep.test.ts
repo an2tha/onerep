@@ -87,8 +87,9 @@ describe("per-serving nutrition", () => {
 
   test("scaling and dividing are inverses", () => {
     const totals = { calories: 2000, protein: 160, carbs: 240, fat: 50 }
-    expect(scaleMealPrepNutrients(perServingFromBatchTotals(totals, 5), 5))
-      .toEqual(totals)
+    expect(
+      scaleMealPrepNutrients(perServingFromBatchTotals(totals, 5), 5)
+    ).toEqual(totals)
   })
 })
 
@@ -108,8 +109,9 @@ describe("freshness", () => {
       status: "expired",
       label: "Past use-by by 2 days",
     })
-    expect(mealPrepFreshness(batch({ useByOn: undefined }), "2026-07-28").status)
-      .toBe("unknown")
+    expect(
+      mealPrepFreshness(batch({ useByOn: undefined }), "2026-07-28").status
+    ).toBe("unknown")
   })
 
   test("use-by defaults come from where the batch is stored", () => {

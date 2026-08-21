@@ -36,7 +36,12 @@ export const completion = mutation({
     // `getLog`'s `.take(2)` can never surface. Scoped to session-aware clients
     // so legacy one-log-per-day writes keep their existing behaviour.
     if (args.slot === undefined && args.sessionId !== undefined) {
-      const free = await findFreeWorkoutSlot(ctx, user._id, args.date, sessionId);
+      const free = await findFreeWorkoutSlot(
+        ctx,
+        user._id,
+        args.date,
+        sessionId,
+      );
       if (free === null) {
         throw new Error(
           "You already have two sessions logged that day. Edit one instead.",

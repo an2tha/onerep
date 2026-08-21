@@ -80,8 +80,7 @@ export const serverOverride = readStoredOverride()
 
 /** The deployment this build shipped with, before any override. */
 export const defaultConvexUrl = import.meta.env.VITE_CONVEX_URL as
-  | string
-  | undefined
+  string | undefined
 
 export function defaultServerHostname(): string | null {
   if (!defaultConvexUrl) return null

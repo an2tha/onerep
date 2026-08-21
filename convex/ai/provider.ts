@@ -365,7 +365,8 @@ export async function runOpenAiAgent<T>({
       const toolCalls: AgentToolCall[] = [];
       for (const call of request.tool_calls ?? []) {
         const definition = tools[call.name];
-        if (!definition) throw new Error(`model called unknown tool ${call.name}`);
+        if (!definition)
+          throw new Error(`model called unknown tool ${call.name}`);
         const input = definition.inputSchema.parse(call.args);
         const output = await definition.execute(input as never);
         toolCalls.push({ tool: call.name, input, output });

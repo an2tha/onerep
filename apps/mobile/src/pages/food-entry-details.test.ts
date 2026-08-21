@@ -25,14 +25,18 @@ describe("logged food entries can be inspected and corrected", () => {
   test("every diary row opens its own details", () => {
     expect(NUTRITION_SOURCE).toContain("function FoodEntrySheet({")
     expect(NUTRITION_SOURCE).toContain(
-      'aria-label={`Details for ${entry.name}`}'
+      "aria-label={`Details for ${entry.name}`}"
     )
     expect(NUTRITION_SOURCE).toContain("setEntryDetail(entry.id)")
     expect(NUTRITION_SOURCE).toContain("const [entryDetail, setEntryDetail]")
   })
 
   test("the row itself shows macros, not calories alone", () => {
-    expect(NUTRITION_SOURCE).toContain("{fmt(entry.protein)}P {fmt(entry.carbs)}C")
+    // Whitespace-tolerant: Prettier owns the line breaks between these, and a
+    // reflow is not a behaviour change.
+    expect(NUTRITION_SOURCE).toMatch(
+      /\{fmt\(entry\.protein\)\}P\s*(?:\{" "\})?\s*\{fmt\(entry\.carbs\)\}C/
+    )
   })
 
   test("the sheet edits the numbers and can remove the entry", () => {
@@ -48,7 +52,9 @@ describe("logged food entries can be inspected and corrected", () => {
   })
 
   test("Coach opens the day the meal was logged to, not today", () => {
-    expect(COACH_CHAT_SOURCE).toContain("onOpenNutrition: (date?: string) => void")
+    expect(COACH_CHAT_SOURCE).toContain(
+      "onOpenNutrition: (date?: string) => void"
+    )
     expect(COACH_SOURCE).toContain("`/nutrition?date=${date}`")
   })
 })

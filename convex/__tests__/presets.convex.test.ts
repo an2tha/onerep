@@ -23,7 +23,7 @@ describe("presets Convex functions", () => {
   test("create throws when unauthenticated", async () => {
     const t = convexTest(schema, modules);
     await expect(
-      t.mutation(api.logs.presets.create, basePreset)
+      t.mutation(api.logs.presets.create, basePreset),
     ).rejects.toThrow();
   });
 
@@ -33,7 +33,7 @@ describe("presets Convex functions", () => {
       t.mutation(api.logs.presets.update, {
         id: "jd7f4z1y2s3d4t5v6w7x8" as any,
         ...basePreset,
-      })
+      }),
     ).rejects.toThrow();
   });
 
@@ -42,7 +42,7 @@ describe("presets Convex functions", () => {
     await expect(
       t.mutation(api.logs.presets.remove, {
         id: "jd7f4z1y2s3d4t5v6w7x8" as any,
-      })
+      }),
     ).rejects.toThrow();
   });
 
@@ -96,7 +96,7 @@ describe("presets Convex functions", () => {
       ctx.db
         .query("presets")
         .withIndex("by_userId", (q) => q.eq("userId", "user-a"))
-        .collect()
+        .collect(),
     );
 
     expect(userAPresets).toHaveLength(1);
@@ -115,11 +115,11 @@ describe("presets Convex functions", () => {
         exerciseData: {},
         createdAt: now,
         updatedAt: now,
-      })
+      }),
     );
 
     await t.run(async (ctx) =>
-      ctx.db.patch(id, { name: "Updated", updatedAt: Date.now() })
+      ctx.db.patch(id, { name: "Updated", updatedAt: Date.now() }),
     );
 
     const updated = await t.run(async (ctx) => ctx.db.get(id));
@@ -138,7 +138,7 @@ describe("presets Convex functions", () => {
         exerciseData: {},
         createdAt: now,
         updatedAt: now,
-      })
+      }),
     );
 
     const preset = await t.run(async (ctx) => ctx.db.get(id));
@@ -159,7 +159,7 @@ describe("presets Convex functions", () => {
         exerciseData: {},
         createdAt: now,
         updatedAt: now,
-      })
+      }),
     );
 
     await t.run(async (ctx) => ctx.db.delete(id));
@@ -180,7 +180,7 @@ describe("presets Convex functions", () => {
         exerciseData: null,
         createdAt: now,
         updatedAt: now,
-      })
+      }),
     );
 
     const stored = await t.run(async (ctx) => ctx.db.get(id));

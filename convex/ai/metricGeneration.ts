@@ -1654,7 +1654,9 @@ function normalizeCoachOperations(value: unknown): CoachOperation[] {
           return Math.round(clampNumber(value, low, high, low));
         };
         const targets = {
-          ...(target("calories") == null ? {} : { calories: target("calories") }),
+          ...(target("calories") == null
+            ? {}
+            : { calories: target("calories") }),
           ...(target("protein") == null ? {} : { protein: target("protein") }),
           ...(target("carbs") == null ? {} : { carbs: target("carbs") }),
           ...(target("fat") == null ? {} : { fat: target("fat") }),

@@ -151,9 +151,7 @@ export const listClients = query({
 
     const rows = await ctx.db
       .query("mcpOauthClients")
-      .withIndex("by_createdByUserId", (q) =>
-        q.eq("createdByUserId", user._id),
-      )
+      .withIndex("by_createdByUserId", (q) => q.eq("createdByUserId", user._id))
       .order("desc")
       .collect();
 
@@ -230,9 +228,7 @@ export const storeManualClient = internalMutation({
 
     const existing = await ctx.db
       .query("mcpOauthClients")
-      .withIndex("by_createdByUserId", (q) =>
-        q.eq("createdByUserId", user._id),
-      )
+      .withIndex("by_createdByUserId", (q) => q.eq("createdByUserId", user._id))
       .collect();
     const live = existing.filter((row) => row.revokedAt === undefined);
     if (live.length >= MAX_MANUAL_CLIENTS) {
@@ -435,11 +431,7 @@ export const redeemAuthCode = internalMutation({
 });
 
 /** Revokes every live token a given app holds for a given user. */
-async function revokeGrant(
-  ctx: MutationCtx,
-  userId: string,
-  clientId: string,
-) {
+async function revokeGrant(ctx: MutationCtx, userId: string, clientId: string) {
   const now = Date.now();
   const tokens = await ctx.db
     .query("mcpTokens")
@@ -552,7 +544,10 @@ export const resolveRefreshToken = internalQuery({
       return { ok: false, reason: "That refresh token has expired." };
     }
     if (row.clientId !== args.clientId) {
-      return { ok: false, reason: "That refresh token belongs to another client." };
+      return {
+        ok: false,
+        reason: "That refresh token belongs to another client.",
+      };
     }
     return { ok: true, id: row._id, userId: row.userId, scopes: row.scopes };
   },

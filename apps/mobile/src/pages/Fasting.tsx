@@ -463,87 +463,87 @@ export default function Fasting({
         </button>
 
         {recordOpen && (
-        <>
-        {stats.totalCompleted === 0 ? (
-          <EmptyState
-            icon={Timer}
-            tone="food"
-            title="No completed fasts yet"
-            detail="Finish a fast and your streak, average and longest will show up here."
-          />
-        ) : (
-          <dl
-            className="grid grid-cols-2 gap-x-4 gap-y-1 tabular-nums"
-            aria-label="Fasting statistics"
-          >
-            {(
-              [
-                [
-                  "Current streak",
-                  `${stats.currentStreakDays} day${
-                    stats.currentStreakDays === 1 ? "" : "s"
-                  }`,
-                ],
-                ["Longest streak", `${stats.longestStreakDays} days`],
-                ["Average", `${stats.averageHours} h`],
-                ["Longest fast", `${stats.longestHours} h`],
-                ["Completed", `${stats.totalCompleted}`],
-                ["Hit target", `${Math.round(stats.goalHitRate * 100)}%`],
-              ] as const
-            ).map(([label, value]) => (
-              <div key={label} className="flex justify-between gap-3">
-                <dt className="native-row-detail">{label}</dt>
-                <dd className="native-row-title">{value}</dd>
-              </div>
-            ))}
-          </dl>
-        )}
-
-        <SectionHeader title="History" />
-        {history.length === 0 ? (
-          <EmptyState
-            icon={Timer}
-            tone="food"
-            title="Nothing logged yet"
-            detail="Fasts you start and end will appear here."
-          />
-        ) : (
-          <GroupedList label="Fasting history">
-            {history.map((session) => {
-              const id = session.id ?? session._id ?? session.startDate
-              const durationSeconds = session.endedAt
-                ? Math.round((session.endedAt - session.startedAt) / 1000)
-                : null
-              return (
-                <div
-                  key={id}
-                  className="flex min-h-14 items-center justify-between gap-2 px-1 py-2.5"
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="native-row-title tabular-nums">
-                      {durationSeconds === null
-                        ? "In progress"
-                        : formatFastDuration(durationSeconds)}
-                    </p>
-                    <p className="native-row-detail mt-0.5">
-                      {historyDate(session.startDate)} · {session.protocol}
-                      {session.endedEarly ? " · ended early" : ""}
-                    </p>
+          <>
+            {stats.totalCompleted === 0 ? (
+              <EmptyState
+                icon={Timer}
+                tone="food"
+                title="No completed fasts yet"
+                detail="Finish a fast and your streak, average and longest will show up here."
+              />
+            ) : (
+              <dl
+                className="grid grid-cols-2 gap-x-4 gap-y-1 tabular-nums"
+                aria-label="Fasting statistics"
+              >
+                {(
+                  [
+                    [
+                      "Current streak",
+                      `${stats.currentStreakDays} day${
+                        stats.currentStreakDays === 1 ? "" : "s"
+                      }`,
+                    ],
+                    ["Longest streak", `${stats.longestStreakDays} days`],
+                    ["Average", `${stats.averageHours} h`],
+                    ["Longest fast", `${stats.longestHours} h`],
+                    ["Completed", `${stats.totalCompleted}`],
+                    ["Hit target", `${Math.round(stats.goalHitRate * 100)}%`],
+                  ] as const
+                ).map(([label, value]) => (
+                  <div key={label} className="flex justify-between gap-3">
+                    <dt className="native-row-detail">{label}</dt>
+                    <dd className="native-row-title">{value}</dd>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(session)}
-                    aria-label={`Delete fast from ${historyDate(session.startDate)}`}
-                    className="native-toolbar-button h-11 w-11 px-0 text-destructive"
-                  >
-                    <Trash size={17} weight="bold" />
-                  </button>
-                </div>
-              )
-            })}
-          </GroupedList>
-        )}
-        </>
+                ))}
+              </dl>
+            )}
+
+            <SectionHeader title="History" />
+            {history.length === 0 ? (
+              <EmptyState
+                icon={Timer}
+                tone="food"
+                title="Nothing logged yet"
+                detail="Fasts you start and end will appear here."
+              />
+            ) : (
+              <GroupedList label="Fasting history">
+                {history.map((session) => {
+                  const id = session.id ?? session._id ?? session.startDate
+                  const durationSeconds = session.endedAt
+                    ? Math.round((session.endedAt - session.startedAt) / 1000)
+                    : null
+                  return (
+                    <div
+                      key={id}
+                      className="flex min-h-14 items-center justify-between gap-2 px-1 py-2.5"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="native-row-title tabular-nums">
+                          {durationSeconds === null
+                            ? "In progress"
+                            : formatFastDuration(durationSeconds)}
+                        </p>
+                        <p className="native-row-detail mt-0.5">
+                          {historyDate(session.startDate)} · {session.protocol}
+                          {session.endedEarly ? " · ended early" : ""}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(session)}
+                        aria-label={`Delete fast from ${historyDate(session.startDate)}`}
+                        className="native-toolbar-button h-11 w-11 px-0 text-destructive"
+                      >
+                        <Trash size={17} weight="bold" />
+                      </button>
+                    </div>
+                  )
+                })}
+              </GroupedList>
+            )}
+          </>
         )}
       </div>
 

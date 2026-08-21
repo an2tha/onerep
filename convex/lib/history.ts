@@ -79,7 +79,9 @@ function round(value: number, places = 1) {
 
 function average(values: number[]) {
   if (values.length === 0) return null;
-  return Math.round(values.reduce((sum, value) => sum + value, 0) / values.length);
+  return Math.round(
+    values.reduce((sum, value) => sum + value, 0) / values.length,
+  );
 }
 
 /**
@@ -154,7 +156,9 @@ export function summarizeMonth({
     avgCalories: average(dailyCalories),
     avgProtein: average(dailyProtein),
     weightStartKg:
-      monthWeights.length > 0 ? round(monthWeights[0].weightKg as number) : null,
+      monthWeights.length > 0
+        ? round(monthWeights[0].weightKg as number)
+        : null,
     weightEndKg:
       monthWeights.length > 0
         ? round(monthWeights[monthWeights.length - 1].weightKg as number)
@@ -177,7 +181,9 @@ export type HistoryBlock = {
  * someone's history is not the same as a month they trained zero times, and
  * only one of those is worth a coach mentioning.
  */
-export function buildHistoryBlock(summaries: MonthSummary[]): HistoryBlock | null {
+export function buildHistoryBlock(
+  summaries: MonthSummary[],
+): HistoryBlock | null {
   const months = summaries
     .filter(
       (summary) =>
@@ -192,10 +198,7 @@ export function buildHistoryBlock(summaries: MonthSummary[]): HistoryBlock | nul
   const weighed = months.filter((summary) => summary.weightEndKg !== null);
   const first = weighed[0];
   const last = weighed[weighed.length - 1];
-  const span =
-    weighed.length > 1
-      ? monthsBetween(first.month, last.month)
-      : 0;
+  const span = weighed.length > 1 ? monthsBetween(first.month, last.month) : 0;
 
   const weightTrendKgPerMonth =
     span > 0 && first.weightStartKg !== null && last.weightEndKg !== null

@@ -31,7 +31,9 @@ describe("analytics consent boundary", () => {
     const optedOut = { getItem: () => "false" }
 
     expect(captureFeatureUsage(client, "feature_used", {}, unset)).toBe(false)
-    expect(captureFeatureUsage(client, "feature_used", {}, optedOut)).toBe(false)
+    expect(captureFeatureUsage(client, "feature_used", {}, optedOut)).toBe(
+      false
+    )
     expect(events).toEqual([])
   })
 
@@ -50,7 +52,12 @@ describe("analytics consent boundary", () => {
     const client = { capture: (event: string) => events.push(event) }
 
     expect(
-      captureFeatureUsage(client, "feature_used", { mode: "chat" }, { getItem: () => "false" })
+      captureFeatureUsage(
+        client,
+        "feature_used",
+        { mode: "chat" },
+        { getItem: () => "false" }
+      )
     ).toBe(false)
     expect(events).toEqual([])
     expect(tracked).toEqual([["feature_used", { mode: "chat" }]])
@@ -108,4 +115,3 @@ describe("usage buckets", () => {
     expect(usageBucket(9, 10)).toBe("over_50pct")
   })
 })
-

@@ -28,11 +28,7 @@ type NavigatorWithStandalone = Navigator & {
  * is impossible until the user escapes to a real browser.
  */
 export type PwaInstallPlatform =
-  | "chromium"
-  | "ios"
-  | "safari-desktop"
-  | "in-app"
-  | "other"
+  "chromium" | "ios" | "safari-desktop" | "in-app" | "other"
 
 export function detectPwaInstallPlatform(
   win: Window = window
@@ -66,8 +62,8 @@ export function isPwaStandalone(win: Window = window) {
   const nav = win.navigator as NavigatorWithStandalone
   return Boolean(
     nav.standalone ||
-      win.matchMedia?.("(display-mode: standalone)").matches ||
-      win.matchMedia?.("(display-mode: fullscreen)").matches
+    win.matchMedia?.("(display-mode: standalone)").matches ||
+    win.matchMedia?.("(display-mode: fullscreen)").matches
   )
 }
 
@@ -155,16 +151,14 @@ export function pwaInstallCopy({
     case "ios":
       return {
         actionLabel: "How to install",
-        description:
-          "Tap the Share button, then choose “Add to Home Screen”.",
+        description: "Tap the Share button, then choose “Add to Home Screen”.",
         disabled: false,
         statusLabel: "Manual",
       }
     case "safari-desktop":
       return {
         actionLabel: "How to install",
-        description:
-          "In Safari's File menu, choose “Add to Dock”.",
+        description: "In Safari's File menu, choose “Add to Dock”.",
         disabled: false,
         statusLabel: "Manual",
       }

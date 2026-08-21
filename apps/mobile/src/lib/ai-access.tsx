@@ -99,7 +99,7 @@ export function useAiFeatureGate() {
         void (async () => {
           try {
             const purchasedCustomerInfo =
-            await billing.purchaseMonthly("ai_paywall")
+              await billing.purchaseMonthly("ai_paywall")
             const customerInfo =
               purchasedCustomerInfo ?? (await billing.refresh())
             if (hasOneRepPro(customerInfo)) {

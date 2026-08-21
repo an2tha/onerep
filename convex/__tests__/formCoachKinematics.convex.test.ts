@@ -339,8 +339,9 @@ describe("aggregates", () => {
   });
 
   test("reports no travel rather than zero when a landmark was lost", () => {
-    expect(travel(repFrom([emptyFrame(), emptyFrame()]), "leftHip", "leftAnkle"))
-      .toBeNull();
+    expect(
+      travel(repFrom([emptyFrame(), emptyFrame()]), "leftHip", "leftAnkle"),
+    ).toBeNull();
   });
 
   test("summarises spread across reps", () => {

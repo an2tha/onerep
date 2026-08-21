@@ -50,28 +50,46 @@ describe("calculateCalories", () => {
     });
 
     test("lightly_active multiplier (1.375)", () => {
-      const result = calculateCalories({ ...base, activityLevel: "lightly_active" });
+      const result = calculateCalories({
+        ...base,
+        activityLevel: "lightly_active",
+      });
       expect(result.tdee).toBe(Math.round(result.bmr * 1.375));
     });
 
     test("moderately_active multiplier (1.55)", () => {
-      const result = calculateCalories({ ...base, activityLevel: "moderately_active" });
+      const result = calculateCalories({
+        ...base,
+        activityLevel: "moderately_active",
+      });
       expect(result.tdee).toBe(Math.round(result.bmr * 1.55));
     });
 
     test("very_active multiplier (1.725)", () => {
-      const result = calculateCalories({ ...base, activityLevel: "very_active" });
+      const result = calculateCalories({
+        ...base,
+        activityLevel: "very_active",
+      });
       expect(result.tdee).toBe(Math.round(result.bmr * 1.725));
     });
 
     test("extra_active multiplier (1.9)", () => {
-      const result = calculateCalories({ ...base, activityLevel: "extra_active" });
+      const result = calculateCalories({
+        ...base,
+        activityLevel: "extra_active",
+      });
       expect(result.tdee).toBe(Math.round(result.bmr * 1.9));
     });
 
     test("unknown activity level falls back to moderately_active (1.55)", () => {
-      const knownResult = calculateCalories({ ...base, activityLevel: "moderately_active" });
-      const unknownResult = calculateCalories({ ...base, activityLevel: "unknown_level" });
+      const knownResult = calculateCalories({
+        ...base,
+        activityLevel: "moderately_active",
+      });
+      const unknownResult = calculateCalories({
+        ...base,
+        activityLevel: "unknown_level",
+      });
       expect(unknownResult.tdee).toBe(knownResult.tdee);
     });
 
@@ -99,7 +117,10 @@ describe("calculateCalories", () => {
 
     test("unknown goal falls back to maintain (0 delta)", () => {
       const maintainResult = calculateCalories({ ...base, goal: "maintain" });
-      const unknownResult = calculateCalories({ ...base, goal: "unknown_goal" });
+      const unknownResult = calculateCalories({
+        ...base,
+        goal: "unknown_goal",
+      });
       expect(unknownResult.targetCalories).toBe(maintainResult.targetCalories);
     });
   });
@@ -107,7 +128,9 @@ describe("calculateCalories", () => {
   describe("macro calculations", () => {
     test("protein is 30% of targetCalories / 4 kcal per gram", () => {
       const result = calculateCalories(base);
-      expect(result.protein).toBe(Math.round((result.targetCalories * 0.3) / 4));
+      expect(result.protein).toBe(
+        Math.round((result.targetCalories * 0.3) / 4),
+      );
     });
 
     test("carbs is 40% of targetCalories / 4 kcal per gram", () => {

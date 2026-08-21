@@ -492,7 +492,11 @@ function PickSecondWorkoutSheet({
               className="flex items-center gap-3 rounded-2xl bg-muted/40 px-4 py-3.5 text-left transition-colors active:bg-muted/70"
             >
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-background/70">
-                <Icon size={14} weight="duotone" className="text-foreground/60" />
+                <Icon
+                  size={14}
+                  weight="duotone"
+                  className="text-foreground/60"
+                />
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-[13px] font-semibold">{preset.name}</p>
@@ -1679,7 +1683,9 @@ export default function Workouts() {
                         type="button"
                         onClick={() => setRoutineEditMode((value) => !value)}
                         aria-label={
-                          routineEditMode ? "Done editing routine" : "Edit routine"
+                          routineEditMode
+                            ? "Done editing routine"
+                            : "Edit routine"
                         }
                         className={cn(
                           "app-icon-button transition-colors",

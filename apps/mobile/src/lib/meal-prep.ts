@@ -76,7 +76,10 @@ export function mealPrepStorageOption(storage: MealPrepStorage) {
 }
 
 /** Use-by date implied by where the batch is stored. */
-export function suggestedUseByDate(preppedOn: string, storage: MealPrepStorage) {
+export function suggestedUseByDate(
+  preppedOn: string,
+  storage: MealPrepStorage
+) {
   return offsetDateKey(preppedOn, mealPrepStorageOption(storage).defaultDays)
 }
 
@@ -142,7 +145,8 @@ export function mealPrepFreshness(
       label: `Past use-by by ${days} day${days === 1 ? "" : "s"}`,
     }
   }
-  if (daysLeft === 0) return { status: "use-soon", daysLeft, label: "Use today" }
+  if (daysLeft === 0)
+    return { status: "use-soon", daysLeft, label: "Use today" }
   if (daysLeft <= 1) {
     return { status: "use-soon", daysLeft, label: "Use by tomorrow" }
   }
@@ -226,7 +230,9 @@ export type MealPrepDraftResult = {
   nutrientsPerServing: MealPrepNutrients
 }
 
-export function resolveMealPrepDraft(draft: MealPrepDraft): MealPrepDraftResult {
+export function resolveMealPrepDraft(
+  draft: MealPrepDraft
+): MealPrepDraftResult {
   const errors: MealPrepDraftResult["errors"] = {}
 
   if (!draft.name.trim()) errors.name = "Name this batch"

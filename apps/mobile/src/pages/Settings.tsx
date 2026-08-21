@@ -51,8 +51,8 @@ import { AboutApp } from "@/components/about-app"
 import { cacheWeightUnit, readCachedWeightUnit } from "@/lib/use-weight-unit"
 import {
   cacheEnergyUnit,
-  readCachedEnergyUnit,
-  type EnergyUnit,
+  readCachedEnergyUnitStored,
+  type EnergyUnitStored,
 } from "@/lib/use-energy-unit"
 import { useTour } from "@/components/walkthrough/tour-context"
 import { WALKTHROUGH_CHAPTERS } from "@/lib/walkthrough/chapters"
@@ -343,6 +343,10 @@ export default function Settings({ onClose }: { onClose: () => void }) {
     api.users.users.setEnergyUnit,
     "users.users.setEnergyUnit"
   )
+  const setShowCalorieNumbers = useOfflineMutation(
+    api.users.users.setShowCalorieNumbers,
+    "users.users.setShowCalorieNumbers"
+  )
   const setWaterGoal = useOfflineMutation(
     api.users.users.setWaterGoal,
     "users.users.setWaterGoal"
@@ -416,8 +420,17 @@ export default function Settings({ onClose }: { onClose: () => void }) {
   const [weightUnit, setWeightUnitState] = useState<WeightUnit>(
     (preferences?.weightUnit as WeightUnit) || readCachedWeightUnit()
   )
-  const [energyUnit, setEnergyUnitState] = useState<EnergyUnit>(
-    (preferences?.energyUnit as EnergyUnit) || readCachedEnergyUnit()
+  const [showCalorieNumbers, setShowCalorieNumbersState] = useState(false)
+  // Only accounts a screening answer actually muted get the opt-back-in row.
+  const nutritionPlanForSafety = useQuery(api.users.users.getNutritionPlan, {
+    date: new Date().toISOString().slice(0, 10),
+  }) as { safetyMode?: string; trackingMode?: string } | null | undefined
+  const metricsHiddenBySafety =
+    nutritionPlanForSafety?.safetyMode === "recovery" ||
+    nutritionPlanForSafety?.trackingMode === "recovery"
+  const [energyUnit, setEnergyUnitState] = useState<EnergyUnitStored>(
+    (preferences?.energyUnit as EnergyUnitStored) ||
+      readCachedEnergyUnitStored()
   )
   const [foodSearchLanguage, setFoodSearchLanguageState] =
     useState<FoodSearchLanguage>(
@@ -616,8 +629,11 @@ export default function Settings({ onClose }: { onClose: () => void }) {
     if (preferences?.weightUnit) {
       setWeightUnitState(preferences.weightUnit as WeightUnit)
     }
+    if (typeof preferences?.showCalorieNumbers === "boolean") {
+      setShowCalorieNumbersState(preferences.showCalorieNumbers)
+    }
     if (preferences?.energyUnit) {
-      setEnergyUnitState(preferences.energyUnit as EnergyUnit)
+      setEnergyUnitState(preferences.energyUnit as EnergyUnitStored)
     }
     if (preferences?.foodSearchLanguage) {
       setFoodSearchLanguageState(
@@ -1609,18 +1625,21 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                   </SettingsRow>
                   <SettingsRow
                     label="Energy unit"
-                    detail="Same number either way — a Calorie is a kilocalorie"
+                    detail="kcal and Cal are the same number; kJ converts"
                   >
                     <SegmentedControl
                       onInteract={hapticSelection}
                       label="Energy unit"
                       value={energyUnit}
                       onChange={(value) =>
-                        setEnergyUnitState(value as EnergyUnit)
+                        setEnergyUnitState(value as EnergyUnitStored)
                       }
                       options={[
                         { value: "kcal", label: "kcal" },
-                        { value: "Cal", label: "Cal" },
+                        // Lowercase because that is what a US label reader
+                        // recognises, whatever the SI pedantry says.
+                        { value: "Cal", label: "cal" },
+                        { value: "kJ", label: "kJ" },
                       ]}
                     />
                   </SettingsRow>
@@ -1731,6 +1750,25 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                   schedule.
                 </SettingsSectionIntro>
                 <GroupedList label="Nutrition strategy options">
+                  {metricsHiddenBySafety && (
+                    // Only shown to accounts the screening actually muted.
+                    // Everyone else already sees their numbers, so a switch
+                    // here would just be one more thing to wonder about.
+                    <SettingsRow
+                      label="Show calorie numbers"
+                      detail="Onboarding answers hid calories and macros. Turn this on to see them again."
+                    >
+                      <CompactSwitch
+                        onInteract={hapticSelection}
+                        checked={showCalorieNumbers}
+                        onChange={(enabled) => {
+                          setShowCalorieNumbersState(enabled)
+                          void setShowCalorieNumbers({ enabled })
+                        }}
+                        label="Show calorie numbers"
+                      />
+                    </SettingsRow>
+                  )}
                   <SettingsRow
                     label="Macro cycling"
                     detail="Use separate training and rest-day targets"

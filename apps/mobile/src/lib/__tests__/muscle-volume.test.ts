@@ -208,11 +208,7 @@ describe("computeWeeklyMuscleVolume", () => {
       makeLog("2026-01-05", [makeExercise("squat", 3)]),
       makeLog("2026-01-06", [makeExercise("squat", 4)]),
     ]
-    const result = computeWeeklyMuscleVolume(
-      logs,
-      catalogMap,
-      earlyLocalMonday
-    )
+    const result = computeWeeklyMuscleVolume(logs, catalogMap, earlyLocalMonday)
     const quads = result.find((m) => m.muscle === "quadriceps")!
     expect(quads.primarySets).toBe(3)
   })

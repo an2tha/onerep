@@ -13,8 +13,7 @@ const {
   getFoodByBarcode,
   getFoodDetail,
   searchFoods,
-} =
-  await import("../openfoodfacts")
+} = await import("../openfoodfacts")
 
 function lastActionArgs() {
   const calls = actionMock.mock.calls as unknown as Array<
@@ -241,7 +240,9 @@ describe("Datasource food client", () => {
   })
 
   test("getFoodDetail returns null for legacy proxy 404 errors", async () => {
-    actionMock.mockRejectedValueOnce(new Error("Open Food Facts request failed: 404"))
+    actionMock.mockRejectedValueOnce(
+      new Error("Open Food Facts request failed: 404")
+    )
 
     await expect(getFoodDetail("missing")).resolves.toBeNull()
   })

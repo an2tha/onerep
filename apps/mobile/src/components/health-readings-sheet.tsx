@@ -103,7 +103,7 @@ function fields(weightUnit: "kg" | "lbs", energyUnit: EnergyUnit): Field[] {
       key: "activeEnergyKcal",
       kind: "daily",
       label: "Active energy",
-      unit: energyUnit,
+      unit: "kcal", // Editable reading stored in kcal; label must match.
       decimals: 0,
       toDisplay: identity,
       toStored: (shown) => Math.round(shown),

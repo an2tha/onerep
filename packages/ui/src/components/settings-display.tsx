@@ -185,8 +185,9 @@ export function AiUsageProgress({ usage }: { usage?: AiUsageView | null }) {
           className="h-full rounded-full transition-[width,background-color]"
           style={{
             width: `${percent}%`,
-            backgroundColor:
-              runningLow ? "var(--status-danger)" : "var(--foreground)",
+            backgroundColor: runningLow
+              ? "var(--status-danger)"
+              : "var(--foreground)",
           }}
         />
       </div>

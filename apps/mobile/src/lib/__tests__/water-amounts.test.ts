@@ -115,8 +115,9 @@ describe("recent water amount helpers", () => {
   })
 
   test("hides amounts already shown as quick actions", () => {
-    expect(visibleRecentWaterAmounts([250, 333, 500], [150, 250, 500]))
-      .toEqual([333])
+    expect(visibleRecentWaterAmounts([250, 333, 500], [150, 250, 500])).toEqual(
+      [333]
+    )
   })
 
   test("reads valid storage and ignores invalid storage", () => {

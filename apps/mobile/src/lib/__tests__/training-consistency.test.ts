@@ -80,7 +80,9 @@ describe("subtractDays", () => {
 describe("calcTrailingSessions", () => {
   test("counts today using the local calendar day", () => {
     const earlyLocalMorning = new Date(2026, 0, 1, 0, 30)
-    expect(calcTrailingSessions(new Set(["2026-01-01"]), earlyLocalMorning, 28)).toBe(1)
+    expect(
+      calcTrailingSessions(new Set(["2026-01-01"]), earlyLocalMorning, 28)
+    ).toBe(1)
   })
 
   test("empty set returns 0", () => {
@@ -196,7 +198,9 @@ describe("calcWorkoutsThisWeek", () => {
   // REF = Wednesday 2026-04-15; week Mon 2026-04-13 … Sun 2026-04-19
   test("counts local early-morning workouts in the correct week", () => {
     const earlyLocalMonday = new Date(2026, 0, 5, 0, 30)
-    expect(calcWorkoutsThisWeek(new Set(["2026-01-05"]), earlyLocalMonday)).toBe(1)
+    expect(
+      calcWorkoutsThisWeek(new Set(["2026-01-05"]), earlyLocalMonday)
+    ).toBe(1)
   })
 
   test("returns 0 with no workouts", () => {

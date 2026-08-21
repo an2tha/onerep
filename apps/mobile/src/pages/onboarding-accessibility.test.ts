@@ -59,10 +59,7 @@ describe("Onboarding production contract", () => {
     // A stage read once renders instantly on every revisit.
     assert.match(pageSource, /seenStagesRef/)
     // Reduced motion skips the staged typing delay and the smooth scroll.
-    assert.match(
-      pageSource,
-      /prefersReducedMotion\(\) \? "auto" : "smooth"/
-    )
+    assert.match(pageSource, /prefersReducedMotion\(\) \? "auto" : "smooth"/)
   })
 
   test("an interrupted run resumes and an edit jumps back", () => {
@@ -70,10 +67,7 @@ describe("Onboarding production contract", () => {
     // offline), and are cleared once the real save lands.
     assert.match(pageSource, /onerep:onboarding-draft/)
     assert.match(pageSource, /function parseOnboardingSnapshot/)
-    assert.match(
-      pageSource,
-      /safeLocalStorageRemove\(ONBOARDING_DRAFT_KEY\)/
-    )
+    assert.match(pageSource, /safeLocalStorageRemove\(ONBOARDING_DRAFT_KEY\)/)
     // Editing an earlier answer returns in one tap, not a forced re-walk.
     assert.match(pageSource, /setReturnStage/)
     assert.match(

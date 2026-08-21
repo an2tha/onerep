@@ -60,6 +60,7 @@ import { useAiFeatureGate } from "@/lib/ai-access"
 import { trackUmami, usageBucket } from "@/lib/analytics"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { useEnergyUnit } from "@/lib/use-energy-unit"
+import { energyDisplay } from "@repo/ui"
 import { TourAnchor, useTourAnchor } from "@/components/walkthrough/tour-anchor"
 import {
   currentDateKey,
@@ -2569,7 +2570,13 @@ export default function Coach({
                           </p>
                           <div className="mt-4 flex gap-3 text-[10px] font-semibold text-muted-foreground tabular-nums">
                             <span>{recipeCustomization.time} min</span>
-                            <span>{recipeCustomization.calories} {energyUnit}</span>
+                            <span>
+                              {energyDisplay(
+                                recipeCustomization.calories,
+                                energyUnit
+                              )}{" "}
+                              {energyUnit}
+                            </span>
                             <span>{recipeCustomization.protein}g protein</span>
                           </div>
                         </div>
@@ -2632,7 +2639,7 @@ export default function Coach({
                       <div className="coach-brief-tiles mt-8 grid max-w-xl grid-cols-2 gap-2.5">
                         <CoachBriefTile
                           label="Today"
-                          value={`${Math.round(context.todayCalories)} / ${Math.round(context.calorieTarget)} ${energyUnit}`}
+                          value={`${energyDisplay(context.todayCalories, energyUnit)} / ${energyDisplay(context.calorieTarget, energyUnit)} ${energyUnit}`}
                           detail={`${Math.round(context.todayProtein)} of ${Math.round(context.proteinTarget)}g protein`}
                           fill={
                             context.calorieTarget > 0

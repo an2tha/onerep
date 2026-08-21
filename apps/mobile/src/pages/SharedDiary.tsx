@@ -28,6 +28,7 @@ import { reportOfflineMutationError } from "@/lib/offline-mutation-errors"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { cn } from "@/lib/utils"
 import { useEnergyUnit } from "@/lib/use-energy-unit"
+import { energyDisplay } from "@repo/ui"
 import {
   currentDateKey,
   mealLabel,
@@ -162,7 +163,8 @@ export default function SharedDiary() {
                   className="w-full px-1 py-2.5 text-left active:opacity-70"
                 >
                   <p className="native-row-detail">
-                    {comment.authorName ?? "Someone"} · {formatDay(comment.date)}
+                    {comment.authorName ?? "Someone"} ·{" "}
+                    {formatDay(comment.date)}
                   </p>
                   <p className="native-row-title mt-0.5 whitespace-pre-wrap">
                     {comment.body}
@@ -478,7 +480,7 @@ export function SharedDiaryDay() {
               title="That day"
               value={
                 <span className="tabular-nums">
-                  {Math.round(totals.calories)} {energyUnit}
+                  {energyDisplay(totals.calories, energyUnit)} {energyUnit}
                 </span>
               }
               detail={
@@ -510,7 +512,8 @@ export function SharedDiaryDay() {
                           {entry.name}
                         </p>
                         <p className="native-row-detail tabular-nums">
-                          {Math.round(entry.calories)} {energyUnit}
+                          {energyDisplay(entry.calories, energyUnit)}{" "}
+                          {energyUnit}
                         </p>
                       </div>
                     ))}

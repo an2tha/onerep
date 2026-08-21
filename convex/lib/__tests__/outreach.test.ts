@@ -101,9 +101,9 @@ describe("the gate", () => {
       nowMinutes: noon,
       recentTouchCount: COACH_TOUCH_CAP_PER_WEEK,
     };
-    expect(canSendCoachTouch({ kind: "training_lapse", ...spent }).allowed).toBe(
-      false,
-    );
+    expect(
+      canSendCoachTouch({ kind: "training_lapse", ...spent }).allowed,
+    ).toBe(false);
     // The one message the user was told to expect must not be crowded out by
     // three stray nudges.
     expect(canSendCoachTouch({ kind: "weekly_review", ...spent }).allowed).toBe(

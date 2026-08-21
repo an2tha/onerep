@@ -90,16 +90,13 @@ export const loadContext = internalQuery({
                 item.kind === "superset" && Array.isArray(item.exerciseIds)
                   ? item.exerciseIds
                   : [item.exerciseId];
-              return ids.filter(
-                (id): id is string => typeof id === "string",
-              );
+              return ids.filter((id): id is string => typeof id === "string");
             })
             .slice(0, 12)
             .map((exerciseId) => {
               const state = exerciseData[exerciseId];
-              const sets = isRecord(state) && Array.isArray(state.sets)
-                ? state.sets
-                : [];
+              const sets =
+                isRecord(state) && Array.isArray(state.sets) ? state.sets : [];
               return {
                 exerciseId,
                 sets: sets
@@ -107,7 +104,8 @@ export const loadContext = internalQuery({
                   .map((set) => ({
                     reps: (set as { reps?: unknown }).reps,
                     weight: (set as { weight?: unknown }).weight,
-                    completed: (set as { completed?: unknown }).completed === true,
+                    completed:
+                      (set as { completed?: unknown }).completed === true,
                   }))
                   .slice(0, 10),
               };
@@ -183,7 +181,9 @@ export const ask = action({
         suggestion?: unknown;
       };
       const reply =
-        typeof parsed.reply === "string" ? parsed.reply.trim().slice(0, 220) : "";
+        typeof parsed.reply === "string"
+          ? parsed.reply.trim().slice(0, 220)
+          : "";
       if (!reply) throw new Error("empty reply");
       return {
         reply,

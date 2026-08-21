@@ -79,7 +79,10 @@ async function seedUser(
     await ctx.db.insert("waterLogs", {
       userId,
       date: "2026-07-31",
-      entries: [{ id: "w1", amountMl: 750 }, { id: "w2", amountMl: 500 }],
+      entries: [
+        { id: "w1", amountMl: 750 },
+        { id: "w2", amountMl: 500 },
+      ],
       updatedAt: Date.now(),
     });
 

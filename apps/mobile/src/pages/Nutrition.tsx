@@ -39,6 +39,7 @@ import { updateOneRepWidgets } from "@/lib/home-widgets"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { cn, safeLocalStorageGet, safeLocalStorageSet } from "@/lib/utils"
 import { useEnergyUnit } from "@/lib/use-energy-unit"
+import { energyDisplay } from "@repo/ui"
 import {
   FOOD_MICRONUTRIENT_KEYS,
   currentDateKey,
@@ -867,11 +868,13 @@ function MealBudgetPanel({
                 </span>
                 <span
                   className="native-row-detail tabular-nums"
-                  aria-label={`${mealLabel(target.meal)}: ${consumed} of ${
-                    target.calories
-                  } ${energyUnit}`}
+                  aria-label={`${mealLabel(target.meal)}: ${energyDisplay(consumed, energyUnit)} of ${energyDisplay(
+                    target.calories,
+                    energyUnit
+                  )} ${energyUnit}`}
                 >
-                  {consumed} / {target.calories} {energyUnit}
+                  {energyDisplay(consumed, energyUnit)} /{" "}
+                  {energyDisplay(target.calories, energyUnit)} {energyUnit}
                 </span>
               </div>
               <div
@@ -958,7 +961,7 @@ function GoalsCardWrapper({
                 <div className="flex items-baseline gap-1">
                   <span className="text-[13px] font-medium">{label}</span>
                   <span className="text-[13px] text-muted-foreground">
-                    {key === "calories" ? energyUnit : unit}
+                    {unit}
                   </span>
                 </div>
                 <div className="flex items-center rounded-[10px] bg-muted/50 p-0.5">
@@ -1098,7 +1101,7 @@ function SmartMealPresetCard({
           </p>
           <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1">
             <span className="text-[13px] font-medium text-muted-foreground tabular-nums">
-              {Math.round(totals.calories)} {energyUnit}
+              {energyDisplay(totals.calories, energyUnit)} {energyUnit}
             </span>
             <span className="text-[13px] text-muted-foreground tabular-nums">
               P{Math.round(totals.protein)} C{Math.round(totals.carbs)} F
@@ -1407,7 +1410,9 @@ function FoodEntrySheet({
     >
       <div className="mb-3 flex items-start gap-3">
         <div className="min-w-0 flex-1">
-          <p className="text-[15px] leading-snug font-semibold">Entry details</p>
+          <p className="text-[15px] leading-snug font-semibold">
+            Entry details
+          </p>
           <p className="mt-1 text-[13px] leading-5 text-muted-foreground">
             {mealLabel(entry.meal)} · {timeLabel(entry.loggedAt)} · {sourceLine}
           </p>
@@ -1446,7 +1451,8 @@ function FoodEntrySheet({
       <div className="mt-3 grid grid-cols-4 gap-2">
         {(
           [
-            ["calories", energyUnit],
+            // Editable field: the stored value is kcal, so the label must be too.
+            ["calories", "kcal"],
             ["protein", "Protein"],
             ["carbs", "Carbs"],
             ["fat", "Fat"],
@@ -1574,8 +1580,8 @@ function RecipeLogSheet({
         {recipe.name}
       </p>
       <p className="mb-3 text-[13px] text-muted-foreground tabular-nums">
-        {totals.calories} {energyUnit} · P{totals.protein} C{totals.carbs} F{totals.fat}
-        g
+        {energyDisplay(totals.calories, energyUnit)} {energyUnit} · P
+        {totals.protein} C{totals.carbs} F{totals.fat}g
       </p>
       {onEdit && (
         <button
@@ -1703,8 +1709,9 @@ function RecipeManagementBox({
                 <div className="min-w-0 flex-1">
                   <p className="native-row-title truncate">{recipe.name}</p>
                   <p className="native-row-detail mt-0.5 tabular-nums">
-                    {totals.calories} {energyUnit} · {recipe.ingredients.length}{" "}
-                    ingredient{recipe.ingredients.length === 1 ? "" : "s"}
+                    {energyDisplay(totals.calories, energyUnit)} {energyUnit} ·{" "}
+                    {recipe.ingredients.length} ingredient
+                    {recipe.ingredients.length === 1 ? "" : "s"}
                   </p>
                 </div>
                 <button
@@ -2207,7 +2214,10 @@ export default function Nutrition() {
 
   const goals = effectiveGoals?.effective
   const nutritionPlan = nutritionPlanRaw as NutritionPlan | null | undefined
-  const visibleMetrics = nutritionPlan?.visibleMetrics ?? {
+  // An explicit opt-in wins over the screening default: the answer stays on
+  // record server-side, but an adult who asks for their numbers back gets them.
+  const showCalorieNumbers = preferences?.showCalorieNumbers === true
+  const planMetrics = nutritionPlan?.visibleMetrics ?? {
     calories: true,
     macros: true,
     protein: true,
@@ -2216,6 +2226,19 @@ export default function Nutrition() {
     water: true,
     streaks: true,
   }
+  const visibleMetrics = showCalorieNumbers
+    ? { ...planMetrics, calories: true, macros: true, protein: true }
+    : planMetrics
+  // Recovery mode hides the numbers on purpose, but trackingMode is a separate
+  // field that onboarding always writes as "full" — so the hero used to claim
+  // "full tracking mode" on a screen with every metric switched off.
+  const caloriesHiddenBySafety =
+    !visibleMetrics.calories &&
+    (nutritionPlan?.safetyMode === "recovery" ||
+      nutritionPlan?.trackingMode === "recovery")
+  const trackingModeLabel = caloriesHiddenBySafety
+    ? "recovery"
+    : (nutritionPlan?.trackingMode ?? "habit")
   const calorieTarget = Math.round(goals?.calories ?? 2000)
   const macroTargets: Record<MacroKey, number> = {
     protein: Math.round(goals?.protein ?? 140),
@@ -3046,7 +3069,8 @@ export default function Nutrition() {
               <div className="min-w-0">
                 <p className="native-supporting">{dateLabel}</p>
                 <p className="mt-1 text-[1.55rem] leading-none font-extrabold tabular-nums">
-                  {fmt(intakeTotals.calories)} {energyUnit}
+                  {fmt(energyDisplay(intakeTotals.calories, energyUnit))}{" "}
+                  {energyUnit}
                 </p>
                 <p className="mt-1 text-[13px] text-muted-foreground">
                   {entries.length} food{" "}
@@ -3127,9 +3151,10 @@ export default function Nutrition() {
                             {entry.name}
                           </p>
                           <p className="native-row-detail mt-0.5">
-                            {timeLabel(entry.loggedAt)} · {fmt(entry.calories)}{" "}
-                            {energyUnit} · {fmt(entry.protein)}P {fmt(entry.carbs)}C{" "}
-                            {fmt(entry.fat)}F
+                            {timeLabel(entry.loggedAt)} ·{" "}
+                            {fmt(energyDisplay(entry.calories, energyUnit))}{" "}
+                            {energyUnit} · {fmt(entry.protein)}P{" "}
+                            {fmt(entry.carbs)}C {fmt(entry.fat)}F
                           </p>
                         </button>
                         {(entry.recipeId || entry.recipeDraft) && (
@@ -3286,6 +3311,15 @@ export default function Nutrition() {
                 "app-hero-frame progress-tab-enter relative flex flex-col justify-center pt-3 pb-4",
                 fastingHero ? "text-left" : "text-center"
               )}
+              // Nothing to reserve room for when every dial is switched off.
+              data-compact={
+                !fastingHero &&
+                !visibleMetrics.calories &&
+                !visibleMetrics.macros &&
+                !visibleMetrics.protein
+                  ? "true"
+                  : undefined
+              }
             >
               {fastingHero ? (
                 <div className="flex items-center justify-between gap-4">
@@ -3322,7 +3356,7 @@ export default function Nutrition() {
                         ? ` of ${formatFastDuration(fastTargetSeconds)}`
                         : ""}
                       {visibleMetrics.calories
-                        ? ` · ${fmt(intakeTotals.calories)} ${energyUnit} logged`
+                        ? ` · ${fmt(energyDisplay(intakeTotals.calories, energyUnit))} ${energyUnit} logged`
                         : ""}
                       {supplementHint ? ` · ${supplementHint}` : ""}
                     </p>
@@ -3383,15 +3417,16 @@ export default function Nutrition() {
                       key={caloriesLeft}
                       className="motion-number-refresh text-[3.25rem] leading-none font-extrabold tracking-tight tabular-nums"
                     >
-                      {fmt(Math.abs(caloriesLeft))}
+                      {fmt(energyDisplay(Math.abs(caloriesLeft), energyUnit))}
                     </span>
                     <span className="text-[1.05rem] font-semibold text-muted-foreground">
                       {energyUnit} {caloriesLeft >= 0 ? "left" : "over"}
                     </span>
                   </p>
                   <p className="mt-1.5 text-[13px] text-muted-foreground tabular-nums">
-                    {fmt(intakeTotals.calories)} of {fmt(calorieTarget)} {energyUnit} ·{" "}
-                    {loggedToday} entries
+                    {fmt(energyDisplay(intakeTotals.calories, energyUnit))} of{" "}
+                    {fmt(energyDisplay(calorieTarget, energyUnit))} {energyUnit}{" "}
+                    · {loggedToday} entries
                     {supplementHint ? ` · ${supplementHint}` : ""}
                   </p>
                 </>
@@ -3401,10 +3436,21 @@ export default function Nutrition() {
                     {loggedToday}
                   </p>
                   <p className="mt-1.5 text-[13px] text-muted-foreground">
-                    logged today · {nutritionPlan?.trackingMode ?? "habit"}{" "}
-                    tracking mode
+                    logged today · {trackingModeLabel} tracking
                     {supplementHint ? ` · ${supplementHint}` : ""}
                   </p>
+                  {caloriesHiddenBySafety && (
+                    // Numbers vanishing with no explanation reads as a broken
+                    // screen, and the setting that did it was answered once,
+                    // during onboarding, and never shown again.
+                    <button
+                      type="button"
+                      onClick={() => navigate("/settings?view=nutrition")}
+                      className="mt-2 text-[13px] font-semibold text-muted-foreground underline underline-offset-4"
+                    >
+                      Calorie numbers are hidden · change
+                    </button>
+                  )}
                 </>
               )}
 
@@ -3472,7 +3518,7 @@ export default function Nutrition() {
                     </p>
                     <p className="mt-0.5 text-[13px] leading-5 text-muted-foreground tabular-nums">
                       {workoutAdjustmentEnabled
-                        ? `+${fmt(workoutCalories)} ${energyUnit} for training`
+                        ? `+${fmt(energyDisplay(workoutCalories, energyUnit))} ${energyUnit} for training`
                         : "Fixed target, workout adjustment off"}
                     </p>
                   </div>
@@ -3541,7 +3587,8 @@ export default function Nutrition() {
                             </button>
                           )}
                           <span className="shrink-0 text-[14px] font-semibold tabular-nums">
-                            {fmt(entry.calories)} {energyUnit}
+                            {fmt(energyDisplay(entry.calories, energyUnit))}{" "}
+                            {energyUnit}
                           </span>
                         </SlideToDeleteRow>
                       ))}
@@ -3949,7 +3996,10 @@ export default function Nutrition() {
                             {food.entry.name}
                           </span>
                           <span className="native-row-detail block tabular-nums">
-                            {fmt(food.entry.calories)} {energyUnit}
+                            {fmt(
+                              energyDisplay(food.entry.calories, energyUnit)
+                            )}{" "}
+                            {energyUnit}
                             {food.count > 1
                               ? ` · logged ${food.count} times recently`
                               : ""}
@@ -4054,8 +4104,9 @@ export default function Nutrition() {
                               {recipe.name}
                             </p>
                             <p className="native-row-detail mt-0.5">
-                              {totals.calories} {energyUnit} ·{" "}
-                              {recipe.ingredients.length} ingredient
+                              {energyDisplay(totals.calories, energyUnit)}{" "}
+                              {energyUnit} · {recipe.ingredients.length}{" "}
+                              ingredient
                               {recipe.ingredients.length === 1 ? "" : "s"}
                             </p>
                           </div>

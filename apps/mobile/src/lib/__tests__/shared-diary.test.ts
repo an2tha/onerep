@@ -49,9 +49,9 @@ describe("shareScopeLabel", () => {
     expect(shareScopeLabel({ diary: true, report: true, comments: true })).toBe(
       "Can see your diary, report and comments"
     )
-    expect(shareScopeLabel({ diary: true, report: false, comments: false })).toBe(
-      "Can see your diary"
-    )
+    expect(
+      shareScopeLabel({ diary: true, report: false, comments: false })
+    ).toBe("Can see your diary")
     expect(
       shareScopeLabel({ diary: false, report: false, comments: false })
     ).toBe("Nothing shared")
@@ -71,7 +71,9 @@ describe("dateWithinScope", () => {
   })
 
   test("a reversed window covers nothing rather than throwing", () => {
-    expect(dateWithinScope("2026-05-01", "2026-07-31", "2026-01-01")).toBe(false)
+    expect(dateWithinScope("2026-05-01", "2026-07-31", "2026-01-01")).toBe(
+      false
+    )
   })
 
   test("an empty date is not in scope", () => {

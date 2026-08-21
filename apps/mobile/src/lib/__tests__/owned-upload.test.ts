@@ -43,9 +43,9 @@ describe("uploadOwnedFile", () => {
     expect(body).toBeInstanceOf(File)
     expect((body as File).name).toBe("squat-1.json")
     expect((body as File).type).toStartWith("application/json")
-    expect((lastRequest?.init.headers as Record<string, string>)["Content-Type"]).toBe(
-      "application/json"
-    )
+    expect(
+      (lastRequest?.init.headers as Record<string, string>)["Content-Type"]
+    ).toBe("application/json")
     expect(await (body as File).text()).toBe(JSON.stringify({ frames: [] }))
   })
 
@@ -60,7 +60,10 @@ describe("uploadOwnedFile", () => {
   })
 
   test("falls back to a generic name when none is given", async () => {
-    await uploadOwnedFile(new Blob(["x"], { type: "text/plain" }), "coach_image")
+    await uploadOwnedFile(
+      new Blob(["x"], { type: "text/plain" }),
+      "coach_image"
+    )
 
     expect((lastRequest?.init.body as File).name).toBe("upload")
   })

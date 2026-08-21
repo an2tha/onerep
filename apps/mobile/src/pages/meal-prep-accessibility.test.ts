@@ -27,7 +27,9 @@ describe("Meal prep accessibility contract", () => {
   })
 
   test("storage choices expose their pressed state", () => {
-    expect(MEAL_PREP_SOURCE).toContain("aria-pressed={draft.storage === option.id}")
+    expect(MEAL_PREP_SOURCE).toContain(
+      "aria-pressed={draft.storage === option.id}"
+    )
   })
 
   test("sheets can be dismissed by a named button", () => {

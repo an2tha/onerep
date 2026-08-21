@@ -6,10 +6,7 @@ import { recomputeRollupFor } from "./billing/store";
 
 export const migrations = new Migrations<DataModel>(components.migrations);
 
-async function isRegisteredUpload(
-  ctx: MutationCtx,
-  storageId: Id<"_storage">,
-) {
+async function isRegisteredUpload(ctx: MutationCtx, storageId: Id<"_storage">) {
   const owned = await ctx.db
     .query("fileUploads")
     .withIndex("by_storageId", (q) => q.eq("storageId", storageId))
