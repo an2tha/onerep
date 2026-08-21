@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react"
+import { readCachedWeightUnit } from "@/lib/use-weight-unit"
 import { useParams } from "react-router"
 import { usePostHog } from "@posthog/react"
 import { captureFeatureUsage } from "@/lib/analytics"
@@ -1314,7 +1315,7 @@ export default function NewPreset() {
   >({})
   const preferences = useQuery(api.users.users.getPreferences)
   const onboarding = useQuery(api.users.onboarding.get, {})
-  const [unit, setUnit] = useState<WeightUnit>("kg")
+  const [unit, setUnit] = useState<WeightUnit>(readCachedWeightUnit)
   const [drag, setDrag] = useState<DragInfo | null>(null)
   const [dropTarget, setDropTarget] = useState<DropTarget>(null)
   const [saving, setSaving] = useState(false)

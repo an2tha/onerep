@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react"
+import { useWeightUnit } from "@/lib/use-weight-unit"
 import { flushSync } from "react-dom"
 import {
   Aperture,
@@ -151,6 +152,7 @@ export default function App() {
   const onboarding = useQuery(api.users.onboarding.get, {})
   const currentUser = useQuery(api.users.users.getCurrentUser, {})
   const preferences = useQuery(api.users.users.getPreferences, {})
+  const weightUnit = useWeightUnit()
   const activeTimezone = preferences?.lastActiveTimezone || "UTC"
   const todayKey = currentDateKey(activeTimezone)
   const selectedDate = useMemo(
@@ -831,7 +833,7 @@ export default function App() {
           if (previousBest > 0) {
             recordTimeline.push({
               label: exercise.name,
-              detail: `${bestSet} ${preferences?.weightUnit === "lbs" ? "lb" : "kg"} · ${workout.date}`,
+              detail: `${bestSet} ${weightUnit === "lbs" ? "lb" : "kg"} · ${workout.date}`,
             })
           }
           bestByExercise.set(exercise.name, bestSet)
@@ -843,7 +845,7 @@ export default function App() {
     )
     const firstWeight = measured[0]?.weightKg
     const lastWeight = measured.at(-1)?.weightKg
-    const unitMultiplier = preferences?.weightUnit === "lbs" ? 2.20462 : 1
+    const unitMultiplier = weightUnit === "lbs" ? 2.20462 : 1
     return {
       workouts: recentWorkouts.length,
       completedSets,
@@ -856,7 +858,7 @@ export default function App() {
         ? { weightChange: (lastWeight - firstWeight) * unitMultiplier }
         : {}),
       weightUnit:
-        preferences?.weightUnit === "lbs" ? ("lbs" as const) : ("kg" as const),
+        weightUnit,
       records: recordTimeline.slice(-3).reverse(),
     }
   }, [
@@ -1203,7 +1205,7 @@ export default function App() {
             onMetricChange={setDashboardTrendMetric}
             tdee={calorieInfo?.tdee ?? caloriesTarget}
             calorieTarget={caloriesTarget}
-            weightUnit={preferences?.weightUnit === "lbs" ? "lbs" : "kg"}
+            weightUnit={weightUnit}
           />
         </div>
       )

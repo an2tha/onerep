@@ -1,4 +1,5 @@
 import { type CSSProperties, useState } from "react"
+import { useWeightUnit } from "@/lib/use-weight-unit"
 import {
   CaretRight,
   HeartbeatIcon,
@@ -235,10 +236,7 @@ function HealthHub({ data }: { data: Dashboard }) {
   const latestWeightKg = weighed.length
     ? weighed[weighed.length - 1].weightKg
     : undefined
-  const weightUnit =
-    (preferences as { weightUnit?: string } | null)?.weightUnit === "lbs"
-      ? "lbs"
-      : "kg"
+  const weightUnit = useWeightUnit()
   const weightCaption =
     latestWeightKg == null
       ? "nothing recorded"
