@@ -430,12 +430,7 @@ function productToDetail(product: OpenFoodFactsProduct): FoodDetail {
       ? Number(product.nova_group) || undefined
       : undefined,
     nutrients: [
-      nutrientRow(
-        "energy",
-        "Calories",
-        energyKcal(product),
-        "kcal"
-      ),
+      nutrientRow("energy", "Calories", energyKcal(product), "kcal"),
       nutrientRow(
         "protein",
         "Protein",
@@ -695,7 +690,10 @@ const FOOD_SOURCES: Record<string, FoodSource> = {
     id: "off",
     name: "Open Food Facts",
     url: "https://world.openfoodfacts.org",
-    license: { name: "ODbL", url: "https://opendatacommons.org/licenses/odbl/" },
+    license: {
+      name: "ODbL",
+      url: "https://opendatacommons.org/licenses/odbl/",
+    },
   },
 }
 
@@ -725,7 +723,11 @@ export function foodSources(codes: (string | undefined)[]): FoodSource[] {
  * requested instead — and the caller keeps the small URL as a fallback, since
  * not every revision has every size.
  */
-export function expandedFoodImageUrl(url: string | undefined): string | undefined {
+export function expandedFoodImageUrl(
+  url: string | undefined
+): string | undefined {
   if (!url) return undefined
-  return /\.\d+\.200\.jpg$/.test(url) ? url.replace(/\.200\.jpg$/, ".400.jpg") : url
+  return /\.\d+\.200\.jpg$/.test(url)
+    ? url.replace(/\.200\.jpg$/, ".400.jpg")
+    : url
 }

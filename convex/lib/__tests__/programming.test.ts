@@ -282,7 +282,10 @@ describe("the deload call", () => {
     }));
 
   test("two stalled lifts after three weeks of volume earns the call", () => {
-    const verdict = assessDeload([stalled("Squat"), stalled("Bench")], weeks(4));
+    const verdict = assessDeload(
+      [stalled("Squat"), stalled("Bench")],
+      weeks(4),
+    );
     expect(verdict!.recommended).toBe(true);
     expect(verdict!.reason).toContain("Squat");
   });
@@ -293,13 +296,18 @@ describe("the deload call", () => {
   });
 
   test("a beginner two weeks in is not overreached, they are a beginner", () => {
-    const verdict = assessDeload([stalled("Squat"), stalled("Bench")], weeks(2));
+    const verdict = assessDeload(
+      [stalled("Squat"), stalled("Bench")],
+      weeks(2),
+    );
     expect(verdict!.recommended).toBe(false);
   });
 
   test("lifts with no history yet cannot justify backing off", () => {
     const fresh = { ...stalled("Squat"), status: "new" as const };
-    expect(assessDeload([fresh, { ...fresh, name: "Bench" }], weeks(6))).toBeNull();
+    expect(
+      assessDeload([fresh, { ...fresh, name: "Bench" }], weeks(6)),
+    ).toBeNull();
   });
 
   test("regression is named as such in the reason", () => {
@@ -318,7 +326,9 @@ describe("the deload call", () => {
     test("one stuck lift plus bad recovery is enough", () => {
       // Alone, a single stall is not overreaching. Alongside a body that is
       // visibly not recovering, it is the same picture from two angles.
-      expect(assessDeload([stalled("Squat")], weeks(4)).recommended).toBe(false);
+      expect(assessDeload([stalled("Squat")], weeks(4)).recommended).toBe(
+        false,
+      );
       const verdict = assessDeload([stalled("Squat")], weeks(4), compromised);
       expect(verdict!.recommended).toBe(true);
     });

@@ -81,9 +81,9 @@ describe("normalizeMealShares", () => {
 
   test("no known meals yields no shares", () => {
     expect(normalizeMealShares(DEFAULT_MEAL_SHARES, [])).toEqual([])
-    expect(normalizeMealShares(DEFAULT_MEAL_SHARES, undefined as never)).toEqual(
-      []
-    )
+    expect(
+      normalizeMealShares(DEFAULT_MEAL_SHARES, undefined as never)
+    ).toEqual([])
   })
 
   test("duplicate known meal ids collapse to one share", () => {

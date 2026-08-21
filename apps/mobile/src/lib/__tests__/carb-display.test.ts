@@ -80,7 +80,10 @@ describe("sumDisplayCarbs", () => {
 
   test("a fiber-heavy entry clamps on its own without eating other entries", () => {
     // 2 - 9 would be -7 if summed as totals; per-entry clamping keeps it at 0.
-    const totals = sumDisplayCarbs([{ carbs: 2, fiber: 9 }, { carbs: 30 }], "net")
+    const totals = sumDisplayCarbs(
+      [{ carbs: 2, fiber: 9 }, { carbs: 30 }],
+      "net"
+    )
     expect(totals).toBe(30)
   })
 

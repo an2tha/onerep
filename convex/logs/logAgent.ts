@@ -15,7 +15,11 @@ import {
   fallbackLogDraftFromText,
   normalizeSetType,
 } from "../lib/workoutTextParser";
-import type { LogDraft, LogExerciseDraft, WeightUnit } from "../lib/workoutTextParser";
+import type {
+  LogDraft,
+  LogExerciseDraft,
+  WeightUnit,
+} from "../lib/workoutTextParser";
 
 // The named `z` export is undefined under the Bun runtime, so the namespace
 // import above is deliberate — see convex/ai/formCoachAgent.ts.

@@ -24,7 +24,8 @@ export function SetListHeader({ unit }: { unit: WeightUnit }) {
     <div
       className={cn(SET_GRID, "py-1.5")}
       style={{
-        borderTop: "1px solid color-mix(in srgb, var(--border) 45%, transparent)",
+        borderTop:
+          "1px solid color-mix(in srgb, var(--border) 45%, transparent)",
       }}
       aria-hidden="true"
     >
@@ -105,7 +106,8 @@ export function ActiveSetRow({
         isNext && !set.completed && "bg-primary/[0.04]"
       )}
       style={{
-        borderTop: "1px solid color-mix(in srgb, var(--border) 45%, transparent)",
+        borderTop:
+          "1px solid color-mix(in srgb, var(--border) 45%, transparent)",
       }}
     >
       <div className={cn(SET_GRID, "py-1.5")}>
@@ -137,7 +139,7 @@ export function ActiveSetRow({
           disabled={set.completed}
           className={cn(
             fieldCls,
-            "text-center [appearance:textfield] placeholder:text-muted-foreground/60 focus:border-foreground/30 disabled:pointer-events-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+            "[appearance:textfield] text-center placeholder:text-muted-foreground/60 focus:border-foreground/30 disabled:pointer-events-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
           )}
         />
         <button
@@ -164,7 +166,9 @@ export function ActiveSetRow({
         <button
           type="button"
           onClick={toggleDone}
-          aria-label={set.completed ? "Mark set incomplete" : "Mark set complete"}
+          aria-label={
+            set.completed ? "Mark set incomplete" : "Mark set complete"
+          }
           className={cn(
             "mx-auto flex h-9 w-9 items-center justify-center rounded-full transition-colors",
             set.completed

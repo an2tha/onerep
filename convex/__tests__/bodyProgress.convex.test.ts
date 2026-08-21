@@ -44,7 +44,10 @@ describe("bodyProgress Convex functions", () => {
     await t.withIdentity({ name: "body-user" }, async () => {
       const entries = await t.query(api.bodyProgress.list, {});
 
-      expect(entries.map((entry) => entry.clientId)).toEqual(["earlier", "later"]);
+      expect(entries.map((entry) => entry.clientId)).toEqual([
+        "earlier",
+        "later",
+      ]);
       expect(entries[0]).not.toHaveProperty("userId");
       expect(entries[0]).toMatchObject({
         loggedAt: "2026-06-24",

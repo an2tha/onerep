@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState } from "react"
 
-const DEFAULT_MOBILE_BREAKPOINT = 1024;
+const DEFAULT_MOBILE_BREAKPOINT = 1024
 
 function getIsMobileResolution(breakpoint: number) {
-  if (typeof window === "undefined") return false;
-  return window.matchMedia(`(max-width: ${breakpoint}px)`).matches;
+  if (typeof window === "undefined") return false
+  return window.matchMedia(`(max-width: ${breakpoint}px)`).matches
 }
 
 export function useIsMobile(
@@ -12,23 +12,23 @@ export function useIsMobile(
 ): boolean {
   const [isMobile, setIsMobile] = useState<boolean>(() =>
     getIsMobileResolution(breakpoint)
-  );
+  )
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined") return
 
-    const mediaQuery = window.matchMedia(`(max-width: ${breakpoint}px)`);
-    const handleChange = () => setIsMobile(mediaQuery.matches);
+    const mediaQuery = window.matchMedia(`(max-width: ${breakpoint}px)`)
+    const handleChange = () => setIsMobile(mediaQuery.matches)
 
-    handleChange();
-    mediaQuery.addEventListener("change", handleChange);
+    handleChange()
+    mediaQuery.addEventListener("change", handleChange)
 
     return () => {
-      mediaQuery.removeEventListener("change", handleChange);
-    };
-  }, [breakpoint]);
+      mediaQuery.removeEventListener("change", handleChange)
+    }
+  }, [breakpoint])
 
-  return isMobile;
+  return isMobile
 }
 
-export const useIsMobileResolution = useIsMobile;
+export const useIsMobileResolution = useIsMobile

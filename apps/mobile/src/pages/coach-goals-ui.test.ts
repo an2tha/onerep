@@ -4,7 +4,10 @@ import { readFileSync } from "node:fs"
 
 const APP_SOURCE = readFileSync(new URL("../App.tsx", import.meta.url), "utf8")
 const HOME_SOURCE = readFileSync(
-  new URL("../../../../packages/ui/src/components/home/index.tsx", import.meta.url),
+  new URL(
+    "../../../../packages/ui/src/components/home/index.tsx",
+    import.meta.url
+  ),
   "utf8"
 )
 const APP_CSS = readFileSync(

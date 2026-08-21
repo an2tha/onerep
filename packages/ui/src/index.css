@@ -7236,6 +7236,13 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   min-height: var(--app-hero-min-h);
 }
 
+/* The floor exists to hold the dials steady between renders. With the dials
+   switched off there is nothing to hold, and reserving the space just leaves a
+   dead band under the headline. */
+.app-hero-frame[data-compact="true"] {
+  min-height: 0;
+}
+
 /* The inside of a dial: a blurred pane rather than a punched-out disc, so the
    hero field carries on through the ring instead of stopping at it. Glass needs
    three things and a tint alone was only the first: a thin body, a lit top

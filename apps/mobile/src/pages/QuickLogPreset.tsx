@@ -75,8 +75,7 @@ export default function QuickLogPreset() {
     "logs.workouts.completion"
   )
 
-  const unit: WeightUnit =
-    useWeightUnit()
+  const unit: WeightUnit = useWeightUnit()
 
   const preset = useMemo(() => {
     if (!presets) return null

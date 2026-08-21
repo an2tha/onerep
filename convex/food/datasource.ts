@@ -1,6 +1,11 @@
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
-import { action, env, internalMutation, internalQuery } from "../_generated/server";
+import {
+  action,
+  env,
+  internalMutation,
+  internalQuery,
+} from "../_generated/server";
 import { getAuthUser } from "../lib/auth";
 
 /**
@@ -35,7 +40,10 @@ async function apiCall(path: string): Promise<unknown> {
   for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
       const response = await fetch(`${baseUrl()}${path}`, {
-        headers: { Authorization: `Bearer ${apiToken()}`, accept: "application/json" },
+        headers: {
+          Authorization: `Bearer ${apiToken()}`,
+          accept: "application/json",
+        },
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       });
       lastStatus = response.status;
@@ -49,7 +57,8 @@ async function apiCall(path: string): Promise<unknown> {
     }
   }
 
-  if (lastStatus > 0) throw new Error(`Datasource request failed (${lastStatus})`);
+  if (lastStatus > 0)
+    throw new Error(`Datasource request failed (${lastStatus})`);
   throw new Error(
     `Datasource request failed: ${lastError instanceof Error ? lastError.message : "unreachable"}`,
   );
@@ -84,7 +93,11 @@ export const putCached = internalMutation({
   },
 });
 
-const operationValidator = v.union(v.literal("search"), v.literal("detail"), v.literal("barcode"));
+const operationValidator = v.union(
+  v.literal("search"),
+  v.literal("detail"),
+  v.literal("barcode"),
+);
 
 export const proxy = action({
   args: {
@@ -109,7 +122,10 @@ export const proxy = action({
       value: normalized.toLowerCase(),
       limit: args.limit,
     });
-    const cached: unknown = await ctx.runQuery(internal.food.datasource.getCached, { key });
+    const cached: unknown = await ctx.runQuery(
+      internal.food.datasource.getCached,
+      { key },
+    );
     if (cached !== null) return cached;
 
     let result: unknown;
@@ -127,7 +143,9 @@ export const proxy = action({
     await ctx.runMutation(internal.food.datasource.putCached, {
       key,
       value: result,
-      expiresAt: Date.now() + (args.operation === "search" ? SEARCH_TTL_MS : CONTENT_TTL_MS),
+      expiresAt:
+        Date.now() +
+        (args.operation === "search" ? SEARCH_TTL_MS : CONTENT_TTL_MS),
     });
     return result;
   },
@@ -135,20 +153,32 @@ export const proxy = action({
 
 /** Exercise media and attribution from the wger catalog (CC-BY-SA 4.0). */
 export const exercises = action({
-  args: { operation: v.union(v.literal("search"), v.literal("detail")), value: v.string() },
+  args: {
+    operation: v.union(v.literal("search"), v.literal("detail")),
+    value: v.string(),
+  },
   handler: async (ctx, args): Promise<unknown> => {
     if (!(await getAuthUser(ctx))) throw new Error("Not authenticated");
 
     const normalized = args.value.trim();
     if (!normalized) return { exercises: [], attribution: "wger" };
 
-    const key = JSON.stringify({ kind: "exercise", ...args, value: normalized.toLowerCase() });
-    const cached: unknown = await ctx.runQuery(internal.food.datasource.getCached, { key });
+    const key = JSON.stringify({
+      kind: "exercise",
+      ...args,
+      value: normalized.toLowerCase(),
+    });
+    const cached: unknown = await ctx.runQuery(
+      internal.food.datasource.getCached,
+      { key },
+    );
     if (cached !== null) return cached;
 
     const result =
       args.operation === "search"
-        ? await apiCall(`/v1/exercises/search?q=${encodeURIComponent(normalized)}`)
+        ? await apiCall(
+            `/v1/exercises/search?q=${encodeURIComponent(normalized)}`,
+          )
         : await apiCall(`/v1/exercises/${encodeURIComponent(normalized)}`);
 
     await ctx.runMutation(internal.food.datasource.putCached, {

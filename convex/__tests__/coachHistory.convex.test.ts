@@ -218,9 +218,9 @@ describe("episodes", () => {
       digest: "   ",
     });
     expect(result.stored).toBe(false);
-    expect(await t.run((ctx) => ctx.db.query("coachMemories").collect())).toEqual(
-      [],
-    );
+    expect(
+      await t.run((ctx) => ctx.db.query("coachMemories").collect()),
+    ).toEqual([]);
   });
 
   test("a season of episodes never evicts what the user wrote", async () => {

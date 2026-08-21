@@ -46,7 +46,11 @@ async function registerClient(t: Harness, body: Record<string, unknown> = {}) {
   return { status: response.status, body: await response.json() };
 }
 
-async function postForm(t: Harness, path: string, fields: Record<string, string>) {
+async function postForm(
+  t: Harness,
+  path: string,
+  fields: Record<string, string>,
+) {
   const response = await t.fetch(path, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -59,7 +63,11 @@ async function postForm(t: Harness, path: string, fields: Record<string, string>
 async function authorizeAs(
   t: Harness,
   user: string,
-  options: { clientId: string; challenge: string; scopes?: Array<"read" | "write"> },
+  options: {
+    clientId: string;
+    challenge: string;
+    scopes?: Array<"read" | "write">;
+  },
 ) {
   const { redirectTo } = await t
     .withIdentity({ name: user })

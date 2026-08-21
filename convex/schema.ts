@@ -43,8 +43,28 @@ export default defineSchema({
       ),
     ),
     weightUnit: v.optional(v.string()), // "kg" | "lbs"
-    /** How to label food energy: "kcal" or "Cal". Same number either way. */
+    /**
+     * How to show food energy: "kcal" | "Cal" | "kJ". kcal and Cal are the
+     * same number; kJ converts at display time. Stored values stay kcal.
+     */
     energyUnit: v.optional(v.string()),
+    /**
+     * What the user last actually ran. Recorded on launch so a bug report can
+     * be checked against the build that produced it — "did the OTA reach
+     * them?" was previously unanswerable without asking.
+     */
+    lastAppVersion: v.optional(v.string()),
+    /** The active web bundle, which is what an OTA release actually changes. */
+    lastBundleVersion: v.optional(v.string()),
+    lastPlatform: v.optional(v.string()), // "ios" | "android" | "web"
+    lastAppVersionAt: v.optional(v.number()),
+    /**
+     * Opt back in to calorie/macro numbers after a recovery-mode screening
+     * answer hid them. Deliberately a separate field from the onboarding
+     * answer: the screening result stays on record, the display does not
+     * override it silently.
+     */
+    showCalorieNumbers: v.optional(v.boolean()),
     foodSearchLanguage: v.optional(v.string()), // Open Food Facts language code, e.g. "en"
     waterGoalMl: v.optional(v.number()),
     /** Display carbs as net (carbs − fiber) everywhere. Purely presentational. */

@@ -23,10 +23,7 @@ import {
 } from "./provider";
 import { renderSystemPrompt } from "./prompts.generated";
 import { matchFormCoachExercise } from "./formCoach";
-import {
-  customExerciseDocId,
-  isCustomExerciseId,
-} from "../lib/exerciseShape";
+import { customExerciseDocId, isCustomExerciseId } from "../lib/exerciseShape";
 import { consumeAiUsageOrThrow } from "./usage";
 import { claimRateLimit } from "../lib/rateLimits";
 import {
@@ -220,8 +217,7 @@ export function buildFormCoachTools(capture: FormCoachCapture): ToolSet {
       }),
       execute: async ({ joint, side, phase, views }) => {
         const reps = selectReps(capture, views);
-        if (reps.length === 0)
-          return { unavailable: whyNoReps(capture) };
+        if (reps.length === 0) return { unavailable: whyNoReps(capture) };
         return {
           joint,
           side,
@@ -245,8 +241,7 @@ export function buildFormCoachTools(capture: FormCoachCapture): ToolSet {
       }),
       execute: async ({ segment, side, phase, views }) => {
         const reps = selectReps(capture, views);
-        if (reps.length === 0)
-          return { unavailable: whyNoReps(capture) };
+        if (reps.length === 0) return { unavailable: whyNoReps(capture) };
         return {
           segment,
           side,
@@ -276,9 +271,7 @@ export function buildFormCoachTools(capture: FormCoachCapture): ToolSet {
           line,
           phase,
           unit: "degrees from horizontal, positive right side high",
-          ...report(
-            atPhase(reps, phase, (frame) => bodyLineTilt(frame, line)),
-          ),
+          ...report(atPhase(reps, phase, (frame) => bodyLineTilt(frame, line))),
         };
       },
     }),
@@ -314,8 +307,7 @@ export function buildFormCoachTools(capture: FormCoachCapture): ToolSet {
       }),
       execute: async ({ subject, lineFrom, lineTo, plane, phase, views }) => {
         const reps = selectReps(capture, views);
-        if (reps.length === 0)
-          return { unavailable: whyNoReps(capture) };
+        if (reps.length === 0) return { unavailable: whyNoReps(capture) };
         return {
           subject,
           plane,
@@ -348,8 +340,7 @@ export function buildFormCoachTools(capture: FormCoachCapture): ToolSet {
       }),
       execute: async ({ joint, phase, views }) => {
         const reps = selectReps(capture, views);
-        if (reps.length === 0)
-          return { unavailable: whyNoReps(capture) };
+        if (reps.length === 0) return { unavailable: whyNoReps(capture) };
         const readings = reps.map((rep) => symmetry(rep, joint, phase));
         return {
           joint,
@@ -372,8 +363,7 @@ export function buildFormCoachTools(capture: FormCoachCapture): ToolSet {
       }),
       execute: async ({ joint, side, views }) => {
         const reps = selectReps(capture, views);
-        if (reps.length === 0)
-          return { unavailable: whyNoReps(capture) };
+        if (reps.length === 0) return { unavailable: whyNoReps(capture) };
         const extents = reps.map((rep) => rangeOfMotion(rep, joint, side));
         if (extents.every((extent) => extent === null))
           return { unavailable: "joint was not tracked" };
@@ -403,8 +393,7 @@ export function buildFormCoachTools(capture: FormCoachCapture): ToolSet {
       }),
       execute: async ({ from, to, views }) => {
         const reps = selectReps(capture, views);
-        if (reps.length === 0)
-          return { unavailable: whyNoReps(capture) };
+        if (reps.length === 0) return { unavailable: whyNoReps(capture) };
         const readings = reps.map((rep) =>
           travel(rep, from as never, to as never),
         );
@@ -438,8 +427,7 @@ export function buildFormCoachTools(capture: FormCoachCapture): ToolSet {
       inputSchema: z.object({ views: viewsField }),
       execute: async ({ views }) => {
         const reps = selectReps(capture, views);
-        if (reps.length === 0)
-          return { unavailable: whyNoReps(capture) };
+        if (reps.length === 0) return { unavailable: whyNoReps(capture) };
         const readings = reps.map(tempo);
         return {
           reps: readings.length,
@@ -494,7 +482,10 @@ export function buildFormCoachTools(capture: FormCoachCapture): ToolSet {
       description:
         "The footage itself as coordinates: every joint's position, one sample per second, across the whole clip rather than only during the reps. Body-fixed frame shared across camera angles. This is the raw material every other tool derives from — fetch it for whole-clip questions the tools cannot answer, to sanity-check a surprising measurement, or when no reps were detected and you must work out what the body was doing yourself. It is large; fetch it once and only when you need it.",
       inputSchema: z.object({}),
-      execute: async () => buildPointCloud(capture) ?? { unavailable: "no timeline samples in this capture" },
+      execute: async () =>
+        buildPointCloud(capture) ?? {
+          unavailable: "no timeline samples in this capture",
+        },
     }),
 
     get_capture_quality: tool({
@@ -542,7 +533,8 @@ export function buildPointCloud(capture: FormCoachCapture) {
       "xyz[] is aligned to joints[]; each entry is [x, y, z] in metres, or null where that joint was not tracked",
     frame:
       "body-fixed: origin at the hip midpoint, +x towards the lifter's right, +y up their torso, +z out of their chest. Yaw is removed, so samples from different angles share one coordinate system and are directly comparable",
-    sampledEvery: "1s of footage, covering the whole clip and not only the reps",
+    sampledEvery:
+      "1s of footage, covering the whole clip and not only the reps",
     joints,
     samples: samples.map((sample) => ({
       angle: sample.angleIndex,
@@ -641,7 +633,9 @@ function capInstructions(steps: string[]): string {
     joined = next;
   }
   if (!joined) {
-    joined = (steps[0] ?? "").trim().slice(0, EXERCISE_REFERENCE_INSTRUCTION_CAP);
+    joined = (steps[0] ?? "")
+      .trim()
+      .slice(0, EXERCISE_REFERENCE_INSTRUCTION_CAP);
   }
   return joined;
 }
@@ -761,8 +755,10 @@ export function buildDigest(
   exerciseReference: ExerciseReference | null = null,
 ) {
   const reps = capture.reps;
-  const spread = (read: (frame: KinematicFrame) => number | null, phase: Phase) =>
-    report(atPhase(reps, phase, read));
+  const spread = (
+    read: (frame: KinematicFrame) => number | null,
+    phase: Phase,
+  ) => report(atPhase(reps, phase, read));
 
   const at = (phase: Phase) => ({
     kneeLeft: spread((f) => jointAngle(f, "knee", "left"), phase),

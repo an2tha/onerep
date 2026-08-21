@@ -548,10 +548,7 @@ async function undoPayload(ctx: MutationCtx, userId: string, payload: unknown) {
     throw new Error("This action cannot be undone");
   }
 
-  if (
-    payload.kind === "restore_nutrition_targets" &&
-    isRecord(payload.body)
-  ) {
+  if (payload.kind === "restore_nutrition_targets" && isRecord(payload.body)) {
     const body = payload.body as {
       customGoals?: unknown;
       waterGoalMl?: unknown;
@@ -1277,7 +1274,10 @@ async function undoPayload(ctx: MutationCtx, userId: string, payload: unknown) {
   // write tools filed audit entries that looked undoable and were not, which is
   // worse than refusing up front.
 
-  if (payload.kind === "delete_custom_metric" && typeof payload.id === "string") {
+  if (
+    payload.kind === "delete_custom_metric" &&
+    typeof payload.id === "string"
+  ) {
     const id = ctx.db.normalizeId("customProgressMetrics", payload.id);
     const row = id ? await ctx.db.get(id) : null;
     if (row && row.userId === userId) await ctx.db.delete(row._id);
@@ -1303,7 +1303,10 @@ async function undoPayload(ctx: MutationCtx, userId: string, payload: unknown) {
     return;
   }
 
-  if (payload.kind === "delete_custom_metric_entry" && typeof payload.id === "string") {
+  if (
+    payload.kind === "delete_custom_metric_entry" &&
+    typeof payload.id === "string"
+  ) {
     const id = ctx.db.normalizeId("customProgressMetricEntries", payload.id);
     const row = id ? await ctx.db.get(id) : null;
     if (row && row.userId === userId) await ctx.db.delete(row._id);
@@ -1328,7 +1331,10 @@ async function undoPayload(ctx: MutationCtx, userId: string, payload: unknown) {
     return;
   }
 
-  if (payload.kind === "restore_custom_metric_entry" && isRecord(payload.body)) {
+  if (
+    payload.kind === "restore_custom_metric_entry" &&
+    isRecord(payload.body)
+  ) {
     const body = payload.body as { userId?: unknown };
     if (body.userId !== userId) return;
     await ctx.db.insert(
@@ -1358,11 +1364,11 @@ async function undoPayload(ctx: MutationCtx, userId: string, payload: unknown) {
       await ctx.db.insert("customProgressMetricEntries", {
         ...(entry as Record<string, unknown>),
         metricId,
-      } as Parameters<
-        typeof ctx.db.insert<"customProgressMetricEntries">
-      >[1]);
+      } as Parameters<typeof ctx.db.insert<"customProgressMetricEntries">>[1]);
     }
-    for (const widget of Array.isArray(payload.widgets) ? payload.widgets : []) {
+    for (const widget of Array.isArray(payload.widgets)
+      ? payload.widgets
+      : []) {
       if (!isRecord(widget)) continue;
       await ctx.db.insert("dashboardWidgets", {
         ...(widget as Record<string, unknown>),

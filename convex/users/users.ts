@@ -289,7 +289,9 @@ export const setWeightUnit = mutation({
 });
 
 export const setEnergyUnit = mutation({
-  args: { unit: v.union(v.literal("kcal"), v.literal("Cal")) },
+  args: {
+    unit: v.union(v.literal("kcal"), v.literal("Cal"), v.literal("kJ")),
+  },
   handler: async (ctx, args) => {
     const user = await requireUser(ctx);
     const existing = await ctx.db
@@ -307,6 +309,71 @@ export const setEnergyUnit = mutation({
         userId: user._id,
         lastActiveTimezone: "UTC",
         energyUnit: args.unit,
+        updatedAt: Date.now(),
+      });
+    }
+  },
+});
+
+/**
+ * Records what build the user is actually running. Called on launch and
+ * whenever the active bundle changes, so a bug report can be matched against
+ * the code that produced it instead of a guess.
+ */
+export const recordAppVersion = mutation({
+  args: {
+    appVersion: v.string(),
+    bundleVersion: v.optional(v.string()),
+    platform: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const user = await requireUser(ctx);
+    const existing = await ctx.db
+      .query("userPreferences")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .unique();
+
+    const patch = {
+      lastAppVersion: args.appVersion.slice(0, 64),
+      lastBundleVersion: args.bundleVersion?.slice(0, 64),
+      lastPlatform: args.platform.slice(0, 16),
+      lastAppVersionAt: Date.now(),
+    };
+
+    if (existing) {
+      // No updatedAt bump: this is telemetry about the client, not a
+      // preference the user changed.
+      await ctx.db.patch(existing._id, patch);
+    } else {
+      await ctx.db.insert("userPreferences", {
+        userId: user._id,
+        lastActiveTimezone: "UTC",
+        updatedAt: Date.now(),
+        ...patch,
+      });
+    }
+  },
+});
+
+export const setShowCalorieNumbers = mutation({
+  args: { enabled: v.boolean() },
+  handler: async (ctx, args) => {
+    const user = await requireUser(ctx);
+    const existing = await ctx.db
+      .query("userPreferences")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .unique();
+
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        showCalorieNumbers: args.enabled,
+        updatedAt: Date.now(),
+      });
+    } else {
+      await ctx.db.insert("userPreferences", {
+        userId: user._id,
+        lastActiveTimezone: "UTC",
+        showCalorieNumbers: args.enabled,
         updatedAt: Date.now(),
       });
     }
@@ -495,7 +562,9 @@ export const setMealCalorieTargets = mutation({
     // Normalise on write so a client that sends 87% (or a stale category) can
     // never persist a budget that does not add up.
     const shares = normalizeMealShares(
-      args.shares ?? existing?.mealCalorieTargets?.shares ?? DEFAULT_MEAL_SHARES,
+      args.shares ??
+        existing?.mealCalorieTargets?.shares ??
+        DEFAULT_MEAL_SHARES,
       knownMeals,
     );
 

@@ -460,12 +460,8 @@ describe("active workout sync production safeguards", () => {
     expect(ACTIVE_WORKOUT_SOURCE).toContain(
       "if (healthLoadingRef.current || healthLoading) return"
     )
-    expect(ACTIVE_WORKOUT_SOURCE).toContain(
-      "healthLoadingRef.current = true"
-    )
-    expect(ACTIVE_WORKOUT_SOURCE).toContain(
-      "healthLoadingRef.current = false"
-    )
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("healthLoadingRef.current = true")
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("healthLoadingRef.current = false")
     expect(ACTIVE_WORKOUT_SOURCE).toContain("aria-busy={healthLoading}")
     expect(ACTIVE_WORKOUT_SOURCE).toContain("disabled={healthLoading}")
   })

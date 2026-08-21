@@ -41,6 +41,7 @@ import { captureFeatureUsage } from "@/lib/analytics"
 import { toast } from "@repo/ui"
 import { hapticMedium, hapticTap } from "@/lib/haptics"
 import { useEnergyUnit } from "@/lib/use-energy-unit"
+import { energyDisplay } from "@repo/ui"
 import type { FoodResult } from "@repo/models"
 import {
   getFoodByBarcode,
@@ -1250,7 +1251,7 @@ function SnapReviewRow({
           {scaled && (
             <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
               <span className="text-[13px] font-medium text-white/80 tabular-nums">
-                {scaled.calories} {energyUnit}
+                {energyDisplay(scaled.calories, energyUnit)} {energyUnit}
               </span>
               <DarkMacroPill
                 label="Protein"
@@ -1477,7 +1478,7 @@ function BarcodeResultRow({
         </div>
         <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
           <span className="text-[13px] font-medium text-white/80 tabular-nums">
-            {item.calories} {energyUnit}
+            {energyDisplay(item.calories, energyUnit)} {energyUnit}
           </span>
           <DarkMacroPill
             label="Protein"

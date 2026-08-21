@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 
 import { MACRO_COLORS } from "../lib/design-tokens"
-import { useEnergyUnitLabel } from "../lib/energy-unit"
+import { energyDisplay, useEnergyUnitLabel } from "../lib/energy-unit"
 
 const MACROS = [
   {
@@ -142,7 +142,7 @@ export function FoodProductHeader({
               onError={() => setFailed(true)}
               className="size-full object-cover"
             />
-            <span className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/8" />
+            <span className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-white/8 ring-inset" />
           </button>
         )}
         <div className="min-w-0 flex-1">
@@ -157,7 +157,8 @@ export function FoodProductHeader({
             <span>{portionLabel}</span>
             <span aria-hidden>·</span>
             <strong className="font-semibold text-foreground tabular-nums">
-              {formatNutrient(calories, 0)} {energyUnit}
+              {formatNutrient(energyDisplay(calories, energyUnit), 0)}{" "}
+              {energyUnit}
             </strong>
           </div>
         </div>
@@ -266,7 +267,12 @@ export function FoodAttribution({
   sources,
   className = "",
 }: {
-  sources: { id: string; name: string; url: string; license?: { name: string; url: string } }[]
+  sources: {
+    id: string
+    name: string
+    url: string
+    license?: { name: string; url: string }
+  }[]
   className?: string
 }) {
   if (sources.length === 0) return null

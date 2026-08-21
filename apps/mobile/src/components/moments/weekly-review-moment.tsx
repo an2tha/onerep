@@ -117,7 +117,9 @@ export function WeeklyReviewMoment({
       actions={
         <>
           <MomentPrimaryAction
-            onClick={() => void close(applied.length > 0 ? "resolved" : "dismissed")}
+            onClick={() =>
+              void close(applied.length > 0 ? "resolved" : "dismissed")
+            }
           >
             {applied.length > 0 ? "Done" : "Got it"}
           </MomentPrimaryAction>
@@ -176,7 +178,10 @@ export function WeeklyReviewMoment({
                   operation.warnings?.length) && (
                   <ul className="mt-2 flex flex-col gap-1">
                     {operation.warnings?.map((line) => (
-                      <li key={line} className="text-[12px] leading-snug text-amber-600 dark:text-amber-500">
+                      <li
+                        key={line}
+                        className="text-[12px] leading-snug text-amber-600 dark:text-amber-500"
+                      >
                         {line}
                       </li>
                     ))}

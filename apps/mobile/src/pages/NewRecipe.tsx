@@ -37,6 +37,7 @@ import { useMutation, useQuery } from "convex/react"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { COACH_RECIPE_PLACEHOLDER } from "@/lib/recipe-images"
 import { useEnergyUnit } from "@/lib/use-energy-unit"
+import { energyDisplay } from "@repo/ui"
 import { api } from "../../../../convex/_generated/api"
 import type { Id } from "../../../../convex/_generated/dataModel"
 import type { FoodDetail, FoodResult } from "@repo/models"
@@ -494,7 +495,7 @@ function IngredientCard({
 
             <div className="flex shrink-0 items-center gap-2">
               <span className="text-[14px] font-semibold text-foreground tabular-nums">
-                {cals} {energyUnit}
+                {energyDisplay(cals, energyUnit)} {energyUnit}
               </span>
               <button
                 type="button"
@@ -861,9 +862,13 @@ function SearchOverlay({
                                   .join(" · ")}
                               </p>
                               <p className="mt-1 text-[13px] text-muted-foreground tabular-nums">
-                                {Math.round(Number(item.calories))} {energyUnit} ·
-                                Protein {Math.round(Number(item.protein))} g ·
-                                Carbs {Math.round(Number(item.carbs))} g · Fat{" "}
+                                {energyDisplay(
+                                  Number(item.calories),
+                                  energyUnit
+                                )}{" "}
+                                {energyUnit} · Protein{" "}
+                                {Math.round(Number(item.protein))} g · Carbs{" "}
+                                {Math.round(Number(item.carbs))} g · Fat{" "}
                                 {Math.round(Number(item.fat))} g
                               </p>
                             </div>
@@ -1097,9 +1102,7 @@ export default function NewRecipe() {
       navigate(-1)
     } catch (err) {
       console.error("Failed to save recipe:", err)
-      toast.error(
-        err instanceof Error ? err.message : "Could not save recipe"
-      )
+      toast.error(err instanceof Error ? err.message : "Could not save recipe")
       setSaved(false)
     } finally {
       savingRef.current = false

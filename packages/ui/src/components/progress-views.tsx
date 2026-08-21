@@ -3,7 +3,7 @@ import type { ReactNode } from "react"
 
 import { MetricTooltip } from "./app-feedback"
 import { PrimaryButton } from "./mobile-ui"
-import { useEnergyUnitLabel } from "../lib/energy-unit"
+import { energyDisplay, useEnergyUnitLabel } from "../lib/energy-unit"
 
 export type ProgressWeightUnit = "kg" | "lbs"
 export type ProgressDayView = {
@@ -166,7 +166,7 @@ function NutritionWeekBars({ days }: { days: ProgressDayView[] }) {
               className="relative flex h-full items-end justify-center"
               title={
                 isLogged
-                  ? `${day.date}: ${Math.round(day.nutrition.calories)} ${energyUnit} and ${Math.round(day.nutrition.protein)} g protein`
+                  ? `${day.date}: ${energyDisplay(day.nutrition.calories, energyUnit)} ${energyUnit} and ${Math.round(day.nutrition.protein)} g protein`
                   : `${day.date}: no food logged`
               }
             >
@@ -542,10 +542,10 @@ export function BodyProgress({
 
       {recentMeasurements.length > 0 && (
         <section
-        className="progress-tab-enter"
-        style={{ animationDelay: "160ms" }}
-        aria-label="Recent body check-ins"
-      >
+          className="progress-tab-enter"
+          style={{ animationDelay: "160ms" }}
+          aria-label="Recent body check-ins"
+        >
           <h2 className="native-section-title mb-1">Recent check-ins</h2>
           <div className="border-y border-border">
             {recentMeasurements.map((measurement) => (
@@ -610,13 +610,13 @@ export function NutritionProgress({
         />
         <p className="mt-4 text-[2rem] leading-none font-bold tracking-tight tabular-nums">
           {logged > 0
-            ? `${summary.nutrition.averageCalories.toLocaleString("en-US")} ${energyUnit}`
+            ? `${energyDisplay(summary.nutrition.averageCalories, energyUnit).toLocaleString("en-US")} ${energyUnit}`
             : "No data"}
         </p>
         <p className="mt-2 text-[14px] text-muted-foreground">
           {summary.nutrition.calorieDeltaFromTarget == null
-            ? `Daily target ${calorieTarget.toLocaleString("en-US")} ${energyUnit}`
-            : `${signed(summary.nutrition.calorieDeltaFromTarget, ` ${energyUnit}`)} versus target on logged days`}
+            ? `Daily target ${energyDisplay(calorieTarget, energyUnit).toLocaleString("en-US")} ${energyUnit}`
+            : `${signed(energyDisplay(summary.nutrition.calorieDeltaFromTarget, energyUnit), ` ${energyUnit}`)} versus target on logged days`}
         </p>
         <NutritionWeekBars days={summary.days} />
       </section>
@@ -660,12 +660,18 @@ export function NutritionProgress({
             value={
               summary.nutrition.averageCalorieChange == null
                 ? "No comparison"
-                : signed(summary.nutrition.averageCalorieChange, ` ${energyUnit}`)
+                : signed(
+                    energyDisplay(
+                      summary.nutrition.averageCalorieChange,
+                      energyUnit
+                    ),
+                    ` ${energyUnit}`
+                  )
             }
             detail={
               summary.nutrition.previousAverageCalories == null
                 ? "No food was logged in the prior 7 days"
-                : `Prior average ${summary.nutrition.previousAverageCalories.toLocaleString("en-US")} ${energyUnit} across ${summary.nutrition.previousLoggedDays} logged days`
+                : `Prior average ${energyDisplay(summary.nutrition.previousAverageCalories, energyUnit).toLocaleString("en-US")} ${energyUnit} across ${summary.nutrition.previousLoggedDays} logged days`
             }
             tooltip="This compares average calories per logged day. Large changes can reflect different logging coverage, so check the day counts before interpreting it."
           />

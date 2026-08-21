@@ -49,8 +49,7 @@ export function normalizeRecentExerciseSearches(
 
     const candidate = value as Partial<RecentExerciseSearch>
     const id = typeof candidate.id === "string" ? candidate.id.trim() : ""
-    const name =
-      typeof candidate.name === "string" ? candidate.name.trim() : ""
+    const name = typeof candidate.name === "string" ? candidate.name.trim() : ""
     const category = normalizeCategory(candidate.category)
     if (!id || !name || !category || seen.has(id)) continue
 

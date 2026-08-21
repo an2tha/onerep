@@ -107,7 +107,9 @@ async function fetchModel(file: string) {
   const url = modelUrl(file)
   const response = await fetch(url)
   if (!response.ok) {
-    throw new Error(`Could not fetch the pose model at ${url} (${response.status})`)
+    throw new Error(
+      `Could not fetch the pose model at ${url} (${response.status})`
+    )
   }
 
   const bytes = new Uint8Array(await response.arrayBuffer())

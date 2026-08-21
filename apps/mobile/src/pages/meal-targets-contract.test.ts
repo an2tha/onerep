@@ -27,7 +27,9 @@ describe("per-meal calorie targets", () => {
   })
 
   test("settings offers a reset and warns before rescaling", () => {
-    expect(SETTINGS_SOURCE).toContain('aria-label="Reset meal split to default"')
+    expect(SETTINGS_SOURCE).toContain(
+      'aria-label="Reset meal split to default"'
+    )
     expect(SETTINGS_SOURCE).toContain("Saving will rescale these to 100%")
   })
 
@@ -44,7 +46,7 @@ describe("per-meal calorie targets", () => {
 
   test("each per-meal row announces its consumed and target calories", () => {
     expect(NUTRITION_SOURCE).toContain(
-      "aria-label={`${mealLabel(target.meal)}: ${consumed} of ${"
+      "aria-label={`${mealLabel(target.meal)}: ${energyDisplay(consumed, energyUnit)} of ${"
     )
   })
 

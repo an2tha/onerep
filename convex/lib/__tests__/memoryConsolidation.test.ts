@@ -142,7 +142,10 @@ describe("ordering for context", () => {
   });
 
   test("does not mutate its input", () => {
-    const rows = [memory({ id: "a", updatedAt: 1 }), memory({ id: "b", updatedAt: 2 })];
+    const rows = [
+      memory({ id: "a", updatedAt: 1 }),
+      memory({ id: "b", updatedAt: 2 }),
+    ];
     const before = rows.map((row) => row.id);
     orderMemoriesForContext(rows);
     expect(rows.map((row) => row.id)).toEqual(before);

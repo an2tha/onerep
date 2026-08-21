@@ -57,7 +57,9 @@ export const loadGateState = internalQuery({
       ctx.db
         .query("coachTouches")
         .withIndex("by_userId_and_sentAt", (q) =>
-          q.eq("userId", args.userId).gte("sentAt", Date.now() - COACH_TOUCH_WINDOW_MS),
+          q
+            .eq("userId", args.userId)
+            .gte("sentAt", Date.now() - COACH_TOUCH_WINDOW_MS),
         )
         .collect(),
     ]);
@@ -167,7 +169,11 @@ export const sendCoachTouch = internalAction({
       });
       if (result.ok) delivered.push(row._id);
       else if (!result.retriable) dead.push(row._id);
-      else console.warn("Coach push failed", { kind: args.kind, error: result.error });
+      else
+        console.warn("Coach push failed", {
+          kind: args.kind,
+          error: result.error,
+        });
     }
 
     if (delivered.length > 0 || dead.length > 0) {

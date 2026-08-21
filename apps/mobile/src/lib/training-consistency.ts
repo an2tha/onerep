@@ -104,7 +104,10 @@ export function calcTrailingSessions(
  * Count workouts logged during the ISO week (Mon–Sun) containing `today`.
  * Days in the future (after `today`) are excluded.
  */
-export function calcWorkoutsThisWeek(workoutDates: Set<string>, today: Date): number {
+export function calcWorkoutsThisWeek(
+  workoutDates: Set<string>,
+  today: Date
+): number {
   const ref = localNoon(today)
   const todayIso = dateToIso(ref)
   const dow = ref.getDay() // 0 = Sun

@@ -98,8 +98,8 @@ export function InWorkoutCoach({
           Ask your coach
         </h2>
         <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground/80">
-          One question about this session — load, reps, push or stop. It can
-          see your sets so far.
+          One question about this session — load, reps, push or stop. It can see
+          your sets so far.
         </p>
 
         {exchange && (

@@ -225,8 +225,9 @@ export function scaleCustomFoodNutrients(
 }
 
 export function servingsLabel(servings: number, servingLabel: string) {
-  const amount =
-    Number.isInteger(servings) ? String(servings) : servings.toFixed(2)
+  const amount = Number.isInteger(servings)
+    ? String(servings)
+    : servings.toFixed(2)
   return `${amount} × ${servingLabel}`
 }
 
@@ -235,7 +236,8 @@ export function foodLogEntryFromCustomFood(
   food: CustomFood,
   options: { meal: MealType; servings?: number; loggedAt?: string }
 ): FoodLogEntry {
-  const servings = options.servings && options.servings > 0 ? options.servings : 1
+  const servings =
+    options.servings && options.servings > 0 ? options.servings : 1
   const nutrients = scaleCustomFoodNutrients(food.nutrientsPerServing, servings)
 
   const entry: FoodLogEntry = {

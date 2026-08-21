@@ -72,9 +72,9 @@ export function CardioDetailsPanel({
   const healthSupported = isHealthSyncSupportedPlatform()
   const [healthLoading, setHealthLoading] = useState(false)
   const [healthError, setHealthError] = useState<string | null>(null)
-  const [healthWorkoutsList, setHealthWorkoutsList] = useState<
-    HealthWorkout[]
-  >([])
+  const [healthWorkoutsList, setHealthWorkoutsList] = useState<HealthWorkout[]>(
+    []
+  )
   const [showHealthWorkouts, setShowHealthWorkouts] = useState(false)
   const healthLoadingRef = useRef(false)
 
@@ -114,7 +114,9 @@ export function CardioDetailsPanel({
     try {
       const authorization = await requestHealthAuthorization()
       if (!authorization.available) {
-        setHealthError(`${healthProviderLabel()} is not available on this device.`)
+        setHealthError(
+          `${healthProviderLabel()} is not available on this device.`
+        )
         setHealthWorkoutsList([])
         setShowHealthWorkouts(true)
         return
@@ -216,9 +218,7 @@ export function CardioDetailsPanel({
             <button
               type="button"
               onClick={() =>
-                healthLoading
-                  ? undefined
-                  : setShowHealthWorkouts(false)
+                healthLoading ? undefined : setShowHealthWorkouts(false)
               }
               disabled={healthLoading}
               className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted/45 text-muted-foreground/60 active:bg-muted disabled:opacity-40"

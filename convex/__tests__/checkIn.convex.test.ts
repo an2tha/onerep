@@ -8,12 +8,16 @@ const modules = import.meta.glob("../**/*.ts");
 describe("checkIn Convex functions", () => {
   test("getDailyCheckIn throws when unauthenticated", async () => {
     const t = convexTest(schema, modules);
-    await expect(t.query(api.users.checkIn.getDailyCheckIn, {})).rejects.toThrow();
+    await expect(
+      t.query(api.users.checkIn.getDailyCheckIn, {}),
+    ).rejects.toThrow();
   });
 
   test("setDailyCheckIn throws when unauthenticated", async () => {
     const t = convexTest(schema, modules);
-    await expect(t.mutation(api.users.checkIn.setDailyCheckIn, {})).rejects.toThrow();
+    await expect(
+      t.mutation(api.users.checkIn.setDailyCheckIn, {}),
+    ).rejects.toThrow();
   });
 
   test("inserts a daily check-in for a user", async () => {
@@ -35,11 +39,16 @@ describe("checkIn Convex functions", () => {
     const initialTime = Date.now();
 
     const id = await t.run(async (ctx) => {
-      return ctx.db.insert("dailyCheckIns", { userId: "checkin-update-user", updatedAt: initialTime });
+      return ctx.db.insert("dailyCheckIns", {
+        userId: "checkin-update-user",
+        updatedAt: initialTime,
+      });
     });
 
     const newTime = initialTime + 1000;
-    await t.run(async (ctx) => { await ctx.db.patch(id, { updatedAt: newTime }); });
+    await t.run(async (ctx) => {
+      await ctx.db.patch(id, { updatedAt: newTime });
+    });
 
     const updated = await t.run(async (ctx) => ctx.db.get(id));
     expect(updated!.updatedAt).toBe(newTime);

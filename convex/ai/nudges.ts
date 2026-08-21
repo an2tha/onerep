@@ -156,42 +156,51 @@ export const loadTriggerData = internalQuery({
   args: { userId: v.string(), today: v.string() },
   handler: async (ctx, args) => {
     const foodCutoff = dateToIso(
-      subtractDays(localNoon(new Date(`${args.today}T12:00:00`)), FOOD_HISTORY_DAYS),
+      subtractDays(
+        localNoon(new Date(`${args.today}T12:00:00`)),
+        FOOD_HISTORY_DAYS,
+      ),
     );
     const restCutoff = dateToIso(
-      subtractDays(localNoon(new Date(`${args.today}T12:00:00`)), REST_HISTORY_DAYS),
+      subtractDays(
+        localNoon(new Date(`${args.today}T12:00:00`)),
+        REST_HISTORY_DAYS,
+      ),
     );
 
-    const [foodLogs, workoutLogs, restDays, moments, weeklyPlan] = await Promise.all([
-      ctx.db
-        .query("foodLogs")
-        .withIndex("by_userId_date", (q) =>
-          q.eq("userId", args.userId).gte("date", foodCutoff),
-        )
-        .collect(),
-      ctx.db
-        .query("workoutLogs")
-        .withIndex("by_userId_date", (q) =>
-          q.eq("userId", args.userId).gte("date", restCutoff),
-        )
-        .collect(),
-      ctx.db
-        .query("restDays")
-        .withIndex("by_userId_and_date", (q) =>
-          q.eq("userId", args.userId).gte("date", restCutoff),
-        )
-        .collect(),
-      ctx.db
-        .query("momentEvents")
-        .withIndex("by_userId", (q) => q.eq("userId", args.userId))
-        .collect(),
-      ctx.db
-        .query("coachWeeklyPlans")
-        .withIndex("by_userId_and_weekStart", (q) =>
-          q.eq("userId", args.userId).eq("weekStart", weekStartOf(args.today)),
-        )
-        .unique(),
-    ]);
+    const [foodLogs, workoutLogs, restDays, moments, weeklyPlan] =
+      await Promise.all([
+        ctx.db
+          .query("foodLogs")
+          .withIndex("by_userId_date", (q) =>
+            q.eq("userId", args.userId).gte("date", foodCutoff),
+          )
+          .collect(),
+        ctx.db
+          .query("workoutLogs")
+          .withIndex("by_userId_date", (q) =>
+            q.eq("userId", args.userId).gte("date", restCutoff),
+          )
+          .collect(),
+        ctx.db
+          .query("restDays")
+          .withIndex("by_userId_and_date", (q) =>
+            q.eq("userId", args.userId).gte("date", restCutoff),
+          )
+          .collect(),
+        ctx.db
+          .query("momentEvents")
+          .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+          .collect(),
+        ctx.db
+          .query("coachWeeklyPlans")
+          .withIndex("by_userId_and_weekStart", (q) =>
+            q
+              .eq("userId", args.userId)
+              .eq("weekStart", weekStartOf(args.today)),
+          )
+          .unique(),
+      ]);
 
     // A declared deload week suspends the lapse nudge outright. The trigger
     // already discounts explicit rest days, but a plan titled "Deload" is the
@@ -279,14 +288,17 @@ export const sweep = internalAction({
               restDates: data.restDates,
             });
         if (lapse && !seen(MOMENT_IDS.trainingLapse, lapse.key)) {
-          const outcome = await ctx.runAction(internal.push.send.sendCoachTouch, {
-            userId: candidate.userId,
-            kind: "training_lapse",
-            dedupeKey: lapse.key,
-            title: "Still here",
-            body: `${lapse.idleDays} days since your last session. Not a crisis. Worth a short one today.`,
-            link: "onerep://workouts",
-          });
+          const outcome = await ctx.runAction(
+            internal.push.send.sendCoachTouch,
+            {
+              userId: candidate.userId,
+              kind: "training_lapse",
+              dedupeKey: lapse.key,
+              title: "Still here",
+              body: `${lapse.idleDays} days since your last session. Not a crisis. Worth a short one today.`,
+              link: "onerep://workouts",
+            },
+          );
           if (outcome.sent) sent += 1;
           continue;
         }
@@ -298,14 +310,17 @@ export const sweep = internalAction({
           timeZone: candidate.timezone,
         });
         if (missed && !seen(MOMENT_IDS.missedLog, missed.key)) {
-          const outcome = await ctx.runAction(internal.push.send.sendCoachTouch, {
-            userId: candidate.userId,
-            kind: "missed_log",
-            dedupeKey: missed.key,
-            title: "Nothing logged today",
-            body: "You are usually done by now. Two minutes closes the day out.",
-            link: "onerep://log",
-          });
+          const outcome = await ctx.runAction(
+            internal.push.send.sendCoachTouch,
+            {
+              userId: candidate.userId,
+              kind: "missed_log",
+              dedupeKey: missed.key,
+              title: "Nothing logged today",
+              body: "You are usually done by now. Two minutes closes the day out.",
+              link: "onerep://log",
+            },
+          );
           if (outcome.sent) sent += 1;
         }
       }

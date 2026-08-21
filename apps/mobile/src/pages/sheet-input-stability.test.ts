@@ -29,7 +29,9 @@ describe("sheets keep their focus and stay open", () => {
     expect(MOBILE_SHEET).toContain(
       "// Mount and unmount only. See `dismissRef` above."
     )
-    expect(MOBILE_SHEET).not.toContain("previousFocus?.focus({ preventScroll: true })\n    }\n  }, [dismiss])")
+    expect(MOBILE_SHEET).not.toContain(
+      "previousFocus?.focus({ preventScroll: true })\n    }\n  }, [dismiss])"
+    )
   })
 
   test("an autofocused field keeps the caret it already has", () => {
@@ -56,7 +58,9 @@ describe("Coach mode switching on a phone", () => {
   test("touch devices skip the fade, the clone carousel and the long transition", () => {
     expect(COACH).toContain('window.matchMedia?.("(pointer: coarse)").matches')
     expect(COACH).toContain("prefers-reduced-motion: reduce")
-    expect(COACH).toContain('document.documentElement.dataset.coachQuick = "true"')
+    expect(COACH).toContain(
+      'document.documentElement.dataset.coachQuick = "true"'
+    )
     expect(COACH).toContain("if (quick) {")
   })
 

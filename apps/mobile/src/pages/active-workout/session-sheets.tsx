@@ -5,12 +5,7 @@
  */
 
 import { useRef, useState } from "react"
-import {
-  Check,
-  Microphone,
-  PaperPlaneRight,
-  X,
-} from "@phosphor-icons/react"
+import { Check, Microphone, PaperPlaneRight, X } from "@phosphor-icons/react"
 import { cn } from "@/lib/utils"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { useCoachDictation } from "@/lib/use-coach-dictation"

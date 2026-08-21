@@ -3,6 +3,7 @@ import { useQuery } from "convex/react"
 import { api } from "../../../../../convex/_generated/api"
 import { currentDateKey } from "@/lib/food-log"
 import { useEnergyUnit } from "@/lib/use-energy-unit"
+import { energyDisplay } from "@repo/ui"
 import { healthProviderLabel } from "@/lib/health-provider"
 import { platformMetric } from "../../../../../convex/lib/platformHealthMetrics"
 import {
@@ -186,7 +187,8 @@ export default function HealthTrends() {
             title={chart.title}
             format={
               chart.metric === "energy"
-                ? (value: number) => `${chart.format(value)} ${energyUnit}`
+                ? (value: number) =>
+                    `${chart.format(energyDisplay(value, energyUnit))} ${energyUnit}`
                 : chart.format
             }
             tone={chart.tone}

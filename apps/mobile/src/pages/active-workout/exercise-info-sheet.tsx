@@ -21,8 +21,7 @@ export function ExerciseInfoSheet({
   onClose: () => void
 }) {
   const resolved = useQuery(api.exercises.resolve, { ids: [exerciseId] }) as
-    | Record<string, ClientExercise>
-    | undefined
+    Record<string, ClientExercise> | undefined
   const exercise = resolved?.[exerciseId]
 
   return (

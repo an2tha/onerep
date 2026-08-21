@@ -63,7 +63,11 @@ export function SettingsChoiceRow({
         {selected ? (
           <CheckCircle size={20} weight="fill" />
         ) : (
-          <Circle size={20} weight="regular" className="text-muted-foreground" />
+          <Circle
+            size={20}
+            weight="regular"
+            className="text-muted-foreground"
+          />
         )}
       </span>
       <span className="min-w-0">

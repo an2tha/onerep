@@ -232,9 +232,7 @@ describe("saving a review", () => {
       requestId: "weekly-review-user_outreach-2026-W33",
     });
 
-    const rows = await t.run((ctx) =>
-      ctx.db.query("coachReviews").collect(),
-    );
+    const rows = await t.run((ctx) => ctx.db.query("coachReviews").collect());
     const byWeek = Object.fromEntries(
       rows.map((row) => [row.weekStart, row.status]),
     );

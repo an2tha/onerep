@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useWeightUnit } from "@/lib/use-weight-unit"
 import { useEnergyUnit } from "@/lib/use-energy-unit"
+import { energyDisplay } from "@repo/ui"
 import { flushSync } from "react-dom"
 import {
   Aperture,
@@ -755,7 +756,10 @@ export default function App() {
           total + (exercise.sets ?? []).filter((set) => set.completed).length,
         0
       )
-      setsByDate.set(log.date, (setsByDate.get(log.date) ?? 0) + Math.max(1, sets))
+      setsByDate.set(
+        log.date,
+        (setsByDate.get(log.date) ?? 0) + Math.max(1, sets)
+      )
     }
     return buildActivityGrid(setsByDate, trainingStatsDate, ACTIVITY_WEEKS)
   }, [trainingStatsDate, workoutHistoryQuery])
@@ -867,8 +871,7 @@ export default function App() {
       ...(firstWeight != null && lastWeight != null
         ? { weightChange: (lastWeight - firstWeight) * unitMultiplier }
         : {}),
-      weightUnit:
-        weightUnit,
+      weightUnit: weightUnit,
       records: recordTimeline.slice(-3).reverse(),
     }
   }, [
@@ -931,7 +934,7 @@ export default function App() {
         kind: "repeat",
         name: meal,
         detail: recipe
-          ? `Recent · ${totalsForRecipe(recipe.ingredients).calories} ${energyUnit}`
+          ? `Recent · ${energyDisplay(totalsForRecipe(recipe.ingredients).calories, energyUnit)} ${energyUnit}`
           : "Recent",
         onLog: () => {
           hapticSelection()
@@ -952,7 +955,7 @@ export default function App() {
       rows.push({
         kind: "recipe",
         name: recipe.name,
-        detail: `Recipe · ${totals.calories} ${energyUnit}`,
+        detail: `Recipe · ${energyDisplay(totals.calories, energyUnit)} ${energyUnit}`,
         onLog: () => {
           hapticSelection()
           logRecipeFromQuickAdd(recipe)
@@ -1057,7 +1060,7 @@ export default function App() {
     const foodEvents = foodEntries.map((entry) => ({
       id: `food-${entry.id}`,
       title: entry.name,
-      detail: `${Math.round(entry.calories)} ${energyUnit} logged`,
+      detail: `${energyDisplay(entry.calories, energyUnit)} ${energyUnit} logged`,
       kind: "food" as const,
       loggedAt: entry.loggedAt,
       deleteLabel: `Delete ${entry.name}`,
@@ -1573,7 +1576,8 @@ export default function App() {
                           </span>
                           <span>·</span>
                           <span>
-                            {meal.calories} {energyUnit}
+                            {energyDisplay(meal.calories, energyUnit)}{" "}
+                            {energyUnit}
                           </span>
                           <span>·</span>
                           <span>{meal.protein}g P</span>
@@ -2007,9 +2011,8 @@ export default function App() {
                         Current
                       </p>
                       <p className="mt-1 text-[12px] font-bold">
-                        {previewRecipe.calories} {energyUnit} ·{" "}
-                        {previewRecipe.protein}g
-                        P
+                        {energyDisplay(previewRecipe.calories, energyUnit)}{" "}
+                        {energyUnit} · {previewRecipe.protein}g P
                       </p>
                     </div>
                     <div>
@@ -2017,8 +2020,8 @@ export default function App() {
                         Estimated remix
                       </p>
                       <p className="mt-1 text-[12px] font-bold">
-                        {recipeRemix.calories} {energyUnit} ·{" "}
-                        {recipeRemix.protein}g P
+                        {energyDisplay(recipeRemix.calories, energyUnit)}{" "}
+                        {energyUnit} · {recipeRemix.protein}g P
                       </p>
                     </div>
                   </div>
@@ -2237,8 +2240,9 @@ export default function App() {
                               {recipe.name}
                             </p>
                             <p className="native-row-detail mt-0.5">
-                              {totals.calories} {energyUnit} ·{" "}
-                              {recipe.ingredients.length} ingredient
+                              {energyDisplay(totals.calories, energyUnit)}{" "}
+                              {energyUnit} · {recipe.ingredients.length}{" "}
+                              ingredient
                               {recipe.ingredients.length === 1 ? "" : "s"}
                             </p>
                           </div>

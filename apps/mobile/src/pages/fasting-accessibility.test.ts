@@ -9,7 +9,10 @@ const NUTRITION_SOURCE = readFileSync(
   new URL("./Nutrition.tsx", import.meta.url),
   "utf8"
 )
-const MAIN_SOURCE = readFileSync(new URL("../main.tsx", import.meta.url), "utf8")
+const MAIN_SOURCE = readFileSync(
+  new URL("../main.tsx", import.meta.url),
+  "utf8"
+)
 // Task-route registration lives with the navigation helpers, not the router.
 const NAVIGATION_SOURCE = readFileSync(
   new URL("../lib/navigation.ts", import.meta.url),
@@ -42,9 +45,7 @@ describe("fasting page accessibility", () => {
   })
 
   test("the custom length input is labelled", () => {
-    expect(FASTING_SOURCE).toContain(
-      'aria-label="Custom fast length in hours"'
-    )
+    expect(FASTING_SOURCE).toContain('aria-label="Custom fast length in hours"')
   })
 })
 

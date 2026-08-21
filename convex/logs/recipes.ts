@@ -76,8 +76,22 @@ export const list = query({
 });
 
 const SUGGESTION_STOP_WORDS = new Set([
-  "and", "with", "the", "a", "an", "of", "in", "on", "fresh", "cooked",
-  "grilled", "roasted", "large", "small", "medium", "organic",
+  "and",
+  "with",
+  "the",
+  "a",
+  "an",
+  "of",
+  "in",
+  "on",
+  "fresh",
+  "cooked",
+  "grilled",
+  "roasted",
+  "large",
+  "small",
+  "medium",
+  "organic",
 ]);
 
 function ingredientTokens(value: string) {
@@ -89,12 +103,73 @@ function ingredientTokens(value: string) {
 }
 
 const OFFICIAL_DASHBOARD_MEALS = [
-  { id: "chicken-bowl", name: "Weeknight chicken bowl", description: "Roasted chicken, rice, cucumber, herbs, and lemon yogurt.", prepMinutes: 25, calories: 520, protein: 38, imageUrl: "https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=900&q=82", ingredients: ["Chicken breast", "Rice", "Cucumber", "Greek yogurt"] },
-  { id: "lentil-skillet", name: "Herby lentil skillet", description: "Green lentils, tomatoes, spinach, lemon, and feta.", prepMinutes: 30, calories: 460, protein: 24, imageUrl: "https://images.unsplash.com/photo-1476224203421-9ac39bcb3327?auto=format&fit=crop&w=900&q=82", ingredients: ["Green lentils", "Tomatoes", "Spinach", "Feta"] },
-  { id: "berry-oats", name: "Overnight berry oats", description: "Creamy oats with Greek yogurt, berries, chia, and almonds.", prepMinutes: 5, calories: 410, protein: 26, imageUrl: "https://images.unsplash.com/photo-1490645935967-10de6ba17061?auto=format&fit=crop&w=900&q=82", ingredients: ["Oats", "Greek yogurt", "Berries", "Chia seeds"] },
-  { id: "salmon-greens", name: "Salmon and greens", description: "Pan-seared salmon, potatoes, green beans, and mustard dressing.", prepMinutes: 35, calories: 610, protein: 42, imageUrl: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=900&q=82", ingredients: ["Salmon", "Potatoes", "Green beans", "Mustard"] },
-  { id: "turkey-wrap", name: "Crunchy turkey wrap", description: "Turkey, avocado, cabbage, and lime yogurt in a soft wrap.", prepMinutes: 15, calories: 445, protein: 35, imageUrl: "https://images.unsplash.com/photo-1476224203421-9ac39bcb3327?auto=format&fit=crop&w=900&q=82", ingredients: ["Turkey", "Tortilla", "Avocado", "Cabbage"] },
-  { id: "tofu-rice", name: "Ginger tofu rice bowl", description: "Crisp tofu, edamame, rice, carrots, and sesame ginger sauce.", prepMinutes: 30, calories: 540, protein: 27, imageUrl: "https://images.unsplash.com/photo-1603133872878-684f208fb84b?auto=format&fit=crop&w=900&q=82", ingredients: ["Tofu", "Rice", "Edamame", "Carrots"] },
+  {
+    id: "chicken-bowl",
+    name: "Weeknight chicken bowl",
+    description: "Roasted chicken, rice, cucumber, herbs, and lemon yogurt.",
+    prepMinutes: 25,
+    calories: 520,
+    protein: 38,
+    imageUrl:
+      "https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=900&q=82",
+    ingredients: ["Chicken breast", "Rice", "Cucumber", "Greek yogurt"],
+  },
+  {
+    id: "lentil-skillet",
+    name: "Herby lentil skillet",
+    description: "Green lentils, tomatoes, spinach, lemon, and feta.",
+    prepMinutes: 30,
+    calories: 460,
+    protein: 24,
+    imageUrl:
+      "https://images.unsplash.com/photo-1476224203421-9ac39bcb3327?auto=format&fit=crop&w=900&q=82",
+    ingredients: ["Green lentils", "Tomatoes", "Spinach", "Feta"],
+  },
+  {
+    id: "berry-oats",
+    name: "Overnight berry oats",
+    description: "Creamy oats with Greek yogurt, berries, chia, and almonds.",
+    prepMinutes: 5,
+    calories: 410,
+    protein: 26,
+    imageUrl:
+      "https://images.unsplash.com/photo-1490645935967-10de6ba17061?auto=format&fit=crop&w=900&q=82",
+    ingredients: ["Oats", "Greek yogurt", "Berries", "Chia seeds"],
+  },
+  {
+    id: "salmon-greens",
+    name: "Salmon and greens",
+    description:
+      "Pan-seared salmon, potatoes, green beans, and mustard dressing.",
+    prepMinutes: 35,
+    calories: 610,
+    protein: 42,
+    imageUrl:
+      "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=900&q=82",
+    ingredients: ["Salmon", "Potatoes", "Green beans", "Mustard"],
+  },
+  {
+    id: "turkey-wrap",
+    name: "Crunchy turkey wrap",
+    description: "Turkey, avocado, cabbage, and lime yogurt in a soft wrap.",
+    prepMinutes: 15,
+    calories: 445,
+    protein: 35,
+    imageUrl:
+      "https://images.unsplash.com/photo-1476224203421-9ac39bcb3327?auto=format&fit=crop&w=900&q=82",
+    ingredients: ["Turkey", "Tortilla", "Avocado", "Cabbage"],
+  },
+  {
+    id: "tofu-rice",
+    name: "Ginger tofu rice bowl",
+    description: "Crisp tofu, edamame, rice, carrots, and sesame ginger sauce.",
+    prepMinutes: 30,
+    calories: 540,
+    protein: 27,
+    imageUrl:
+      "https://images.unsplash.com/photo-1603133872878-684f208fb84b?auto=format&fit=crop&w=900&q=82",
+    ingredients: ["Tofu", "Rice", "Edamame", "Carrots"],
+  },
 ] as const;
 
 export const suggestedForDashboard = query({
@@ -115,8 +190,7 @@ export const suggestedForDashboard = query({
       for (const entry of log.entries as Array<Record<string, unknown>>) {
         const names = [typeof entry.name === "string" ? entry.name : ""];
         const draft = entry.recipeDraft as
-          | { ingredients?: Array<{ name?: unknown }> }
-          | undefined;
+          { ingredients?: Array<{ name?: unknown }> } | undefined;
         for (const ingredient of draft?.ingredients ?? []) {
           if (typeof ingredient.name === "string") names.push(ingredient.name);
         }
@@ -373,7 +447,10 @@ export const save = mutation({
     }
     const photoUploadIds = args.photoUploadIds;
     if (photoUploadIds) {
-      if (photoUploadIds.length > 5 || new Set(photoUploadIds).size !== photoUploadIds.length) {
+      if (
+        photoUploadIds.length > 5 ||
+        new Set(photoUploadIds).size !== photoUploadIds.length
+      ) {
         throw new Error("A recipe can have at most 5 unique photos");
       }
       for (const uploadId of photoUploadIds) {
@@ -419,9 +496,7 @@ export const save = mutation({
         ...(args.placeholderImage !== undefined
           ? { placeholderImage: args.placeholderImage }
           : {}),
-        ...(photoUploadIds !== undefined
-          ? { photoUploadIds }
-          : {}),
+        ...(photoUploadIds !== undefined ? { photoUploadIds } : {}),
         ...(args.originCountry !== undefined
           ? { originCountry: args.originCountry }
           : {}),
@@ -475,9 +550,7 @@ export const save = mutation({
         ...(args.placeholderImage !== undefined
           ? { placeholderImage: args.placeholderImage }
           : {}),
-        ...(photoUploadIds !== undefined
-          ? { photoUploadIds }
-          : {}),
+        ...(photoUploadIds !== undefined ? { photoUploadIds } : {}),
         ...(args.originCountry !== undefined
           ? { originCountry: args.originCountry }
           : {}),

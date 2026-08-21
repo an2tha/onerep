@@ -23,11 +23,7 @@ import type { RecoverySummary } from "./recovery";
 export const HEALTH_SCORE_WINDOW_DAYS = 7;
 
 export type HealthPillarId =
-  | "sleep"
-  | "steps"
-  | "exercise"
-  | "energy"
-  | "cardio";
+  "sleep" | "steps" | "exercise" | "energy" | "cardio";
 
 export type HealthPillar = {
   id: HealthPillarId;
@@ -40,7 +36,12 @@ export type HealthPillar = {
   value: number | null;
   /** What `value` is being graded against. */
   target: number;
-  unit: "minutesPerNight" | "stepsPerDay" | "minutesPerWeek" | "kcalPerDay" | "index";
+  unit:
+    | "minutesPerNight"
+    | "stepsPerDay"
+    | "minutesPerWeek"
+    | "kcalPerDay"
+    | "index";
   /** One line of plain language: what was measured, against what. */
   detail: string;
 };
@@ -216,7 +217,10 @@ export function recoveryScore(recovery: RecoverySummary | null): number | null {
   }
   const rhr = recovery.restingHeartRate;
   if (rhr && rhr.baseline > 0) {
-    adjustment += Math.max(-10, Math.min(10, (-rhr.delta / rhr.baseline) * 120));
+    adjustment += Math.max(
+      -10,
+      Math.min(10, (-rhr.delta / rhr.baseline) * 120),
+    );
   }
 
   return Math.round(clamp(centre + adjustment));
@@ -264,10 +268,14 @@ export function computeHealthScore({
     .filter((value): value is number => typeof value === "number" && value > 0);
   const stepValues = days
     .map((day) => day.steps)
-    .filter((value): value is number => typeof value === "number" && value >= 0);
+    .filter(
+      (value): value is number => typeof value === "number" && value >= 0,
+    );
   const energyValues = days
     .map((day) => day.activeEnergyKcal)
-    .filter((value): value is number => typeof value === "number" && value >= 0);
+    .filter(
+      (value): value is number => typeof value === "number" && value >= 0,
+    );
 
   const sleepAvg = mean(sleepValues);
   const stepsAvg = mean(stepValues);
@@ -304,7 +312,8 @@ export function computeHealthScore({
       label: "Exercise minutes",
       score: hasExerciseData
         ? Math.round(
-            attainment(exerciseWeekly, HEALTH_TARGETS.exerciseMinutesPerWeek) ?? 0,
+            attainment(exerciseWeekly, HEALTH_TARGETS.exerciseMinutesPerWeek) ??
+              0,
           )
         : null,
       weight: BASE_WEIGHTS.exercise,
@@ -352,7 +361,9 @@ export function computeHealthScore({
       score:
         energyAvg === null
           ? null
-          : Math.round(attainment(energyAvg, HEALTH_TARGETS.activeEnergyKcal) ?? 0),
+          : Math.round(
+              attainment(energyAvg, HEALTH_TARGETS.activeEnergyKcal) ?? 0,
+            ),
       weight: BASE_WEIGHTS.energy,
       value: energyAvg,
       target: HEALTH_TARGETS.activeEnergyKcal,
@@ -368,7 +379,9 @@ export function computeHealthScore({
   const totalWeight = measured.reduce((sum, pillar) => sum + pillar.weight, 0);
   for (const pillar of pillars) {
     pillar.weight =
-      pillar.score === null || totalWeight === 0 ? 0 : pillar.weight / totalWeight;
+      pillar.score === null || totalWeight === 0
+        ? 0
+        : pillar.weight / totalWeight;
   }
 
   const weighted =
@@ -385,9 +398,7 @@ export function computeHealthScore({
   // as long as the step count is heroic, which is the single most common way
   // a composite health score becomes a lie. So one badly failing pillar caps
   // the whole thing below the top band, however good the others are.
-  const worst = Math.min(
-    ...measured.map((pillar) => pillar.score ?? 100),
-  );
+  const worst = Math.min(...measured.map((pillar) => pillar.score ?? 100));
   const score =
     weighted === null
       ? null
@@ -608,20 +619,23 @@ function buildNarrative(
   const measured = pillars.filter((pillar) => pillar.score !== null);
   if (score === null || measured.length === 0) return null;
 
-  const ranked = [...measured].sort(
-    (a, b) => (b.score ?? 0) - (a.score ?? 0),
-  );
+  const ranked = [...measured].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
   const best = ranked[0];
   const worst = ranked[ranked.length - 1];
 
   // Deliberately terse. The score, the day count and the signal count are all
   // already on screen next to this paragraph; restating them in prose is how a
   // summary turns into a wall nobody reads twice.
-  const sentences: string[] = []
+  const sentences: string[] = [];
 
   if (measured.length === 1) {
-    sentences.push(`${best.label} is all that is measured: ${pillarValue(best)}.`);
-  } else if (best.id === worst.id || (best.score ?? 0) - (worst.score ?? 0) < 12) {
+    sentences.push(
+      `${best.label} is all that is measured: ${pillarValue(best)}.`,
+    );
+  } else if (
+    best.id === worst.id ||
+    (best.score ?? 0) - (worst.score ?? 0) < 12
+  ) {
     sentences.push(`Nothing stands out either way — ${pillarValue(best)}.`);
   } else {
     sentences.push(

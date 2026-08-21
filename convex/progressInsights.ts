@@ -24,7 +24,11 @@ import {
 } from "./lib/programming";
 import { listRecoveryWindow } from "./lib/healthMetrics";
 import { summarizeRecovery } from "./lib/recovery";
-import { buildHistoryBlock, HISTORY_MONTHS, recentMonthKeys } from "./lib/history";
+import {
+  buildHistoryBlock,
+  HISTORY_MONTHS,
+  recentMonthKeys,
+} from "./lib/history";
 
 function shiftDateKey(dateKey: string, days: number) {
   const date = new Date(`${dateKey}T12:00:00Z`);
@@ -32,11 +36,7 @@ function shiftDateKey(dateKey: string, days: number) {
   return date.toISOString().slice(0, 10);
 }
 
-async function buildInsights(
-  ctx: QueryCtx,
-  userId: string,
-  today: string,
-) {
+async function buildInsights(ctx: QueryCtx, userId: string, today: string) {
   const [programmingLogs, recoveryRows, monthlySummaries] = await Promise.all([
     ctx.db
       .query("workoutLogs")

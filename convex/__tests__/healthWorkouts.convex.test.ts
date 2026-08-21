@@ -33,10 +33,7 @@ const LIFT = {
 };
 
 /** Health sync is consent-gated, so every test needs a profile that grants it. */
-async function grantConsent(
-  t: ReturnType<typeof convexTest>,
-  granted = true,
-) {
+async function grantConsent(t: ReturnType<typeof convexTest>, granted = true) {
   await t.mutation(api.users.onboarding.save, {
     age: 30,
     heightCm: 180,
@@ -63,9 +60,9 @@ describe("healthWorkouts", () => {
 
   test("list returns [] when unauthenticated", async () => {
     const t = convexTest(schema, modules);
-    await expect(
-      t.query(api.logs.healthWorkouts.list, {}),
-    ).resolves.toEqual([]);
+    await expect(t.query(api.logs.healthWorkouts.list, {})).resolves.toEqual(
+      [],
+    );
   });
 
   test("import refuses without wearable consent, even if the client asked", async () => {
@@ -328,9 +325,9 @@ describe("healthWorkouts", () => {
     const [row] = await user.query(api.logs.healthWorkouts.list, {});
 
     await user.mutation(api.logs.healthWorkouts.dismiss, { id: row._id });
-    await expect(
-      user.query(api.logs.healthWorkouts.list, {}),
-    ).resolves.toEqual([]);
+    await expect(user.query(api.logs.healthWorkouts.list, {})).resolves.toEqual(
+      [],
+    );
   });
 
   test("never crosses user boundaries", async () => {

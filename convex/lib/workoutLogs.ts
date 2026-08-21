@@ -25,7 +25,9 @@ export type WorkoutLogWrite = {
  * UTC-12…UTC+14 offset range accepts every legitimate client while still
  * rejecting a timestamp from an unrelated week.
  */
-function calendarDateWindow(date: string): { start: number; end: number } | null {
+function calendarDateWindow(
+  date: string,
+): { start: number; end: number } | null {
   const midnightUtc = Date.parse(`${date}T00:00:00Z`);
   if (!Number.isFinite(midnightUtc)) return null;
   const HOUR = 3_600_000;

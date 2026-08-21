@@ -23,8 +23,14 @@ describe("PWA install surface", () => {
       purpose: string
       type: string
     }>
-    expect(icons.some((icon) => icon.sizes === "512x512" && icon.purpose === "any")).toBe(true)
-    expect(icons.some((icon) => icon.sizes === "512x512" && icon.purpose === "maskable")).toBe(true)
+    expect(
+      icons.some((icon) => icon.sizes === "512x512" && icon.purpose === "any")
+    ).toBe(true)
+    expect(
+      icons.some(
+        (icon) => icon.sizes === "512x512" && icon.purpose === "maskable"
+      )
+    ).toBe(true)
 
     for (const icon of icons) {
       expect(icon.type).toBe("image/png")
@@ -50,9 +56,13 @@ describe("PWA install surface", () => {
 
   test("prevents stale workers and HTML fallback cache poisoning", () => {
     expect(headers).toContain("/sw.js")
-    expect(headers).toContain("Cache-Control: no-cache, no-store, must-revalidate")
+    expect(headers).toContain(
+      "Cache-Control: no-cache, no-store, must-revalidate"
+    )
     expect(headers).toContain("/assets/*")
-    expect(headers).toContain("Cache-Control: public, max-age=0, must-revalidate")
+    expect(headers).toContain(
+      "Cache-Control: public, max-age=0, must-revalidate"
+    )
     expect(headers).toContain("X-Content-Type-Options: nosniff")
   })
 })

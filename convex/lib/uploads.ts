@@ -28,7 +28,8 @@ export async function requireReadyUpload(
   if (!upload || upload.userId !== args.userId) {
     throw new Error("Upload not found or access denied");
   }
-  if (upload.purpose !== args.purpose) throw new Error("Invalid upload purpose");
+  if (upload.purpose !== args.purpose)
+    throw new Error("Invalid upload purpose");
   if (!upload.storageId) throw new Error("Upload is incomplete");
 
   if (upload.status === "attached" && args.attachment) {
@@ -98,4 +99,3 @@ export async function getUploadUrl(
   if (userId !== undefined && upload.userId !== userId) return null;
   return await ctx.storage.getUrl(upload.storageId);
 }
-

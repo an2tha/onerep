@@ -68,11 +68,15 @@ export const listRecent = query({
               .lte("date", access.endDate!),
           )
         : comments.withIndex("by_ownerUserId_and_date", (q) =>
-            q.eq("ownerUserId", access.ownerUserId).gte("date", access.startDate!),
+            q
+              .eq("ownerUserId", access.ownerUserId)
+              .gte("date", access.startDate!),
           )
       : access.endDate
         ? comments.withIndex("by_ownerUserId_and_date", (q) =>
-            q.eq("ownerUserId", access.ownerUserId).lte("date", access.endDate!),
+            q
+              .eq("ownerUserId", access.ownerUserId)
+              .lte("date", access.endDate!),
           )
         : comments.withIndex("by_ownerUserId_and_date", (q) =>
             q.eq("ownerUserId", access.ownerUserId),

@@ -288,10 +288,7 @@ describe("recoveryScore", () => {
   });
 
   test("an unknown status has no score rather than a bad one", () => {
-    const thin = summarizeRecovery(
-      [{ date: TODAY, sleepMinutes: 420 }],
-      TODAY,
-    );
+    const thin = summarizeRecovery([{ date: TODAY, sleepMinutes: 420 }], TODAY);
     expect(recoveryScore(thin)).toBeNull();
   });
 });

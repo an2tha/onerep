@@ -108,6 +108,7 @@ import {
   EnergyUnitProvider,
 } from "@repo/ui"
 import { useEnergyUnit } from "@/lib/use-energy-unit"
+import { AppVersionReport } from "@/components/app-version-report"
 import { Capacitor } from "@capacitor/core"
 import { App as CapacitorApp } from "@capacitor/app"
 import { completeNativeOAuth, isAuthDeepLink } from "@/lib/native-oauth"
@@ -1294,6 +1295,7 @@ createRoot(document.getElementById("root")!).render(
             <CoachPushRegistration />
             <MealCategorySync />
             <RetentionTracking />
+            <AppVersionReport />
             <EnergyUnitBridge>
               <RouterProvider router={router} />
             </EnergyUnitBridge>

@@ -2,11 +2,7 @@ import { useMemo } from "react"
 import { useQuery } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
 import { currentDateKey } from "@/lib/food-log"
-import {
-  type ChartPoint,
-  MetricBars,
-  MetricLine,
-} from "@/pages/health/shared"
+import { type ChartPoint, MetricBars, MetricLine } from "@/pages/health/shared"
 
 /**
  * Custom metrics, filed under the dial they belong to.
@@ -71,8 +67,7 @@ export function useCustomMetricsByDial(): {
   const today = currentDateKey()
   const dashboard = useQuery(api.logs.healthMetrics.dashboard, { today })
   const definitions = useQuery(api.customProgressMetrics.list, {}) as
-    | RawMetric[]
-    | undefined
+    RawMetric[] | undefined
 
   return useMemo(() => {
     const byDial: Record<string, CustomMetricRow[]> = {}

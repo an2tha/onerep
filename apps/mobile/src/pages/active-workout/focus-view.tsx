@@ -6,13 +6,7 @@
  */
 
 import { useState } from "react"
-import {
-  ArrowsOut,
-  CheckCircle,
-  Minus,
-  Plus,
-  X,
-} from "@phosphor-icons/react"
+import { ArrowsOut, CheckCircle, Minus, Plus, X } from "@phosphor-icons/react"
 import { RestTimerSheet, formatRestDuration as formatRest } from "@repo/ui"
 import { cn } from "@/lib/utils"
 import { formatElapsed, toDisplay } from "@/lib/workout-logging"
@@ -157,7 +151,7 @@ export function FocusWorkoutView({
         </button>
       </div>
 
-      <h2 className="mt-8 flex h-[4.4rem] items-center justify-center line-clamp-2 max-w-[20ch] text-[1.6rem] leading-tight font-semibold tracking-tight">
+      <h2 className="mt-8 line-clamp-2 flex h-[4.4rem] max-w-[20ch] items-center justify-center text-[1.6rem] leading-tight font-semibold tracking-tight">
         {exerciseName}
       </h2>
 
@@ -205,7 +199,9 @@ export function FocusWorkoutView({
             </>
           ) : isCardio ? (
             <>
-              <p className="text-[1.75rem] leading-tight font-semibold">Cardio</p>
+              <p className="text-[1.75rem] leading-tight font-semibold">
+                Cardio
+              </p>
               <p className="mt-2 max-w-[9rem] text-[14px] text-muted-foreground">
                 Log your details
               </p>
@@ -370,7 +366,6 @@ export function FocusWorkoutView({
         {doneSets} of {totalSets} sets done
         {nextExerciseName ? ` · next ${nextExerciseName}` : ""}
       </p>
-
 
       {showWeight && set && (
         <WeightSelectorSheet

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { readCachedWeightUnit } from "@/lib/use-weight-unit"
 import { useEnergyUnit } from "@/lib/use-energy-unit"
+import { energyDisplay } from "@repo/ui"
 import { useLocation } from "react-router"
 import {
   ArrowRight,
@@ -258,7 +259,9 @@ type OnboardingSnapshot = {
  * greets them at stage one like nothing happened. Every field is re-validated:
  * localStorage survives app updates and whatever the user's other tabs did.
  */
-function parseOnboardingSnapshot(raw: string | null): OnboardingSnapshot | null {
+function parseOnboardingSnapshot(
+  raw: string | null
+): OnboardingSnapshot | null {
   if (!raw) return null
   let value: Record<string, unknown>
   try {
@@ -343,7 +346,10 @@ function CoachPreviewExchange() {
         Logged a chicken rice bowl. What's left today?
       </figcaption>
       <div className="onboarding-coach-preview-reply">
-        <p>That bowl is about 520 {energyUnit}. Here's the rest of your day.</p>
+        <p>
+          That bowl is about {energyDisplay(520, energyUnit)} {energyUnit}.
+          Here's the rest of your day.
+        </p>
         <dl className="onboarding-coach-preview-stats">
           <div>
             <dt>Calories left</dt>
@@ -434,7 +440,8 @@ function describeImportFile(file: ImportPreviewFileView): string {
   }
   const parts: string[] = []
   if (file.workouts > 0) parts.push(countNoun(file.workouts, "workout"))
-  if (file.measurements > 0) parts.push(countNoun(file.measurements, "check-in"))
+  if (file.measurements > 0)
+    parts.push(countNoun(file.measurements, "check-in"))
   if (parts.length === 0) return "Nothing usable in here."
   const range =
     file.firstDate && file.lastDate && file.firstDate !== file.lastDate
@@ -729,9 +736,9 @@ export function OnboardingMobile() {
     clearAttachment: clearSetupAttachment,
     openImagePicker: openSetupImagePicker,
   } = useCoachAttachment()
-  const [importBusy, setImportBusy] = useState<
-    "reading" | "importing" | null
-  >(null)
+  const [importBusy, setImportBusy] = useState<"reading" | "importing" | null>(
+    null
+  )
   const [importPreview, setImportPreview] = useState<ImportPreviewView | null>(
     null
   )
@@ -838,7 +845,9 @@ export function OnboardingMobile() {
       weightKg: snapshot?.weightKg ?? nextWeight,
       heightCm: mergedHeight,
       activityLevel: snapshot?.activityLevel ?? nextActivity,
-      goal: mergedGoal ? mapOnboardingGoalToCalorieGoal(mergedGoal) : "maintain",
+      goal: mergedGoal
+        ? mapOnboardingGoalToCalorieGoal(mergedGoal)
+        : "maintain",
     })
     setConsent(
       snapshot?.consent ??
@@ -1056,7 +1065,9 @@ export function OnboardingMobile() {
       : safetyFlags
           .map((flag) => selectedLabel(safetyOptions, flag))
           .join(", ") || "None of these",
-    import: importResult ? describeImportResult(importResult) : "Starting fresh",
+    import: importResult
+      ? describeImportResult(importResult)
+      : "Starting fresh",
     assistant: setupUsed > 0 ? "That's all for now" : "Skip for now",
   }
 
@@ -1075,7 +1086,8 @@ export function OnboardingMobile() {
     // After editing an earlier answer, one tap puts them back where they
     // were. The stages between still hold their answers; nobody needs to
     // watch themselves re-give them.
-    const target = returnStage !== null && returnStage > next ? returnStage : next
+    const target =
+      returnStage !== null && returnStage > next ? returnStage : next
     if (returnStage !== null && target >= returnStage) setReturnStage(null)
     setStage(target)
   }
@@ -1122,7 +1134,11 @@ export function OnboardingMobile() {
       const uploadIds: Id<"fileUploads">[] = []
       for (const file of files) {
         uploadIds.push(
-          await uploadOwnedFile(withImportMimeType(file), "data_import", file.name)
+          await uploadOwnedFile(
+            withImportMimeType(file),
+            "data_import",
+            file.name
+          )
         )
       }
       const result = (await previewImportFiles({
@@ -1484,7 +1500,10 @@ export function OnboardingMobile() {
     // Never fail silently here — a mute return leaves "Start training" looking
     // broken with no way back. Send them to whatever answer went missing.
     const missing = !draft.goal
-      ? { stage: "goal" as StageId, message: "Pick a goal first — tap it below." }
+      ? {
+          stage: "goal" as StageId,
+          message: "Pick a goal first — tap it below.",
+        }
       : !experienceLevel
         ? {
             stage: "experience" as StageId,
@@ -1882,8 +1901,8 @@ export function OnboardingMobile() {
               <span>
                 One catch: this server doesn't have an AI key of its own, so I
                 can't build anything just yet. After setup, paste your own
-                OpenRouter key in Settings and all of this works — on your
-                key, with no monthly cap.
+                OpenRouter key in Settings and all of this works — on your key,
+                with no monthly cap.
               </span>
             </div>
           )}
@@ -2050,7 +2069,12 @@ export function OnboardingMobile() {
           <div className="onboarding-review-hero">
             <p className="native-supporting">Calories</p>
             <p className="native-summary-value mt-1 tabular-nums">
-              {preview?.targetCalories?.toLocaleString() ?? "Calculating…"}
+              {preview?.targetCalories != null
+                ? energyDisplay(
+                    preview.targetCalories,
+                    energyUnit
+                  ).toLocaleString()
+                : "Calculating…"}
               {preview?.targetCalories != null ? ` ${energyUnit}` : ""}
             </p>
             <p className="native-row-detail mt-2">
@@ -2061,7 +2085,9 @@ export function OnboardingMobile() {
           {[
             [
               "Maintenance estimate",
-              preview ? `${preview.tdee.toLocaleString()} ${energyUnit}` : "—",
+              preview
+                ? `${energyDisplay(preview.tdee, energyUnit).toLocaleString()} ${energyUnit}`
+                : "—",
             ],
             ["Protein", preview ? `${preview.protein} g` : "—"],
             ["Carbohydrates", preview ? `${preview.carbs} g` : "—"],

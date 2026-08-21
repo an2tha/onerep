@@ -17,6 +17,7 @@ import {
 import { api } from "../../../../../convex/_generated/api"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { useEnergyUnit, type EnergyUnit } from "@/lib/use-energy-unit"
+import { energyDisplay } from "@repo/ui"
 import { hapticMedium, hapticSelection } from "@/lib/haptics"
 import { createClientId, logDevWarn } from "@/lib/utils"
 import { recipeTotals } from "@/lib/coach-chat"
@@ -65,8 +66,8 @@ function macroLine(
   const calories = Math.round(entry.calories ?? 0)
   const protein = Math.round(entry.protein ?? 0)
   return protein > 0
-    ? `${calories} ${energyUnit} · ${protein}g protein`
-    : `${calories} ${energyUnit}`
+    ? `${energyDisplay(calories, energyUnit)} ${energyUnit} · ${protein}g protein`
+    : `${energyDisplay(calories, energyUnit)} ${energyUnit}`
 }
 
 const ICONS = {
@@ -414,7 +415,7 @@ export function QuickFoodStep({
                     detail={[
                       item.brand,
                       item.serving,
-                      `${Math.round(item.calories)} ${energyUnit}`,
+                      `${energyDisplay(item.calories, energyUnit)} ${energyUnit}`,
                     ]
                       .filter(Boolean)
                       .join(" · ")}

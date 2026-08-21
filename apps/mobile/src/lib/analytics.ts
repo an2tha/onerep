@@ -35,7 +35,8 @@ function sanitizeUmamiData(properties: Record<string, unknown>) {
   for (const [key, value] of Object.entries(properties)) {
     if (value === undefined || value === null) continue
     if (typeof value === "string") data[key] = value.slice(0, 100)
-    else if (typeof value === "number" && Number.isFinite(value)) data[key] = value
+    else if (typeof value === "number" && Number.isFinite(value))
+      data[key] = value
     else if (typeof value === "boolean") data[key] = value
   }
   return data
@@ -53,15 +54,15 @@ function sanitizeUmamiData(properties: Record<string, unknown>) {
  * The script is loaded `defer` from a self-hosted host that a blocker will
  * happily eat, so `window.umami` may never appear. That is fine and silent.
  */
-export function trackUmami(event: string, properties?: Record<string, unknown>) {
+export function trackUmami(
+  event: string,
+  properties?: Record<string, unknown>
+) {
   if (typeof window === "undefined") return false
   const umami = window.umami
   if (!umami?.track) return false
   try {
-    umami.track(
-      event,
-      properties ? sanitizeUmamiData(properties) : undefined
-    )
+    umami.track(event, properties ? sanitizeUmamiData(properties) : undefined)
     return true
   } catch {
     return false
@@ -77,7 +78,10 @@ export function trackUmami(event: string, properties?: Record<string, unknown>) 
  * pageview table. Nothing can be done about that from here, but a screen event
  * keyed on the pattern gives numbers that are actually groupable.
  */
-export function routePattern(pathname: string, params: Record<string, string | undefined>) {
+export function routePattern(
+  pathname: string,
+  params: Record<string, string | undefined>
+) {
   let pattern = pathname
   for (const [key, value] of Object.entries(params)) {
     if (!value) continue

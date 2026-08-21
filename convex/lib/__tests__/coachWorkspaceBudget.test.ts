@@ -70,8 +70,14 @@ function oversizedWorkspace() {
       date: "2026-08-01",
       energy: 3,
     })),
-    water: Array.from({ length: 14 }, () => ({ date: "2026-08-01", totalMl: 2000 })),
-    fasting: Array.from({ length: 14 }, () => ({ startDate: "2026-08-01", hours: 16 })),
+    water: Array.from({ length: 14 }, () => ({
+      date: "2026-08-01",
+      totalMl: 2000,
+    })),
+    fasting: Array.from({ length: 14 }, () => ({
+      startDate: "2026-08-01",
+      hours: 16,
+    })),
     supplementAdherence: { days: [], bySupplement: [] },
   };
 }
@@ -96,13 +102,13 @@ describe("fitWorkspaceToBudget", () => {
   test("trims an oversized workspace under the cap", () => {
     const workspace = oversizedWorkspace();
     expect(JSON.stringify(workspace).length).toBeGreaterThan(
-      MAX_WORKSPACE_CHARS
+      MAX_WORKSPACE_CHARS,
     );
 
     const result = fitWorkspaceToBudget(workspace);
 
     expect(JSON.stringify(result).length).toBeLessThanOrEqual(
-      MAX_WORKSPACE_CHARS
+      MAX_WORKSPACE_CHARS,
     );
     expect(result.truncated.length).toBeGreaterThan(0);
   });

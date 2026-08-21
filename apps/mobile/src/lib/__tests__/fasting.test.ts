@@ -71,7 +71,9 @@ describe("elapsed and remaining", () => {
   })
 
   test("progress passes 1 once the target is exceeded", () => {
-    expect(fastProgress(startedAt, 60, startedAt + 30 * 60_000)).toBeCloseTo(0.5)
+    expect(fastProgress(startedAt, 60, startedAt + 30 * 60_000)).toBeCloseTo(
+      0.5
+    )
     expect(fastProgress(startedAt, 60, startedAt + 2 * HOUR)).toBeCloseTo(2)
   })
 
@@ -167,7 +169,10 @@ describe("fastingStats", () => {
 
   test("a fast ending yesterday keeps today's streak alive", () => {
     // Today may simply not be over yet — that should not reset the run.
-    const stats = fastingStats([session({ endDate: "2026-07-30" })], "2026-07-31")
+    const stats = fastingStats(
+      [session({ endDate: "2026-07-30" })],
+      "2026-07-31"
+    )
     expect(stats.currentStreakDays).toBe(1)
   })
 
@@ -180,7 +185,9 @@ describe("fastingStats", () => {
   })
 
   test("malformed input does not throw", () => {
-    expect(fastingStats(undefined as never, "2026-07-31").totalCompleted).toBe(0)
+    expect(fastingStats(undefined as never, "2026-07-31").totalCompleted).toBe(
+      0
+    )
     expect(
       fastingStats([session({ endedAt: Number.NaN })], "2026-07-31")
         .totalCompleted

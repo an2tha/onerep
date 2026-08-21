@@ -17,7 +17,10 @@ const MEAL_PREP_SOURCE = readFileSync(
   new URL("./MealPrep.tsx", import.meta.url),
   "utf8"
 )
-const MAIN_SOURCE = readFileSync(new URL("../main.tsx", import.meta.url), "utf8")
+const MAIN_SOURCE = readFileSync(
+  new URL("../main.tsx", import.meta.url),
+  "utf8"
+)
 // Task-route registration lives with the navigation helpers, not the router.
 const NAVIGATION_SOURCE = readFileSync(
   new URL("../lib/navigation.ts", import.meta.url),

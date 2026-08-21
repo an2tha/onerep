@@ -76,8 +76,8 @@ describe("sparklinePoints", () => {
   test("two values span full width", () => {
     const pts = sparklinePoints([10, 20], 240, 96)
     const [first, second] = pts.split(" ")
-    expect(first.split(",")[0]).toBe("0")       // leftmost x = 0
-    expect(second.split(",")[0]).toBe("240")    // rightmost x = width
+    expect(first.split(",")[0]).toBe("0") // leftmost x = 0
+    expect(second.split(",")[0]).toBe("240") // rightmost x = width
   })
 
   test("minimum value is at the bottom (max y)", () => {

@@ -32,7 +32,10 @@ import {
 const RECOMPUTE_MONTHS = 2;
 
 function monthBounds(month: string) {
-  return { start: `${month}-01`, end: `${month}-${String(daysInMonth(month)).padStart(2, "0")}` };
+  return {
+    start: `${month}-01`,
+    end: `${month}-${String(daysInMonth(month)).padStart(2, "0")}`,
+  };
 }
 
 /** The months a recompute should touch, newest last. */
@@ -80,7 +83,9 @@ export const recomputeMonths = internalMutation({
         })),
         workouts: workouts.map((log) => ({
           date: log.date,
-          exercises: (Array.isArray(log.exercises) ? log.exercises : []) as Array<{
+          exercises: (Array.isArray(log.exercises)
+            ? log.exercises
+            : []) as Array<{
             sets?: Array<{ completed?: boolean; type?: string }>;
           }>,
         })),

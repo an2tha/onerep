@@ -232,8 +232,7 @@ export function buildHealthSeries({
     steps: (date) => byDate.get(date)?.steps ?? null,
     energy: (date) => byDate.get(date)?.activeEnergyKcal ?? null,
     hrv: (date) => byDate.get(date)?.hrvMs ?? null,
-    restingHeartRate: (date) =>
-      byDate.get(date)?.restingHeartRateBpm ?? null,
+    restingHeartRate: (date) => byDate.get(date)?.restingHeartRateBpm ?? null,
     recovery: (date) => recoveries[date] ?? null,
     // Exercise is the one metric where an absent day is a real zero: the
     // health store records every session, so "no row" means "did not train".

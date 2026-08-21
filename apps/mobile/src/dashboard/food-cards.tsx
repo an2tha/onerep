@@ -9,6 +9,7 @@ import {
 import { Card, CardTitle, MACRO_COLORS, SlideToDeleteRow } from "@repo/ui"
 import { cn } from "@/lib/utils"
 import { useEnergyUnit } from "@/lib/use-energy-unit"
+import { energyDisplay } from "@repo/ui"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { DEFAULT_MEAL_CATEGORIES, type FoodLogEntry } from "@/lib/food-log"
 import { DateNav } from "./date-nav"
@@ -103,7 +104,7 @@ export function CalorieCard({
             <div className="flex items-end justify-between">
               <div>
                 <span className="text-[1.5rem] leading-none font-bold tracking-tight tabular-nums">
-                  {fmtKcal(consumed)}
+                  {fmtKcal(energyDisplay(consumed, energyUnit))}
                 </span>
                 <span className="ml-1 text-[11px] text-muted-foreground/50">
                   {energyUnit}
@@ -384,7 +385,7 @@ export function LoggedTodayCard({
                       {cfg.label}
                     </span>
                     <span className="text-[9.5px] text-muted-foreground/35 tabular-nums">
-                      {gKcal} {energyUnit}
+                      {energyDisplay(gKcal, energyUnit)} {energyUnit}
                     </span>
                   </div>
                   {ge.map((entry) => (
@@ -409,7 +410,7 @@ export function LoggedTodayCard({
                   </span>
                 )}
                 <span className="text-[14px] font-semibold tabular-nums">
-                  {total.kcal}
+                  {energyDisplay(total.kcal, energyUnit)}
                   <span className="ml-0.5 text-[10px] font-normal text-muted-foreground/45">
                     {" "}
                     {energyUnit}
@@ -546,7 +547,7 @@ export function CalorieSmall({
         >
           <div className="flex items-baseline gap-1">
             <span className="text-[1.35rem] leading-none font-bold tracking-tight tabular-nums">
-              {fmtKcal(consumed)}
+              {fmtKcal(energyDisplay(consumed, energyUnit))}
             </span>
             <span className="text-[9.5px] text-muted-foreground/40">
               {energyUnit}
@@ -581,7 +582,7 @@ export function CalorieSmall({
           {/* Calories hero */}
           <div className="flex items-baseline gap-1">
             <span className="text-[1.4rem] leading-none font-bold tracking-tight tabular-nums">
-              {fmtKcal(consumed)}
+              {fmtKcal(energyDisplay(consumed, energyUnit))}
             </span>
             <span className="text-[10px] text-muted-foreground/50">
               {energyUnit}
@@ -787,7 +788,7 @@ export function FoodSmall({
         >
           <div className="flex items-baseline gap-1">
             <span className="text-[1.35rem] leading-none font-bold tracking-tight tabular-nums">
-              {fmtKcal(total)}
+              {fmtKcal(energyDisplay(total, energyUnit))}
             </span>
             <span className="text-[9.5px] text-muted-foreground/40">
               {energyUnit}
@@ -848,7 +849,11 @@ export function FoodSmall({
                         {cfg.label}
                       </span>
                       <span className="text-[8.5px] text-muted-foreground/30 tabular-nums">
-                        {ge.reduce((s, e) => s + e.calories, 0)} {energyUnit}
+                        {energyDisplay(
+                          ge.reduce((s, e) => s + e.calories, 0),
+                          energyUnit
+                        )}{" "}
+                        {energyUnit}
                       </span>
                     </div>
                     {ge.map((entry) => (
@@ -874,7 +879,7 @@ export function FoodSmall({
                   </span>
                   <div className="flex items-baseline gap-2">
                     <span className="text-[12px] font-bold tabular-nums">
-                      {total}
+                      {energyDisplay(total, energyUnit)}
                     </span>
                     <span className="text-[9px] text-muted-foreground/40">
                       {energyUnit}

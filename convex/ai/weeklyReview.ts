@@ -181,10 +181,13 @@ export const enqueueDue = internalAction({
 
       for (const candidate of batch.due) {
         if (scheduled >= MAX_PER_SWEEP) break;
-        const existing = await ctx.runQuery(internal.ai.weeklyReview.findReview, {
-          userId: candidate.userId,
-          weekStart: candidate.weekStart,
-        });
+        const existing = await ctx.runQuery(
+          internal.ai.weeklyReview.findReview,
+          {
+            userId: candidate.userId,
+            weekStart: candidate.weekStart,
+          },
+        );
         if (existing) continue;
         // Spread the fan-out: five hundred simultaneous model calls is a rate
         // limit, not a feature.
@@ -391,7 +394,9 @@ export const generateForUser = internalAction({
       ? {
           headline: previous.headline,
           focus: previous.focus ?? null,
-          proposals: (previous.proposedOperations as Array<{ summary?: string }>)
+          proposals: (
+            previous.proposedOperations as Array<{ summary?: string }>
+          )
             .map((operation, index) => ({
               summary: operation.summary ?? "(unlabelled proposal)",
               outcome: previous.appliedOperations.includes(index)
@@ -420,8 +425,7 @@ export const generateForUser = internalAction({
               "at most three sentences, each at most 22 words, specific",
             ],
             focus: "one sentence naming one change for next week",
-            digest:
-              "one sentence worth remembering in six months, or omit it",
+            digest: "one sentence worth remembering in six months, or omit it",
             proposedOperations: [
               {
                 type: "create_workout_preset | create_workout_plan | update_routine | save_goal | save_weekly_plan",

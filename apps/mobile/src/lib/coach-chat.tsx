@@ -283,7 +283,7 @@ export type CoachOperation = CoachOperationMeta &
         fat?: number
         waterMl?: number
       }
-  | {
+    | {
         type: "undo_action"
         actionId: string
         actionSummary: string
@@ -1440,14 +1440,18 @@ export function CoachProposal({
   // approved together — so the preview shows every one of them in full rather
   // than four lines of summary the user has to take on trust.
   const recipes = operations.filter(
-    (operation): operation is Extract<CoachOperation, { type: "save_recipe" }> =>
+    (
+      operation
+    ): operation is Extract<CoachOperation, { type: "save_recipe" }> =>
       operation.type === "save_recipe"
   )
 
   if (recipes.length > 0 && recipes.length === operations.length) {
     const single = recipes.length === 1 ? recipes[0] : null
     const isEdit = Boolean(single?.recipeId)
-    const assumptions = [...new Set(recipes.flatMap((item) => item.assumptions))]
+    const assumptions = [
+      ...new Set(recipes.flatMap((item) => item.assumptions)),
+    ]
     const warnings = [...new Set(recipes.flatMap((item) => item.warnings))]
     return (
       <section className="coach-generated-content mt-5 border-y border-border/55 py-5">

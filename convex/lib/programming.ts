@@ -406,7 +406,9 @@ export function assessDeload(
     return { recommended: false, reason: "" };
   }
 
-  const regressing = stuck.filter((lift) => lift.status === "regressing").length;
+  const regressing = stuck.filter(
+    (lift) => lift.status === "regressing",
+  ).length;
   const names = stuck
     .slice(0, 3)
     .map((lift) => lift.name)

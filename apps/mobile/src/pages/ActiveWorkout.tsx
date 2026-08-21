@@ -522,7 +522,8 @@ export default function ActiveWorkout() {
     formCoachDraft?.phase === "recording" && formCoachDraft.clips.length === 0
   useEffect(() => {
     if (!formCoachOpening || aiAccessLoading) return
-    if (!requireAiAccess(FORM_COACH_AI_COST, "form_coach")) clearFormCoachDraft()
+    if (!requireAiAccess(FORM_COACH_AI_COST, "form_coach"))
+      clearFormCoachDraft()
   }, [formCoachOpening, aiAccessLoading, requireAiAccess])
 
   const presets = useQuery(api.logs.presets.list, {})
@@ -1461,7 +1462,8 @@ export default function ActiveWorkout() {
   async function handleAskCoachForWorkout(
     text: string
   ): Promise<CoachWorkoutProposal> {
-    if (!requireAiAccess(1, "workout_coach_ask")) throw new Error("Coach access is required.")
+    if (!requireAiAccess(1, "workout_coach_ask"))
+      throw new Error("Coach access is required.")
     if (!text.trim()) throw new Error("Tell Coach what you need first.")
     if (aiUpdatingRef.current || aiUpdating) {
       throw new Error("Coach is already working on your plan.")
@@ -2208,7 +2210,7 @@ export default function ActiveWorkout() {
 
   return (
     <div
-      className="desktop-canvas min-h-svh bg-background [scrollbar-gutter:stable] md:px-8"
+      className="desktop-canvas min-h-svh [scrollbar-gutter:stable] bg-background md:px-8"
       style={{ viewTransitionName: "active-workout" }}
     >
       {achievementMessage && (
@@ -2223,224 +2225,224 @@ export default function ActiveWorkout() {
       )}
       <div className="mx-auto flex w-full max-w-2xl flex-col pb-[calc(var(--app-safe-bottom-lg)+7rem)] md:pb-12">
         {!simpleViewActive && (
-        <header className="active-workout-header-enter workout-live-header sticky top-0 z-30 border-b border-border bg-background/95 px-[var(--app-page-x)] backdrop-blur-xl md:px-0">
-          <div
-            className="flex items-center gap-2"
-            style={{
-              paddingTop:
-                "max(0.75rem, calc(env(safe-area-inset-top, 0px) + 0.5rem))",
-              paddingBottom: "0.65rem",
-            }}
-          >
-            <button
-              type="button"
-              aria-label="Discard or leave workout"
-              onClick={() => setConfirmAbort(true)}
-              className="motion-tactile inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-transparent text-muted-foreground active:text-foreground"
+          <header className="active-workout-header-enter workout-live-header sticky top-0 z-30 border-b border-border bg-background/95 px-[var(--app-page-x)] backdrop-blur-xl md:px-0">
+            <div
+              className="flex items-center gap-2"
+              style={{
+                paddingTop:
+                  "max(0.75rem, calc(env(safe-area-inset-top, 0px) + 0.5rem))",
+                paddingBottom: "0.65rem",
+              }}
             >
-              <X size={22} weight="bold" />
-            </button>
-            {!isRetro && (
               <button
                 type="button"
-                aria-label={
-                  simpleView
-                    ? "Switch to expanded view"
-                    : "Switch to simple view"
-                }
-                aria-pressed={simpleView}
-                onClick={() => {
-                  hapticSelection()
-                  const next = !simpleView
-                  setSimpleView(next)
-                  safeLocalStorageSet(SIMPLE_VIEW_KEY, String(next))
-                }}
+                aria-label="Discard or leave workout"
+                onClick={() => setConfirmAbort(true)}
                 className="motion-tactile inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-transparent text-muted-foreground active:text-foreground"
               >
-                {simpleView ? (
-                  <Rows size={20} weight="bold" />
-                ) : (
-                  <Square size={20} weight="bold" />
-                )}
+                <X size={22} weight="bold" />
               </button>
-            )}
-            <div
-              className={cn(
-                "min-w-0 flex-1 text-center transition-opacity duration-300",
-                // The notch pill floats exactly here while resting; the header
-                // readout yields rather than showing through behind it.
-                !isRetro &&
-                  simpleView &&
-                  rest.remaining !== null &&
-                  "opacity-0"
-              )}
-            >
-              <p className="text-[12px] font-semibold text-muted-foreground">
-                {isRetro
-                  ? retroMode === "edit"
-                    ? "Editing"
-                    : "Logging"
-                  : simpleView
-                    ? "Elapsed"
-                    : rest.remaining !== null
-                      ? "Rest"
-                      : "Elapsed"}
-              </p>
-              <p
-                key={
-                  isRetro
-                    ? "retro"
-                    : !simpleView && rest.remaining !== null
-                      ? "rest"
-                      : "workout"
-                }
-                className={cn(
-                  "active-workout-timer-mode mt-1 leading-none font-semibold tracking-tight tabular-nums",
-                  isRetro
-                    ? "text-[1.5rem] md:text-[1.75rem]"
-                    : "text-[2rem] md:text-[2.25rem]"
-                )}
-              >
-                {isRetro
-                  ? formatRetroDateLabel(retroDate)
-                  : simpleView && rest.remaining !== null
-                    ? formatElapsed(elapsed)
-                    : formatElapsed(rest.remaining ?? elapsed)}
-              </p>
-            </div>
-            {isRetro ? (
-              <button
-                type="button"
-                onClick={() => setBrainDumpOpen(true)}
-                aria-label="Describe your workout"
-                className="motion-tactile inline-flex h-11 shrink-0 items-center gap-1.5 rounded-xl bg-muted px-3 text-[13px] font-semibold text-foreground"
-              >
-                <Sparkle size={16} weight="bold" />
-                Describe
-              </button>
-            ) : !simpleView && rest.remaining !== null ? (
-              <button
-                onClick={rest.dismiss}
-                className="motion-tactile h-11 shrink-0 rounded-xl bg-muted px-4 text-[13px] font-extrabold text-foreground"
-              >
-                Skip
-              </button>
-            ) : (
-              <button
-                onClick={completeNextSet}
-                className={cn(
-                  "motion-tactile min-h-11 shrink-0 rounded-xl px-4 text-[13px] font-semibold transition-colors",
-                  nextTarget?.kind === "set"
-                    ? "border border-border bg-card text-foreground"
-                    : totalSets > 0
-                      ? "bg-foreground text-background"
-                      : "border border-border bg-card text-foreground"
-                )}
-              >
-                {nextTarget?.kind === "set"
-                  ? "Complete set"
-                  : totalSets > 0
-                    ? "Finish"
-                    : "Add"}
-              </button>
-            )}
-            <div
-              className="flex h-11 shrink-0 overflow-hidden rounded-lg border border-border text-[13px] font-semibold"
-              role="group"
-              aria-label="Weight unit"
-            >
-              {(["kg", "lbs"] as WeightUnit[]).map((u) => (
-                <button
-                  key={u}
-                  onClick={() => setUnit(u)}
-                  aria-pressed={unit === u}
-                  className={cn(
-                    "motion-tactile min-w-10 px-2.5 md:min-w-12 md:px-3",
-                    unit === u
-                      ? "bg-foreground text-background"
-                      : "text-muted-foreground active:bg-muted active:text-foreground"
-                  )}
-                >
-                  {u}
-                </button>
-              ))}
-            </div>
-          </div>
-          <section
-            className={cn(
-              "border-t border-border/60 py-3",
-              completedPulseKey && "motion-success-pop"
-            )}
-          >
-            <div className="flex items-center gap-3">
-              {workoutSyncStatus === "error" && (
+              {!isRetro && (
                 <button
                   type="button"
-                  onClick={() => syncToConvex({ immediate: true })}
-                  className="motion-tactile min-h-11 shrink-0 rounded-[10px] border border-destructive/30 bg-destructive/10 px-3 text-[13px] font-extrabold text-destructive"
-                  aria-label="Save workout again"
+                  aria-label={
+                    simpleView
+                      ? "Switch to expanded view"
+                      : "Switch to simple view"
+                  }
+                  aria-pressed={simpleView}
+                  onClick={() => {
+                    hapticSelection()
+                    const next = !simpleView
+                    setSimpleView(next)
+                    safeLocalStorageSet(SIMPLE_VIEW_KEY, String(next))
+                  }}
+                  className="motion-tactile inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-transparent text-muted-foreground active:text-foreground"
                 >
-                  Retry
+                  {simpleView ? (
+                    <Rows size={20} weight="bold" />
+                  ) : (
+                    <Square size={20} weight="bold" />
+                  )}
                 </button>
               )}
               <div
-                className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-muted"
-                role="progressbar"
-                aria-label="Workout completion"
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-valuenow={
-                  totalSets > 0 ? Math.round((doneSets / totalSets) * 100) : 0
-                }
+                className={cn(
+                  "min-w-0 flex-1 text-center transition-opacity duration-300",
+                  // The notch pill floats exactly here while resting; the header
+                  // readout yields rather than showing through behind it.
+                  !isRetro &&
+                    simpleView &&
+                    rest.remaining !== null &&
+                    "opacity-0"
+                )}
               >
-                <div
-                  className="motion-progress-fill h-full rounded-full bg-primary/55"
-                  style={{ width: progressPct }}
-                />
-              </div>
-              <span className="shrink-0 text-[13px] font-medium text-muted-foreground tabular-nums">
-                {progressPct}
-              </span>
-            </div>
-            <div className="mt-2 flex min-w-0 items-center justify-center gap-2 text-[13px] font-medium text-muted-foreground">
-              <button
-                type="button"
-                onClick={goToActiveSet}
-                disabled={!nextTarget}
-                aria-label={
-                  nextTarget
-                    ? `Go to active set: ${activeExerciseName}, ${activeSetContext}`
-                    : undefined
-                }
-                className="min-w-0 truncate active:text-foreground disabled:pointer-events-none"
-              >
-                {uniqueExerciseIds.length > 0
-                  ? `${activeExerciseIndex}/${uniqueExerciseIds.length} · ${nextSetLabel}`
-                  : "Active workout"}
-              </button>
-              {slot === 2 && (
-                <span className="shrink-0 text-[13px] text-muted-foreground">
-                  Second workout
-                </span>
-              )}
-              {workoutSyncStatus !== "idle" && (
-                <span
-                  role="status"
-                  aria-live="polite"
-                  title={workoutSyncError || undefined}
+                <p className="text-[12px] font-semibold text-muted-foreground">
+                  {isRetro
+                    ? retroMode === "edit"
+                      ? "Editing"
+                      : "Logging"
+                    : simpleView
+                      ? "Elapsed"
+                      : rest.remaining !== null
+                        ? "Rest"
+                        : "Elapsed"}
+                </p>
+                <p
+                  key={
+                    isRetro
+                      ? "retro"
+                      : !simpleView && rest.remaining !== null
+                        ? "rest"
+                        : "workout"
+                  }
                   className={cn(
-                    "shrink-0 text-[13px]",
-                    workoutSyncStatus === "error"
-                      ? "text-destructive"
-                      : "text-muted-foreground"
+                    "active-workout-timer-mode mt-1 leading-none font-semibold tracking-tight tabular-nums",
+                    isRetro
+                      ? "text-[1.5rem] md:text-[1.75rem]"
+                      : "text-[2rem] md:text-[2.25rem]"
                   )}
                 >
-                  {workoutSyncLabel}
-                </span>
+                  {isRetro
+                    ? formatRetroDateLabel(retroDate)
+                    : simpleView && rest.remaining !== null
+                      ? formatElapsed(elapsed)
+                      : formatElapsed(rest.remaining ?? elapsed)}
+                </p>
+              </div>
+              {isRetro ? (
+                <button
+                  type="button"
+                  onClick={() => setBrainDumpOpen(true)}
+                  aria-label="Describe your workout"
+                  className="motion-tactile inline-flex h-11 shrink-0 items-center gap-1.5 rounded-xl bg-muted px-3 text-[13px] font-semibold text-foreground"
+                >
+                  <Sparkle size={16} weight="bold" />
+                  Describe
+                </button>
+              ) : !simpleView && rest.remaining !== null ? (
+                <button
+                  onClick={rest.dismiss}
+                  className="motion-tactile h-11 shrink-0 rounded-xl bg-muted px-4 text-[13px] font-extrabold text-foreground"
+                >
+                  Skip
+                </button>
+              ) : (
+                <button
+                  onClick={completeNextSet}
+                  className={cn(
+                    "motion-tactile min-h-11 shrink-0 rounded-xl px-4 text-[13px] font-semibold transition-colors",
+                    nextTarget?.kind === "set"
+                      ? "border border-border bg-card text-foreground"
+                      : totalSets > 0
+                        ? "bg-foreground text-background"
+                        : "border border-border bg-card text-foreground"
+                  )}
+                >
+                  {nextTarget?.kind === "set"
+                    ? "Complete set"
+                    : totalSets > 0
+                      ? "Finish"
+                      : "Add"}
+                </button>
               )}
+              <div
+                className="flex h-11 shrink-0 overflow-hidden rounded-lg border border-border text-[13px] font-semibold"
+                role="group"
+                aria-label="Weight unit"
+              >
+                {(["kg", "lbs"] as WeightUnit[]).map((u) => (
+                  <button
+                    key={u}
+                    onClick={() => setUnit(u)}
+                    aria-pressed={unit === u}
+                    className={cn(
+                      "motion-tactile min-w-10 px-2.5 md:min-w-12 md:px-3",
+                      unit === u
+                        ? "bg-foreground text-background"
+                        : "text-muted-foreground active:bg-muted active:text-foreground"
+                    )}
+                  >
+                    {u}
+                  </button>
+                ))}
+              </div>
             </div>
-          </section>
-        </header>
+            <section
+              className={cn(
+                "border-t border-border/60 py-3",
+                completedPulseKey && "motion-success-pop"
+              )}
+            >
+              <div className="flex items-center gap-3">
+                {workoutSyncStatus === "error" && (
+                  <button
+                    type="button"
+                    onClick={() => syncToConvex({ immediate: true })}
+                    className="motion-tactile min-h-11 shrink-0 rounded-[10px] border border-destructive/30 bg-destructive/10 px-3 text-[13px] font-extrabold text-destructive"
+                    aria-label="Save workout again"
+                  >
+                    Retry
+                  </button>
+                )}
+                <div
+                  className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-muted"
+                  role="progressbar"
+                  aria-label="Workout completion"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={
+                    totalSets > 0 ? Math.round((doneSets / totalSets) * 100) : 0
+                  }
+                >
+                  <div
+                    className="motion-progress-fill h-full rounded-full bg-primary/55"
+                    style={{ width: progressPct }}
+                  />
+                </div>
+                <span className="shrink-0 text-[13px] font-medium text-muted-foreground tabular-nums">
+                  {progressPct}
+                </span>
+              </div>
+              <div className="mt-2 flex min-w-0 items-center justify-center gap-2 text-[13px] font-medium text-muted-foreground">
+                <button
+                  type="button"
+                  onClick={goToActiveSet}
+                  disabled={!nextTarget}
+                  aria-label={
+                    nextTarget
+                      ? `Go to active set: ${activeExerciseName}, ${activeSetContext}`
+                      : undefined
+                  }
+                  className="min-w-0 truncate active:text-foreground disabled:pointer-events-none"
+                >
+                  {uniqueExerciseIds.length > 0
+                    ? `${activeExerciseIndex}/${uniqueExerciseIds.length} · ${nextSetLabel}`
+                    : "Active workout"}
+                </button>
+                {slot === 2 && (
+                  <span className="shrink-0 text-[13px] text-muted-foreground">
+                    Second workout
+                  </span>
+                )}
+                {workoutSyncStatus !== "idle" && (
+                  <span
+                    role="status"
+                    aria-live="polite"
+                    title={workoutSyncError || undefined}
+                    className={cn(
+                      "shrink-0 text-[13px]",
+                      workoutSyncStatus === "error"
+                        ? "text-destructive"
+                        : "text-muted-foreground"
+                    )}
+                  >
+                    {workoutSyncLabel}
+                  </span>
+                )}
+              </div>
+            </section>
+          </header>
         )}
 
         {!isRetro && (
@@ -2475,7 +2477,9 @@ export default function ActiveWorkout() {
             {coachMenuOpen && (
               <WorkoutCoachMenu
                 formCoachLabel={
-                  focusMovement && activeExerciseName ? activeExerciseName : null
+                  focusMovement && activeExerciseName
+                    ? activeExerciseName
+                    : null
                 }
                 onClose={() => setCoachMenuOpen(false)}
                 onChoose={(choice) => {
@@ -2550,209 +2554,215 @@ export default function ActiveWorkout() {
             onEnd={() => setConfirmAbort(true)}
           />
         ) : (
-        <main className="flex flex-col gap-5 px-[var(--app-page-x)] pt-5 md:px-0 md:pt-7">
-          <div className="active-workout-list-enter flex flex-col gap-5 md:gap-6">
-            {items.length > 0 && !simpleViewActive && (
-              <ExerciseReorderToolbar
-                active={reorderMode}
-                count={uniqueExerciseIds.length}
-                onToggle={() => setReorderMode((value) => !value)}
-              />
-            )}
-            {showSupersetTip && !simpleViewActive && uniqueExerciseIds.length > 1 && (
-              <div className="flex items-center gap-2 rounded-xl border border-border/55 bg-card px-3 py-2.5 text-muted-foreground/70 shadow-sm">
-                <DotsSixVertical
-                  size={15}
-                  weight="bold"
-                  className="shrink-0 text-foreground/65"
+          <main className="flex flex-col gap-5 px-[var(--app-page-x)] pt-5 md:px-0 md:pt-7">
+            <div className="active-workout-list-enter flex flex-col gap-5 md:gap-6">
+              {items.length > 0 && !simpleViewActive && (
+                <ExerciseReorderToolbar
+                  active={reorderMode}
+                  count={uniqueExerciseIds.length}
+                  onToggle={() => setReorderMode((value) => !value)}
                 />
-                <p className="min-w-0 flex-1 text-[13px] leading-5 font-medium">
-                  Drag one exercise onto another to make a superset.
+              )}
+              {showSupersetTip &&
+                !simpleViewActive &&
+                uniqueExerciseIds.length > 1 && (
+                  <div className="flex items-center gap-2 rounded-xl border border-border/55 bg-card px-3 py-2.5 text-muted-foreground/70 shadow-sm">
+                    <DotsSixVertical
+                      size={15}
+                      weight="bold"
+                      className="shrink-0 text-foreground/65"
+                    />
+                    <p className="min-w-0 flex-1 text-[13px] leading-5 font-medium">
+                      Drag one exercise onto another to make a superset.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={dismissSupersetTip}
+                      className="flex h-11 w-11 shrink-0 items-center justify-center text-muted-foreground transition-colors active:bg-muted active:text-foreground"
+                      aria-label="Hide superset tip"
+                    >
+                      <X size={12} weight="bold" />
+                    </button>
+                  </div>
+                )}
+              {visibleItems.map((item, itemIndex) => {
+                if (item.kind === "solo") {
+                  const ex = exerciseLookup[item.exerciseId]
+                  if (!ex || !exData[item.exerciseId]) return null
+                  const key = workoutItemKey(item)
+                  return (
+                    <ActiveExerciseCard
+                      key={item.exerciseId}
+                      exercise={ex}
+                      data={exData[item.exerciseId]}
+                      unit={unit}
+                      onUpdate={(d) => updateExData(item.exerciseId, d)}
+                      onRemove={() => requestRemoveExercise(item.exerciseId)}
+                      onSwap={() => setSwapTarget(item.exerciseId)}
+                      onOpenDetail={() => openExerciseDetail(item.exerciseId)}
+                      isDragging={drag?.itemKey === key && drag.active}
+                      {...cardProps(key)}
+                      collapsed={
+                        simpleViewActive
+                          ? false
+                          : Boolean(collapsed[item.exerciseId])
+                      }
+                      onToggleCollapse={() => toggleCollapsed(item.exerciseId)}
+                      dragHandlers={makeDragHandlers(key)}
+                      cardRef={(el) => {
+                        if (el) itemRefs.current.set(key, el)
+                        else itemRefs.current.delete(key)
+                      }}
+                      onStartRest={startRest}
+                      defaultSetCompleted={isRetro}
+                      lastSession={lastSessionMap[item.exerciseId] ?? null}
+                      onShowHistory={() =>
+                        setHistorySheet({
+                          exerciseId: item.exerciseId,
+                          name: ex.name,
+                        })
+                      }
+                      onAiChange={() =>
+                        openAiWorkoutSheet({
+                          exerciseId: item.exerciseId,
+                          exerciseName: ex.name,
+                        })
+                      }
+                      nextSetIndex={
+                        nextTarget?.kind === "set" &&
+                        nextTarget.exerciseId === item.exerciseId
+                          ? nextTarget.setIndex
+                          : null
+                      }
+                      isNextCardio={
+                        nextTarget?.kind === "cardio" &&
+                        nextTarget.exerciseId === item.exerciseId
+                      }
+                      reorderControls={
+                        reorderMode ? (
+                          <ExerciseMoveControls
+                            label={ex.name}
+                            canMoveUp={itemIndex > 0}
+                            canMoveDown={itemIndex < items.length - 1}
+                            onMoveUp={() => moveItemByStep(key, -1)}
+                            onMoveDown={() => moveItemByStep(key, 1)}
+                          />
+                        ) : undefined
+                      }
+                    />
+                  )
+                }
+                return renderSupersetItem(
+                  item,
+                  exData,
+                  unit,
+                  updateExData,
+                  requestRemoveExercise,
+                  drag,
+                  dropTarget,
+                  simpleViewActive ? EMPTY_COLLAPSED : collapsed,
+                  toggleCollapsed,
+                  (exerciseIds) => {
+                    const shouldCollapse = !exerciseIds.every((exerciseId) =>
+                      simpleViewActive ? false : collapsed[exerciseId]
+                    )
+                    setCollapsed((previous) => ({
+                      ...previous,
+                      ...Object.fromEntries(
+                        exerciseIds.map((exerciseId) => [
+                          exerciseId,
+                          shouldCollapse,
+                        ])
+                      ),
+                    }))
+                  },
+                  makeDragHandlers,
+                  itemRefs,
+                  startRest,
+                  exerciseLookup,
+                  lastSessionMap,
+                  (exId, name) => setHistorySheet({ exerciseId: exId, name }),
+                  (exId, name) =>
+                    openAiWorkoutSheet({
+                      exerciseId: exId,
+                      exerciseName: name,
+                    }),
+                  (exId) => setSwapTarget(exId),
+                  openExerciseDetail,
+                  breakOutExercise,
+                  nextTarget,
+                  reorderMode,
+                  itemIndex,
+                  items.length,
+                  moveItemByStep,
+                  isRetro
+                )
+              })}
+              {simpleViewActive &&
+                (upcomingItem && upcomingExercise ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      hapticSelection()
+                      setSimpleView(false)
+                      safeLocalStorageSet(SIMPLE_VIEW_KEY, "false")
+                    }}
+                    aria-label={`Next up: ${upcomingExercise.name}. Show the whole workout`}
+                    className="motion-tactile -mt-2 flex w-full items-center gap-3 rounded-2xl border border-border/60 bg-card/45 px-4 py-3.5 text-left"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[12px] font-semibold text-muted-foreground">
+                        Next up
+                      </p>
+                      <p className="mt-0.5 truncate text-[15px] font-semibold">
+                        {upcomingExercise.name}
+                      </p>
+                    </div>
+                    {upcomingDetail && (
+                      <span className="shrink-0 text-[13px] text-muted-foreground">
+                        {upcomingDetail}
+                      </span>
+                    )}
+                    <CaretDown
+                      size={14}
+                      weight="bold"
+                      className="shrink-0 text-muted-foreground"
+                    />
+                  </button>
+                ) : (
+                  uniqueExerciseIds.length > 1 && (
+                    <p className="-mt-1 text-center text-[13px] text-muted-foreground">
+                      Last exercise of the session.
+                    </p>
+                  )
+                ))}
+            </div>
+            {items.length === 0 ? (
+              <section className="border-y border-border py-8 text-center">
+                <h2 className="text-[18px] font-semibold">
+                  Build this workout
+                </h2>
+                <p className="mx-auto mt-2 max-w-sm text-[15px] leading-6 text-muted-foreground">
+                  Add an exercise to start logging sets, weight, reps, and rest.
                 </p>
                 <button
-                  type="button"
-                  onClick={dismissSupersetTip}
-                  className="flex h-11 w-11 shrink-0 items-center justify-center text-muted-foreground transition-colors active:bg-muted active:text-foreground"
-                  aria-label="Hide superset tip"
+                  onClick={() => setSearchOpen(true)}
+                  className="app-button app-button-primary mt-5 min-h-12 w-full"
                 >
-                  <X size={12} weight="bold" />
+                  <Plus size={16} weight="bold" />
+                  Add first exercise
                 </button>
-              </div>
-            )}
-            {visibleItems.map((item, itemIndex) => {
-              if (item.kind === "solo") {
-                const ex = exerciseLookup[item.exerciseId]
-                if (!ex || !exData[item.exerciseId]) return null
-                const key = workoutItemKey(item)
-                return (
-                  <ActiveExerciseCard
-                    key={item.exerciseId}
-                    exercise={ex}
-                    data={exData[item.exerciseId]}
-                    unit={unit}
-                    onUpdate={(d) => updateExData(item.exerciseId, d)}
-                    onRemove={() => requestRemoveExercise(item.exerciseId)}
-                    onSwap={() => setSwapTarget(item.exerciseId)}
-                    onOpenDetail={() => openExerciseDetail(item.exerciseId)}
-                    isDragging={drag?.itemKey === key && drag.active}
-                    {...cardProps(key)}
-                    collapsed={
-                      simpleViewActive
-                        ? false
-                        : Boolean(collapsed[item.exerciseId])
-                    }
-                    onToggleCollapse={() => toggleCollapsed(item.exerciseId)}
-                    dragHandlers={makeDragHandlers(key)}
-                    cardRef={(el) => {
-                      if (el) itemRefs.current.set(key, el)
-                      else itemRefs.current.delete(key)
-                    }}
-                    onStartRest={startRest}
-                    defaultSetCompleted={isRetro}
-                    lastSession={lastSessionMap[item.exerciseId] ?? null}
-                    onShowHistory={() =>
-                      setHistorySheet({
-                        exerciseId: item.exerciseId,
-                        name: ex.name,
-                      })
-                    }
-                    onAiChange={() =>
-                      openAiWorkoutSheet({
-                        exerciseId: item.exerciseId,
-                        exerciseName: ex.name,
-                      })
-                    }
-                    nextSetIndex={
-                      nextTarget?.kind === "set" &&
-                      nextTarget.exerciseId === item.exerciseId
-                        ? nextTarget.setIndex
-                        : null
-                    }
-                    isNextCardio={
-                      nextTarget?.kind === "cardio" &&
-                      nextTarget.exerciseId === item.exerciseId
-                    }
-                    reorderControls={
-                      reorderMode ? (
-                        <ExerciseMoveControls
-                          label={ex.name}
-                          canMoveUp={itemIndex > 0}
-                          canMoveDown={itemIndex < items.length - 1}
-                          onMoveUp={() => moveItemByStep(key, -1)}
-                          onMoveDown={() => moveItemByStep(key, 1)}
-                        />
-                      ) : undefined
-                    }
-                  />
-                )
-              }
-              return renderSupersetItem(
-                item,
-                exData,
-                unit,
-                updateExData,
-                requestRemoveExercise,
-                drag,
-                dropTarget,
-                simpleViewActive ? EMPTY_COLLAPSED : collapsed,
-                toggleCollapsed,
-                (exerciseIds) => {
-                  const shouldCollapse = !exerciseIds.every(
-                    (exerciseId) =>
-                      simpleViewActive ? false : collapsed[exerciseId]
-                  )
-                  setCollapsed((previous) => ({
-                    ...previous,
-                    ...Object.fromEntries(
-                      exerciseIds.map((exerciseId) => [
-                        exerciseId,
-                        shouldCollapse,
-                      ])
-                    ),
-                  }))
-                },
-                makeDragHandlers,
-                itemRefs,
-                startRest,
-                exerciseLookup,
-                lastSessionMap,
-                (exId, name) => setHistorySheet({ exerciseId: exId, name }),
-                (exId, name) =>
-                  openAiWorkoutSheet({ exerciseId: exId, exerciseName: name }),
-                (exId) => setSwapTarget(exId),
-                openExerciseDetail,
-                breakOutExercise,
-                nextTarget,
-                reorderMode,
-                itemIndex,
-                items.length,
-                moveItemByStep,
-                isRetro
-              )
-            })}
-            {simpleViewActive &&
-              (upcomingItem && upcomingExercise ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    hapticSelection()
-                    setSimpleView(false)
-                    safeLocalStorageSet(SIMPLE_VIEW_KEY, "false")
-                  }}
-                  aria-label={`Next up: ${upcomingExercise.name}. Show the whole workout`}
-                  className="motion-tactile -mt-2 flex w-full items-center gap-3 rounded-2xl border border-border/60 bg-card/45 px-4 py-3.5 text-left"
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[12px] font-semibold text-muted-foreground">
-                      Next up
-                    </p>
-                    <p className="mt-0.5 truncate text-[15px] font-semibold">
-                      {upcomingExercise.name}
-                    </p>
-                  </div>
-                  {upcomingDetail && (
-                    <span className="shrink-0 text-[13px] text-muted-foreground">
-                      {upcomingDetail}
-                    </span>
-                  )}
-                  <CaretDown
-                    size={14}
-                    weight="bold"
-                    className="shrink-0 text-muted-foreground"
-                  />
-                </button>
-              ) : (
-                uniqueExerciseIds.length > 1 && (
-                  <p className="-mt-1 text-center text-[13px] text-muted-foreground">
-                    Last exercise of the session.
-                  </p>
-                )
-              ))}
-          </div>
-          {items.length === 0 ? (
-            <section className="border-y border-border py-8 text-center">
-              <h2 className="text-[18px] font-semibold">Build this workout</h2>
-              <p className="mx-auto mt-2 max-w-sm text-[15px] leading-6 text-muted-foreground">
-                Add an exercise to start logging sets, weight, reps, and rest.
-              </p>
+              </section>
+            ) : (
               <button
                 onClick={() => setSearchOpen(true)}
-                className="app-button app-button-primary mt-5 min-h-12 w-full"
+                className="app-button app-button-secondary min-h-12 w-full"
               >
-                <Plus size={16} weight="bold" />
-                Add first exercise
+                <Plus size={15} weight="bold" />
+                Add exercise
               </button>
-            </section>
-          ) : (
-            <button
-              onClick={() => setSearchOpen(true)}
-              className="app-button app-button-secondary min-h-12 w-full"
-            >
-              <Plus size={15} weight="bold" />
-              Add exercise
-            </button>
-          )}
-        </main>
+            )}
+          </main>
         )}
       </div>
       {drag?.active && dragLabel && (

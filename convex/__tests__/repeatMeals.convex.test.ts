@@ -26,7 +26,12 @@ const OATS = {
 };
 
 /** A user whose local clock is plain UTC, so test times read literally. */
-async function saveMeal(t: Test, hour = 7, minute = 0, name = "Breakfast oats") {
+async function saveMeal(
+  t: Test,
+  hour = 7,
+  minute = 0,
+  name = "Breakfast oats",
+) {
   const asUser = t.withIdentity(USER);
   // Establishes the userPreferences row holding the timezone.
   await asUser.mutation(api.users.users.syncTimezone, { timeZone: "UTC" });

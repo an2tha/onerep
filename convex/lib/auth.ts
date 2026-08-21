@@ -12,20 +12,24 @@ type AuthCtx = QueryCtx | MutationCtx | ActionCtx;
 export const authComponent = createClient<DataModel>(components.betterAuth);
 const siteUrl = process.env.SITE_URL?.trim() || "https://app.onerep.life";
 const convexSiteUrl = process.env.CONVEX_SITE_URL!;
-export const trustedOrigins = Array.from(new Set([
-  siteUrl,
-  "https://onerep-mobile.pages.dev",
-  "https://app.onerep.life",
-  "https://onerep-mobile-latest.onrender.com",
-  "http://localhost:5173",
-  "http://127.0.0.1:5173",
-  "http://localhost:5177",
-  "http://127.0.0.1:5177",
-  "capacitor://localhost",
-  "onerep://auth",
-  "http://localhost",
-  "https://localhost",
-].filter((origin) => origin.trim().length > 0)));
+export const trustedOrigins = Array.from(
+  new Set(
+    [
+      siteUrl,
+      "https://onerep-mobile.pages.dev",
+      "https://app.onerep.life",
+      "https://onerep-mobile-latest.onrender.com",
+      "http://localhost:5173",
+      "http://127.0.0.1:5173",
+      "http://localhost:5177",
+      "http://127.0.0.1:5177",
+      "capacitor://localhost",
+      "onerep://auth",
+      "http://localhost",
+      "https://localhost",
+    ].filter((origin) => origin.trim().length > 0),
+  ),
+);
 
 const googleClientId = process.env.GOOGLE_CLIENT_ID?.trim();
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
@@ -35,7 +39,9 @@ const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
  * without them keeps working on email and password instead of offering a
  * button that can only fail.
  */
-export const googleAuthConfigured = Boolean(googleClientId && googleClientSecret);
+export const googleAuthConfigured = Boolean(
+  googleClientId && googleClientSecret,
+);
 
 const oidcClientId = process.env.OIDC_CLIENT_ID?.trim();
 const oidcClientSecret = process.env.OIDC_CLIENT_SECRET?.trim();

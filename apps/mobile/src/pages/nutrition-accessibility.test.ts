@@ -77,7 +77,12 @@ describe("Nutrition page accessibility contract", () => {
   test("nutrition page consumes plan metadata for tracking modes", () => {
     expect(NUTRITION_SOURCE).toContain("api.users.users.getNutritionPlan")
     expect(NUTRITION_SOURCE).toContain(
-      "const visibleMetrics = nutritionPlan?.visibleMetrics"
+      "const planMetrics = nutritionPlan?.visibleMetrics"
+    )
+    // The screening default is overridable, so the plan is the base, not the
+    // final word.
+    expect(NUTRITION_SOURCE).toContain(
+      "const visibleMetrics = showCalorieNumbers"
     )
     expect(NUTRITION_SOURCE).toContain("visibleMetrics.calories")
     expect(NUTRITION_SOURCE).toContain("visibleMetrics.micros")

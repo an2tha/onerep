@@ -465,7 +465,9 @@ describe("users Convex functions", () => {
         await t.mutation(api.users.users.setDashboardTrendMetric, { metric });
         await expect(
           t.query(api.users.users.getPreferences, {}),
-        ).resolves.toMatchObject({ dashboardSettings: { trendMetric: metric } });
+        ).resolves.toMatchObject({
+          dashboardSettings: { trendMetric: metric },
+        });
       }
     });
   });

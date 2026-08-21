@@ -41,6 +41,7 @@ import { reportOfflineMutationError } from "@/lib/offline-mutation-errors"
 import { hapticSelection } from "@/lib/haptics"
 import { cn } from "@/lib/utils"
 import { useEnergyUnit } from "@/lib/use-energy-unit"
+import { energyDisplay } from "@repo/ui"
 import { normalizeFoodSearchQuery } from "@/lib/food-search-url"
 import { scaledFoodMacros } from "@/lib/food-search-nutrition"
 import type { Recipe } from "@/lib/food-log"
@@ -541,7 +542,11 @@ export default function SearchFoods() {
                             </p>
                             <p className="mt-1.5 flex flex-wrap items-center gap-x-2 text-[11px] text-muted-foreground tabular-nums">
                               <strong className="font-semibold text-foreground">
-                                {Math.round(Number(item.calories))} {energyUnit}
+                                {energyDisplay(
+                                  Number(item.calories),
+                                  energyUnit
+                                )}{" "}
+                                {energyUnit}
                               </strong>
                               <span>P {Math.round(Number(item.protein))}g</span>
                               <span>C {Math.round(Number(item.carbs))}g</span>
@@ -686,7 +691,10 @@ function RecipeSearchCard({
               <Clock size={12} /> {totalMinutes} min
             </span>
           ) : null}
-          <span>{Math.round(nutrition.calories / servings)} {energyUnit}</span>
+          <span>
+            {energyDisplay(nutrition.calories / servings, energyUnit)}{" "}
+            {energyUnit}
+          </span>
           <span>{Math.round(nutrition.protein / servings)}g Protein</span>
         </span>
       </span>

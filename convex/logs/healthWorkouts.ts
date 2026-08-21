@@ -469,9 +469,7 @@ export const linkToTrainingLog = mutation({
             durationSeconds: workout.durationSeconds,
             avgHeartRateBpm: workout.avgHeartRateBpm,
             maxHeartRateBpm: workout.maxHeartRateBpm,
-            ...(workout.hasRoute
-              ? { route: { name: workout.routeName } }
-              : {}),
+            ...(workout.hasRoute ? { route: { name: workout.routeName } } : {}),
             source: {
               provider: workout.provider,
               name: workout.sourceName ?? PROVIDER_LABELS[workout.provider],

@@ -100,7 +100,8 @@ const BRIDGE_JPEG_QUALITY = 0.92
 
 /** True when the CoreML detector is present and should be preferred. */
 const nativeDetectAvailable = () =>
-  Capacitor.getPlatform() === "ios" && Capacitor.isPluginAvailable("PoseEstimation")
+  Capacitor.getPlatform() === "ios" &&
+  Capacitor.isPluginAvailable("PoseEstimation")
 
 /** Set once a native call has failed, so a broken backend is not retried per frame. */
 let nativeDetectDisabled = false

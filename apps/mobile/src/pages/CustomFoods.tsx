@@ -31,6 +31,7 @@ import { reportOfflineMutationError } from "@/lib/offline-mutation-errors"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { cn } from "@/lib/utils"
 import { useEnergyUnit } from "@/lib/use-energy-unit"
+import { energyDisplay } from "@repo/ui"
 import {
   currentDateKey,
   DEFAULT_MEAL_CATEGORIES,
@@ -289,8 +290,11 @@ export default function CustomFoods() {
                     {food.name}
                   </span>
                   <span className="native-row-detail mt-0.5 block tabular-nums">
-                    {food.nutrientsPerServing.calories} {energyUnit} ·{" "}
-                    {food.nutrientsPerServing.protein} P ·{" "}
+                    {energyDisplay(
+                      food.nutrientsPerServing.calories,
+                      energyUnit
+                    )}{" "}
+                    {energyUnit} · {food.nutrientsPerServing.protein} P ·{" "}
                     {food.nutrientsPerServing.carbs} C ·{" "}
                     {food.nutrientsPerServing.fat} F per {food.servingLabel}
                     {food.brand ? ` · ${food.brand}` : ""}
@@ -412,8 +416,9 @@ function LogCustomFoodSheet({
         </div>
 
         <p className="native-field-hint mt-3 tabular-nums">
-          {preview.calories} {energyUnit} · {preview.protein} g protein ·{" "}
-          {preview.carbs} g carbs · {preview.fat} g fat
+          {energyDisplay(preview.calories, energyUnit)} {energyUnit} ·{" "}
+          {preview.protein} g protein · {preview.carbs} g carbs · {preview.fat}{" "}
+          g fat
         </p>
 
         <PrimaryButton
@@ -566,8 +571,8 @@ function CustomFoodEditorSheet({
                 className="native-field-hint mt-2 flex items-center gap-1.5 text-[var(--accent-food)]"
               >
                 <Warning size={14} weight="bold" aria-hidden />
-                Macros add up to {caloriesFromMacros(nutrients)} {energyUnit}. Double check
-                the numbers.
+                Macros add up to {caloriesFromMacros(nutrients)} kcal. Double
+                check the numbers.
               </p>
             )}
           </fieldset>

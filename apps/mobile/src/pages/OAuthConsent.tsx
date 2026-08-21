@@ -45,14 +45,16 @@ export default function OAuthConsent() {
   const state = params.get("state")
 
   const scopes = useMemo(() => {
-    const requested = (params.get("scope") ?? "read").split(/\s+/).filter(isScope)
+    const requested = (params.get("scope") ?? "read")
+      .split(/\s+/)
+      .filter(isScope)
     return requested.length > 0 ? requested : (["read"] as Scope[])
   }, [params])
 
   const approve = useAction(api.mcp.oauth.approve)
   const details = useQuery(
     api.mcp.oauth.consentDetails,
-    clientId && redirectUri ? { clientId, redirectUri } : "skip",
+    clientId && redirectUri ? { clientId, redirectUri } : "skip"
   )
 
   const complete = !!clientId && !!redirectUri && !!codeChallenge
@@ -74,7 +76,7 @@ export default function OAuthConsent() {
       window.location.replace(redirectTo)
     } catch (cause) {
       setError(
-        cause instanceof Error ? cause.message : "That did not go through.",
+        cause instanceof Error ? cause.message : "That did not go through."
       )
       setBusy(null)
     }
@@ -97,7 +99,10 @@ export default function OAuthConsent() {
         </header>
 
         {problem ? (
-          <section aria-labelledby="consent-title" className="motion-content-in">
+          <section
+            aria-labelledby="consent-title"
+            className="motion-content-in"
+          >
             <h1 id="consent-title" className="native-large-title">
               Can't connect that
             </h1>
@@ -106,13 +111,16 @@ export default function OAuthConsent() {
         ) : details === undefined ? (
           <p className="native-body text-muted-foreground">Checking…</p>
         ) : (
-          <section aria-labelledby="consent-title" className="motion-content-in">
+          <section
+            aria-labelledby="consent-title"
+            className="motion-content-in"
+          >
             <h1 id="consent-title" className="native-large-title">
               Connect {details.clientName}?
             </h1>
             <p className="native-body mt-3 text-muted-foreground">
-              It is asking for access to your OneRep log. You can take this
-              back at any time in Settings.
+              It is asking for access to your OneRep log. You can take this back
+              at any time in Settings.
             </p>
 
             <ul className="mt-7 space-y-4">
@@ -130,10 +138,9 @@ export default function OAuthConsent() {
 
             {details.registration === "dynamic" && (
               <p className="native-body mt-6 text-muted-foreground">
-                This app registered itself, which anything is allowed to do.
-                The name above is what it calls itself and nobody has checked
-                it. If you did not just start this from {details.clientName},
-                say no.
+                This app registered itself, which anything is allowed to do. The
+                name above is what it calls itself and nobody has checked it. If
+                you did not just start this from {details.clientName}, say no.
               </p>
             )}
 

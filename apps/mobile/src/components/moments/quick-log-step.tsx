@@ -115,8 +115,7 @@ export function QuickLogStep({
   )
   const removeBySlot = useMutation(api.logs.workouts.removeBySlot)
 
-  const unit: WeightUnit =
-    useWeightUnit()
+  const unit: WeightUnit = useWeightUnit()
 
   const presetRows = useMemo<PresetRow[]>(() => {
     if (!presets || preferences === undefined) return []

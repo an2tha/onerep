@@ -45,11 +45,7 @@ export type PlatformMetricGroup =
  * workouts).
  */
 export type PlatformMetricAggregation =
-  | "sum"
-  | "average"
-  | "latest"
-  | "max"
-  | "session";
+  "sum" | "average" | "latest" | "max" | "session";
 
 export type PlatformMetric = {
   key: string;
@@ -314,7 +310,8 @@ export const PLATFORM_METRICS: PlatformMetric[] = [
   {
     key: "hrvMs",
     label: "Heart rate variability",
-    detail: "Beat-to-beat variation. SDNN on Apple, RMSSD on Android — never compare the two, only against your own history.",
+    detail:
+      "Beat-to-beat variation. SDNN on Apple, RMSSD on Android — never compare the two, only against your own history.",
     group: "vitals",
     unit: "ms",
     aggregation: "average",
@@ -411,7 +408,8 @@ export const PLATFORM_METRICS: PlatformMetric[] = [
   {
     key: "walkingHeartRateAvgBpm",
     label: "Walking heart rate",
-    detail: "Average rate over a steady walk, a slower-moving companion to resting rate",
+    detail:
+      "Average rate over a steady walk, a slower-moving companion to resting rate",
     group: "vitals",
     unit: "bpm",
     aggregation: "average",
@@ -1003,18 +1001,16 @@ export const PLATFORM_METRICS: PlatformMetric[] = [
   },
 ];
 
-export const PLATFORM_METRIC_GROUP_LABELS: Record<
-  PlatformMetricGroup,
-  string
-> = {
-  activity: "Activity",
-  vitals: "Vitals",
-  body: "Body",
-  nutrition: "Nutrition",
-  sleep: "Sleep",
-  reproductive: "Reproductive health",
-  mindfulness: "Mindfulness",
-};
+export const PLATFORM_METRIC_GROUP_LABELS: Record<PlatformMetricGroup, string> =
+  {
+    activity: "Activity",
+    vitals: "Vitals",
+    body: "Body",
+    nutrition: "Nutrition",
+    sleep: "Sleep",
+    reproductive: "Reproductive health",
+    mindfulness: "Mindfulness",
+  };
 
 const BY_KEY = new Map(PLATFORM_METRICS.map((metric) => [metric.key, metric]));
 

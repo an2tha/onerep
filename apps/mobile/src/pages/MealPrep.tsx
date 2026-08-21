@@ -34,6 +34,7 @@ import { carbLabelLower, displayCarbs } from "@/lib/carb-display"
 import { useCarbDisplayMode } from "@/lib/use-carb-display"
 import { cn } from "@/lib/utils"
 import { useEnergyUnit } from "@/lib/use-energy-unit"
+import { energyDisplay } from "@repo/ui"
 import {
   currentDateKey,
   DEFAULT_MEAL_CATEGORIES,
@@ -252,7 +253,7 @@ export default function MealPrep() {
               ? "No prepped batches yet."
               : `${inventory.batches} batch${
                   inventory.batches === 1 ? "" : "es"
-                } · ${inventory.calories} ${energyUnit} · ${inventory.protein} g protein ready to eat`
+                } · ${energyDisplay(inventory.calories, energyUnit)} ${energyUnit} · ${inventory.protein} g protein ready to eat`
           }
         />
         {inventory.expiringSoon > 0 && (
@@ -489,7 +490,8 @@ function BatchRow({
         <div className="min-w-0">
           <p className="native-row-title truncate">{batch.name}</p>
           <p className="native-row-detail mt-0.5 tabular-nums">
-            {perServing.calories} {energyUnit} · {perServing.protein} P ·{" "}
+            {energyDisplay(perServing.calories, energyUnit)} {energyUnit} ·{" "}
+            {perServing.protein} P ·{" "}
             {Math.round(displayCarbs(perServing, carbMode))}{" "}
             {carbMode === "net" ? "NC" : "C"} · {perServing.fat} F per serving
           </p>
@@ -658,7 +660,8 @@ function BatchEditorSheet({
             <div className="grid grid-cols-2 gap-3">
               {(
                 [
-                  ["calories", `Calories (${energyUnit})`],
+                  // Editable field: stored in kcal, so labelled in kcal.
+                  ["calories", "Calories (kcal)"],
                   ["protein", "Protein (g)"],
                   ["carbs", "Carbs (g)"],
                   ["fat", "Fat (g)"],
@@ -683,8 +686,9 @@ function BatchEditorSheet({
               ))}
             </div>
             <p className="native-field-hint mt-2 tabular-nums">
-              Per serving: {perServing.calories} {energyUnit} · {perServing.protein} g
-              protein · {Math.round(displayCarbs(perServing, carbMode))} g{" "}
+              Per serving: {energyDisplay(perServing.calories, energyUnit)}{" "}
+              {energyUnit} · {perServing.protein} g protein ·{" "}
+              {Math.round(displayCarbs(perServing, carbMode))} g{" "}
               {carbLabelLower(carbMode)} · {perServing.fat} g fat
             </p>
           </fieldset>
