@@ -1,5 +1,6 @@
 import { CaretDown, Plus } from "@phosphor-icons/react"
 import type { ReactNode } from "react"
+import { useEnergyUnitLabel } from "../lib/energy-unit"
 
 export type RecipeMicronutrientView = {
   key: string
@@ -38,6 +39,7 @@ export function RecipeSummary({
   ingredientCount: number
   microCount: number
 }) {
+  const energyUnit = useEnergyUnitLabel()
   return (
     <section className="mx-[var(--app-page-x)] mb-5 border-y border-border py-4 md:mx-8">
       <div className="flex items-start justify-between gap-4">
@@ -51,7 +53,7 @@ export function RecipeSummary({
         <p className="text-right text-[22px] font-semibold tabular-nums">
           {totals.calories}
           <span className="ml-1 text-[13px] font-medium text-muted-foreground">
-            kcal
+            {energyUnit}
           </span>
         </p>
       </div>

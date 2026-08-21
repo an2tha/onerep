@@ -175,6 +175,26 @@ function nutrientValue(
   )
 }
 
+/**
+ * Energy in kcal, converting from kJ when a product (common in the EU) only
+ * publishes `energy_100g`/`energy` in kilojoules. Without the fallback those
+ * products read as 0 calories, which looks like a broken database.
+ */
+function energyKcal(
+  product: OpenFoodFactsProduct,
+  includeEstimated = false
+): number {
+  const kcal = nutrientValue(product, "energy-kcal", includeEstimated)
+  if (kcal > 0) return kcal
+  const kj = nutrientValue(product, "energy-kj", includeEstimated)
+  if (kj > 0) return kj / 4.184
+  // Bare `energy` is kJ per the OFF schema unless its unit says otherwise.
+  const bare = nutrientValue(product, "energy", includeEstimated)
+  if (bare <= 0) return kcal
+  const unit = nutrientUnit(product, "energy", "kJ").toLowerCase()
+  return unit === "kcal" ? bare : bare / 4.184
+}
+
 function nutrientUnit(
   product: OpenFoodFactsProduct,
   key: string,
@@ -368,7 +388,7 @@ export function rankAndFilterFoodResults<
 }
 
 function productToResult(product: OpenFoodFactsProduct): FoodResult {
-  const calories = nutrientValue(product, "energy-kcal")
+  const calories = energyKcal(product)
   const protein = nutrientValue(product, "proteins")
   const carbs = nutrientValue(product, "carbohydrates")
   const fat = nutrientValue(product, "fat")
@@ -413,7 +433,7 @@ function productToDetail(product: OpenFoodFactsProduct): FoodDetail {
       nutrientRow(
         "energy",
         "Calories",
-        nutrientValue(product, "energy-kcal"),
+        energyKcal(product),
         "kcal"
       ),
       nutrientRow(

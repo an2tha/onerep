@@ -71,7 +71,9 @@ describe("Snap and Log accessibility contract", () => {
     expect(SNAP_SOURCE).toContain(
       "if (loggingTargetRef.current || added === item.id) return"
     )
-    expect(SNAP_SOURCE).toContain("if (snapLogging) return")
+    expect(SNAP_SOURCE).toContain(
+      "if (snapLogging || loggingTargetRef.current) return"
+    )
     expect(SNAP_SOURCE).toContain("setLoggingTarget(item.id)")
     expect(SNAP_SOURCE).toContain("setSnapLogging(true)")
     expect(SNAP_SOURCE).toContain("reportOfflineMutationError(error)")

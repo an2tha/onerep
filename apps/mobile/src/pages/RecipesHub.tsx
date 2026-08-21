@@ -28,6 +28,7 @@ import { useSmoothNavigate } from "@/lib/navigation"
 import { COACH_RECIPE_PLACEHOLDER } from "@/lib/recipe-images"
 import { safeLocalStorageGet, safeLocalStorageSet } from "@/lib/utils"
 import { currentDateKey, type Recipe } from "@/lib/food-log"
+import { useEnergyUnit } from "@/lib/use-energy-unit"
 import { toast } from "@repo/ui"
 
 export type StarterRecipe = {
@@ -702,6 +703,7 @@ function totals(recipe: Recipe) {
 
 export default function RecipesHub() {
   const navigate = useSmoothNavigate()
+  const energyUnit = useEnergyUnit()
   const location = useLocation()
   const routeState = location.state as {
     openStarterRecipeId?: string
@@ -1232,7 +1234,7 @@ export default function RecipesHub() {
                             {recipe.name}
                           </p>
                           <p className="mt-1 text-[12px] text-muted-foreground">
-                            {nutrition.calories} kcal · {nutrition.protein}g
+                            {nutrition.calories} {energyUnit} · {nutrition.protein}g
                             protein · {recipe.ingredients.length} ingredients
                           </p>
                         </div>
@@ -1418,7 +1420,7 @@ export default function RecipesHub() {
                             <Clock size={13} />
                             {recipe.time} min
                           </span>
-                          <span>{recipe.calories} kcal</span>
+                          <span>{recipe.calories} {energyUnit}</span>
                           <span>{recipe.protein}g protein</span>
                           <span className="ml-auto truncate">
                             {recipe.origin}
@@ -1526,7 +1528,7 @@ export default function RecipesHub() {
                               </p>
                             )}
                             <p className="mt-3 text-[11px] text-muted-foreground">
-                              {nutrition.calories} kcal · {nutrition.protein}g
+                              {nutrition.calories} {energyUnit} · {nutrition.protein}g
                               protein · {recipe.ingredients.length} ingredients
                             </p>
                             <div className="mt-3 flex items-center gap-1.5 text-[11px] text-muted-foreground">

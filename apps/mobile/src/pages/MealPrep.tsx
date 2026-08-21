@@ -33,6 +33,7 @@ import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { carbLabelLower, displayCarbs } from "@/lib/carb-display"
 import { useCarbDisplayMode } from "@/lib/use-carb-display"
 import { cn } from "@/lib/utils"
+import { useEnergyUnit } from "@/lib/use-energy-unit"
 import {
   currentDateKey,
   DEFAULT_MEAL_CATEGORIES,
@@ -61,6 +62,7 @@ import {
 const SERVING_STEPS = [0.5, 1, 2]
 
 export default function MealPrep() {
+  const energyUnit = useEnergyUnit()
   const navigate = useSmoothNavigate()
   const today = currentDateKey()
 
@@ -250,7 +252,7 @@ export default function MealPrep() {
               ? "No prepped batches yet."
               : `${inventory.batches} batch${
                   inventory.batches === 1 ? "" : "es"
-                } · ${inventory.calories} kcal · ${inventory.protein} g protein ready to eat`
+                } · ${inventory.calories} ${energyUnit} · ${inventory.protein} g protein ready to eat`
           }
         />
         {inventory.expiringSoon > 0 && (
@@ -472,6 +474,7 @@ function BatchRow({
   onLog: (servings: number) => void
   onEdit: () => void
 }) {
+  const energyUnit = useEnergyUnit()
   const navigate = useSmoothNavigate()
   const carbMode = useCarbDisplayMode()
   const remaining = servingsRemaining(batch)
@@ -486,7 +489,7 @@ function BatchRow({
         <div className="min-w-0">
           <p className="native-row-title truncate">{batch.name}</p>
           <p className="native-row-detail mt-0.5 tabular-nums">
-            {perServing.calories} kcal · {perServing.protein} P ·{" "}
+            {perServing.calories} {energyUnit} · {perServing.protein} P ·{" "}
             {Math.round(displayCarbs(perServing, carbMode))}{" "}
             {carbMode === "net" ? "NC" : "C"} · {perServing.fat} F per serving
           </p>
@@ -579,6 +582,7 @@ function BatchEditorSheet({
   onSave: () => void
   onDelete?: () => void
 }) {
+  const energyUnit = useEnergyUnit()
   const carbMode = useCarbDisplayMode()
   const resolved = resolveMealPrepDraft(draft)
   const perServing = resolved.nutrientsPerServing
@@ -654,7 +658,7 @@ function BatchEditorSheet({
             <div className="grid grid-cols-2 gap-3">
               {(
                 [
-                  ["calories", "Calories (kcal)"],
+                  ["calories", `Calories (${energyUnit})`],
                   ["protein", "Protein (g)"],
                   ["carbs", "Carbs (g)"],
                   ["fat", "Fat (g)"],
@@ -679,7 +683,7 @@ function BatchEditorSheet({
               ))}
             </div>
             <p className="native-field-hint mt-2 tabular-nums">
-              Per serving: {perServing.calories} kcal · {perServing.protein} g
+              Per serving: {perServing.calories} {energyUnit} · {perServing.protein} g
               protein · {Math.round(displayCarbs(perServing, carbMode))} g{" "}
               {carbLabelLower(carbMode)} · {perServing.fat} g fat
             </p>

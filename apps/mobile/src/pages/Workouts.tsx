@@ -83,10 +83,10 @@ import { hapticMedium, hapticSelection } from "@/lib/haptics"
    screen-space degrees — 90° is straight down. */
 const HERO_ORBIT_RADIUS = 107
 const HERO_SATELLITES = [
-  { angle: 158, mirrored: true },
-  { angle: 114, mirrored: true },
-  { angle: 66, mirrored: false },
-  { angle: 22, mirrored: false },
+  { angle: 157.5, mirrored: true },
+  { angle: 112.5, mirrored: true },
+  { angle: 67.5, mirrored: false },
+  { angle: 22.5, mirrored: false },
 ] as const
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const

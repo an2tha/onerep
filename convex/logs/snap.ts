@@ -216,7 +216,16 @@ function productToFoodResult(raw: unknown): FoodResult | null {
   const code = firstString(product.code, product._id);
   if (!code) return null;
 
-  const calories = nutrientValue(product, "energy-kcal");
+  // EU products often publish only kilojoules; fall back and convert so they
+  // don't read as 0 calories.
+  let calories = nutrientValue(product, "energy-kcal");
+  if (calories <= 0) {
+    const kj = firstNumber(
+      nutrientValue(product, "energy-kj"),
+      nutrientValue(product, "energy"),
+    );
+    if (kj > 0) calories = kj / 4.184;
+  }
   const protein = nutrientValue(product, "proteins");
   const carbs = nutrientValue(product, "carbohydrates");
   const fat = nutrientValue(product, "fat");

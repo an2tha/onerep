@@ -21,6 +21,7 @@ import {
 } from "@phosphor-icons/react"
 import { useAnimatedNumber } from "../../hooks/use-animated-number"
 import { cn } from "../../lib/utils"
+import { useEnergyUnitLabel } from "../../lib/energy-unit"
 import { GroupedList, SectionHeader } from "../mobile-ui"
 import { SlideToDeleteRow } from "../slide-to-delete-row"
 
@@ -507,6 +508,7 @@ function CalorieRing({
   /** Laid over a photograph, so the theme's foreground colors don't apply. */
   onPhoto?: boolean
 }) {
+  const energyUnit = useEnergyUnitLabel()
   const radius = 52
   const circumference = 2 * Math.PI * radius
   const swept = circumference * Math.min(1, caloriesPct / 100)
@@ -576,7 +578,7 @@ function CalorieRing({
             onPhoto ? "text-white/75" : "text-muted-foreground"
           )}
         >
-          kcal {overTarget ? "over" : "left"}
+          {energyUnit} {overTarget ? "over" : "left"}
         </span>
       </div>
     </div>
@@ -607,6 +609,7 @@ export function DailyLedgerHero({
   onPhoto?: boolean
   className?: string
 }) {
+  const energyUnit = useEnergyUnitLabel()
   const consumed = Math.max(0, caloriesTarget - caloriesLeft)
   const caloriesPct = pct(consumed, caloriesTarget)
   const overTarget = caloriesLeft < 0
@@ -693,7 +696,8 @@ export function DailyLedgerHero({
                 : "border-border/50 text-muted-foreground"
             )}
           >
-            Includes {fmt(Math.round(supplementCalories))} kcal from supplements
+            Includes {fmt(Math.round(supplementCalories))} {energyUnit} from
+            supplements
           </p>
         )}
       </section>
@@ -757,6 +761,7 @@ export function WeeklyPlanCard({
   className?: string
 }) {
   const [assumptionsOpen, setAssumptionsOpen] = useState(false)
+  const energyUnit = useEnergyUnitLabel()
   const todayKey = today.slice(0, 3).toLowerCase()
 
   return (
@@ -784,7 +789,7 @@ export function WeeklyPlanCard({
                   {day.workoutLabel ?? "Rest"}
                   {mealCount > 0 &&
                     ` · ${mealCount} meal${mealCount === 1 ? "" : "s"}`}
-                  {totals && ` · ${totals.calories} kcal`}
+                  {totals && ` · ${totals.calories} ${energyUnit}`}
                 </span>
               </div>
             )
@@ -847,7 +852,7 @@ export function WeeklyPlanCard({
                       )}
                       {meal.calories != null && (
                         <span className="native-row-detail ml-[18px] block tabular-nums">
-                          {meal.calories} kcal
+                          {meal.calories} {energyUnit}
                           {meal.protein != null && ` · ${meal.protein} g protein`}
                         </span>
                       )}
@@ -863,7 +868,7 @@ export function WeeklyPlanCard({
 
               {totals && (
                 <p className="native-row-detail mt-2 ml-12 tabular-nums">
-                  {totals.calories} kcal
+                  {totals.calories} {energyUnit}
                   {totals.protein > 0 && ` · ${totals.protein} g protein`}
                   {totals.partial && " so far"}
                 </p>

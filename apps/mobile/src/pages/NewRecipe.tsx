@@ -36,6 +36,7 @@ import {
 import { useMutation, useQuery } from "convex/react"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { COACH_RECIPE_PLACEHOLDER } from "@/lib/recipe-images"
+import { useEnergyUnit } from "@/lib/use-energy-unit"
 import { api } from "../../../../convex/_generated/api"
 import type { Id } from "../../../../convex/_generated/dataModel"
 import type { FoodDetail, FoodResult } from "@repo/models"
@@ -421,6 +422,7 @@ function IngredientCard({
   onPortionChange: (portion: FoodPortion) => void
   onDelete: () => void
 }) {
+  const energyUnit = useEnergyUnit()
   const [editing, setEditing] = useState(false)
   const unit = ingredient.displayUnit ?? "g"
   const amount =
@@ -492,7 +494,7 @@ function IngredientCard({
 
             <div className="flex shrink-0 items-center gap-2">
               <span className="text-[14px] font-semibold text-foreground tabular-nums">
-                {cals} kcal
+                {cals} {energyUnit}
               </span>
               <button
                 type="button"
@@ -626,6 +628,7 @@ function SearchOverlay({
   ) => void
   onClose: () => void
 }) {
+  const energyUnit = useEnergyUnit()
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const addedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -858,7 +861,7 @@ function SearchOverlay({
                                   .join(" · ")}
                               </p>
                               <p className="mt-1 text-[13px] text-muted-foreground tabular-nums">
-                                {Math.round(Number(item.calories))} kcal ·
+                                {Math.round(Number(item.calories))} {energyUnit} ·
                                 Protein {Math.round(Number(item.protein))} g ·
                                 Carbs {Math.round(Number(item.carbs))} g · Fat{" "}
                                 {Math.round(Number(item.fat))} g

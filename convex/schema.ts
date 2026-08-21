@@ -43,6 +43,8 @@ export default defineSchema({
       ),
     ),
     weightUnit: v.optional(v.string()), // "kg" | "lbs"
+    /** How to label food energy: "kcal" or "Cal". Same number either way. */
+    energyUnit: v.optional(v.string()),
     foodSearchLanguage: v.optional(v.string()), // Open Food Facts language code, e.g. "en"
     waterGoalMl: v.optional(v.number()),
     /** Display carbs as net (carbs − fiber) everywhere. Purely presentational. */

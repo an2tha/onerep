@@ -100,7 +100,14 @@ import Coach from "./pages/Coach.tsx"
 import Settings from "./pages/Settings.tsx"
 import { AuthGuard } from "./components/auth-guard.tsx"
 import { ErrorBoundary } from "./components/error-boundary.tsx"
-import { ThemeProvider, Toaster, toast, dismissTopmost } from "@repo/ui"
+import {
+  ThemeProvider,
+  Toaster,
+  toast,
+  dismissTopmost,
+  EnergyUnitProvider,
+} from "@repo/ui"
+import { useEnergyUnit } from "@/lib/use-energy-unit"
 import { Capacitor } from "@capacitor/core"
 import { App as CapacitorApp } from "@capacitor/app"
 import { completeNativeOAuth, isAuthDeepLink } from "@/lib/native-oauth"
@@ -534,6 +541,13 @@ function NavSync() {
 
   function handleTouchStart(event: React.TouchEvent<HTMLDivElement>) {
     const touch = event.touches[0]
+    // A leftward drag on a slide-to-delete row near the right edge is a
+    // delete, not a forward navigation; let the row own it.
+    if ((event.target as HTMLElement).closest?.("[data-slide-delete]")) {
+      touchStartX.current = null
+      touchStartY.current = null
+      return
+    }
     touchStartX.current = touch.clientX
     touchStartY.current = touch.clientY
   }
@@ -1254,6 +1268,13 @@ if (Capacitor.isNativePlatform()) {
   })
 }
 
+/** Feeds the user's energy-label preference to @repo/ui components. */
+function EnergyUnitBridge({ children }: { children: ReactNode }) {
+  return (
+    <EnergyUnitProvider unit={useEnergyUnit()}>{children}</EnergyUnitProvider>
+  )
+}
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <ConvexBetterAuthProvider
@@ -1273,7 +1294,9 @@ createRoot(document.getElementById("root")!).render(
             <CoachPushRegistration />
             <MealCategorySync />
             <RetentionTracking />
-            <RouterProvider router={router} />
+            <EnergyUnitBridge>
+              <RouterProvider router={router} />
+            </EnergyUnitBridge>
             <Toaster
               position="top-center"
               offset="calc(env(safe-area-inset-top, 0px) + 12px)"

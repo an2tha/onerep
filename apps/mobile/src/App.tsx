@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useWeightUnit } from "@/lib/use-weight-unit"
+import { useEnergyUnit } from "@/lib/use-energy-unit"
 import { flushSync } from "react-dom"
 import {
   Aperture,
@@ -139,6 +140,7 @@ import { UnloggedWorkoutNudge, WelcomeNudge } from "@/dashboard/nudges"
 export default function App() {
   const navigate = useSmoothNavigate()
   const { user } = useAppAuth()
+  const energyUnit = useEnergyUnit()
   const [dayOffset, setDayOffset] = useState(0)
   const quickWaterBurst = useReplayKey(1300)
   const [dashboardTrendMetric, setDashboardTrendMetricState] =
@@ -239,6 +241,14 @@ export default function App() {
   const setDay = useOfflineMutation(
     api.logs.foodLogs.setDay,
     "logs.foodLogs.setDay"
+  )
+  const removeFoodEntryById = useOfflineMutation(
+    api.logs.foodLogs.removeEntry,
+    "logs.foodLogs.removeEntry"
+  )
+  const addFoodEntry = useOfflineMutation(
+    api.logs.foodLogs.addEntry,
+    "logs.foodLogs.addEntry"
   )
   const addWaterEntry = useOfflineMutation(
     api.logs.water.addEntry,
@@ -921,7 +931,7 @@ export default function App() {
         kind: "repeat",
         name: meal,
         detail: recipe
-          ? `Recent · ${totalsForRecipe(recipe.ingredients).calories} kcal`
+          ? `Recent · ${totalsForRecipe(recipe.ingredients).calories} ${energyUnit}`
           : "Recent",
         onLog: () => {
           hapticSelection()
@@ -942,7 +952,7 @@ export default function App() {
       rows.push({
         kind: "recipe",
         name: recipe.name,
-        detail: `Recipe · ${totals.calories} kcal`,
+        detail: `Recipe · ${totals.calories} ${energyUnit}`,
         onLog: () => {
           hapticSelection()
           logRecipeFromQuickAdd(recipe)
@@ -951,7 +961,7 @@ export default function App() {
     }
 
     return rows.slice(0, 5)
-  }, [recentMealNames, recipes, navigate])
+  }, [recentMealNames, recipes, navigate, energyUnit])
 
   function openRecipePreview(recipe: StarterRecipe) {
     const transitionDocument = document as Document & {
@@ -1047,7 +1057,7 @@ export default function App() {
     const foodEvents = foodEntries.map((entry) => ({
       id: `food-${entry.id}`,
       title: entry.name,
-      detail: `${Math.round(entry.calories)} kcal logged`,
+      detail: `${Math.round(entry.calories)} ${energyUnit} logged`,
       kind: "food" as const,
       loggedAt: entry.loggedAt,
       deleteLabel: `Delete ${entry.name}`,
@@ -1088,7 +1098,14 @@ export default function App() {
     ]
       .sort((a, b) => b.loggedAt.localeCompare(a.loggedAt))
       .slice(0, 20)
-  }, [foodEntries, selectedDate, supplementEntries, waterEntries, workoutLogs])
+  }, [
+    foodEntries,
+    selectedDate,
+    supplementEntries,
+    waterEntries,
+    workoutLogs,
+    energyUnit,
+  ])
 
   function addQuickWater() {
     hapticMedium()
@@ -1106,16 +1123,22 @@ export default function App() {
 
   function deleteTimelineEvent(event: TimelineEvent) {
     if (event.kind === "food") {
-      const id = event.id.replace(/^food-/, "")
-      void setDay({
-        date: selectedDate,
-        entries: foodEntries.filter((entry) => entry.id !== id),
-      })
+      // slice, not replace: an entry id could itself start with "food-".
+      const id = event.id.slice("food-".length)
+      const removed = foodEntries.find((entry) => entry.id === id)
+      // Targeted removal instead of rewriting the day from this client's
+      // snapshot — a setDay here erases anything logged concurrently (coach,
+      // MCP, another device) and can itself be undone by a racing write,
+      // which read as "delete doesn't work".
+      void removeFoodEntryById({ date: selectedDate, entryId: id })
       toast.success("Food entry removed", {
         action: {
           label: "Undo",
-          onClick: () =>
-            void setDay({ date: selectedDate, entries: foodEntries }),
+          onClick: () => {
+            if (removed) {
+              void addFoodEntry({ date: selectedDate, entry: removed })
+            }
+          },
         },
       })
       return
@@ -1549,7 +1572,9 @@ export default function App() {
                             <Clock size={11} /> {meal.prepMinutes} min
                           </span>
                           <span>·</span>
-                          <span>{meal.calories} kcal</span>
+                          <span>
+                            {meal.calories} {energyUnit}
+                          </span>
                           <span>·</span>
                           <span>{meal.protein}g P</span>
                         </span>
@@ -1982,7 +2007,8 @@ export default function App() {
                         Current
                       </p>
                       <p className="mt-1 text-[12px] font-bold">
-                        {previewRecipe.calories} kcal · {previewRecipe.protein}g
+                        {previewRecipe.calories} {energyUnit} ·{" "}
+                        {previewRecipe.protein}g
                         P
                       </p>
                     </div>
@@ -1991,7 +2017,8 @@ export default function App() {
                         Estimated remix
                       </p>
                       <p className="mt-1 text-[12px] font-bold">
-                        {recipeRemix.calories} kcal · {recipeRemix.protein}g P
+                        {recipeRemix.calories} {energyUnit} ·{" "}
+                        {recipeRemix.protein}g P
                       </p>
                     </div>
                   </div>
@@ -2210,7 +2237,7 @@ export default function App() {
                               {recipe.name}
                             </p>
                             <p className="native-row-detail mt-0.5">
-                              {totals.calories} kcal ·{" "}
+                              {totals.calories} {energyUnit} ·{" "}
                               {recipe.ingredients.length} ingredient
                               {recipe.ingredients.length === 1 ? "" : "s"}
                             </p>

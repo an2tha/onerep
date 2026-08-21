@@ -40,6 +40,7 @@ import {
 import { reportOfflineMutationError } from "@/lib/offline-mutation-errors"
 import { hapticSelection } from "@/lib/haptics"
 import { cn } from "@/lib/utils"
+import { useEnergyUnit } from "@/lib/use-energy-unit"
 import { normalizeFoodSearchQuery } from "@/lib/food-search-url"
 import { scaledFoodMacros } from "@/lib/food-search-nutrition"
 import type { Recipe } from "@/lib/food-log"
@@ -114,6 +115,7 @@ function interleaveSearchResults(
 
 export default function SearchFoods() {
   const navigate = useSmoothNavigate()
+  const energyUnit = useEnergyUnit()
   // The database not having a drink is not the end of the log. Carry the name
   // across so the entry the user came here to make is one screen away, not a
   // second search for a page they have never seen.
@@ -539,7 +541,7 @@ export default function SearchFoods() {
                             </p>
                             <p className="mt-1.5 flex flex-wrap items-center gap-x-2 text-[11px] text-muted-foreground tabular-nums">
                               <strong className="font-semibold text-foreground">
-                                {Math.round(Number(item.calories))} kcal
+                                {Math.round(Number(item.calories))} {energyUnit}
                               </strong>
                               <span>P {Math.round(Number(item.protein))}g</span>
                               <span>C {Math.round(Number(item.carbs))}g</span>
@@ -615,6 +617,7 @@ function RecipeSearchCard({
   item: RecipeSearchItem
   onOpen: () => void
 }) {
+  const energyUnit = useEnergyUnit()
   const recipe = item.recipe
   const official = item.kind === "official"
   const image = official
@@ -683,7 +686,7 @@ function RecipeSearchCard({
               <Clock size={12} /> {totalMinutes} min
             </span>
           ) : null}
-          <span>{Math.round(nutrition.calories / servings)} kcal</span>
+          <span>{Math.round(nutrition.calories / servings)} {energyUnit}</span>
           <span>{Math.round(nutrition.protein / servings)}g Protein</span>
         </span>
       </span>

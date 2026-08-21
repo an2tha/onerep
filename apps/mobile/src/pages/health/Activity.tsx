@@ -1,6 +1,7 @@
 import { useQuery } from "convex/react"
 import { api } from "../../../../../convex/_generated/api"
 import { currentDateKey } from "@/lib/food-log"
+import { useEnergyUnit } from "@/lib/use-energy-unit"
 import {
   AREA_TONES,
   DialHero,
@@ -24,6 +25,7 @@ import { TrackSomethingNew } from "@/components/track-something-new"
  */
 export default function HealthActivity() {
   const today = currentDateKey()
+  const energyUnit = useEnergyUnit()
   const data = useQuery(api.logs.healthMetrics.dashboard, { today })
   const exercise = data?.pillars.find((item) => item.id === "exercise")
   const steps = data?.pillars.find((item) => item.id === "steps")
@@ -63,7 +65,7 @@ export default function HealthActivity() {
             today={today}
             metric="energy"
             title="Active calories"
-            format={(value) => `${formatCount(value)} kcal`}
+            format={(value) => `${formatCount(value)} ${energyUnit}`}
             tone="var(--accent-food)"
           />
         </>
@@ -127,7 +129,7 @@ export default function HealthActivity() {
                 caption={`of ${formatCount(steps?.target ?? 8000)} daily`}
               />
               <StatCell
-                label="Active kcal"
+                label={`Active ${energyUnit}`}
                 value={energy?.value == null ? "—" : formatCount(energy.value)}
                 caption={`of ${formatCount(energy?.target ?? 400)} daily`}
               />

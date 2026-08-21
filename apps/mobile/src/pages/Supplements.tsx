@@ -61,6 +61,7 @@ import {
   type SupplementScheduleType,
 } from "@/lib/supplements"
 import { cn } from "@/lib/utils"
+import { useEnergyUnit } from "@/lib/use-energy-unit"
 import { hapticSelection } from "@/lib/haptics"
 import type { FoodDetail, FoodResult } from "@repo/models"
 import { api } from "../../../../convex/_generated/api"
@@ -637,6 +638,7 @@ function ItemSheet({
   onClose: () => void
   onSave: (id: string | undefined, draft: SupplementItemDraft) => Promise<void>
 }) {
+  const energyUnit = useEnergyUnit()
   const initialDraft: SupplementItemDraft = item
     ? {
         name: item.name,
@@ -1085,7 +1087,7 @@ function ItemSheet({
                             {result.serving}
                           </p>
                           <p className="mt-1 text-[13px] text-muted-foreground tabular-nums">
-                            {result.calories} kcal · P{" "}
+                            {result.calories} {energyUnit} · P{" "}
                             {formatNutrientValue(result.protein)}g · C{" "}
                             {formatNutrientValue(result.carbs)}g · F{" "}
                             {formatNutrientValue(result.fat)}g
