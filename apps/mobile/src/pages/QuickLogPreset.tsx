@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useWeightUnit } from "@/lib/use-weight-unit"
 import { useParams, useSearchParams } from "react-router"
 import { useQuery } from "convex/react"
 import { ArrowLeft, ArrowsOutSimple } from "@phosphor-icons/react"
@@ -75,7 +76,7 @@ export default function QuickLogPreset() {
   )
 
   const unit: WeightUnit =
-    (preferences?.weightUnit as WeightUnit | undefined) ?? "kg"
+    useWeightUnit()
 
   const preset = useMemo(() => {
     if (!presets) return null

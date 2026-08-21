@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { readCachedWeightUnit } from "@/lib/use-weight-unit"
 import { useParams, useSearchParams } from "react-router"
 import { usePostHog } from "@posthog/react"
 import { captureFeatureUsage, durationBucket } from "@/lib/analytics"
@@ -554,7 +555,7 @@ export default function ActiveWorkout() {
   const preferences = useQuery(api.users.users.getPreferences)
   const liveWorkoutStatusEnabled = preferences?.liveWorkoutStatusEnabled ?? true
   const healthWriteEnabled = preferences?.healthSync?.writeEnabled ?? false
-  const [unit, setUnit] = useState<WeightUnit>("kg")
+  const [unit, setUnit] = useState<WeightUnit>(readCachedWeightUnit)
   const [confirmAbort, setConfirmAbort] = useState(false)
   const [coachSheetOpen, setCoachSheetOpen] = useState(false)
   const [confirmFinish, setConfirmFinish] = useState(false)

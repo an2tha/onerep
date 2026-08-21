@@ -7,6 +7,7 @@
  */
 
 import { useMemo, useState, type ReactNode } from "react"
+import { useWeightUnit } from "@/lib/use-weight-unit"
 import { useQuery } from "convex/react"
 import { useParams } from "react-router"
 import { ArrowLeft, ChartLineUp, Trophy } from "@phosphor-icons/react"
@@ -48,7 +49,7 @@ export default function ExerciseDetail() {
   const [pane, setPane] = useState<DetailPane>("progress")
 
   const preferences = useQuery(api.users.users.getPreferences)
-  const unit = (preferences?.weightUnit as WeightUnit | undefined) ?? "kg"
+  const unit = useWeightUnit()
 
   const resolved = useQuery(
     api.exercises.resolve,

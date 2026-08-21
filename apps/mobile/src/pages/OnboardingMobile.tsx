@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react"
+import { readCachedWeightUnit } from "@/lib/use-weight-unit"
 import { useLocation } from "react-router"
 import {
   ArrowRight,
@@ -704,7 +705,7 @@ export function OnboardingMobile() {
   const [loggingFeatures] = useState<string[]>(["barcode", "saved_meals"])
   const [firstNutritionAction] =
     useState<FirstNutritionAction>("log_first_meal")
-  const [weightUnit, setWeightUnit] = useState<WeightUnit>("kg")
+  const [weightUnit, setWeightUnit] = useState<WeightUnit>(readCachedWeightUnit)
   const [waterGoalMl, setWaterGoalMl] = useState(2500)
   const [saving, setSaving] = useState(false)
   const [complete, setComplete] = useState(false)

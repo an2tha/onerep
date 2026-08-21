@@ -7,6 +7,7 @@ import {
   type CSSProperties,
   type FormEvent,
 } from "react"
+import { useWeightUnit } from "@/lib/use-weight-unit"
 import {
   Barbell,
   CheckCircle,
@@ -196,7 +197,7 @@ export default function Progress() {
       ? Math.round((daysKept / summary.days.length) * 100)
       : 0
 
-  const unit: WeightUnit = preferences?.weightUnit === "lbs" ? "lbs" : "kg"
+  const unit: WeightUnit = useWeightUnit()
   const orderedMeasurements = useMemo(
     () =>
       [...(bodyMeasurements ?? [])].sort((a, b) =>

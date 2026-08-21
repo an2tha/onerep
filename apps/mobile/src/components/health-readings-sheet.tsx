@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
+import { useWeightUnit } from "@/lib/use-weight-unit"
 import { CalendarBlank, CaretLeft, CaretRight, X } from "@phosphor-icons/react"
 import { useMutation, useQuery } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
@@ -198,10 +199,7 @@ export function HealthReadingsSheet({
    */
   const [justEdited, setJustEdited] = useState<ManualByDate>({})
 
-  const weightUnit =
-    (preferences as { weightUnit?: string } | null)?.weightUnit === "lbs"
-      ? "lbs"
-      : "kg"
+  const weightUnit = useWeightUnit()
   const rows = useMemo(() => fields(weightUnit), [weightUnit])
   const storeName = healthProvider.healthProviderLabel()
   const canWriteBack = healthProvider.isHealthSyncSupportedPlatform()

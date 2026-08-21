@@ -47,6 +47,7 @@ import {
   resolveHealthMetricSelection,
 } from "../../../../convex/lib/healthMetricCatalog"
 import { AboutApp } from "@/components/about-app"
+import { cacheWeightUnit, readCachedWeightUnit } from "@/lib/use-weight-unit"
 import { useTour } from "@/components/walkthrough/tour-context"
 import { WALKTHROUGH_CHAPTERS } from "@/lib/walkthrough/chapters"
 import { walkthroughStatusLabel } from "@/lib/walkthrough/resolve"
@@ -403,7 +404,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
     preferences?.dashboardSettings?.simpleMode ?? false
   )
   const [weightUnit, setWeightUnitState] = useState<WeightUnit>(
-    (preferences?.weightUnit as WeightUnit) || "kg"
+    (preferences?.weightUnit as WeightUnit) || readCachedWeightUnit()
   )
   const [foodSearchLanguage, setFoodSearchLanguageState] =
     useState<FoodSearchLanguage>(
@@ -667,6 +668,9 @@ export default function Settings({ onClose }: { onClose: () => void }) {
     await runSectionSave(async () => {
       await setDashboardSettings({ workoutFocus, simpleMode: simpleDashboard })
       await setWeightUnit({ unit: weightUnit })
+      // Write through immediately: every other screen opens on this value
+      // before its own preferences query resolves.
+      cacheWeightUnit(weightUnit)
       await setFoodSearchLanguage({ language: foodSearchLanguage })
     }, "Workout settings saved")
   }

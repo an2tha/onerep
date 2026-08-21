@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react"
+import { useWeightUnit } from "@/lib/use-weight-unit"
 import { useMutation, useQuery } from "convex/react"
 import {
   ArrowClockwise,
@@ -115,7 +116,7 @@ export function QuickLogStep({
   const removeBySlot = useMutation(api.logs.workouts.removeBySlot)
 
   const unit: WeightUnit =
-    (preferences?.weightUnit as WeightUnit | undefined) ?? "kg"
+    useWeightUnit()
 
   const presetRows = useMemo<PresetRow[]>(() => {
     if (!presets || preferences === undefined) return []
