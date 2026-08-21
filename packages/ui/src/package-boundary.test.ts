@@ -167,6 +167,9 @@ describe("@repo/ui package boundary", () => {
       // Renders null; reads the account age from Convex and emits the daily
       // retention event against Capacitor's app-state listener.
       "retention-tracking.tsx",
+      // Renders null; reads the shell and OTA bundle versions off Capacitor
+      // and registers them against the account.
+      "app-version-report.tsx",
       // Renders null; syncs Convex data into the iOS widget extension.
       "widget-data-sync.tsx",
     ])
