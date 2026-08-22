@@ -55,7 +55,7 @@ describe("Today and nutrition UX contract", () => {
   })
 
   test("Today folds logged supplements into the day's intake totals", () => {
-    const APP_SOURCE = source("../App.tsx")
+    const APP_SOURCE = source("../App.legacy.tsx")
     // The Nutrition page always counted supplement macros; Today used to show
     // food only, so the same day read differently on the two screens.
     assert.match(APP_SOURCE, /combineMacroTotals\(/)

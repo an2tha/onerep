@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { readFileSync } from "node:fs"
 
-const app = readFileSync(new URL("../App.tsx", import.meta.url), "utf8")
+const app = readFileSync(new URL("../App.legacy.tsx", import.meta.url), "utf8")
 const home = readFileSync(
   new URL(
     "../../../../packages/ui/src/components/home/index.tsx",

@@ -17,7 +17,7 @@ const MEAL_PREP_SOURCE = readFileSync(
   new URL("./MealPrep.tsx", import.meta.url),
   "utf8"
 )
-const APP_SOURCE = readFileSync(new URL("../App.tsx", import.meta.url), "utf8")
+const APP_SOURCE = readFileSync(new URL("../App.legacy.tsx", import.meta.url), "utf8")
 
 describe("net carb display mode", () => {
   test("settings exposes a labelled toggle that persists the preference", () => {

@@ -16,7 +16,7 @@ const dashboardInsights = source(
   "../../../../packages/ui/src/components/dashboard-progress-panels.tsx"
 )
 const home = source("../../../../packages/ui/src/components/home/index.tsx")
-const app = source("../App.tsx")
+const app = source("../App.legacy.tsx")
 
 describe("progress UX contract", () => {
   test("explains calculations and gives each progress area a next action", () => {
