@@ -103,7 +103,13 @@ export default function SnapAndLog() {
   const [params] = useSearchParams()
   const initialMode = (params.get("mode") as ScreenMode | null) ?? "snap"
 
-  const date = currentDateKey()
+  // Honour a date the diary was viewing when the camera opened, so a snap or
+  // barcode logged against a past day lands on that day rather than today.
+  const requestedDate = params.get("date")
+  const date =
+    requestedDate && /^\d{4}-\d{2}-\d{2}$/.test(requestedDate)
+      ? requestedDate
+      : currentDateKey()
   const preferences = useQuery(api.users.users.getPreferences, {})
   const foodSearchLanguage = preferences?.foodSearchLanguage ?? "en"
   const foodLogs = useQuery(api.logs.foodLogs.getDay, { date })
@@ -710,7 +716,7 @@ export default function SnapAndLog() {
               )}
               <button
                 type="button"
-                onClick={() => navigate("/foods/search")}
+                onClick={() => navigate(`/foods/search?date=${date}`)}
                 className="min-h-11 rounded-lg border border-white/25 px-4 text-[14px] font-semibold text-white"
               >
                 Search foods
@@ -970,7 +976,7 @@ export default function SnapAndLog() {
             setBarcodeError(null)
             setBarcodeScanNonce((n) => n + 1)
           }}
-          onSearchManually={() => navigate("/foods/search")}
+          onSearchManually={() => navigate(`/foods/search?date=${date}`)}
           onDismiss={() => {
             setSnapPhase("idle")
             setSnapReviewItems([])

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import { Warning } from "@phosphor-icons/react"
-import { useLocation, useParams } from "react-router"
+import { useLocation, useParams, useSearchParams } from "react-router"
 import { usePostHog } from "@posthog/react"
 import { captureFeatureUsage } from "@/lib/analytics"
 import { useQuery } from "convex/react"
@@ -40,9 +40,12 @@ export default function FoodReview() {
   const savingRef = useRef(false)
 
   const preferences = useQuery(api.users.users.getPreferences, {})
-  const date = currentDateKey(
-    preferences?.lastActiveTimezone || detectTimeZone()
-  )
+  const [reviewParams] = useSearchParams()
+  const requestedDate = reviewParams.get("date")
+  const date =
+    requestedDate && /^\d{4}-\d{2}-\d{2}$/.test(requestedDate)
+      ? requestedDate
+      : currentDateKey(preferences?.lastActiveTimezone || detectTimeZone())
   const addFoodEntry = useOfflineMutation(
     api.logs.foodLogs.addEntry,
     "logs.foodLogs.addEntry"
