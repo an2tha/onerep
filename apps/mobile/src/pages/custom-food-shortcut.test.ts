@@ -35,7 +35,7 @@ describe("creating a food the database is missing", () => {
 
   test("the add-to-diary menu lists it alongside the other log methods", () => {
     expect(NUTRITION_SOURCE).toContain('label: "Custom food"')
-    expect(NUTRITION_SOURCE).toContain('"/foods/custom?new=1&log=1"')
+    expect(NUTRITION_SOURCE).toContain("/foods/custom?new=1&log=1&date=")
   })
 
   test("a failed camera offers the same way out", () => {

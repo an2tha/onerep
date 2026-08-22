@@ -2555,7 +2555,7 @@ export default function Nutrition() {
   function openSnapCamera() {
     if (!requireAiAccess(1, "snap_camera")) return
     setAddOpen(false)
-    navigate("/camera")
+    navigate(`/camera?date=${dateKey}`)
   }
 
   // The same sheet the live workout opens, over the diary instead of over a
@@ -4027,13 +4027,16 @@ export default function Nutrition() {
                   label: "Scan barcode",
                   detail: "Packaged food",
                   Icon: Barcode,
-                  action: () => navigate("/camera?mode=barcode"),
+                  supportsHistory: true,
+                  action: () =>
+                    navigate(`/camera?mode=barcode&date=${dateKey}`),
                 },
                 {
                   label: "Snap meal",
                   detail: "Estimate from photo",
                   Icon: Aperture,
                   requiresAiAccess: true,
+                  supportsHistory: true,
                   action: openSnapCamera,
                 },
                 {
@@ -4041,13 +4044,16 @@ export default function Nutrition() {
                   detail: "AI builds a temporary recipe",
                   Icon: Sparkle,
                   requiresAiAccess: true,
+                  supportsHistory: true,
                   action: openDescribeMeal,
                 },
                 {
                   label: "Custom food",
                   detail: "Enter one the database is missing",
                   Icon: PencilSimple,
-                  action: () => navigate("/foods/custom?new=1&log=1"),
+                  supportsHistory: true,
+                  action: () =>
+                    navigate(`/foods/custom?new=1&log=1&date=${dateKey}`),
                 },
               ]
                 .filter((item) => isToday || item.supportsHistory)

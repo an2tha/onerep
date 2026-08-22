@@ -57,7 +57,11 @@ export default function CustomFoods() {
   const energyUnit = useEnergyUnit()
   const navigate = useSmoothNavigate()
   const [searchParams] = useSearchParams()
-  const today = currentDateKey()
+  const requestedDate = searchParams.get("date")
+  const today =
+    requestedDate && /^\d{4}-\d{2}-\d{2}$/.test(requestedDate)
+      ? requestedDate
+      : currentDateKey()
 
   const foodsQuery = useQuery(api.logs.customFoods.list, {})
   const saveFood = useOfflineMutation(

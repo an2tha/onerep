@@ -304,7 +304,8 @@ export default function SearchFoods() {
 
   function openFoodReview(item: FoodSearchItem) {
     if (shouldOpenReviewAsPage()) {
-      navigate(`/foods/review/${encodeURIComponent(item.id)}`, {
+      const dateParam = date && date !== currentDateKey() ? `?date=${date}` : ""
+      navigate(`/foods/review/${encodeURIComponent(item.id)}${dateParam}`, {
         state: { item },
       })
       return
