@@ -13,7 +13,7 @@ const REPORT_SOURCE = readFileSync(
   new URL("./NutritionReport.tsx", import.meta.url),
   "utf8"
 )
-const APP_SOURCE = readFileSync(new URL("../App.tsx", import.meta.url), "utf8")
+const APP_SOURCE = readFileSync(new URL("../App.legacy.tsx", import.meta.url), "utf8")
 const MAIN_SOURCE = readFileSync(
   new URL("../main.tsx", import.meta.url),
   "utf8"

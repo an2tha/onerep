@@ -7453,6 +7453,50 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   z-index: 2;
 }
 
+/* ── Day timeline ─────────────────────────────────────────────────────────── */
+
+/* The redesigned home leads with the dials and the day, not the greeting, so
+   its header runs smaller than the shared hero type — scoped here rather than
+   in `.app-title` itself, which Nutrition and the rest still set their own
+   scale by. Phone only; from `md` the hero has the width to carry it. */
+@media (max-width: 767px) {
+  .dashboard-home .dashboard-hero-header .app-title {
+    font-size: 1.28rem;
+    letter-spacing: -0.01em;
+  }
+
+  .dashboard-home .dashboard-hero-header .app-eyebrow {
+    font-size: 0.72rem;
+  }
+
+  .dashboard-home .dashboard-hero-frame {
+    gap: var(--space-4);
+    padding-bottom: var(--space-4);
+  }
+}
+
+/* The lane the day scrolls through. A picker's selection lane is a tint and
+   nothing else — no border, no shadow, no blur. What marks the position is
+   that the type inside it is the only type at full strength; the ruler
+   quiets underneath rather than being covered up by a slab. */
+.day-timeline-bulge {
+  /* A numeric radius, not 9999px: a fully-round value only clamps to look
+     round, so animating it to a boxy corner would hold that round look for
+     almost the whole transition, then snap in the last few frames. This
+     value is just half the band's own height — genuinely full-round at
+     rest, but a number the animation can count down evenly. */
+  border-radius: 36px;
+  background-color: color-mix(in srgb, var(--foreground) 5%, transparent);
+  transition:
+    background-color 260ms ease,
+    border-radius 380ms var(--motion-ease-emphasized);
+}
+
+.day-timeline-bulge-active {
+  border-radius: 1.125rem;
+  background-color: color-mix(in srgb, var(--foreground) 8%, transparent);
+}
+
 /* ── Dashboard tiles ──────────────────────────────────────────────────────── */
 
 /*
