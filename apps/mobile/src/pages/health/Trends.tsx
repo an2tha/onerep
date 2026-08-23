@@ -3,6 +3,7 @@ import { useQuery } from "convex/react"
 import { api } from "../../../../../convex/_generated/api"
 import { currentDateKey } from "@/lib/food-log"
 import { useEnergyUnit } from "@/lib/use-energy-unit"
+import { useWeightUnit } from "@/lib/use-weight-unit"
 import { energyDisplay } from "@repo/ui"
 import { healthProviderLabel } from "@/lib/health-provider"
 import { platformMetric } from "../../../../../convex/lib/platformHealthMetrics"
@@ -100,7 +101,10 @@ const CHARTS: Array<{
     metric: "weight",
     title: "Weight",
     kind: "line",
-    format: (value) => `${value.toFixed(1)}kg`,
+    // Unitless here on purpose, same as energy: kg vs lb is a per-user
+    // preference, so the render site converts and appends where the hook
+    // can be called.
+    format: (value) => value.toFixed(1),
     tone: AREA_TONES.recovery,
   },
   {
@@ -132,6 +136,7 @@ const ENTRY_DAYS = 90
 export default function HealthTrends() {
   const today = currentDateKey()
   const energyUnit = useEnergyUnit()
+  const weightUnit = useWeightUnit()
   const [range, setRange] = useState<RangeKey>("M")
   const custom = useQuery(api.customProgressMetrics.list, { days: ENTRY_DAYS })
 
@@ -189,7 +194,12 @@ export default function HealthTrends() {
               chart.metric === "energy"
                 ? (value: number) =>
                     `${chart.format(energyDisplay(value, energyUnit))} ${energyUnit}`
-                : chart.format
+                : chart.metric === "weight"
+                  ? (value: number) =>
+                      weightUnit === "lbs"
+                        ? `${(value * 2.20462).toFixed(1)}lb`
+                        : `${chart.format(value)}kg`
+                  : chart.format
             }
             tone={chart.tone}
             range={range}

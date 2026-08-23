@@ -13,10 +13,7 @@ import {
 } from "./shared"
 import { DialCustomMetrics } from "@/components/dial-custom-metrics"
 import { TrackSomethingNew } from "@/components/track-something-new"
-
-function formatKg(value: number) {
-  return `${value.toFixed(1)}kg`
-}
+import { useWeightUnit } from "@/lib/use-weight-unit"
 
 function formatPercent(value: number) {
   return `${value.toFixed(1)}%`
@@ -123,7 +120,7 @@ export default function HealthBody() {
         <StatGrid>
           <StatCell
             label="Latest"
-            value={formatKg(latest?.weightKg as number)}
+            value={formatWeight(latest?.weightKg as number)}
             caption={
               latest?.source === "health" ? "from your scale" : "you logged it"
             }
@@ -133,7 +130,7 @@ export default function HealthBody() {
             value={
               change == null
                 ? "—"
-                : `${change > 0 ? "+" : "−"}${formatKg(Math.abs(change))}`
+                : `${change > 0 ? "+" : "−"}${formatWeight(Math.abs(change))}`
             }
             caption={`over ${weighed.length} check-ins`}
           />
@@ -143,7 +140,7 @@ export default function HealthBody() {
               value={formatPercent(latestFat.bodyFatPct as number)}
               caption={
                 latestFat.leanBodyMassKg
-                  ? `${formatKg(latestFat.leanBodyMassKg)} lean`
+                  ? `${formatWeight(latestFat.leanBodyMassKg)} lean`
                   : "latest reading"
               }
             />
