@@ -1420,6 +1420,18 @@
   );
   --accent-progress: #716f76;
   --accent-health: #6d7476;
+  /* The wheel's two directions relative to right now. Warm for behind you —
+     retro-logging something that already happened — cool for ahead, where
+     you're scheduling something that hasn't. Muted on purpose: both sit
+     behind legible type all day. */
+  --accent-retro: #7a6a52;
+  --accent-retro-bg: color-mix(in srgb, var(--accent-retro) 10%, transparent);
+  --accent-schedule: #5a6d7e;
+  --accent-schedule-bg: color-mix(
+    in srgb,
+    var(--accent-schedule) 11%,
+    transparent
+  );
   --accent-progress-bg: color-mix(
     in srgb,
     var(--accent-progress) 8%,
@@ -2828,6 +2840,14 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   );
   --accent-progress: #9b4d96;
   --accent-health: #1f7a86;
+  --accent-retro: #b58a55;
+  --accent-retro-bg: color-mix(in srgb, var(--accent-retro) 14%, transparent);
+  --accent-schedule: #5e88b8;
+  --accent-schedule-bg: color-mix(
+    in srgb,
+    var(--accent-schedule) 15%,
+    transparent
+  );
   --accent-progress-bg: color-mix(
     in srgb,
     var(--accent-progress) 8%,
@@ -7494,7 +7514,39 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
 
 .day-timeline-bulge-active {
   border-radius: 1.125rem;
-  background-color: color-mix(in srgb, var(--foreground) 8%, transparent);
+  /* The card the anchor grows into over a selected event: a real surface,
+     outlined, not just a deeper tint — the data inside is meant to read as
+     content you could tap, not as emphasis on the ruler. */
+  background-color: var(--card);
+  box-shadow:
+    0 0 0 1px var(--border),
+    0 12px 32px color-mix(in srgb, black 14%, transparent);
+}
+
+/* Before vs after right now. The band tints in its direction's hue; the
+   grown card keeps its readable surface but takes the direction's ring, so
+   "retro-log" and "schedule" are colors you learn once and read forever.
+   These must come after the base classes — same specificity, later wins. */
+.day-timeline-bulge-past {
+  background-color: var(--accent-retro-bg);
+}
+
+.day-timeline-bulge-future {
+  background-color: var(--accent-schedule-bg);
+}
+
+.day-timeline-bulge-active.day-timeline-bulge-past {
+  background-color: color-mix(in srgb, var(--card) 90%, var(--accent-retro));
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--accent-retro) 45%, transparent),
+    0 12px 32px color-mix(in srgb, black 14%, transparent);
+}
+
+.day-timeline-bulge-active.day-timeline-bulge-future {
+  background-color: color-mix(in srgb, var(--card) 90%, var(--accent-schedule));
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--accent-schedule) 45%, transparent),
+    0 12px 32px color-mix(in srgb, black 14%, transparent);
 }
 
 /* ── Dashboard tiles ──────────────────────────────────────────────────────── */

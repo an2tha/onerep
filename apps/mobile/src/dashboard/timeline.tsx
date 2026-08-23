@@ -7,14 +7,22 @@ import {
 } from "react"
 import {
   Barbell,
+  CaretDown,
+  CaretUp,
+  Clock,
   ForkKnife,
+  PencilSimple,
   Pill,
   PintGlass,
   Plus,
+  Stack,
+  Trash,
 } from "@phosphor-icons/react"
 import { hapticSelection, hapticTap } from "@/lib/haptics"
 
 export type TimelineEntryKind = "food" | "water" | "workout" | "supplement"
+
+export type TimelineFact = { label: string; value: string }
 
 export type TimelineEntry = {
   id: string
@@ -22,6 +30,9 @@ export type TimelineEntry = {
   title: string
   detail: string
   kind: TimelineEntryKind
+  /** Extra numbers the row reveals near the anchor and the card shows in
+   * full — calories, macros, volume, whatever the entry has. */
+  facts?: TimelineFact[]
 }
 
 function EntryIcon({ kind, size }: { kind: TimelineEntryKind; size: number }) {
@@ -37,10 +48,10 @@ function EntryIcon({ kind, size }: { kind: TimelineEntryKind; size: number }) {
 // band, the way a physical wheel would recede — this is meant to be the
 // dashboard's main control, not a read-only chart alongside one.
 //
-// The band is a tint and the type standing on it, nothing more. It reads
-// whatever minute is centered; scroll it near an event and it takes over
-// that event's mark and title while the row itself steps aside, so the same
-// thing is never on screen twice. The ruler underneath fades out inside the
+// The band is the scroll anchor. At rest it shrinks to a quiet readout of
+// the minute; scrolling wakes it to full size; and over an event it grows
+// into an outlined card holding that entry's full numbers, so selecting
+// something on the wheel and reading it are the same gesture. The ruler underneath fades out inside the
 // lane rather than being hidden behind it — which is why the band can stay
 // this quiet and still be the thing you're obviously pointing with. Every
 // event dot can also be picked off the line and dragged to a new minute.
@@ -56,7 +67,16 @@ const DAY_MINUTES = DAY_HOURS * 60
 const LINE_LEFT = 64
 const DAY_HEIGHT = DAY_HOURS * HOUR_PX
 const NEAR_EVENT_MINUTES = 45
+// Entries closer together than this share one row: below roughly half a
+// row height of ruler pitch, separate rows physically overlap and stop
+// reading as separate things.
+const MERGE_MINUTES = 25
 const BULGE_HEIGHT = 72
+// The card the anchor grows into over a selected event.
+const CARD_HEIGHT = 132
+// How close a row has to sit to the band before its own numbers start
+// showing, in px from the band's center.
+const FACT_REVEAL_PX = 150
 
 function parseTimeToMinutes(time: string): number {
   const match = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i.exec(time.trim())
@@ -103,12 +123,27 @@ function wheelDepth(top: number, scrollTop: number, viewportHeight: number) {
 export function DayTimeline({
   entries,
   onEntryTimeChange,
-  onAddAtTime,
+  sleepWindow,
+  onEditEntry,
+  onDeleteEntry,
+  onAddEntry,
+  onQuickLog,
 }: {
   entries: TimelineEntry[]
   onEntryTimeChange?: (id: string, time: string) => void
-  /** Log something at whatever minute the band is currently holding. */
-  onAddAtTime?: (time: string) => void
+  /** The user's night, in minutes from midnight — may wrap past 24h into
+   * the small hours. Null when there is no sleep data to back it. */
+  sleepWindow?: { start: number; end: number } | null
+  /** Open the page that owns an entry (its "edit" surface). */
+  onEditEntry?: (entry: TimelineEntry) => void
+  /** Remove an entry from its log for real. */
+  onDeleteEntry?: (entry: TimelineEntry) => void
+  /** Start logging something of this kind (opens the matching drawer). */
+  onAddEntry?: (kind: TimelineEntryKind) => void
+  /** The always-visible pair of + buttons on the anchor's edges: one for
+   * logging into the past, one for scheduling ahead. Reports which edge
+   * and the minute the wheel is holding. */
+  onQuickLog?: (phase: "past" | "future", minutes: number) => void
 }) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
@@ -119,6 +154,16 @@ export function DayTimeline({
   const [draggingId, setDraggingId] = useState<string | null>(null)
   const [scrollTop, setScrollTop] = useState(0)
   const [viewportHeight, setViewportHeight] = useState(0)
+  // The clock, read on an interval rather than during render — the line
+  // creeps down the ruler as the day does without re-render impurity.
+  const [nowMinutes, setNowMinutes] = useState(() => nowInMinutes())
+  useEffect(() => {
+    const timer = window.setInterval(
+      () => setNowMinutes(nowInMinutes()),
+      30_000
+    )
+    return () => window.clearInterval(timer)
+  }, [])
   const [isInteracting, setIsInteracting] = useState(false)
   const interactingTimeoutRef = useRef<
     ReturnType<typeof setTimeout> | undefined
@@ -156,13 +201,15 @@ export function DayTimeline({
     const node = scrollRef.current
     if (!node || viewportHeight === 0 || didInitialScrollRef.current) return
     didInitialScrollRef.current = true
-    const currentHour = Math.floor(nowInMinutes() / 60) * 60
+    const currentHour = Math.floor(nowMinutes / 60) * 60
     node.scrollTop = Math.max(
       0,
       Math.min(DAY_HEIGHT, topForMinutes(currentHour))
     )
     setScrollTop(node.scrollTop)
-  }, [viewportHeight])
+    // The ref guard makes re-running on the clock harmless: only the very
+    // first real height gets to park the wheel.
+  }, [viewportHeight, nowMinutes])
 
   // What time sits under the band right now — used both to decide whether
   // it should morph into a nearby event, and to fire the hour-snap haptic.
@@ -171,29 +218,68 @@ export function DayTimeline({
   // viewport, so the center time is just the scroll position itself.
   const centerMinutes = (scrollTop / HOUR_PX) * 60
 
-  const nearestEntry = useMemo(() => {
-    if (!viewportHeight || entries.length === 0) return null
-    let closest = entries[0]
-    let closestDiff = Math.abs(parseTimeToMinutes(closest.time) - centerMinutes)
-    for (const entry of entries.slice(1)) {
-      const diff = Math.abs(parseTimeToMinutes(entry.time) - centerMinutes)
+  // Before or after right now — retro-logging territory versus scheduling
+  // territory. A half-hour grace band around the current minute stays
+  // neutral; nobody needs the anchor announcing a direction for "just now".
+  // Uses the ticking `nowMinutes` state above, so the phase flips on its
+  // own as the day moves under a stationary wheel.
+  const anchorPhase =
+    centerMinutes < nowMinutes - 30
+      ? "past"
+      : centerMinutes > nowMinutes + 30
+        ? "future"
+        : "now"
+
+  // The wheel reads chronologically no matter what order callers hand over.
+  const sortedEntries = useMemo(
+    () =>
+      [...entries].sort(
+        (a, b) => parseTimeToMinutes(a.time) - parseTimeToMinutes(b.time)
+      ),
+    [entries]
+  )
+
+  // Entries that land within MERGE_MINUTES of each other share one row:
+  // the wheel's vertical pitch can't keep them apart visually, so they
+  // travel and get read as one — the card lists them individually.
+  type EntryGroup = { key: string; minutes: number; members: TimelineEntry[] }
+  const displayGroups = useMemo<EntryGroup[]>(() => {
+    const groups: EntryGroup[] = []
+    for (const entry of sortedEntries) {
+      const minutes = parseTimeToMinutes(entry.time)
+      const last = groups[groups.length - 1]
+      if (last && minutes - last.minutes <= MERGE_MINUTES) {
+        last.members.push(entry)
+      } else {
+        groups.push({ key: entry.id, minutes, members: [entry] })
+      }
+    }
+    return groups
+  }, [sortedEntries])
+
+  const nearestGroup = useMemo(() => {
+    if (!viewportHeight || displayGroups.length === 0) return null
+    let closest = displayGroups[0]
+    let closestDiff = Math.abs(closest.minutes - centerMinutes)
+    for (const group of displayGroups.slice(1)) {
+      const diff = Math.abs(group.minutes - centerMinutes)
       if (diff < closestDiff) {
-        closest = entry
+        closest = group
         closestDiff = diff
       }
     }
     return closestDiff <= NEAR_EVENT_MINUTES ? closest : null
-  }, [entries, centerMinutes, viewportHeight])
+  }, [displayGroups, centerMinutes, viewportHeight])
 
   // A lighter, more distinct buzz right as the band's morph locks onto an
   // event — separate from the hour-snap tap below, so the two kinds of
   // "arrived somewhere" don't feel identical.
   const prevNearestIdRef = useRef<string | null>(null)
   useEffect(() => {
-    const id = nearestEntry?.id ?? null
+    const id = nearestGroup?.key ?? null
     if (id && id !== prevNearestIdRef.current) hapticSelection()
     prevNearestIdRef.current = id
-  }, [nearestEntry?.id])
+  }, [nearestGroup?.key])
 
   const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
     const node = event.currentTarget
@@ -208,7 +294,7 @@ export function DayTimeline({
     if (snapTimeoutRef.current) clearTimeout(snapTimeoutRef.current)
     snapTimeoutRef.current = setTimeout(() => {
       const settledMinutes = (top / HOUR_PX) * 60
-      const closeEntry = entries.find(
+      const closeEntry = sortedEntries.find(
         (entry) =>
           Math.abs(parseTimeToMinutes(entry.time) - settledMinutes) <=
           NEAR_EVENT_MINUTES
@@ -266,7 +352,7 @@ export function DayTimeline({
   }
 
   return (
-    <div className="relative h-full">
+    <div className="relative mx-auto h-full w-full max-w-sm">
       <div
         ref={scrollRef}
         className="app-scroll-strip relative h-full overflow-y-auto"
@@ -278,72 +364,295 @@ export function DayTimeline({
       >
         <div
           ref={contentRef}
-          className="relative mx-auto w-full max-w-sm -translate-x-6 px-6"
+          // No negative shift, no horizontal padding: the hour labels are
+          // absolutely positioned from this box's left edge, and any offset
+          // here pushes them past it — they were losing their first
+          // character off the left side of the strip.
+          className="relative mx-auto w-full max-w-sm"
           style={{ height: DAY_HEIGHT + viewportHeight }}
         >
+          {/* The night: hours nobody should be awake for, dimmed behind the
+            ruler. The window comes from the user's own health data — their
+            average nightly sleep, centred on the middle of the night — and
+            when there is no data there is no shading, because guessing
+            someone's bedtime would be worse than admitting ignorance. */}
+          {(sleepWindow
+            ? sleepWindow.start > sleepWindow.end
+              ? [
+                  [sleepWindow.start, DAY_MINUTES],
+                  [0, sleepWindow.end],
+                ]
+              : [[sleepWindow.start, sleepWindow.end]]
+            : []
+          ).map(([from, to]) => (
+            <span
+              key={`night-${from}`}
+              // Square edges, flush to the lane: rounding this turns a
+              // two-hour sliver into a floating circle, which reads as
+              // decoration instead of shading.
+              className="absolute inset-x-0 bg-foreground/[0.05]"
+              style={{
+                left: LINE_LEFT - 16,
+                top: topForMinutes(from) + padding,
+                height: topForMinutes(to - from),
+              }}
+              aria-hidden="true"
+            />
+          ))}
           <span
             className="absolute w-0.5 bg-border"
             style={{ left: LINE_LEFT, top: padding, height: DAY_HEIGHT }}
             aria-hidden="true"
           />
 
-          {/* The band: pinned to the center of the screen for the entire
+          {/* Now. The one mark on the ruler that isn't data: where this
+            minute actually sits. A hairline across the lane and a solid
+            bead on the axis — deliberately quieter than any event dot,
+            because unlike them it moves on its own. */}
+          <span
+            className="absolute"
+            style={{
+              top: topForMinutes(nowMinutes) + padding,
+              left: 0,
+              right: 0,
+            }}
+          >
+            <span
+              className="absolute h-px bg-foreground/25"
+              style={{ left: LINE_LEFT, right: 0 }}
+              aria-hidden="true"
+            />
+            <span
+              className="absolute size-2 rounded-full bg-foreground shadow-[0_0_0_2px_var(--background)]"
+              style={{ left: LINE_LEFT - 4, top: -3.5 }}
+              aria-hidden="true"
+            />
+            <span
+              className="absolute text-right text-[11px] font-bold tracking-[0.08em] text-foreground/50 uppercase tabular-nums"
+              style={{ left: 0, width: LINE_LEFT - 16, top: -7 }}
+            >
+              Now
+            </span>
+          </span>
+
+          {/* The anchor: pinned to the center of the strip for the entire
             scroll range (it has to live inside the full-height ruler, not
             after it, or its resting position is the bottom of the day
-            rather than the middle of the viewport). It is a tint and the
-            type standing on it — the position is marked by being the only
-            thing at full strength, not by a slab sitting on top of the
-            page. Over an event it takes that event's mark and title. */}
+            rather than the middle of the viewport). Three states, each one
+            quiet: at rest a single row — the minute, plus two small +
+            buttons on the right; scrolling wakes the band; over an event
+            the band becomes the card, which is also the only place an
+            entry's actions live. */}
           <div className="pointer-events-none sticky top-1/2 z-20 h-0">
             <div
-              className={`absolute inset-x-3 -translate-y-1/2 transition-transform duration-300 ease-out ${
-                nearestEntry ? "scale-[1.03]" : "scale-100"
+              className={`absolute inset-x-2 -translate-y-1/2 transition-all duration-300 ease-out ${
+                nearestGroup
+                  ? "scale-100"
+                  : isInteracting
+                    ? "scale-[0.94]"
+                    : "scale-[0.84]"
               }`}
-              style={{ height: BULGE_HEIGHT }}
+              style={{ height: nearestGroup ? CARD_HEIGHT : BULGE_HEIGHT }}
             >
               <div
                 className={`day-timeline-bulge absolute inset-0 ${
-                  nearestEntry ? "day-timeline-bulge-active" : ""
+                  nearestGroup ? "day-timeline-bulge-active" : ""
+                } ${
+                  anchorPhase === "past"
+                    ? "day-timeline-bulge-past"
+                    : anchorPhase === "future"
+                      ? "day-timeline-bulge-future"
+                      : ""
                 }`}
                 aria-hidden="true"
               />
-              <div className="relative flex h-full items-center">
+              {/* Resting readout — one row, nothing floating: the minute on
+                the left, the quick-log pair tucked on the right. */}
+              <div
+                className="absolute inset-0 flex h-full items-center transition-opacity duration-200"
+                style={{ opacity: nearestGroup ? 0 : 1 }}
+              >
                 <span
-                  className="absolute text-foreground transition-opacity duration-300"
-                  style={{
-                    left: LINE_LEFT - 9,
-                    opacity: nearestEntry ? 1 : 0,
-                  }}
-                >
-                  {nearestEntry && (
-                    <EntryIcon kind={nearestEntry.kind} size={18} />
-                  )}
-                </span>
-                <span
-                  className={`absolute text-[20px] font-semibold tabular-nums transition-colors duration-300 ${
-                    isInteracting ? "text-foreground" : "text-foreground/75"
+                  className={`absolute text-[19px] font-semibold tabular-nums transition-colors duration-300 ${
+                    anchorPhase === "past"
+                      ? "text-[var(--accent-retro)]"
+                      : anchorPhase === "future"
+                        ? "text-[var(--accent-schedule)]"
+                        : isInteracting
+                          ? "text-foreground"
+                          : "text-foreground/70"
                   }`}
-                  style={{
-                    left: LINE_LEFT + 25,
-                    opacity: nearestEntry ? 0 : 1,
-                  }}
+                  style={{ left: LINE_LEFT + 25 }}
                 >
                   {minutesToTime(centerMinutes)}
                 </span>
-                <span
-                  className="absolute flex max-w-[74%] min-w-0 flex-col transition-opacity duration-300"
-                  style={{
-                    left: LINE_LEFT + 25,
-                    opacity: nearestEntry ? 1 : 0,
-                  }}
+                <div
+                  className="absolute right-3 flex items-center gap-1"
+                  style={{ pointerEvents: nearestGroup ? "none" : "auto" }}
                 >
-                  <span className="truncate text-[21px] leading-tight font-semibold text-foreground">
-                    {nearestEntry?.title}
-                  </span>
-                  <span className="truncate text-[13px] text-muted-foreground">
-                    {nearestEntry?.time} · {nearestEntry?.detail}
-                  </span>
-                </span>
+                  {[
+                    {
+                      phase: "past" as const,
+                      label: "Log something earlier today",
+                      color: "var(--accent-retro)",
+                      icon: Plus,
+                    },
+                    {
+                      phase: "future" as const,
+                      label: "Schedule something ahead",
+                      color: "var(--accent-schedule)",
+                      icon: Clock,
+                    },
+                  ].map((button) => (
+                    <button
+                      key={button.phase}
+                      type="button"
+                      aria-label={button.label}
+                      title={button.label}
+                      onClick={() =>
+                        onQuickLog?.(button.phase, Math.round(centerMinutes))
+                      }
+                      className="motion-tactile flex size-7 items-center justify-center rounded-full border bg-card/80"
+                      style={{
+                        borderColor: `color-mix(in srgb, ${button.color} 40%, transparent)`,
+                        color: button.color,
+                      }}
+                    >
+                      <button.icon size={13} weight="bold" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {/* The card: everything the selected entry carries. Takes
+                pointer events itself — the sticky wrapper above is none —
+                but only while it's actually open: at rest this layer is
+                invisible, and an invisible layer with pointer events would
+                silently eat every click aimed at the + / clock buttons. */}
+              <div
+                className={`${
+                  nearestGroup ? "pointer-events-auto" : "pointer-events-none"
+                } absolute inset-0 flex h-full items-center gap-3 px-4 transition-opacity duration-200`}
+                style={{ opacity: nearestGroup ? 1 : 0 }}
+                aria-hidden={!nearestGroup}
+              >
+                {nearestGroup &&
+                  (nearestGroup.members.length === 1 ? (
+                    <>
+                      <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-foreground text-background">
+                        <EntryIcon
+                          kind={nearestGroup.members[0].kind}
+                          size={16}
+                        />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-baseline gap-2">
+                          <span className="min-w-0 truncate text-[16px] leading-tight font-semibold text-foreground">
+                            {nearestGroup.members[0].title}
+                          </span>
+                          <span className="shrink-0 text-[12px] font-medium text-muted-foreground tabular-nums">
+                            {nearestGroup.members[0].time}
+                          </span>
+                        </div>
+                        <p className="truncate text-[13px] text-muted-foreground">
+                          {nearestGroup.members[0].detail}
+                        </p>
+                        {nearestGroup.members[0].facts &&
+                          nearestGroup.members[0].facts.length > 0 && (
+                            <p className="mt-1 flex flex-wrap gap-1">
+                              {nearestGroup.members[0]
+                                .facts!.slice(0, 4)
+                                .map((fact) => (
+                                  <span
+                                    key={fact.label}
+                                    className="rounded-full bg-muted px-2 py-0.5 text-[11px] leading-none text-muted-foreground"
+                                  >
+                                    <span className="font-medium text-foreground/70">
+                                      {fact.label}
+                                    </span>{" "}
+                                    {fact.value}
+                                  </span>
+                                ))}
+                            </p>
+                          )}
+                      </div>
+                      <EntryActions
+                        onEdit={
+                          onEditEntry
+                            ? () => onEditEntry(nearestGroup.members[0])
+                            : undefined
+                        }
+                        onDelete={
+                          onDeleteEntry
+                            ? () => onDeleteEntry(nearestGroup.members[0])
+                            : undefined
+                        }
+                        onAdd={
+                          onAddEntry
+                            ? () => onAddEntry(nearestGroup.members[0].kind)
+                            : undefined
+                        }
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-foreground text-background">
+                        <Stack size={16} weight="bold" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-[16px] leading-tight font-semibold text-foreground">
+                            {nearestGroup.members.length} logged items
+                          </span>
+                          <span className="text-[12px] font-medium text-muted-foreground tabular-nums">
+                            {nearestGroup.members[0].time} –{" "}
+                            {
+                              nearestGroup.members[
+                                nearestGroup.members.length - 1
+                              ].time
+                            }
+                          </span>
+                        </div>
+                        <ul className="mt-1 flex max-h-[76px] flex-col gap-0.5 overflow-y-auto">
+                          {nearestGroup.members.map((member) => (
+                            <li
+                              key={member.id}
+                              className="flex items-center gap-2 text-[12px] leading-tight"
+                            >
+                              <span className="w-14 shrink-0 text-muted-foreground tabular-nums">
+                                {member.time}
+                              </span>
+                              <span className="min-w-0 flex-1 truncate text-foreground/80">
+                                {member.title}
+                              </span>
+                              {onDeleteEntry && (
+                                <button
+                                  type="button"
+                                  aria-label={`Delete ${member.title}`}
+                                  title="Delete"
+                                  onClick={() => onDeleteEntry(member)}
+                                  className="motion-tactile flex size-5 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-destructive"
+                                >
+                                  <Trash size={10} weight="bold" />
+                                </button>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                      <EntryActions
+                        onEdit={
+                          onEditEntry
+                            ? () => onEditEntry(nearestGroup.members[0])
+                            : undefined
+                        }
+                        onAdd={
+                          onAddEntry
+                            ? () => onAddEntry(nearestGroup.members[0].kind)
+                            : undefined
+                        }
+                      />
+                    </>
+                  ))}
               </div>
             </div>
           </div>
@@ -400,25 +709,46 @@ export function DayTimeline({
             )
           })}
 
-          {entries.map((entry) => {
-            const minutes = parseTimeToMinutes(entry.time)
+          {displayGroups.map((group) => {
+            const minutes = group.minutes
             const top = topForMinutes(minutes) + padding
-            const dragging = draggingId === entry.id
-            const highlighted = nearestEntry?.id === entry.id
+            const single = group.members.length === 1
+            const entry = group.members[0]
+            const dragging = single && draggingId === entry.id
+            const highlighted = nearestGroup?.key === group.key
             const depth = wheelDepth(top, scrollTop, viewportHeight)
             const scale = highlighted ? 1.08 : depth.scale
+            // A row's own numbers surface as it comes within reach of the
+            // anchor — the last stretch before the card takes over — and
+            // step back down once it does, same as the title below. The
+            // actions ride the same fade.
+            const proximityOpacity = highlighted
+              ? 0
+              : Math.max(
+                  0,
+                  Math.min(
+                    1,
+                    1 -
+                      Math.abs(top - (scrollTop + viewportHeight / 2)) /
+                        FACT_REVEAL_PX
+                  )
+                )
             return (
               <div
-                key={entry.id}
+                key={group.key}
                 className={`absolute flex gap-5 ${
                   highlighted && !dragging ? "pointer-events-none" : ""
                 }`}
                 style={{
                   top: top - 9,
+                  // Bounded on both sides so truncation has something to
+                  // push against — an absolutely positioned row otherwise
+                  // shrink-wraps its content and runs off the strip.
+                  left: 0,
+                  right: 10,
                   paddingLeft: LINE_LEFT + 25,
-                  // The bulge takes over showing this entry once it's the one
-                  // centered under it — leaving both visible doubled the text,
-                  // caret over "Breakfast" over "Breakfast".
+                  // The card takes over showing this group once it's the one
+                  // centered under it — leaving both visible doubled the text.
                   opacity: highlighted ? 0 : depth.opacity,
                   transform: `scale(${scale})`,
                   transformOrigin: "left center",
@@ -429,11 +759,20 @@ export function DayTimeline({
                 }}
               >
                 <span
-                  onPointerDown={(event) => handleDotPointerDown(entry, event)}
-                  onPointerMove={(event) => handleDotPointerMove(entry, event)}
+                  onPointerDown={(event) =>
+                    single && handleDotPointerDown(entry, event)
+                  }
+                  onPointerMove={(event) =>
+                    single && handleDotPointerMove(entry, event)
+                  }
                   onPointerUp={handleDotPointerUp}
+                  title={
+                    single && onEntryTimeChange
+                      ? "Drag to change time"
+                      : undefined
+                  }
                   className={`absolute top-0 flex touch-none items-center justify-center rounded-full border-[3px] border-background bg-foreground text-background shadow-[0_0_0_1px_var(--border)] transition-transform select-none ${
-                    onEntryTimeChange
+                    single && onEntryTimeChange
                       ? dragging
                         ? "scale-125 cursor-grabbing"
                         : "cursor-grab active:scale-110"
@@ -441,22 +780,71 @@ export function DayTimeline({
                   }`}
                   style={{ left: LINE_LEFT - 13, width: 28, height: 28 }}
                 >
-                  <EntryIcon kind={entry.kind} size={14} />
+                  {single ? (
+                    <EntryIcon kind={entry.kind} size={14} />
+                  ) : (
+                    <Stack size={13} weight="bold" />
+                  )}
                 </span>
+                {/* The drag cue: a pair of chevrons on the axis, above and
+                  below the dot. They fade in as the row approaches the band
+                  — exactly when a drag would be worth starting — and say
+                  "this moves up and down through time" without a word. */}
+                {single && onEntryTimeChange && (
+                  <>
+                    <CaretUp
+                      size={9}
+                      weight="bold"
+                      aria-hidden="true"
+                      className="pointer-events-none absolute text-muted-foreground/70 transition-opacity duration-200"
+                      style={{
+                        left: LINE_LEFT - 4,
+                        top: -13,
+                        opacity: proximityOpacity * 0.9,
+                      }}
+                    />
+                    <CaretDown
+                      size={9}
+                      weight="bold"
+                      aria-hidden="true"
+                      className="pointer-events-none absolute text-muted-foreground/70 transition-opacity duration-200"
+                      style={{
+                        left: LINE_LEFT - 4,
+                        top: 31,
+                        opacity: proximityOpacity * 0.9,
+                      }}
+                    />
+                  </>
+                )}
                 <span
                   className={`w-16 shrink-0 pt-1 text-[15px] font-semibold tabular-nums transition-colors ${
                     highlighted ? "text-foreground" : "text-muted-foreground"
                   }`}
                 >
-                  {entry.time}
+                  {minutesToTime(minutes)}
                 </span>
                 <div className="min-w-0">
-                  <p className="text-[19px] leading-tight font-semibold text-foreground">
-                    {entry.title}
+                  <p className="truncate text-[18px] leading-tight font-semibold text-foreground">
+                    {single
+                      ? entry.title
+                      : `${group.members.length} logged items`}
                   </p>
-                  <p className="mt-1 text-[14px] text-muted-foreground">
-                    {entry.detail}
+                  <p className="mt-0.5 truncate text-[13px] text-muted-foreground">
+                    {single
+                      ? entry.detail
+                      : group.members.map((m) => m.title).join(" · ")}
                   </p>
+                  {single && entry.facts && entry.facts.length > 0 && (
+                    <p
+                      className="mt-0.5 text-[12px] leading-snug text-muted-foreground/90 transition-opacity duration-200"
+                      style={{ opacity: proximityOpacity }}
+                    >
+                      {entry.facts
+                        .slice(0, 3)
+                        .map((fact) => `${fact.label} ${fact.value}`)
+                        .join(" · ")}
+                    </p>
+                  )}
                 </div>
               </div>
             )
@@ -468,7 +856,7 @@ export function DayTimeline({
             <p
               className="absolute text-[15px] text-muted-foreground"
               style={{
-                top: topForMinutes(nowInMinutes()) + padding + 28,
+                top: topForMinutes(nowMinutes) + padding + 28,
                 paddingLeft: LINE_LEFT + 25,
               }}
             >
@@ -477,24 +865,45 @@ export function DayTimeline({
           )}
         </div>
       </div>
-
-      {/* Same floating button the active workout carries, in the same
-          corner: whatever screen you're on, the round black button in the
-          bottom right adds the thing that screen is about. Outside the
-          scroller on purpose — its mask would clip this straight off. */}
-      {onAddAtTime && (
-        <button
-          type="button"
-          onClick={() => {
-            hapticTap()
-            onAddAtTime(minutesToTime(centerMinutes))
-          }}
-          aria-label={`Log something at ${minutesToTime(centerMinutes)}`}
-          className="motion-tactile fixed right-[max(1rem,env(safe-area-inset-right,0px))] bottom-[calc(var(--app-safe-bottom-lg)+4.75rem)] z-50 inline-flex h-12 w-12 items-center justify-center rounded-full bg-foreground text-background shadow-[0_8px_22px_rgba(0,0,0,0.26)]"
-        >
-          <Plus size={19} weight="bold" />
-        </button>
-      )}
     </div>
+  )
+}
+
+// The three things you can do to an entry, as quiet ghost buttons that
+// only exist in the card — rows stay pure content, and the actions appear
+// exactly where your eyes already are when you've decided to act.
+function EntryActions({
+  onEdit,
+  onDelete,
+  onAdd,
+}: {
+  onEdit?: () => void
+  onDelete?: () => void
+  onAdd?: () => void
+}) {
+  const actions = [
+    { label: "Edit", icon: PencilSimple, onClick: onEdit },
+    { label: "Delete", icon: Trash, onClick: onDelete },
+    { label: "Add", icon: Plus, onClick: onAdd },
+  ].filter((action) => action.onClick)
+  if (actions.length === 0) return null
+  return (
+    <span className="flex shrink-0 flex-col items-center gap-0.5 self-center">
+      {actions.map((action) => (
+        <button
+          key={action.label}
+          type="button"
+          aria-label={action.label}
+          title={action.label}
+          onClick={(event) => {
+            event.stopPropagation()
+            action.onClick?.()
+          }}
+          className="motion-tactile flex size-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <action.icon size={14} weight="bold" />
+        </button>
+      ))}
+    </span>
   )
 }

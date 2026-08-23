@@ -59,6 +59,44 @@ const REMINDER_COPY: Record<
   },
 }
 
+export type EntryReminderKind = "workout" | "food"
+
+/**
+ * A one-shot reminder for an entry the user planned on the day wheel —
+ * unlike the daily reminders above, this fires once at a specific minute
+ * the user pointed at, then never again. Ids live in their own band
+ * (96000+) so cancelling or syncing the daily set can never touch them.
+ */
+export async function scheduleEntryReminder(
+  kind: EntryReminderKind,
+  at: Date
+): Promise<"scheduled" | "unsupported" | "denied"> {
+  if (Capacitor.getPlatform() === "web") return "unsupported"
+
+  await ensureNotificationChannels()
+  const permission = await LocalNotifications.requestPermissions()
+  if (permission.display !== "granted") return "denied"
+
+  const channelId = supportsNotificationChannels()
+    ? NOTIFICATION_CHANNELS.reminders
+    : undefined
+  await LocalNotifications.schedule({
+    notifications: [
+      {
+        id: 96000 + Math.floor(Math.random() * 9999),
+        title: kind === "workout" ? "Scheduled workout" : "Meal log reminder",
+        body:
+          kind === "workout"
+            ? "You planned a session for around now. Start it while it fits."
+            : "You planned to eat around now — log it while you remember what it was.",
+        schedule: { at, allowWhileIdle: true },
+        channelId,
+      },
+    ],
+  })
+  return "scheduled"
+}
+
 export function mergeReminderSettings(
   value?: Partial<ReminderSettings> | null
 ): ReminderSettings {
