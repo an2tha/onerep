@@ -212,6 +212,8 @@ class HealthConnectPlugin : Plugin() {
         HealthPermission.getWritePermission(BasalMetabolicRateRecord::class),
         HealthPermission.getWritePermission(HeightRecord::class),
         HealthPermission.getWritePermission(BodyWaterMassRecord::class),
+        // Nutrition totals written back from the food log.
+        HealthPermission.getWritePermission(NutritionRecord::class),
     )
 
     /** Written by `saveWorkout`; the only write the app performs unprompted. */
@@ -1202,6 +1204,42 @@ class HealthConnectPlugin : Plugin() {
             )
             "hydrationMl" -> HydrationRecord(
                 dayStart, spanOffset, dayEnd, spanOffset, Volume.milliliters(value), meta,
+            )
+            // Nutrition totals. Health Connect models these as one
+            // NutritionRecord per meal, with the meal type optional — so a
+            // corrected day total is a legitimate record with no meal
+            // attached, and the store aggregates by summing across records.
+            "dietaryEnergyKcal" -> NutritionRecord(
+                startTime = dayStart,
+                startZoneOffset = spanOffset,
+                endTime = dayEnd,
+                endZoneOffset = spanOffset,
+                energy = Energy.kilocalories(value),
+                metadata = meta,
+            )
+            "dietaryProteinG" -> NutritionRecord(
+                startTime = dayStart,
+                startZoneOffset = spanOffset,
+                endTime = dayEnd,
+                endZoneOffset = spanOffset,
+                protein = Mass.grams(value),
+                metadata = meta,
+            )
+            "dietaryCarbsG" -> NutritionRecord(
+                startTime = dayStart,
+                startZoneOffset = spanOffset,
+                endTime = dayEnd,
+                endZoneOffset = spanOffset,
+                carbohydrate = Mass.grams(value),
+                metadata = meta,
+            )
+            "dietaryFatG" -> NutritionRecord(
+                startTime = dayStart,
+                startZoneOffset = spanOffset,
+                endTime = dayEnd,
+                endZoneOffset = spanOffset,
+                fat = Mass.grams(value),
+                metadata = meta,
             )
             "vo2Max" -> Vo2MaxRecord(time = at, zoneOffset = offset, vo2MillilitersPerMinuteKilogram = value, metadata = meta)
             "restingHeartRateBpm" -> RestingHeartRateRecord(at, offset, value.toLong(), meta)
