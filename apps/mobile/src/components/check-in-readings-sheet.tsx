@@ -7,6 +7,7 @@ import { PrimaryButton, ToolbarButton } from "@repo/ui"
 import { hapticSelection } from "@/lib/haptics"
 import type { BodyMeasurementEntry } from "@/lib/body-progress"
 import type { WeightUnit } from "@/lib/health-goals"
+import { writeBackBodyMetrics } from "@/lib/health-provider"
 import { shiftDate } from "../../../../convex/lib/healthSeries"
 
 /**
@@ -226,6 +227,9 @@ export function CheckInReadingsSheet({
         // the note and the photo are nobody's business here and stay put.
         clearFields: cleared,
       })
+      // Best-effort write-back: the save already landed in OneRep, so a
+      // health store that refuses is a shrug rather than a failure.
+      writeBackBodyMetrics({ date, ...changed }).catch(() => {})
       hapticSelection()
       onClose()
     } catch {

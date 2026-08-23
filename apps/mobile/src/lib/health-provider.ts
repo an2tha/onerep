@@ -242,6 +242,34 @@ export async function saveHealthDailyMetric(options: {
 }
 
 /**
+ * Writes body metrics (weight, body fat, etc.) back to the health provider.
+ *
+ * Best-effort by design: a refusal from the store must not fail the save that
+ * already succeeded in OneRep. Each metric is written independently so a
+ * failure on one does not block the others.
+ */
+export async function writeBackBodyMetrics(options: {
+  date: string
+  weightKg?: number
+  bodyFatPct?: number
+  leanBodyMassKg?: number
+  boneMassKg?: number
+  basalMetabolicRateKcal?: number
+}): Promise<void> {
+  const entries: [string, number][] = []
+  if (options.weightKg != null) entries.push(["weightKg", options.weightKg])
+  if (options.bodyFatPct != null) entries.push(["bodyFatPct", options.bodyFatPct])
+  if (options.leanBodyMassKg != null) entries.push(["leanBodyMassKg", options.leanBodyMassKg])
+  if (options.boneMassKg != null) entries.push(["boneMassKg", options.boneMassKg])
+  if (options.basalMetabolicRateKcal != null) entries.push(["basalMetabolicRateKcal", options.basalMetabolicRateKcal])
+  await Promise.all(
+    entries.map(([metric, value]) =>
+      saveHealthDailyMetric({ metric, date: options.date, value }),
+    ),
+  )
+}
+
+/**
  * Android only. Health Connect has no programmatic revoke, so the user has to
  * be sent to the Health Connect app to change or withdraw permissions.
  */

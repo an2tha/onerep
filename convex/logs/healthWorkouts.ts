@@ -257,10 +257,12 @@ export const list = query({
       .order("desc")
       .take(limit * 2);
 
-    return rows
+    const candidates = rows
       .filter((row) => row.dismissedAt === undefined)
-      .slice(0, limit)
-      .map((row) => ({
+      .slice(0, limit);
+
+    return Promise.all(
+      candidates.map(async (row) => ({
         _id: row._id,
         externalId: row.externalId,
         provider: row.provider,
@@ -280,7 +282,20 @@ export const list = query({
         needsExercises:
           isStrengthActivity(row.activityType) &&
           row.linkedSessionId === undefined,
-      }));
+        // Both training-log slots on that date are taken, so "Add" would
+        // fail — the client hides the button instead of offering it.
+        dayFull:
+          row.linkedSessionId === undefined &&
+          isLinkableActivity(row.activityType)
+            ? (await findFreeWorkoutSlot(
+                  ctx,
+                  user._id,
+                  row.date,
+                  healthSessionId(row.provider, row.externalId),
+                )) === null
+            : false,
+      })),
+    );
   },
 });
 
@@ -439,6 +454,29 @@ export const linkToTrainingLog = mutation({
     }
 
     const sessionId = healthSessionId(workout.provider, workout.externalId);
+
+    // Already promoted (a previous attempt wrote the log but died before
+    // marking this row linked): just finish the bookkeeping. Without this,
+    // re-tapping Add would burn a second slot on the same session.
+    const existing = await ctx.db
+      .query("workoutLogs")
+      .withIndex("by_userId_and_date_and_sessionId", (q) =>
+        q
+          .eq("userId", user._id)
+          .eq("date", workout.date)
+          .eq("sessionId", sessionId),
+      )
+      .unique()
+      .catch(() => undefined);
+    if (existing) {
+      await ctx.db.patch(args.id, {
+        linkedSessionId: sessionId,
+        linkedDate: workout.date,
+        updatedAt: Date.now(),
+      });
+      return { sessionId, slot: existing.slot };
+    }
+
     // A slot is mandatory: `logs.workouts.getLog` reads `.take(2)` per date, so
     // a slot-less third log would be silently invisible.
     const slot = await findFreeWorkoutSlot(

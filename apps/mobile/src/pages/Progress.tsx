@@ -40,6 +40,7 @@ import { CheckInHistory } from "@/components/check-in-history"
 import { TrainingInsightsPanel } from "@/components/training-insights-panel"
 import { hapticMedium, hapticSelection } from "@/lib/haptics"
 import { toast } from "@repo/ui"
+import { writeBackBodyMetrics } from "@/lib/health-provider"
 import { TourAnchor, useTourAnchor } from "@/components/walkthrough/tour-anchor"
 import { FormCoachPinnedCards } from "@/components/form-coach-card"
 import { ExerciseLibrary } from "@/components/exercise-library"
@@ -432,6 +433,12 @@ export default function Progress() {
           ...(notes.trim() ? [] : ["notes"]),
         ],
       })
+      // Best-effort write-back to Apple Health / Health Connect.
+      writeBackBodyMetrics({
+        date: editingDate,
+        weightKg: unit === "lbs" ? enteredWeight / 2.20462 : enteredWeight,
+        ...(enteredBodyFat !== undefined ? { bodyFatPct: enteredBodyFat } : {}),
+      }).catch(() => {})
       hapticMedium()
       toast.success(
         entryClientId

@@ -2418,6 +2418,12 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                               <span className="native-row-detail shrink-0">
                                 Added
                               </span>
+                            ) : workout.dayFull ? (
+                              // Both slots that day are taken — offering Add
+                              // would only produce a failed mutation.
+                              <span className="native-row-detail shrink-0">
+                                Day full
+                              </span>
                             ) : workout.linkable ? (
                               <button
                                 type="button"

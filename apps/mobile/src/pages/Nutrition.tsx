@@ -2315,6 +2315,10 @@ export default function Nutrition() {
     (sum, entry) => sum + entry.amountMl,
     0
   )
+  // Whatever lands in the day's log also flows out to Apple Health /
+  // Health Connect (opt-in), so the health store's nutrition picture is
+  // complete even when meals were logged here rather than scanned there.
+  useNutritionHealthWriteBack(dateKey, entries, waterTotal)
   const waterGoal = preferences?.waterGoalMl ?? 2500
 
   const supplementPlan = useMemo(
@@ -2760,7 +2764,7 @@ export default function Nutrition() {
   }
 
   function openFoodSearch() {
-    navigate(isToday ? "/foods/search" : `/foods/search?date=${dateKey}`)
+    navigate(`/foods/search?date=${dateKey}`)
   }
 
   async function repeatFood(entry: FoodLogEntry, key: string) {
@@ -2807,7 +2811,7 @@ export default function Nutrition() {
         {
           label: "Barcode",
           Icon: Barcode,
-          action: () => navigate("/camera?mode=barcode"),
+          action: () => navigate(`/camera?mode=barcode&date=${dateKey}`),
         },
         {
           label: "Snap",
