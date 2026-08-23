@@ -39,6 +39,7 @@ import { updateOneRepWidgets } from "@/lib/home-widgets"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { cn, safeLocalStorageGet, safeLocalStorageSet } from "@/lib/utils"
 import { useEnergyUnit } from "@/lib/use-energy-unit"
+import { useNutritionHealthWriteBack } from "@/lib/nutrition-writeback"
 import { energyDisplay } from "@repo/ui"
 import {
   FOOD_MICRONUTRIENT_KEYS,

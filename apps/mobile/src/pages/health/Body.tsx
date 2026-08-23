@@ -31,6 +31,12 @@ function formatPercent(value: number) {
 export default function HealthBody() {
   const today = currentDateKey()
   const navigate = useSmoothNavigate()
+  // Storage is kilograms everywhere; the display unit is the user's.
+  const weightUnit = useWeightUnit()
+  const formatWeight = (kg: number) =>
+    weightUnit === "lbs"
+      ? `${(kg * 2.20462).toFixed(1)}lb`
+      : `${kg.toFixed(1)}kg`
   const measurements = useQuery(api.bodyProgress.list) as
     | {
         loggedAt: string
@@ -67,7 +73,7 @@ export default function HealthBody() {
             today={today}
             metric="weight"
             title="Weight"
-            format={formatKg}
+            format={formatWeight}
             kind="line"
             tone={AREA_TONES.recovery}
           />

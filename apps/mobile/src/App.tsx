@@ -117,11 +117,11 @@ function Dashboard() {
 
   // Adherence sets for the week bar — raw dates, since the bar itself
   // navigates across weeks.
-  const workoutDateSet = useMemo(
+  const workoutDateSet = useMemo<Set<string>>(
     () => new Set((workoutHistory ?? []).map((log) => log.date)),
     [workoutHistory]
   )
-  const foodDateSet = useMemo(
+  const foodDateSet = useMemo<Set<string>>(
     () =>
       new Set(
         (recentFoodDays ?? [])
