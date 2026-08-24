@@ -128,8 +128,27 @@ export function DayTimeline({
   onDeleteEntry,
   onAddEntry,
   onQuickLog,
+  isToday = true,
+  loading = false,
 }: {
   entries: TimelineEntry[]
+  /**
+   * Whether the wheel is showing today.
+   *
+   * A past day has no "now" to mark and nothing to schedule ahead into, and
+   * parking it on the current hour opens it at whatever o'clock it happens
+   * to be rather than where the day's entries are.
+   */
+  isToday?: boolean
+  /**
+   * The day's logs are still in flight.
+   *
+   * Switching days empties the wheel for as long as the queries take, and an
+   * empty wheel that says "nothing logged" during that gap is stating
+   * something false about the day — briefly, but it is the first thing the
+   * screen says about it.
+   */
+  loading?: boolean
   onEntryTimeChange?: (id: string, time: string) => void
   /** The user's night, in minutes from midnight — may wrap past 24h into
    * the small hours. Null when there is no sleep data to back it. */
@@ -201,15 +220,20 @@ export function DayTimeline({
     const node = scrollRef.current
     if (!node || viewportHeight === 0 || didInitialScrollRef.current) return
     didInitialScrollRef.current = true
-    const currentHour = Math.floor(nowMinutes / 60) * 60
-    node.scrollTop = Math.max(
-      0,
-      Math.min(DAY_HEIGHT, topForMinutes(currentHour))
-    )
+    // Today opens on the current hour; a past day opens on its first entry,
+    // and an empty one on the morning rather than on midnight.
+    const openAt = isToday
+      ? nowMinutes
+      : entries.length > 0
+        ? Math.min(...entries.map((entry) => parseTimeToMinutes(entry.time)))
+        : 8 * 60
+    const openHour = Math.floor(openAt / 60) * 60
+    node.scrollTop = Math.max(0, Math.min(DAY_HEIGHT, topForMinutes(openHour)))
     setScrollTop(node.scrollTop)
     // The ref guard makes re-running on the clock harmless: only the very
     // first real height gets to park the wheel.
-  }, [viewportHeight, nowMinutes])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewportHeight, nowMinutes, isToday])
 
   // What time sits under the band right now — used both to decide whether
   // it should morph into a nearby event, and to fire the hour-snap haptic.
@@ -340,7 +364,28 @@ export function DayTimeline({
   }
 
   return (
-    <div className="relative mx-auto h-full w-full max-w-sm">
+    // Settles on mount and on every day change — the parent keys this on the
+    // date, so switching days is one authored moment rather than a swap.
+    <div className="motion-content-in relative mx-auto h-full w-full max-w-sm">
+      {/* A day with nothing in it is an empty ruler, which on today reads as
+        an invitation and on a past day reads as a fault. Say which it is —
+        and make the sentence the way out of it, since an empty day is
+        precisely when the wheel's own + is hardest to notice. */}
+      {!isToday && !loading && entries.length === 0 && (
+        <div className="motion-content-in absolute inset-x-0 top-[30%] z-30 flex flex-col items-center gap-2.5">
+          <p className="text-[13px] text-muted-foreground">
+            Nothing logged this day.
+          </p>
+          <button
+            type="button"
+            onClick={() => onQuickLog?.("past", Math.round(centerMinutes))}
+            className="motion-tactile flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-[12px] font-semibold text-foreground"
+          >
+            <Plus size={11} weight="bold" />
+            Add to this day
+          </button>
+        </div>
+      )}
       <div
         ref={scrollRef}
         className="app-scroll-strip relative h-full overflow-y-auto"
@@ -396,32 +441,36 @@ export function DayTimeline({
           {/* Now. The one mark on the ruler that isn't data: where this
             minute actually sits. A hairline across the lane and a solid
             bead on the axis — deliberately quieter than any event dot,
-            because unlike them it moves on its own. */}
-          <span
-            className="absolute"
-            style={{
-              top: topForMinutes(nowMinutes) + padding,
-              left: 0,
-              right: 0,
-            }}
-          >
+            because unlike them it moves on its own. A past day has no such
+            minute, and drawing today's on it would be a lie about when
+            anything happened. */}
+          {isToday && (
             <span
-              className="absolute h-px bg-foreground/25"
-              style={{ left: LINE_LEFT, right: 0 }}
-              aria-hidden="true"
-            />
-            <span
-              className="absolute size-2 rounded-full bg-foreground shadow-[0_0_0_2px_var(--background)]"
-              style={{ left: LINE_LEFT - 4, top: -3.5 }}
-              aria-hidden="true"
-            />
-            <span
-              className="absolute text-right text-[11px] font-bold tracking-[0.08em] text-foreground/50 uppercase tabular-nums"
-              style={{ left: 0, width: LINE_LEFT - 16, top: -7 }}
+              className="absolute"
+              style={{
+                top: topForMinutes(nowMinutes) + padding,
+                left: 0,
+                right: 0,
+              }}
             >
-              Now
+              <span
+                className="absolute h-px bg-foreground/25"
+                style={{ left: LINE_LEFT, right: 0 }}
+                aria-hidden="true"
+              />
+              <span
+                className="absolute size-2 rounded-full bg-foreground shadow-[0_0_0_2px_var(--background)]"
+                style={{ left: LINE_LEFT - 4, top: -3.5 }}
+                aria-hidden="true"
+              />
+              <span
+                className="absolute text-right text-[11px] font-bold tracking-[0.08em] text-foreground/50 uppercase tabular-nums"
+                style={{ left: 0, width: LINE_LEFT - 16, top: -7 }}
+              >
+                Now
+              </span>
             </span>
-          </span>
+          )}
 
           {/* The anchor: pinned to the center of the strip for the entire
             scroll range (it has to live inside the full-height ruler, not
@@ -469,14 +518,23 @@ export function DayTimeline({
                   {[
                     {
                       phase: "past" as const,
-                      label: "Log something earlier today",
+                      label: isToday
+                        ? "Log something earlier today"
+                        : "Log something into this day",
                       icon: Plus,
                     },
-                    {
-                      phase: "future" as const,
-                      label: "Schedule something ahead",
-                      icon: Clock,
-                    },
+                    // Nothing can be scheduled into a day that has already
+                    // happened, so the clock goes rather than sitting there
+                    // taking taps that cannot mean anything.
+                    ...(isToday
+                      ? [
+                          {
+                            phase: "future" as const,
+                            label: "Schedule something ahead",
+                            icon: Clock,
+                          },
+                        ]
+                      : []),
                   ].map((button) => (
                     <button
                       key={button.phase}
@@ -488,7 +546,8 @@ export function DayTimeline({
                       }
                       className="motion-tactile flex size-7 items-center justify-center rounded-full border bg-card/80"
                       style={{
-                        borderColor: "color-mix(in srgb, var(--foreground) 40%, transparent)",
+                        borderColor:
+                          "color-mix(in srgb, var(--foreground) 40%, transparent)",
                         color: "var(--muted-foreground)",
                       }}
                     >
@@ -823,7 +882,6 @@ export function DayTimeline({
               </div>
             )
           })}
-
         </div>
       </div>
     </div>

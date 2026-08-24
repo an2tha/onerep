@@ -29,6 +29,7 @@ import {
 import { DashboardHero } from "@repo/ui"
 import {
   dateKeyToCalendarDate,
+  daysAgoLabel,
   greeting,
   hourInTimeZone,
 } from "@/dashboard/helpers"
@@ -56,10 +57,16 @@ function Dashboard() {
   const { user } = useAppAuth()
   const preferences = useQuery(api.users.users.getPreferences, {})
   const activeTimezone = preferences?.lastActiveTimezone || "UTC"
-  const dateKey = useMemo(
+  const todayKey = useMemo(
     () => currentDateKey(activeTimezone),
     [activeTimezone]
   )
+  // Which day the wheel is showing. Null is today — held separately rather
+  // than defaulting the state to a date string, so that a session left open
+  // past midnight rolls over with the clock instead of pinning yesterday.
+  const [viewedDateKey, setViewedDateKey] = useState<string | null>(null)
+  const dateKey = viewedDateKey ?? todayKey
+  const viewingToday = dateKey === todayKey
 
   // Today's ledger, straight from the logs. Each source knows its own
   // shape; buildTimelineEntries flattens them into wheel rows.
@@ -146,10 +153,15 @@ function Dashboard() {
       ),
     [foodEntries]
   )
+  // Today only. The push is keyed on the day's totals and Health Connect
+  // merges records by summing, so browsing back through the week would
+  // re-push every day it landed on and double it in the store.
   useNutritionHealthWriteBack(
-    dateKey,
-    foodEntries,
-    (waterEntries ?? []).reduce((sum, entry) => sum + entry.amountMl, 0)
+    todayKey,
+    viewingToday ? foodEntries : undefined,
+    viewingToday
+      ? (waterEntries ?? []).reduce((sum, entry) => sum + entry.amountMl, 0)
+      : 0
   )
 
   // Which of the plan's supplements are taken today, as supplement id →
@@ -223,9 +235,7 @@ function Dashboard() {
   const [scheduleRequest, setScheduleRequest] =
     useState<ScheduleEntryRequest | null>(null)
   const salutation = greeting(hourInTimeZone(now, activeTimezone))
-  const dateLabel = dateKeyToCalendarDate(
-    currentDateKey(activeTimezone)
-  ).toLocaleDateString("en-US", {
+  const dateLabel = dateKeyToCalendarDate(dateKey).toLocaleDateString("en-US", {
     weekday: "long",
     month: "long",
     day: "numeric",
@@ -242,6 +252,10 @@ function Dashboard() {
           dateLabel={dateLabel}
           salutation={salutation}
           firstName={firstName}
+          // A finished day names itself. The greeting is about now, and now
+          // is not what is on screen.
+          title={viewingToday ? undefined : dateLabel}
+          subtitle={viewingToday ? undefined : daysAgoLabel(dateKey, todayKey)}
           action={
             <DashboardDials
               nutritionPercent={62}
@@ -265,6 +279,7 @@ function Dashboard() {
       <div className="relative z-10 shrink-0 px-4 pt-1 lg:px-10">
         <DayRail
           dateKey={dateKey}
+          isToday={viewingToday}
           calories={dayTotals.calories}
           protein={dayTotals.protein}
           carbs={dayTotals.carbs}
@@ -294,6 +309,16 @@ function Dashboard() {
         <div className="flex min-h-0 w-full max-w-sm flex-col">
           <div className="min-h-0 flex-1">
             <DayTimeline
+              // Keyed on the day so switching days re-parks the wheel
+              // instead of holding the hour the last day was left on.
+              key={dateKey}
+              isToday={viewingToday}
+              loading={
+                foodEntries === undefined ||
+                waterEntries === undefined ||
+                supplementEntries === undefined ||
+                workoutLogs === undefined
+              }
               entries={timelineEntries.map((entry) => ({
                 ...entry,
                 time: timelineOverrides[entry.id] ?? entry.time,
@@ -330,13 +355,13 @@ function Dashboard() {
             />
           </div>
           <WeekStrip
-            todayKey={dateKey}
+            todayKey={todayKey}
+            selectedKey={dateKey}
+            onSelectDay={(day) =>
+              setViewedDateKey(day === todayKey ? null : day)
+            }
             workoutDates={workoutDateSet}
             foodDates={foodDateSet}
-            onLogFoodFor={(day) => openQuickAction("food", day)}
-            onLogWorkoutFor={(day) =>
-              navigate(`/workout/log/${day}`, { motion: "forward" })
-            }
             className="mt-1 shrink-0 pb-3"
           />
         </div>

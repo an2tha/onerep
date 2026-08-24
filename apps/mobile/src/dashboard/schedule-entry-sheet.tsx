@@ -85,7 +85,7 @@ export function ScheduleEntrySheet({
         <header>
           <h2 className="text-[19px] font-semibold tracking-tight text-foreground">
             {request.phase === "past"
-              ? `Retro-log around ${timeLabel}?`
+              ? `Log around ${timeLabel}?`
               : `Schedule an entry for ${timeLabel}?`}
           </h2>
           <p className="mt-1 text-[14px] text-muted-foreground">

@@ -97,7 +97,11 @@ export function QuickAddFab({
         }}
         className="coach-fab-trigger motion-tactile fixed right-[max(1rem,env(safe-area-inset-right,0px))] bottom-[calc(var(--app-safe-bottom-lg)+4.75rem)] z-50 inline-flex h-12 w-12 items-center justify-center rounded-full bg-foreground text-background shadow-[0_8px_22px_rgba(0,0,0,0.26)]"
       >
-        {open ? <X size={17} weight="bold" /> : <Plus size={19} weight="bold" />}
+        {open ? (
+          <X size={17} weight="bold" />
+        ) : (
+          <Plus size={19} weight="bold" />
+        )}
       </button>
       {open && (
         <>

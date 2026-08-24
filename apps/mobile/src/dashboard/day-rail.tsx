@@ -20,6 +20,7 @@ import { hapticMedium } from "@/lib/haptics"
 
 export function DayRail({
   dateKey,
+  isToday = true,
   calories,
   protein,
   carbs,
@@ -34,6 +35,8 @@ export function DayRail({
   className,
 }: {
   dateKey: string
+  /** False when the rail is showing a day that has already happened. */
+  isToday?: boolean
   calories: number
   protein: number
   carbs: number
@@ -54,10 +57,7 @@ export function DayRail({
   const removeLog = useMutation(api.logs.supplements.removeLog)
   const [busySupplementId, setBusySupplementId] = useState<string | null>(null)
 
-  async function toggleSupplement(supplement: {
-    id: string
-    logId?: string
-  }) {
+  async function toggleSupplement(supplement: { id: string; logId?: string }) {
     if (busySupplementId) return
     setBusySupplementId(supplement.id)
     try {
@@ -85,14 +85,21 @@ export function DayRail({
       <RailCard title="Nutrition">
         {caloriesRemaining !== null ? (
           <>
+            {/* A day still running has calories left in it. A day that is
+              over has a number it landed on, and "432 kcal left" about last
+              Tuesday is an instruction nobody can follow. */}
             <p className="flex items-baseline gap-2">
               <span className="text-[26px] leading-none font-semibold tracking-tight text-foreground tabular-nums lg:text-[32px]">
-                {caloriesRemaining >= 0
-                  ? caloriesRemaining
-                  : `+${Math.abs(caloriesRemaining)}`}
+                {isToday
+                  ? caloriesRemaining >= 0
+                    ? caloriesRemaining
+                    : `+${Math.abs(caloriesRemaining)}`
+                  : Math.round(calories)}
               </span>
               <span className="text-[12px] text-muted-foreground lg:text-[13px]">
-                kcal {caloriesRemaining >= 0 ? "left" : "over"}
+                {isToday
+                  ? `kcal ${caloriesRemaining >= 0 ? "left" : "over"}`
+                  : `of ${Math.round(calorieGoal ?? 0)} kcal`}
               </span>
             </p>
             <div className="mt-3 flex flex-col gap-2">
@@ -103,7 +110,7 @@ export function DayRail({
           </>
         ) : (
           <p className="text-[14px] text-muted-foreground">
-            {Math.round(calories)} kcal so far today.
+            {Math.round(calories)} kcal {isToday ? "so far today" : "logged"}.
           </p>
         )}
       </RailCard>
@@ -114,14 +121,21 @@ export function DayRail({
         action={
           <button
             type="button"
-            aria-label="Add a glass of water"
+            aria-label={
+              isToday ? "Add a glass of water" : "Add a glass to this day"
+            }
             onClick={() =>
               void addWater({
                 date: dateKey,
                 entry: {
                   id: `rail:${Date.now()}`,
                   amountMl: 250,
-                  loggedAt: new Date().toISOString(),
+                  // A glass poured into a past day did not happen at this
+                  // minute. Noon is the honest default; the wheel can drag
+                  // it to the hour it really was.
+                  loggedAt: isToday
+                    ? new Date().toISOString()
+                    : new Date(`${dateKey}T12:00:00`).toISOString(),
                 },
               })
             }

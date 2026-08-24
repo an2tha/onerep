@@ -128,6 +128,8 @@ export function DashboardHero({
   dateLabel,
   salutation,
   firstName,
+  title,
+  subtitle,
   action,
   fill = 0,
   children,
@@ -135,6 +137,24 @@ export function DashboardHero({
   dateLabel: string
   salutation: string
   firstName: string
+  /**
+   * Replaces the greeting outright.
+   *
+   * The greeting answers "when is now", which is the wrong question the
+   * moment the dashboard is showing a day that has already been and gone —
+   * "Good evening" over a Tuesday three weeks back is just wrong. A caller
+   * looking at the past names the day here instead.
+   */
+  title?: string
+  /**
+   * One line under the heading. Defaults to the date.
+   *
+   * The date used to sit above the heading as an eyebrow, which the app's
+   * own stylesheet then hid on every phone — so the dashboard shipped with
+   * no date on it at all. Under the heading it is supporting text doing a
+   * job, which is what it was for.
+   */
+  subtitle?: string
   action?: ReactNode
   /**
    * How far through the day's calories, 0-100. The field spreads and warms
@@ -156,10 +176,12 @@ export function DashboardHero({
       <div className="dashboard-hero-frame relative flex flex-col">
         <header className="dashboard-hero-header flex items-start justify-between gap-3 px-[var(--app-page-x)] md:px-8">
           <div className="min-w-0">
-            <p className="app-eyebrow truncate opacity-80">{dateLabel}</p>
             <h1 className="app-title max-w-[18ch] md:max-w-none">
-              {salutation}, {firstName}.
+              {title ?? `${salutation}, ${firstName}.`}
             </h1>
+            <p className="mt-1 truncate text-[13px] text-muted-foreground">
+              {subtitle ?? dateLabel}
+            </p>
           </div>
           {action && <div className="shrink-0 pt-0.5">{action}</div>}
         </header>

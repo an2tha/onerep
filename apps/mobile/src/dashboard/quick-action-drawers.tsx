@@ -61,13 +61,7 @@ export type QuickActionId =
 
 // ─── Shared pieces ───────────────────────────────────────────────────────────
 
-function DrawerIntro({
-  title,
-  detail,
-}: {
-  title: string
-  detail: string
-}) {
+function DrawerIntro({ title, detail }: { title: string; detail: string }) {
   return (
     <div className="pb-1">
       <h2 className="native-section-title">{title}</h2>
@@ -171,7 +165,10 @@ function WaterDrawer({
   const entries = (rawEntries ?? []) as WaterEntry[]
   const totalMl = entries.reduce((sum, entry) => sum + entry.amountMl, 0)
   const goalMl = preferences?.waterGoalMl ?? 2500
-  const percent = Math.min(100, Math.round((totalMl / Math.max(1, goalMl)) * 100))
+  const percent = Math.min(
+    100,
+    Math.round((totalMl / Math.max(1, goalMl)) * 100)
+  )
 
   function add(amountMl: number) {
     if (amountMl <= 0 || Number.isNaN(amountMl)) return
@@ -285,7 +282,7 @@ function WaterDrawer({
           }}
           placeholder="Amount in ml"
           aria-label="Custom water amount in millilitres"
-          className="h-12 min-w-0 flex-1 bg-transparent text-right text-[15px] tabular-nums outline-none placeholder:text-muted-foreground placeholder:text-left"
+          className="h-12 min-w-0 flex-1 bg-transparent text-right text-[15px] tabular-nums outline-none placeholder:text-left placeholder:text-muted-foreground"
         />
         <button
           type="button"
@@ -339,9 +336,9 @@ function FoodDrawer({
 
   const choices = useMemo(() => {
     const repeats = buildQuickRepeatFoods(
-      (recentFood ?? []).filter(
-        (day) => day.date !== dateKey
-      ) as Parameters<typeof buildQuickRepeatFoods>[0],
+      (recentFood ?? []).filter((day) => day.date !== dateKey) as Parameters<
+        typeof buildQuickRepeatFoods
+      >[0],
       5
     )
     return [
@@ -424,10 +421,7 @@ function FoodDrawer({
 
   return (
     <div className="flex flex-col gap-3 p-4">
-      <DrawerIntro
-        title="Log food"
-        detail="Your usual foods, one tap each."
-      />
+      <DrawerIntro title="Log food" detail="Your usual foods, one tap each." />
 
       <div className="app-surface overflow-hidden">
         {!loading && choices.length === 0 && (
@@ -578,7 +572,7 @@ function RecipesDrawer({
   const addFood = useMutation(api.logs.foodLogs.addEntry)
   const [busy, setBusy] = useState(false)
 
-  async function logRecipe(recipe: (NonNullable<typeof recipes>)[number]) {
+  async function logRecipe(recipe: NonNullable<typeof recipes>[number]) {
     if (busy) return
     const totals = recipeTotals(recipe.ingredients, recipe.servings ?? 1)
     const entry = stripUndefined({
@@ -912,8 +906,7 @@ function SupplementsDrawer({
     "logs.supplements.logTaken"
   )
   const overview = (overviewRaw ?? undefined) as
-    | SupplementOverviewShape
-    | undefined
+    SupplementOverviewShape | undefined
   const [busyId, setBusyId] = useState<string | null>(null)
 
   const takenIds = useMemo(() => {
@@ -978,7 +971,8 @@ function SupplementsDrawer({
                   style={
                     taken
                       ? {
-                          backgroundColor: "var(--status-success-bg, var(--muted))",
+                          backgroundColor:
+                            "var(--status-success-bg, var(--muted))",
                           color: "var(--status-success)",
                         }
                       : {
@@ -1062,11 +1056,17 @@ export function QuickActionDrawer({
   return (
     <MobileSheet onClose={onClose} ariaLabel={`${DRAWER_LABELS[id]} drawer`}>
       {id === "water" && <WaterDrawer dateKey={dateKey} onClose={onClose} />}
-      {id === "food" && <FoodDrawer dateKey={dateKey} onClose={onClose} editEntry={editEntry} />}
-      {id === "recipes" && <RecipesDrawer dateKey={dateKey} onClose={onClose} />}
+      {id === "food" && (
+        <FoodDrawer dateKey={dateKey} onClose={onClose} editEntry={editEntry} />
+      )}
+      {id === "recipes" && (
+        <RecipesDrawer dateKey={dateKey} onClose={onClose} />
+      )}
       {id === "recipe-create" && <CreateRecipeDrawer onClose={onClose} />}
       {id === "workout" && <WorkoutDrawer onClose={onClose} />}
-      {id === "fasting" && <FastingDrawer dateKey={dateKey} onClose={onClose} />}
+      {id === "fasting" && (
+        <FastingDrawer dateKey={dateKey} onClose={onClose} />
+      )}
       {id === "supplements" && (
         <SupplementsDrawer dateKey={dateKey} onClose={onClose} />
       )}

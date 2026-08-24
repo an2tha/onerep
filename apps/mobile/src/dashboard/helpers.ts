@@ -45,6 +45,25 @@ export function dayOffsetLabel(offset: number, timeZone: string): string {
   })
 }
 
+/**
+ * How far back a day sits, in the words somebody would actually use.
+ *
+ * A date alone says which day it was and nothing about how long ago that
+ * was, and working it out from the numerals is arithmetic the header should
+ * be doing. Past days only — the dashboard never shows a future one.
+ */
+export function daysAgoLabel(dateKey: string, todayKey: string): string {
+  const from = new Date(`${dateKey}T12:00:00`).getTime()
+  const to = new Date(`${todayKey}T12:00:00`).getTime()
+  const days = Math.round((to - from) / 86_400_000)
+  if (days <= 0) return "Today"
+  if (days === 1) return "Yesterday"
+  if (days < 7) return `${days} days ago`
+  if (days < 14) return "Last week"
+  if (days < 31) return `${Math.round(days / 7)} weeks ago`
+  return `${Math.round(days / 30)} months ago`
+}
+
 export function dateKeyToDay(dateKey: string, timeZone: string): RoutineDay {
   const weekday = new Intl.DateTimeFormat("en-US", {
     timeZone,

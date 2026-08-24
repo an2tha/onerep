@@ -3,9 +3,13 @@
  *
  * Arrows walk back through previous weeks (and forward again, never past
  * this one), each day shows whether it was trained and fed, and tapping a
- * day asks what to retro-log into it: a meal or a workout. The actual log
- * writing stays with the drawers and pages that own it — this only routes,
- * with the right date attached.
+ * day opens it on the wheel above: its meals, water, supplements and
+ * sessions on the same ruler today uses.
+ *
+ * It used to answer a tap with a sheet asking what to retro-log into that
+ * day, which meant the one thing you could not do with a past day was look
+ * at it. Adding to it still works — the wheel's own + writes into whichever
+ * day it is showing — and now you can see what is already there first.
  */
 
 import { useMemo, useState } from "react"
@@ -15,7 +19,6 @@ import {
   CaretRight,
   ForkKnife,
 } from "@phosphor-icons/react"
-import { MobileSheet } from "@repo/ui"
 
 export type WeekDay = {
   /** YYYY-MM-DD */
@@ -48,21 +51,21 @@ const MAX_WEEKS_BACK = 12
 
 export function WeekStrip({
   todayKey,
+  selectedKey,
+  onSelectDay,
   workoutDates,
   foodDates,
-  onLogFoodFor,
-  onLogWorkoutFor,
   className,
 }: {
   todayKey: string
+  /** The day the wheel above is showing. */
+  selectedKey: string
+  onSelectDay: (dateKey: string) => void
   workoutDates: Set<string>
   foodDates: Set<string>
-  onLogFoodFor: (dateKey: string) => void
-  onLogWorkoutFor: (dateKey: string) => void
   className?: string
 }) {
   const [weeksAgo, setWeeksAgo] = useState(0)
-  const [selectedDay, setSelectedDay] = useState<WeekDay | null>(null)
 
   const days = useMemo<WeekDay[]>(() => {
     const today = new Date(`${todayKey}T12:00:00`)
@@ -126,115 +129,72 @@ export function WeekStrip({
       </div>
 
       <div className="flex items-start justify-center gap-3">
-        {days.map((day) => (
-          <button
-            key={day.dateKey}
-            type="button"
-            disabled={day.isFuture}
-            aria-label={`${day.isToday ? "Today" : day.dateKey} — tap to retro-log`}
-            onClick={() => setSelectedDay(day)}
-            className={`flex w-9 flex-col items-center gap-1.5 ${
-              day.isFuture ? "opacity-35" : ""
-            }`}
-          >
-            <span
-              className={`text-[11px] font-semibold tabular-nums ${
-                day.isToday ? "text-foreground" : "text-muted-foreground/70"
+        {days.map((day) => {
+          const selected = day.dateKey === selectedKey
+          return (
+            <button
+              key={day.dateKey}
+              type="button"
+              disabled={day.isFuture}
+              aria-current={selected ? "date" : undefined}
+              aria-label={`${
+                day.isToday ? "Today" : day.dateKey
+              } — open this day`}
+              onClick={() => onSelectDay(day.dateKey)}
+              className={`flex w-9 flex-col items-center gap-1.5 ${
+                day.isFuture ? "opacity-35" : ""
               }`}
             >
-              {day.label}
-            </span>
-            <span
-              className={`flex items-center gap-1 rounded-full border px-2 py-1 ${
-                day.isToday ? "border-border bg-card" : "border-transparent"
-              }`}
-            >
-              <DayDot
-                on={day.workout}
-                icon={<Barbell size={9} weight="bold" />}
-                label="workout"
-              />
-              <DayDot
-                on={day.food}
-                icon={<ForkKnife size={9} weight="bold" />}
-                label="food logged"
-              />
-            </span>
-          </button>
-        ))}
+              <span
+                className={`text-[11px] font-semibold tabular-nums ${
+                  selected || day.isToday
+                    ? "text-foreground"
+                    : "text-muted-foreground/70"
+                }`}
+              >
+                {day.label}
+              </span>
+              {/* Selection inverts rather than tinting a border. Today and
+                the open day were a border-color apart, which at this size is
+                no difference at all. */}
+              <span
+                className={`flex items-center gap-1 rounded-full border px-2 py-1 transition-colors ${
+                  selected
+                    ? "border-foreground bg-foreground"
+                    : day.isToday
+                      ? "border-border bg-card"
+                      : "border-transparent"
+                }`}
+              >
+                <DayDot
+                  on={day.workout}
+                  inverted={selected}
+                  icon={<Barbell size={9} weight="bold" />}
+                  label="workout"
+                />
+                <DayDot
+                  on={day.food}
+                  inverted={selected}
+                  icon={<ForkKnife size={9} weight="bold" />}
+                  label="food logged"
+                />
+              </span>
+            </button>
+          )
+        })}
       </div>
 
-      {/* The sheet only mounts when a day is tapped — MobileSheet always
-        renders its overlay, so leaving it mounted with no selection would
-        put a permanent black scrim over the dashboard. */}
-      {selectedDay && (
-        <MobileSheet
-          onClose={() => setSelectedDay(null)}
-          ariaLabel={`Retro-log for ${selectedDay.dateKey}`}
+      {selectedKey !== todayKey && (
+        // The way back. Without it the only route home is finding today in
+        // the grid, which is a puzzle three weeks out.
+        <button
+          type="button"
+          onClick={() => onSelectDay(todayKey)}
+          className="motion-tactile motion-content-in mt-0.5 flex items-center gap-1 rounded-full border border-border bg-card px-2.5 py-1 text-[11px] font-semibold text-muted-foreground transition-colors active:text-foreground"
         >
-          <div className="flex flex-col gap-3 px-5 pt-5 pb-8">
-            <header>
-              <h2 className="text-[17px] font-semibold tracking-tight text-foreground">
-                {selectedDay.isToday
-                  ? "Log for today"
-                  : `Retro-log ${new Date(
-                      `${selectedDay.dateKey}T12:00:00`
-                    ).toLocaleDateString("en-US", {
-                      weekday: "long",
-                      month: "short",
-                      day: "numeric",
-                    })}`}
-              </h2>
-              <p className="mt-0.5 text-[13px] text-muted-foreground">
-                What goes into this day?
-              </p>
-            </header>
-            <div className="flex flex-col gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  const key = selectedDay.dateKey
-                  setSelectedDay(null)
-                  onLogFoodFor(key)
-                }}
-                className="motion-tactile flex items-center gap-3 rounded-2xl border border-border bg-card p-3.5 text-left"
-              >
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-foreground text-background">
-                  <ForkKnife size={16} weight="bold" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-[15px] font-semibold text-foreground">
-                    Food
-                  </span>
-                  <span className="block text-[13px] text-muted-foreground">
-                    Log a meal into this day
-                  </span>
-                </span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  const key = selectedDay.dateKey
-                  setSelectedDay(null)
-                  onLogWorkoutFor(key)
-                }}
-                className="motion-tactile flex items-center gap-3 rounded-2xl border border-border bg-card p-3.5 text-left"
-              >
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-foreground text-background">
-                  <Barbell size={16} weight="bold" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-[15px] font-semibold text-foreground">
-                    Workout
-                  </span>
-                  <span className="block text-[13px] text-muted-foreground">
-                    Log a session into this day
-                  </span>
-                </span>
-              </button>
-            </div>
-          </div>
-        </MobileSheet>
+          Back to today
+          <CaretRight size={10} weight="bold" />
+        </button>
       )}
     </div>
   )
@@ -242,10 +202,13 @@ export function WeekStrip({
 
 function DayDot({
   on,
+  inverted = false,
   icon,
   label,
 }: {
   on: boolean
+  /** Sitting on the selected day's filled pill, where the usual fills vanish. */
+  inverted?: boolean
   icon: React.ReactNode
   label: string
 }) {
@@ -254,7 +217,13 @@ function DayDot({
       title={label}
       aria-hidden="true"
       className={`flex size-4 items-center justify-center rounded-full ${
-        on ? "bg-foreground text-background" : "bg-muted text-muted-foreground"
+        inverted
+          ? on
+            ? "bg-background text-foreground"
+            : "bg-background/25 text-background/70"
+          : on
+            ? "bg-foreground text-background"
+            : "bg-muted text-muted-foreground"
       }`}
     >
       {icon}
