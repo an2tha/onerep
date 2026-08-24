@@ -86,7 +86,9 @@ export type HealthDailyMetrics = {
 
 type HealthPlugin = {
   isAvailable(): Promise<HealthAvailability>
-  requestAuthorization(): Promise<HealthAuthorization>
+  requestAuthorization(options?: {
+    includeWrite?: boolean
+  }): Promise<HealthAuthorization>
   getRecentWorkouts(
     options?: HealthWorkoutQuery
   ): Promise<{ workouts: HealthWorkout[] }>
@@ -151,10 +153,21 @@ export async function getHealthAvailability(): Promise<HealthAvailability> {
   return active.isAvailable()
 }
 
-export async function requestHealthAuthorization(): Promise<HealthAuthorization> {
+/**
+ * Asks the store for access, and asks again for writes when they are needed.
+ *
+ * `includeWrite` exists because Health Connect grants exactly the permissions
+ * that were on screen when the user agreed. A phone that connected before
+ * write-back shipped holds read access and considers the matter settled — so
+ * without saying which access is wanted, the sheet never reopens and the writes
+ * fail silently for the life of the install.
+ */
+export async function requestHealthAuthorization(options?: {
+  includeWrite?: boolean
+}): Promise<HealthAuthorization> {
   const active = plugin()
   if (!active) return { available: false, granted: false }
-  return active.requestAuthorization()
+  return active.requestAuthorization(options ?? {})
 }
 
 export async function getRecentHealthWorkouts(
@@ -258,14 +271,18 @@ export async function writeBackBodyMetrics(options: {
 }): Promise<void> {
   const entries: [string, number][] = []
   if (options.weightKg != null) entries.push(["weightKg", options.weightKg])
-  if (options.bodyFatPct != null) entries.push(["bodyFatPct", options.bodyFatPct])
-  if (options.leanBodyMassKg != null) entries.push(["leanBodyMassKg", options.leanBodyMassKg])
-  if (options.boneMassKg != null) entries.push(["boneMassKg", options.boneMassKg])
-  if (options.basalMetabolicRateKcal != null) entries.push(["basalMetabolicRateKcal", options.basalMetabolicRateKcal])
+  if (options.bodyFatPct != null)
+    entries.push(["bodyFatPct", options.bodyFatPct])
+  if (options.leanBodyMassKg != null)
+    entries.push(["leanBodyMassKg", options.leanBodyMassKg])
+  if (options.boneMassKg != null)
+    entries.push(["boneMassKg", options.boneMassKg])
+  if (options.basalMetabolicRateKcal != null)
+    entries.push(["basalMetabolicRateKcal", options.basalMetabolicRateKcal])
   await Promise.all(
     entries.map(([metric, value]) =>
-      saveHealthDailyMetric({ metric, date: options.date, value }),
-    ),
+      saveHealthDailyMetric({ metric, date: options.date, value })
+    )
   )
 }
 

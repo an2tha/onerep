@@ -19,6 +19,23 @@ import {
   type MomentFoodLog,
   type MomentWorkoutLog,
 } from "@repo/models/moments"
+import { KG_TO_LBS, type WeightUnit } from "@/lib/workout-logging"
+
+/**
+ * A signed weight change in the reader's own unit.
+ *
+ * Everything is stored in kilograms, which is fine right up until the report
+ * says a pounds user moved 0.9kg and they have to do the arithmetic
+ * themselves, in a screen that exists to save them the trouble.
+ */
+export function formatWeightDelta(
+  deltaKg: number,
+  unit: WeightUnit = "kg"
+): string {
+  const value = unit === "lbs" ? deltaKg * KG_TO_LBS : deltaKg
+  const rounded = Math.round(value * 10) / 10
+  return `${rounded > 0 ? "+" : ""}${rounded}${unit === "lbs" ? "lb" : "kg"}`
+}
 
 export {
   completedWeek,
@@ -175,6 +192,7 @@ export function buildWeeklyReport({
   calorieTarget,
   proteinTarget,
   target = null,
+  weightUnit = "kg",
 }: {
   start: string
   end: string
@@ -185,6 +203,8 @@ export function buildWeeklyReport({
   proteinTarget: number
   /** Sessions the user committed to for this week, if they committed. */
   target?: number | null
+  /** The unit the reader thinks in. Weight is stored in kg regardless. */
+  weightUnit?: WeightUnit
 }): WeeklyReport {
   const previousStart = dateToIso(
     subtractDays(localNoon(new Date(`${start}T12:00:00`)), 7)
@@ -287,14 +307,15 @@ export function buildWeeklyReport({
     training,
     nutrition,
     body: { latestWeightKg, weightDeltaKg },
-    highlights: buildHighlights(training, nutrition, weightDeltaKg),
+    highlights: buildHighlights(training, nutrition, weightDeltaKg, weightUnit),
   }
 }
 
 function buildHighlights(
   training: WeeklyReport["training"],
   nutrition: WeeklyReport["nutrition"],
-  weightDeltaKg: number | null
+  weightDeltaKg: number | null,
+  weightUnit: WeightUnit
 ) {
   const lines: string[] = []
 
@@ -321,7 +342,7 @@ function buildHighlights(
 
   if (weightDeltaKg !== null && weightDeltaKg !== 0) {
     lines.push(
-      `Weight moved ${weightDeltaKg > 0 ? "+" : ""}${weightDeltaKg}kg across the week.`
+      `Weight moved ${formatWeightDelta(weightDeltaKg, weightUnit)} across the week.`
     )
   }
 

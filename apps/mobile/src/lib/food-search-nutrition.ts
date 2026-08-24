@@ -42,3 +42,34 @@ export function scaledFoodMacros(
     fat: roundMacro(detailNutrient(detail, "fat", food.fat)),
   }
 }
+
+/**
+ * What a search or camera card should actually print.
+ *
+ * Every macro on a `FoodResult` is per 100 g, and every card used to print
+ * those numbers directly beneath the product's own serving size — so a 30 g
+ * biscuit was billed at the calories of three of them, under a label that
+ * said 30 g. The label was right, which is what made it convincing.
+ *
+ * So the number and the label are decided in one place. Where the product
+ * names a serving, the macros are scaled to it; where it does not, the card
+ * says per 100 g and means it.
+ */
+export function foodCardMacros(item: FoodResult) {
+  const servingGrams = (item as Partial<FoodDetail>).servingGrams
+  const grams =
+    typeof servingGrams === "number" && servingGrams > 0 ? servingGrams : 100
+  const named = (item as Partial<FoodDetail>).servingLabel || item.serving
+
+  return {
+    grams,
+    servingLabel: named || "100 g",
+    ...scaledFoodMacros(item, grams, initialDetail(item)),
+  }
+}
+
+/** A search hit already carries its nutrient rows; a bare result does not. */
+function initialDetail(item: FoodResult): FoodDetail | null {
+  const maybe = item as Partial<FoodDetail>
+  return Array.isArray(maybe.nutrients) ? (item as FoodDetail) : null
+}

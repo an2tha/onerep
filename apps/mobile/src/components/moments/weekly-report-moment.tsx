@@ -12,7 +12,8 @@ import { api } from "../../../../../convex/_generated/api"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { hapticMedium, hapticSelection } from "@/lib/haptics"
 import { logDevWarn } from "@/lib/utils"
-import type { WeeklyReport } from "@/lib/moments"
+import { formatWeightDelta, type WeeklyReport } from "@/lib/moments"
+import { useWeightUnit } from "@/lib/use-weight-unit"
 import type { FullScreenEventOutcome } from "@/lib/full-screen-events"
 
 /** The range a weekly session target is allowed to be. Matches the mutation. */
@@ -60,6 +61,7 @@ export function WeeklyReportMoment({
   const navigate = useSmoothNavigate()
   const setWeeklyTarget = useMutation(api.users.weeklyTargets.set)
   const { training, nutrition, body } = report
+  const weightUnit = useWeightUnit()
 
   // Seeded from what they aimed at last time, or what they actually managed,
   // because the honest default for next week is the week they just had.
@@ -156,7 +158,7 @@ export function WeeklyReportMoment({
           ` · ${nutrition.onTargetDays} of ${nutrition.loggedDays} logged days within 10% of target`}
         {body.weightDeltaKg !== null &&
           body.weightDeltaKg !== 0 &&
-          ` · weight ${body.weightDeltaKg > 0 ? "+" : ""}${body.weightDeltaKg}kg`}
+          ` · weight ${formatWeightDelta(body.weightDeltaKg, weightUnit)}`}
         .
       </p>
 

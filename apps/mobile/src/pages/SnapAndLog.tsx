@@ -43,6 +43,7 @@ import { hapticMedium, hapticTap } from "@/lib/haptics"
 import { useEnergyUnit } from "@/lib/use-energy-unit"
 import { energyDisplay } from "@repo/ui"
 import type { FoodResult } from "@repo/models"
+import { foodCardMacros } from "@/lib/food-search-nutrition"
 import {
   getFoodByBarcode,
   rankAndFilterFoodResults,
@@ -532,19 +533,24 @@ export default function SnapAndLog() {
     if (loggingTargetRef.current || added === item.id) return
     loggingTargetRef.current = item.id
     setLoggingTarget(item.id)
+    const card = foodCardMacros(item)
     const entry = stripUndefined({
       id: Math.random().toString(36).slice(2),
       name: item.name,
-      calories: Number(item.calories),
-      protein: Number(item.protein),
-      carbs: Number(item.carbs),
-      fat: Number(item.fat),
+      // The card quotes one serving, so one serving is what gets logged.
+      // Logging the per-100 g figures under the serving's own label is how a
+      // scanned 30 g bar used to land in the diary at triple its calories.
+      calories: card.calories,
+      protein: card.protein,
+      carbs: card.carbs,
+      fat: card.fat,
       loggedAt: new Date().toISOString(),
       meal,
       source: "openfoodfacts" as const,
       foodCode: item.code,
-      quantityGrams: 100,
-      servingLabel: item.serving,
+      quantityGrams: card.grams,
+      servingGrams: card.grams,
+      servingLabel: card.servingLabel,
       imageUrl: item.imageUrl,
       openFoodFacts: toConvexSafe(item.openFoodFacts),
     })
@@ -1466,6 +1472,7 @@ function BarcodeResultRow({
 }) {
   const energyUnit = useEnergyUnit()
   const mealCfg = mealConfig(meal)
+  const card = foodCardMacros(item)
 
   return (
     <div className="flex items-center gap-3 py-3">
@@ -1480,25 +1487,25 @@ function BarcodeResultRow({
             </span>
           )}
           {item.brand && <span className="text-white/50">·</span>}
-          <span className="text-[13px] text-white/70">{item.serving}</span>
+          <span className="text-[13px] text-white/70">{card.servingLabel}</span>
         </div>
         <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
           <span className="text-[13px] font-medium text-white/80 tabular-nums">
-            {energyDisplay(item.calories, energyUnit)} {energyUnit}
+            {energyDisplay(card.calories, energyUnit)} {energyUnit}
           </span>
           <DarkMacroPill
             label="Protein"
-            value={item.protein}
+            value={card.protein}
             color={MACRO_COLORS.protein}
           />
           <DarkMacroPill
             label="Carbs"
-            value={item.carbs}
+            value={card.carbs}
             color={MACRO_COLORS.carbs}
           />
           <DarkMacroPill
             label="Fat"
-            value={item.fat}
+            value={card.fat}
             color={MACRO_COLORS.fat}
           />
         </div>

@@ -7523,31 +7523,7 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
     0 12px 32px color-mix(in srgb, black 14%, transparent);
 }
 
-/* Before vs after right now. The band tints in its direction's hue; the
-   grown card keeps its readable surface but takes the direction's ring, so
-   "retro-log" and "schedule" are colors you learn once and read forever.
-   These must come after the base classes — same specificity, later wins. */
-.day-timeline-bulge-past {
-  background-color: var(--accent-retro-bg);
-}
 
-.day-timeline-bulge-future {
-  background-color: var(--accent-schedule-bg);
-}
-
-.day-timeline-bulge-active.day-timeline-bulge-past {
-  background-color: color-mix(in srgb, var(--card) 90%, var(--accent-retro));
-  box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--accent-retro) 45%, transparent),
-    0 12px 32px color-mix(in srgb, black 14%, transparent);
-}
-
-.day-timeline-bulge-active.day-timeline-bulge-future {
-  background-color: color-mix(in srgb, var(--card) 90%, var(--accent-schedule));
-  box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--accent-schedule) 45%, transparent),
-    0 12px 32px color-mix(in srgb, black 14%, transparent);
-}
 
 /* ── Dashboard tiles ──────────────────────────────────────────────────────── */
 

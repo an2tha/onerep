@@ -25,6 +25,7 @@ import {
 } from "@/lib/moments"
 import { CheckInMoment } from "@/components/moments/check-in-moment"
 import { WeeklyReportMoment } from "@/components/moments/weekly-report-moment"
+import { useWeightUnit } from "@/lib/use-weight-unit"
 import {
   WeeklyReviewMoment,
   type CoachReview,
@@ -76,6 +77,7 @@ export function AppMoments() {
   }, [])
 
   const { todayKey, nowMinutes, at } = clock
+  const weightUnit = useWeightUnit()
   const weekKey = useMemo(
     () => isoWeekKey(completedWeek(todayKey, nowMinutes).start),
     [nowMinutes, todayKey]
@@ -213,6 +215,7 @@ export function AppMoments() {
       calorieTarget: goals?.effective.calories ?? 2000,
       proteinTarget: goals?.effective.protein ?? 150,
       target: reportedTarget,
+      weightUnit,
     })
   }, [
     bodyMeasurements,
@@ -222,6 +225,7 @@ export function AppMoments() {
     previewId,
     reportedTarget,
     todayKey,
+    weightUnit,
     workoutLogs,
   ])
 

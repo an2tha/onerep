@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect, useMemo } from "react"
+import React, { useCallback, useState, useEffect, useMemo, useRef } from "react"
 import { useSearchParams } from "react-router"
 import {
   Compass,
@@ -625,7 +625,16 @@ export default function Settings({ onClose }: { onClose: () => void }) {
     }
   }, [preferences])
 
+  // Hydrate from the server once, on the first load that carries preferences.
+  //
+  // It used to run on every change to `preferences`, which meant any other
+  // mutation on this screen — a toggle in a different section, a background
+  // refresh — swept an unsaved unit choice back to whatever the server still
+  // said. From the user's side the setting flipped to kg on its own.
+  const hydratedPreferences = useRef(false)
   useEffect(() => {
+    if (!preferences || hydratedPreferences.current) return
+    hydratedPreferences.current = true
     if (preferences?.weightUnit) {
       setWeightUnitState(preferences.weightUnit as WeightUnit)
     }
@@ -702,6 +711,58 @@ export default function Settings({ onClose }: { onClose: () => void }) {
     } finally {
       setSaving(false)
     }
+  }
+
+  /**
+   * Units save on the tap, not on the section's Save button.
+   *
+   * They are display preferences, and every other screen reads them the moment
+   * they change — so a choice that sits unsaved behind a button in the Training
+   * section is a choice that appears not to have taken.
+   */
+  async function chooseWeightUnit(unit: WeightUnit) {
+    setWeightUnitState(unit)
+    cacheWeightUnit(unit)
+    try {
+      await setWeightUnit({ unit })
+    } catch {
+      toast.error("Could not save your weight unit")
+    }
+  }
+
+  async function chooseEnergyUnit(unit: EnergyUnitStored) {
+    setEnergyUnitState(unit)
+    cacheEnergyUnit(unit)
+    try {
+      await setEnergyUnit({ unit })
+    } catch {
+      toast.error("Could not save your energy unit")
+    }
+  }
+
+  /**
+   * Turning write-back on has to ask for write access, not just record a
+   * preference.
+   *
+   * Health Connect grants what was on screen at the time of consent, so an
+   * install that connected before this feature existed holds reads only. The
+   * toggle went on, the preference saved, and every weigh-in and meal written
+   * afterwards was refused by the store without a word to anybody.
+   */
+  async function enableHealthWriteBack(next: boolean) {
+    if (!next) {
+      await setHealthSync({ writeEnabled: false })
+      return
+    }
+    setHealthError(null)
+    const authorization = await requestHealthAuthorization({
+      includeWrite: true,
+    }).catch(() => null)
+    if (authorization && !authorization.granted) {
+      setHealthError(`${healthLabel} did not grant permission to write back.`)
+      return
+    }
+    await setHealthSync({ writeEnabled: true })
   }
 
   async function handleSaveWorkout() {
@@ -1614,9 +1675,9 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                       onInteract={hapticSelection}
                       label="Weight unit"
                       value={weightUnit}
-                      onChange={(value) =>
-                        setWeightUnitState(value as WeightUnit)
-                      }
+                      onChange={(value) => {
+                        void chooseWeightUnit(value as WeightUnit)
+                      }}
                       options={[
                         { value: "kg", label: "kg" },
                         { value: "lbs", label: "lb" },
@@ -1631,9 +1692,9 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                       onInteract={hapticSelection}
                       label="Energy unit"
                       value={energyUnit}
-                      onChange={(value) =>
-                        setEnergyUnitState(value as EnergyUnitStored)
-                      }
+                      onChange={(value) => {
+                        void chooseEnergyUnit(value as EnergyUnitStored)
+                      }}
                       options={[
                         { value: "kcal", label: "kcal" },
                         // Lowercase because that is what a US label reader
@@ -2278,8 +2339,8 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                         />
                       </SettingsRow>
                       <SettingsRow
-                        label="Save workouts back"
-                        detail={`Write finished OneRep sessions to ${healthLabel}`}
+                        label="Save data back"
+                        detail={`Write finished sessions, weigh-ins and logged meals to ${healthLabel}`}
                       >
                         <CompactSwitch
                           disabled={!healthSyncEnabled}
@@ -2288,9 +2349,9 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                           onChange={(next) => {
                             // Off by default: writing into someone's health
                             // record is not something to opt them into.
-                            void setHealthSync({ writeEnabled: next })
+                            void enableHealthWriteBack(next)
                           }}
-                          label="Save workouts back"
+                          label="Save data back"
                         />
                       </SettingsRow>
                       {supportsHealthSettingsDeepLink() && (

@@ -35,6 +35,7 @@ import { normalizeFoodSearchQuery } from "@/lib/food-search-url"
 import type { FoodDetail, FoodResult } from "@repo/models"
 import { buildQuickRepeatFoods } from "@/lib/food-quick-repeat"
 import { searchFoodsAccurate } from "@/lib/openfoodfacts"
+import { foodCardMacros } from "@/lib/food-search-nutrition"
 import { FoodDetailSheet } from "@/components/food-detail-sheet"
 import type { FullScreenEventOutcome } from "@/lib/full-screen-events"
 
@@ -406,27 +407,30 @@ export function QuickFoodStep({
 
           {results.length > 0 && (
             <div className="app-surface overflow-hidden">
-              {results.map((item, index) => (
-                <div key={item.id}>
-                  {index > 0 && <div className="mx-4 h-px bg-border/50" />}
-                  <MomentRow
-                    icon={<MagnifyingGlass size={16} weight="bold" />}
-                    title={item.name}
-                    detail={[
-                      item.brand,
-                      item.serving,
-                      `${energyDisplay(item.calories, energyUnit)} ${energyUnit}`,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ")}
-                    disabled={busy}
-                    onClick={() => {
-                      hapticSelection()
-                      setDetailItem(item)
-                    }}
-                  />
-                </div>
-              ))}
+              {results.map((item, index) => {
+                const card = foodCardMacros(item)
+                return (
+                  <div key={item.id}>
+                    {index > 0 && <div className="mx-4 h-px bg-border/50" />}
+                    <MomentRow
+                      icon={<MagnifyingGlass size={16} weight="bold" />}
+                      title={item.name}
+                      detail={[
+                        item.brand,
+                        card.servingLabel,
+                        `${energyDisplay(card.calories, energyUnit)} ${energyUnit}`,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                      disabled={busy}
+                      onClick={() => {
+                        hapticSelection()
+                        setDetailItem(item)
+                      }}
+                    />
+                  </div>
+                )
+              })}
             </div>
           )}
 

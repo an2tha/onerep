@@ -13,7 +13,7 @@ import {
 import { api } from "../../../convex/_generated/api"
 import { useAppAuth } from "@/lib/auth-client"
 import { useSmoothNavigate } from "@/lib/navigation"
-import { currentDateKey, mealLabel } from "@/lib/food-log"
+import { currentDateKey, mealLabel, type FoodLogEntry } from "@/lib/food-log"
 import { QuickAddFab, type QuickAddOption } from "@/dashboard/quick-add-fab"
 import {
   ScheduleEntrySheet,
@@ -44,7 +44,7 @@ import LegacyApp from "./App.legacy"
 // exactly as it was; flip it back and you are on the bare canvas again. The
 // redesign happens below the hero, in the empty space where the cards were.
 
-const USE_LEGACY_DASHBOARD = true
+const USE_LEGACY_DASHBOARD = false
 
 export default function App() {
   if (USE_LEGACY_DASHBOARD) return <LegacyApp />
@@ -219,6 +219,7 @@ function Dashboard() {
   } | null>(null)
   const openQuickAction = (id: QuickActionId, forDateKey = dateKey) =>
     setQuickAction({ id, dateKey: forDateKey })
+  const [editFoodEntry, setEditFoodEntry] = useState<FoodLogEntry | null>(null)
   const [scheduleRequest, setScheduleRequest] =
     useState<ScheduleEntryRequest | null>(null)
   const salutation = greeting(hourInTimeZone(now, activeTimezone))
@@ -301,11 +302,23 @@ function Dashboard() {
                 setTimelineOverrides((prev) => ({ ...prev, [id]: time }))
               }
               sleepWindow={sleepWindow}
-              onEditEntry={(entry) =>
-                navigate(TIMELINE_EDIT_ROUTES[entry.kind], {
-                  motion: "switch",
-                })
-              }
+              onEditEntry={(entry) => {
+                const separator = entry.id.indexOf(":")
+                if (separator === -1) return
+                const kind = entry.id.slice(0, separator)
+                const id = entry.id.slice(separator + 1)
+                if (kind === "food") {
+                  setEditFoodEntry(
+                    (foodEntries ?? []).find((food) => food.id === id) ?? null
+                  )
+                  openQuickAction("food", dateKey)
+                } else {
+                  navigate(
+                    TIMELINE_EDIT_ROUTES[kind as TimelineEntry["kind"]],
+                    { motion: "switch" }
+                  )
+                }
+              }}
               onDeleteEntry={handleDeleteTimelineEntry}
               onAddEntry={(kind) => openQuickAction(TIMELINE_ADD_ACTIONS[kind])}
               // The anchor-edge + buttons now ask before they act: the sheet
@@ -335,7 +348,11 @@ function Dashboard() {
       <QuickActionDrawer
         id={quickAction?.id ?? null}
         dateKey={quickAction?.dateKey ?? dateKey}
-        onClose={() => setQuickAction(null)}
+        editEntry={editFoodEntry ?? null}
+        onClose={() => {
+          setQuickAction(null)
+          setEditFoodEntry(null)
+        }}
       />
       <ScheduleEntrySheet
         request={scheduleRequest}

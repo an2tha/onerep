@@ -1,9 +1,14 @@
 import { v } from "convex/values";
 import { mutation, query } from "../_generated/server";
 import type { MutationCtx } from "../_generated/server";
+import type { Doc } from "../_generated/dataModel";
 import { getAuthUser, safeGetAuthUser } from "../lib/auth";
 import { getLatestOnboardingProfile } from "../lib/onboardingProfiles";
-import { findFreeWorkoutSlot, upsertWorkoutLog } from "../lib/workoutLogs";
+import {
+  findCardioLinkTarget,
+  findFreeWorkoutSlot,
+  upsertWorkoutLog,
+} from "../lib/workoutLogs";
 
 /** One health batch. The client reads at most 50 workouts per sync. */
 const MAX_IMPORT_BATCH = 50;
@@ -282,17 +287,18 @@ export const list = query({
         needsExercises:
           isStrengthActivity(row.activityType) &&
           row.linkedSessionId === undefined,
-        // Both training-log slots on that date are taken, so "Add" would
-        // fail — the client hides the button instead of offering it.
+        // Nowhere left on that date, not even folded into a log that is
+        // already there — so "Add" would fail and the client shows why
+        // instead of offering a button that cannot work.
         dayFull:
           row.linkedSessionId === undefined &&
           isLinkableActivity(row.activityType)
-            ? (await findFreeWorkoutSlot(
-                  ctx,
-                  user._id,
-                  row.date,
-                  healthSessionId(row.provider, row.externalId),
-                )) === null
+            ? (await findCardioLinkTarget(
+                ctx,
+                user._id,
+                row.date,
+                healthSessionId(row.provider, row.externalId),
+              )) === null
             : false,
       })),
     );
@@ -432,6 +438,29 @@ export const attachToLog = mutation({
   },
 });
 
+/** The training-log exercise a recorded cardio session becomes. */
+function cardioExercise(workout: Doc<"healthWorkouts">, sessionId: string) {
+  return {
+    id: sessionId,
+    name: workout.activityName,
+    category: "cardio",
+    sets: [],
+    cardio: {
+      distanceMeters: workout.totalDistanceMeters,
+      durationSeconds: workout.durationSeconds,
+      avgHeartRateBpm: workout.avgHeartRateBpm,
+      maxHeartRateBpm: workout.maxHeartRateBpm,
+      ...(workout.hasRoute ? { route: { name: workout.routeName } } : {}),
+      source: {
+        provider: workout.provider,
+        name: workout.sourceName ?? PROVIDER_LABELS[workout.provider],
+        externalId: workout.externalId,
+        importedAt: new Date(workout.importedAt).toISOString(),
+      },
+    },
+  };
+}
+
 /**
  * Promotes one imported workout into the training log.
  *
@@ -477,46 +506,49 @@ export const linkToTrainingLog = mutation({
       return { sessionId, slot: existing.slot };
     }
 
+    const exercise = cardioExercise(workout, sessionId);
+
     // A slot is mandatory: `logs.workouts.getLog` reads `.take(2)` per date, so
-    // a slot-less third log would be silently invisible.
-    const slot = await findFreeWorkoutSlot(
+    // a slot-less third log would be silently invisible. When both are taken
+    // the session folds into a log that is already there rather than failing.
+    const target = await findCardioLinkTarget(
       ctx,
       user._id,
       workout.date,
       sessionId,
     );
-    if (slot === null) {
+    if (target === null) {
       throw new Error(
-        "You already have two sessions logged that day. Remove one first.",
+        "That day's sessions are already full. Remove one to add this.",
       );
+    }
+
+    if (target.kind === "fold") {
+      const host = target.log;
+      // Re-tapping Add on a folded session must not log the ride twice.
+      const already = host.exercises.some(
+        (entry) => (entry as { id?: string }).id === sessionId,
+      );
+      if (!already) {
+        await ctx.db.patch(host._id, {
+          exercises: [...host.exercises, exercise],
+          durationSeconds: host.durationSeconds + workout.durationSeconds,
+        });
+      }
+      await ctx.db.patch(args.id, {
+        linkedSessionId: host.sessionId ?? sessionId,
+        linkedDate: workout.date,
+        updatedAt: Date.now(),
+      });
+      return { sessionId: host.sessionId ?? sessionId, slot: host.slot };
     }
 
     await upsertWorkoutLog(ctx, user._id, {
       date: workout.date,
       sessionId,
-      slot,
+      slot: target.slot,
       durationSeconds: workout.durationSeconds,
-      exercises: [
-        {
-          id: sessionId,
-          name: workout.activityName,
-          category: "cardio",
-          sets: [],
-          cardio: {
-            distanceMeters: workout.totalDistanceMeters,
-            durationSeconds: workout.durationSeconds,
-            avgHeartRateBpm: workout.avgHeartRateBpm,
-            maxHeartRateBpm: workout.maxHeartRateBpm,
-            ...(workout.hasRoute ? { route: { name: workout.routeName } } : {}),
-            source: {
-              provider: workout.provider,
-              name: workout.sourceName ?? PROVIDER_LABELS[workout.provider],
-              externalId: workout.externalId,
-              importedAt: new Date(workout.importedAt).toISOString(),
-            },
-          },
-        },
-      ],
+      exercises: [exercise],
     });
 
     await ctx.db.patch(args.id, {
@@ -525,7 +557,7 @@ export const linkToTrainingLog = mutation({
       updatedAt: Date.now(),
     });
 
-    return { sessionId, slot };
+    return { sessionId, slot: target.slot };
   },
 });
 
@@ -550,7 +582,26 @@ export const unlink = mutation({
           .eq("sessionId", workout.linkedSessionId!),
       )
       .unique();
-    if (log) await ctx.db.delete(log._id);
+
+    if (log) {
+      // A folded session shares its log with other rides. Removing this one
+      // must leave the rest of the day standing.
+      const sessionId = healthSessionId(workout.provider, workout.externalId);
+      const remaining = log.exercises.filter(
+        (entry) => (entry as { id?: string }).id !== sessionId,
+      );
+      if (remaining.length === 0 || remaining.length === log.exercises.length) {
+        await ctx.db.delete(log._id);
+      } else {
+        await ctx.db.patch(log._id, {
+          exercises: remaining,
+          durationSeconds: Math.max(
+            0,
+            log.durationSeconds - workout.durationSeconds,
+          ),
+        });
+      }
+    }
 
     await ctx.db.patch(args.id, {
       linkedSessionId: undefined,

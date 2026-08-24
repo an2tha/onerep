@@ -203,11 +203,18 @@ function nutrientUnit(
   return firstString(nutriments(product)[`${key}_unit`]) ?? fallback
 }
 
+/**
+ * The weight of one serving, or null when the product never names one.
+ *
+ * `quantity` is deliberately not consulted here. It is the net weight of the
+ * whole package, and reading it as a serving is how a 500 g bag comes back
+ * quoting five times the calories anybody is about to eat.
+ */
 function parseServingGrams(product: OpenFoodFactsProduct): number | null {
   const quantity = toNumber(product.serving_quantity)
   if (quantity > 0) return quantity
 
-  const servingSize = product.serving_size ?? product.quantity
+  const servingSize = product.serving_size
   if (!servingSize) return null
 
   const parsedPortion = parseFoodPortionLabel(servingSize)
@@ -219,8 +226,12 @@ function parseServingGrams(product: OpenFoodFactsProduct): number | null {
   return parsed > 0 ? parsed : null
 }
 
+/** The serving the product names, and never the size of the packet. */
 function servingLabel(product: OpenFoodFactsProduct): string {
-  return firstString(product.serving_size, product.quantity) ?? "100 g"
+  const named = firstString(product.serving_size)
+  if (named) return named
+  const grams = parseServingGrams(product)
+  return grams ? `${+grams.toFixed(1)} g` : "100 g"
 }
 
 function normalizeProduct(raw: unknown): OpenFoodFactsProduct | null {

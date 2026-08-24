@@ -239,7 +239,80 @@ describe("healthWorkouts", () => {
     expect(logs[0].sessionId).toBe("manual-session");
   });
 
-  test("refuses to displace anything when both slots are taken", async () => {
+  test("a third ride on a full day folds into the imports already there", async () => {
+    const t = convexTest(schema, modules);
+    const user = t.withIdentity({ tokenIdentifier: "test|five-rides" });
+    await grantConsent(user);
+
+    const rides = [15, 20, 25, 38, 15].map((minutes, index) => ({
+      ...RUN,
+      uuid: `hk-ride-${index}`,
+      activityType: "cycling",
+      activityName: "Cycling",
+      durationSeconds: minutes * 60,
+    }));
+    await user.mutation(api.logs.healthWorkouts.importHealthWorkouts, {
+      provider: "apple_health",
+      workouts: rides,
+    });
+
+    const rows = await user.query(api.logs.healthWorkouts.list, {});
+    expect(rows).toHaveLength(5);
+    // Every one of them is offered, not three dead Add buttons.
+    expect(rows.every((row) => row.dayFull === false)).toBe(true);
+
+    for (const row of rows) {
+      await user.mutation(api.logs.healthWorkouts.linkToTrainingLog, {
+        id: row._id,
+      });
+    }
+
+    const logs = await user.query(api.logs.workouts.getLog, {
+      date: "2026-07-30",
+    });
+    expect(logs).toHaveLength(2);
+    expect(logs.flatMap((log) => log.exercises)).toHaveLength(5);
+    expect(
+      (await user.query(api.logs.healthWorkouts.list, {})).every(
+        (row) => row.linked,
+      ),
+    ).toBe(true);
+  });
+
+  test("unlinking a folded ride leaves the rest of the day alone", async () => {
+    const t = convexTest(schema, modules);
+    const user = t.withIdentity({ tokenIdentifier: "test|unfold" });
+    await grantConsent(user);
+
+    const rides = [10, 20, 30].map((minutes, index) => ({
+      ...RUN,
+      uuid: `hk-unfold-${index}`,
+      activityType: "cycling",
+      activityName: "Cycling",
+      durationSeconds: minutes * 60,
+    }));
+    await user.mutation(api.logs.healthWorkouts.importHealthWorkouts, {
+      provider: "apple_health",
+      workouts: rides,
+    });
+    for (const row of await user.query(api.logs.healthWorkouts.list, {})) {
+      await user.mutation(api.logs.healthWorkouts.linkToTrainingLog, {
+        id: row._id,
+      });
+    }
+
+    const folded = (await user.query(api.logs.healthWorkouts.list, {})).find(
+      (row) => row.externalId === "hk-unfold-2",
+    )!;
+    await user.mutation(api.logs.healthWorkouts.unlink, { id: folded._id });
+
+    const logs = await user.query(api.logs.workouts.getLog, {
+      date: "2026-07-30",
+    });
+    expect(logs.flatMap((log) => log.exercises)).toHaveLength(2);
+  });
+
+  test("refuses to displace hand-written sessions when both slots are taken", async () => {
     const t = convexTest(schema, modules);
     const user = t.withIdentity({ tokenIdentifier: "test|slots-full" });
     await grantConsent(user);
@@ -263,7 +336,7 @@ describe("healthWorkouts", () => {
 
     await expect(
       user.mutation(api.logs.healthWorkouts.linkToTrainingLog, { id: row._id }),
-    ).rejects.toThrow(/two sessions/i);
+    ).rejects.toThrow(/already full/i);
 
     // Both manual logs survive intact.
     const logs = await user.query(api.logs.workouts.getLog, {

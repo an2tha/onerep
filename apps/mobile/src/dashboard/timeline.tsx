@@ -218,18 +218,6 @@ export function DayTimeline({
   // viewport, so the center time is just the scroll position itself.
   const centerMinutes = (scrollTop / HOUR_PX) * 60
 
-  // Before or after right now — retro-logging territory versus scheduling
-  // territory. A half-hour grace band around the current minute stays
-  // neutral; nobody needs the anchor announcing a direction for "just now".
-  // Uses the ticking `nowMinutes` state above, so the phase flips on its
-  // own as the day moves under a stationary wheel.
-  const anchorPhase =
-    centerMinutes < nowMinutes - 30
-      ? "past"
-      : centerMinutes > nowMinutes + 30
-        ? "future"
-        : "now"
-
   // The wheel reads chronologically no matter what order callers hand over.
   const sortedEntries = useMemo(
     () =>
@@ -457,12 +445,6 @@ export function DayTimeline({
               <div
                 className={`day-timeline-bulge absolute inset-0 ${
                   nearestGroup ? "day-timeline-bulge-active" : ""
-                } ${
-                  anchorPhase === "past"
-                    ? "day-timeline-bulge-past"
-                    : anchorPhase === "future"
-                      ? "day-timeline-bulge-future"
-                      : ""
                 }`}
                 aria-hidden="true"
               />
@@ -474,13 +456,7 @@ export function DayTimeline({
               >
                 <span
                   className={`absolute text-[19px] font-semibold tabular-nums transition-colors duration-300 ${
-                    anchorPhase === "past"
-                      ? "text-[var(--accent-retro)]"
-                      : anchorPhase === "future"
-                        ? "text-[var(--accent-schedule)]"
-                        : isInteracting
-                          ? "text-foreground"
-                          : "text-foreground/70"
+                    isInteracting ? "text-foreground" : "text-foreground/70"
                   }`}
                   style={{ left: LINE_LEFT + 25 }}
                 >
@@ -494,13 +470,11 @@ export function DayTimeline({
                     {
                       phase: "past" as const,
                       label: "Log something earlier today",
-                      color: "var(--accent-retro)",
                       icon: Plus,
                     },
                     {
                       phase: "future" as const,
                       label: "Schedule something ahead",
-                      color: "var(--accent-schedule)",
                       icon: Clock,
                     },
                   ].map((button) => (
@@ -514,8 +488,8 @@ export function DayTimeline({
                       }
                       className="motion-tactile flex size-7 items-center justify-center rounded-full border bg-card/80"
                       style={{
-                        borderColor: `color-mix(in srgb, ${button.color} 40%, transparent)`,
-                        color: button.color,
+                        borderColor: "color-mix(in srgb, var(--foreground) 40%, transparent)",
+                        color: "var(--muted-foreground)",
                       }}
                     >
                       <button.icon size={13} weight="bold" />
@@ -850,19 +824,6 @@ export function DayTimeline({
             )
           })}
 
-          {/* Nothing logged yet: say so once, next to the current hour, rather
-            than leaving twenty-four hours of blank ruler to interpret. */}
-          {entries.length === 0 && viewportHeight > 0 && (
-            <p
-              className="absolute text-[15px] text-muted-foreground"
-              style={{
-                top: topForMinutes(nowMinutes) + padding + 28,
-                paddingLeft: LINE_LEFT + 25,
-              }}
-            >
-              Nothing logged today.
-            </p>
-          )}
         </div>
       </div>
     </div>

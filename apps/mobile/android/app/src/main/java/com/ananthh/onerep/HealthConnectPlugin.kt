@@ -216,6 +216,23 @@ class HealthConnectPlugin : Plugin() {
         HealthPermission.getWritePermission(NutritionRecord::class),
     )
 
+    /**
+     * The writes the app actually performs on its own: a finished session, a
+     * corrected weigh-in, a day's food and water.
+     *
+     * Separate from the full `writePermissions` catalogue for the same reason
+     * `coreReadPermissions` is separate from `readPermissions` — one declined
+     * row in a long list must not read as "write access refused", but these
+     * five failing silently is the whole feature not working.
+     */
+    private val coreWritePermissions = setOf(
+        HealthPermission.getWritePermission(ExerciseSessionRecord::class),
+        HealthPermission.getWritePermission(WeightRecord::class),
+        HealthPermission.getWritePermission(BodyFatRecord::class),
+        HealthPermission.getWritePermission(NutritionRecord::class),
+        HealthPermission.getWritePermission(HydrationRecord::class),
+    )
+
     /** Written by `saveWorkout`; the only write the app performs unprompted. */
     private val workoutWritePermissions = setOf(
         HealthPermission.getWritePermission(ExerciseSessionRecord::class),
@@ -292,6 +309,17 @@ class HealthConnectPlugin : Plugin() {
             return
         }
 
+        // Health Connect grants only what was on screen at the time, and a
+        // phone connected before write-back existed holds reads and nothing
+        // else. Checking reads alone reported that phone as fully authorized,
+        // so the sheet never reopened and every weight and nutrition write
+        // no-opped forever, silently. When the caller is turning write-back on
+        // it says so, and the writes count toward the answer.
+        val includeWrite = call.getBoolean("includeWrite", false) == true
+        val required =
+            if (includeWrite) coreReadPermissions + coreWritePermissions
+            else coreReadPermissions
+
         scope.launch {
             val granted = runCatching {
                 withContext(Dispatchers.IO) {
@@ -299,7 +327,7 @@ class HealthConnectPlugin : Plugin() {
                 }
             }.getOrDefault(emptySet())
 
-            if (granted.containsAll(coreReadPermissions)) {
+            if (granted.containsAll(required)) {
                 call.resolve(JSObject().put("available", true).put("granted", true))
                 return@launch
             }

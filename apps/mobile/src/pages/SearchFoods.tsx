@@ -43,7 +43,7 @@ import { cn } from "@/lib/utils"
 import { useEnergyUnit } from "@/lib/use-energy-unit"
 import { energyDisplay } from "@repo/ui"
 import { normalizeFoodSearchQuery } from "@/lib/food-search-url"
-import { scaledFoodMacros } from "@/lib/food-search-nutrition"
+import { foodCardMacros, scaledFoodMacros } from "@/lib/food-search-nutrition"
 import type { Recipe } from "@/lib/food-log"
 import { STARTER_RECIPES, type StarterRecipe } from "@/pages/RecipesHub"
 import { COACH_RECIPE_PLACEHOLDER } from "@/lib/recipe-images"
@@ -508,6 +508,7 @@ export default function SearchFoods() {
                       )
                     }
                     const item = result.item
+                    const card = foodCardMacros(item)
                     const isAdded = added?.itemId === item.id
                     const isAdding = addingFoodId === item.id
                     return (
@@ -537,21 +538,18 @@ export default function SearchFoods() {
                               {item.name}
                             </p>
                             <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
-                              {[item.brand, item.serving]
+                              {[item.brand, card.servingLabel]
                                 .filter(Boolean)
                                 .join(" · ")}
                             </p>
                             <p className="mt-1.5 flex flex-wrap items-center gap-x-2 text-[11px] text-muted-foreground tabular-nums">
                               <strong className="font-semibold text-foreground">
-                                {energyDisplay(
-                                  Number(item.calories),
-                                  energyUnit
-                                )}{" "}
+                                {energyDisplay(card.calories, energyUnit)}{" "}
                                 {energyUnit}
                               </strong>
-                              <span>P {Math.round(Number(item.protein))}g</span>
-                              <span>C {Math.round(Number(item.carbs))}g</span>
-                              <span>F {Math.round(Number(item.fat))}g</span>
+                              <span>P {Math.round(card.protein)}g</span>
+                              <span>C {Math.round(card.carbs)}g</span>
+                              <span>F {Math.round(card.fat)}g</span>
                             </p>
                           </div>
                         </button>

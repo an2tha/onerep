@@ -156,3 +156,63 @@ export async function findFreeWorkoutSlot(
   if (!occupied.has(2)) return 2;
   return null;
 }
+
+/**
+ * How many sessions one log will absorb before an import is refused.
+ *
+ * There is no natural ceiling on cycling commutes, and no reason to invent a
+ * small one — but a sync that has gone wrong should stop somewhere short of
+ * writing a document nobody can render.
+ */
+export const MAX_FOLDED_EXERCISES = 24;
+
+export type LinkTarget =
+  { kind: "slot"; slot: 1 | 2 } | { kind: "fold"; log: Doc<"workoutLogs"> };
+
+/**
+ * Where an imported cardio session should land on a day that already has logs.
+ *
+ * A date holds two workout logs and no more, which is fine until somebody rides
+ * to work, rides home, and rides out again in the evening: the third session
+ * had nowhere to go and the import simply failed, with the sessions still
+ * sitting in the imports list offering an Add that could never succeed.
+ *
+ * So a full day folds. The session joins an existing log as another cardio
+ * exercise — which is what a day with five rides in it actually is — and only a
+ * log that has grown absurd refuses. Returns null only in that last case.
+ */
+export async function findCardioLinkTarget(
+  ctx: Ctx,
+  userId: string,
+  date: string,
+  sessionId: string,
+): Promise<LinkTarget | null> {
+  const slot = await findFreeWorkoutSlot(ctx, userId, date, sessionId);
+  if (slot !== null) return { kind: "slot", slot };
+
+  const logs = await ctx.db
+    .query("workoutLogs")
+    .withIndex("by_userId_date", (q) => q.eq("userId", userId).eq("date", date))
+    .take(2);
+
+  // Only into a log this import wrote itself. Folding a recorded ride into
+  // somebody's hand-written leg day would be a silent edit of their own
+  // writing, which is the thing the two-slot rule exists to prevent.
+  const host = logs.find(
+    (log) =>
+      isImportedSessionId(log.sessionId) &&
+      log.exercises.length < MAX_FOLDED_EXERCISES,
+  );
+
+  return host ? { kind: "fold", log: host } : null;
+}
+
+/** Session ids minted by a health import, as opposed to a client UUID. */
+function isImportedSessionId(sessionId: string | undefined): boolean {
+  return (
+    sessionId !== undefined &&
+    (sessionId.startsWith("apple-health:") ||
+      sessionId.startsWith("health-connect:") ||
+      sessionId.startsWith("api:"))
+  );
+}

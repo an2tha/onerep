@@ -183,7 +183,8 @@ describe("Datasource food client", () => {
       name: "Sparkling Water",
       brand: "Acme",
       servingGrams: 250,
-      servingLabel: "330 g",
+      // Not "330 g": that is the packet, and the packet is not a serving.
+      servingLabel: "250 g",
       nutriscoreGrade: "a",
       novaGroup: 2,
     })
@@ -199,6 +200,23 @@ describe("Datasource food client", () => {
       { key: "vitamin-d", name: "Vitamin D", per100g: 1.5, unit: "mcg" },
       { key: "caffeine", name: "Caffeine", per100g: 3, unit: "mg" },
     ])
+  })
+
+  test("getFoodDetail refuses to read the package quantity as a serving", async () => {
+    actionMock.mockResolvedValueOnce({
+      product: {
+        code: "555",
+        product_name: "Oat Biscuits",
+        quantity: "500 g",
+        nutriments: { "energy-kcal_100g": 450 },
+      },
+    })
+
+    const detail = await getFoodDetail("555")
+
+    expect(detail!.servingGrams).toBeNull()
+    expect(detail!.servingLabel).toBe("100 g")
+    expect(detail!.calories).toBe(450)
   })
 
   test("getFoodDetail parses serving grams from serving_size when serving_quantity is absent", async () => {

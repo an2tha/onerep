@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { scaledFoodMacros } from "../food-search-nutrition"
+import { foodCardMacros, scaledFoodMacros } from "../food-search-nutrition"
 
 const food = {
   calories: 120,
@@ -33,6 +33,46 @@ describe("food search nutrition", () => {
       protein: 6,
       carbs: 7.5,
       fat: 2,
+    })
+  })
+
+  test("a card quotes the serving it names, not a hidden 100 g", () => {
+    const card = foodCardMacros({
+      ...food,
+      id: "1",
+      source: "openfoodfacts",
+      name: "Oat Bar",
+      serving: "1 bar (30 g)",
+      servingGrams: 30,
+      servingLabel: "1 bar (30 g)",
+    } as never)
+
+    expect(card).toEqual({
+      grams: 30,
+      servingLabel: "1 bar (30 g)",
+      calories: 36,
+      protein: 3.6,
+      carbs: 4.5,
+      fat: 1.2,
+    })
+  })
+
+  test("a product with no serving of its own falls back to 100 g, and says so", () => {
+    const card = foodCardMacros({
+      ...food,
+      id: "2",
+      source: "openfoodfacts",
+      name: "Loose Oats",
+      serving: "100 g",
+    } as never)
+
+    expect(card).toEqual({
+      grams: 100,
+      servingLabel: "100 g",
+      calories: 120,
+      protein: 12,
+      carbs: 15,
+      fat: 4,
     })
   })
 })

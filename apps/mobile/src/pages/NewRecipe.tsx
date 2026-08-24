@@ -33,6 +33,7 @@ import {
   type Recipe,
   type RecipeIngredient,
 } from "@/lib/food-log"
+import { foodCardMacros } from "@/lib/food-search-nutrition"
 import { useMutation, useQuery } from "convex/react"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { COACH_RECIPE_PLACEHOLDER } from "@/lib/recipe-images"
@@ -842,6 +843,7 @@ function SearchOverlay({
                   <div className="divide-y divide-border border-y border-border md:grid md:grid-cols-2 md:divide-y-0">
                     {results.map((item) => {
                       const isAdded = added?.itemId === item.id
+                      const card = foodCardMacros(item)
                       return (
                         <div
                           key={item.id}
@@ -857,19 +859,16 @@ function SearchOverlay({
                                 {item.name}
                               </p>
                               <p className="mt-0.5 truncate text-[13px] text-muted-foreground">
-                                {[item.brand, item.serving]
+                                {[item.brand, card.servingLabel]
                                   .filter(Boolean)
                                   .join(" · ")}
                               </p>
                               <p className="mt-1 text-[13px] text-muted-foreground tabular-nums">
-                                {energyDisplay(
-                                  Number(item.calories),
-                                  energyUnit
-                                )}{" "}
+                                {energyDisplay(card.calories, energyUnit)}{" "}
                                 {energyUnit} · Protein{" "}
-                                {Math.round(Number(item.protein))} g · Carbs{" "}
-                                {Math.round(Number(item.carbs))} g · Fat{" "}
-                                {Math.round(Number(item.fat))} g
+                                {Math.round(card.protein)} g · Carbs{" "}
+                                {Math.round(card.carbs)} g · Fat{" "}
+                                {Math.round(card.fat)} g
                               </p>
                             </div>
                           </button>

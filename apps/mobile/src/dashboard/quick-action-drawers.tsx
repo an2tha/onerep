@@ -41,6 +41,7 @@ import {
   foodLogEntriesFromMealPreset,
   stripUndefined,
   type FoodLogEntry,
+  DEFAULT_MEAL_CATEGORIES,
 } from "@/lib/food-log"
 import { recipeTotals } from "@/lib/coach-chat"
 import { buildQuickRepeatFoods } from "@/lib/food-quick-repeat"
@@ -318,9 +319,11 @@ function WaterDrawer({
 function FoodDrawer({
   dateKey,
   onClose,
+  editEntry,
 }: {
   dateKey: string
   onClose: () => void
+  editEntry?: FoodLogEntry | null
 }) {
   const navigate = useSmoothNavigate()
   const energyUnit = useEnergyUnit()
@@ -408,6 +411,17 @@ function FoodDrawer({
 
   const loading = recentFood === undefined || mealPresets === undefined
 
+  if (editEntry) {
+    return (
+      <FoodEntryEditor
+        entry={editEntry}
+        dateKey={dateKey}
+        energyUnit={energyUnit}
+        onClose={onClose}
+      />
+    )
+  }
+
   return (
     <div className="flex flex-col gap-3 p-4">
       <DrawerIntro
@@ -446,6 +460,94 @@ function FoodDrawer({
           }}
         />
       </div>
+    </div>
+  )
+}
+
+function FoodEntryEditor({
+  entry,
+  dateKey,
+  energyUnit,
+  onClose,
+}: {
+  entry: FoodLogEntry
+  dateKey: string
+  energyUnit: EnergyUnit
+  onClose: () => void
+}) {
+  const updateFood = useMutation(api.logs.foodLogs.updateEntry)
+  const [meal, setMeal] = useState(entry.meal)
+  const [serving, setServing] = useState(entry.servingLabel ?? "")
+  const [busy, setBusy] = useState(false)
+
+  async function save() {
+    if (busy) return
+    setBusy(true)
+    try {
+      const patch: FoodLogEntry = { ...entry, meal: meal || defaultMeal() }
+      patch.servingLabel = serving ? serving : undefined
+      delete patch._id
+      await updateFood({ date: dateKey, entry: patch })
+      hapticMedium()
+      toast.success(`${entry.name} updated`)
+      onClose()
+    } catch (error) {
+      logDevWarn("Failed to edit food entry from drawer", error)
+      toast.error("Couldn't save that.")
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-3 p-4">
+      <DrawerIntro title={entry.name} detail={macroLine(entry, energyUnit)} />
+
+      <div className="app-surface overflow-hidden">
+        <div className="px-4 py-3">
+          <label className="block text-[12px] font-medium text-muted-foreground">
+            Meal
+          </label>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            {DEFAULT_MEAL_CATEGORIES.map((cat) => (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => setMeal(cat.id)}
+                className={`motion-tactile flex-1 rounded-xl border px-3 py-2 text-sm font-medium ${
+                  meal === cat.id
+                    ? "border-foreground text-foreground"
+                    : "border-border text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {cat.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="app-surface overflow-hidden px-4 py-3">
+        <label className="block text-[12px] font-medium text-muted-foreground">
+          Serving
+        </label>
+        <input
+          type="text"
+          value={serving}
+          onChange={(event) => setServing(event.target.value)}
+          placeholder={entry.servingLabel ? undefined : "e.g. 1 cup, 2 slices"}
+          className="mt-2 w-full text-[15px] text-foreground outline-none"
+        />
+      </div>
+
+      <button
+        type="button"
+        onClick={save}
+        disabled={busy}
+        className="motion-tactile flex-1 rounded-xl bg-foreground py-3 font-bold text-background"
+      >
+        {busy ? "Saving…" : "Save"}
+      </button>
     </div>
   )
 }
@@ -948,17 +1050,19 @@ export function QuickActionDrawer({
   id,
   dateKey,
   onClose,
+  editEntry,
 }: {
   id: QuickActionId | null
   dateKey: string
   onClose: () => void
+  editEntry?: FoodLogEntry | null
 }) {
   if (!id) return null
 
   return (
     <MobileSheet onClose={onClose} ariaLabel={`${DRAWER_LABELS[id]} drawer`}>
       {id === "water" && <WaterDrawer dateKey={dateKey} onClose={onClose} />}
-      {id === "food" && <FoodDrawer dateKey={dateKey} onClose={onClose} />}
+      {id === "food" && <FoodDrawer dateKey={dateKey} onClose={onClose} editEntry={editEntry} />}
       {id === "recipes" && <RecipesDrawer dateKey={dateKey} onClose={onClose} />}
       {id === "recipe-create" && <CreateRecipeDrawer onClose={onClose} />}
       {id === "workout" && <WorkoutDrawer onClose={onClose} />}
