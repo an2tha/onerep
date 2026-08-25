@@ -1,4 +1,0 @@
-# app.onerep.life is the signed-in app shell. Nothing here is meant to be
-# indexed; the public pages live on onerep.life.
-User-agent: *
-Disallow: /

@@ -346,9 +346,10 @@ function Dashboard() {
               }}
               onDeleteEntry={handleDeleteTimelineEntry}
               onAddEntry={(kind) => openQuickAction(TIMELINE_ADD_ACTIONS[kind])}
-              // The anchor-edge + buttons now ask before they act: the sheet
-              // lets the user pick workout or food, then sets a one-shot
-              // reminder for the minute the wheel is holding.
+              // The anchor-edge buttons ask before they act: the sheet lets
+              // the user pick workout or food, then either opens that
+              // drawer (the + , for a minute already gone) or sets a
+              // one-shot reminder (the clock, for a minute still ahead).
               onQuickLog={(phase, minutes) =>
                 setScheduleRequest({ phase, minutes })
               }
@@ -381,6 +382,7 @@ function Dashboard() {
       />
       <ScheduleEntrySheet
         request={scheduleRequest}
+        onLog={(kind) => openQuickAction(kind, dateKey)}
         onClose={() => setScheduleRequest(null)}
       />
     </div>

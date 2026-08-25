@@ -1,9 +1,9 @@
 /**
- * The sheet behind the wheel's + buttons: "schedule an entry" — workout or
- * food, at the minute the wheel was pointing at. Choosing one doesn't log
- * anything; it sets a one-shot notification for that time, because the
- * whole point of pointing the wheel somewhere is that the moment matters
- * more than this tap.
+ * The sheet behind the wheel's + buttons: workout or food, at the minute the
+ * wheel was pointing at. Which verb it means depends on the button. The +
+ * opens the logging drawer for that minute — the moment already happened,
+ * there is nothing left to remind anyone about. The clock, which only shows
+ * up on today, sets a one-shot notification for a minute still ahead.
  */
 
 import { useState } from "react"
@@ -20,14 +20,17 @@ export type ScheduleEntryRequest = {
 
 export function ScheduleEntrySheet({
   request,
+  onLog,
   onClose,
 }: {
   request: ScheduleEntryRequest | null
+  onLog: (kind: EntryReminderKind) => void
   onClose: () => void
 }) {
   const [pendingKind, setPendingKind] = useState<EntryReminderKind | null>(null)
   if (!request) return null
 
+  const phase = request.phase
   const at = new Date()
   at.setHours(
     Math.floor(request.minutes / 60) % 24,
@@ -42,8 +45,13 @@ export function ScheduleEntrySheet({
 
   async function choose(kind: EntryReminderKind) {
     if (pendingKind) return
-    setPendingKind(kind)
     hapticMedium()
+    if (phase === "past") {
+      onLog(kind)
+      onClose()
+      return
+    }
+    setPendingKind(kind)
     try {
       const result = await scheduleEntryReminder(kind, at)
       if (result === "scheduled") {
@@ -68,13 +76,14 @@ export function ScheduleEntrySheet({
     {
       kind: "workout",
       label: "Workout",
-      detail: "A nudge to start a session",
+      detail:
+        request.phase === "past" ? "Log a session" : "A nudge to start a session",
       icon: Barbell,
     },
     {
       kind: "food",
       label: "Food",
-      detail: "A nudge to log a meal",
+      detail: request.phase === "past" ? "Log a meal" : "A nudge to log a meal",
       icon: ForkKnife,
     },
   ]
@@ -85,11 +94,13 @@ export function ScheduleEntrySheet({
         <header>
           <h2 className="text-[19px] font-semibold tracking-tight text-foreground">
             {request.phase === "past"
-              ? `Log around ${timeLabel}?`
+              ? `Log something at ${timeLabel}?`
               : `Schedule an entry for ${timeLabel}?`}
           </h2>
           <p className="mt-1 text-[14px] text-muted-foreground">
-            Pick what it is — the app will remind you at {timeLabel}.
+            {request.phase === "past"
+              ? "Pick what it is and the drawer opens ready for it."
+              : `Pick what it is — the app will remind you at ${timeLabel}.`}
           </p>
         </header>
         <div className="flex flex-col gap-2">
