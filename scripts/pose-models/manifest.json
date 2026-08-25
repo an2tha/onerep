@@ -1,5 +1,6 @@
 {
   "comment": "Runtime pose weights. Published to R2 by publish.ts, fetched in CI by fetch.ts. Bump `version` and the checksums whenever export_onnx.py is re-run; the object key carries the version so an old deploy never picks up a new model.",
+  "coremlComment": "The two CoreML packages the iOS target compiles against. They are directories, so every file inside is an asset of its own \u2014 nothing to archive, no checksum that depends on when a zip was made. Delivered as GitHub release assets on the private repo rather than R2, because R2 is a billing opt-in nobody has taken and the private repo's storage is already paid for. Asset names cannot contain slashes, so paths are flattened with __ on the way up and restored on the way down.",
   "version": "1",
   "bucket": "onerep-models",
   "baseUrl": "https://models.onerep.life",
@@ -15,5 +16,42 @@
       "bytes": 16566321,
       "sha256": "160974dfe283a08e6443ba0d05f35d5232e31d91db5bedab1d7890255b58f1e7"
     }
-  ]
+  ],
+  "coremlTarget": "apps/mobile/ios/App/App",
+  "coreml": [
+    {
+      "name": "MotionBERT.mlpackage/Manifest.json",
+      "bytes": 617,
+      "sha256": "fe0bd9dc9ac23ed5c84cbee634b0a067702a30e8eab056f6b5c7b056cd73ffd1"
+    },
+    {
+      "name": "MotionBERT.mlpackage/Data/com.apple.CoreML/model.mlmodel",
+      "bytes": 220351,
+      "sha256": "90ad0a4e2d4e50718a659bda8f87e27a9ebdac24c2b6fe2a57f2c0e63613e78f"
+    },
+    {
+      "name": "MotionBERT.mlpackage/Data/com.apple.CoreML/weights/weight.bin",
+      "bytes": 32019392,
+      "sha256": "802dfe2d87dd7c6622ec329e6a7e4f46c583a4f03f608d8f88fa33f5d15c9b8c"
+    },
+    {
+      "name": "Yolo11nPose.mlpackage/Manifest.json",
+      "bytes": 617,
+      "sha256": "71748009eddb15d2f31cc31c1431481f9040307ab09ecb70c829687271bf0af8"
+    },
+    {
+      "name": "Yolo11nPose.mlpackage/Data/com.apple.CoreML/model.mlmodel",
+      "bytes": 176071,
+      "sha256": "165c428b90f3330da27dd1197766b029da333c3fa7675e9fbcb1a02626c560c0"
+    },
+    {
+      "name": "Yolo11nPose.mlpackage/Data/com.apple.CoreML/weights/weight.bin",
+      "bytes": 5829952,
+      "sha256": "e0d859181be7496d42c585071eac7952372cb15e07b576684d3b6127600c4d77"
+    }
+  ],
+  "coremlRelease": {
+    "repo": "OneRep/onerep-private",
+    "tag": "pose-models-coreml-v1"
+  }
 }

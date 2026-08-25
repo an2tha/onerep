@@ -26,6 +26,29 @@ This has already gone wrong once: `1082c3a` untracked the models without adding
 any replacement delivery, which took CI red and would have shipped a modelless
 deploy the moment anyone forced it green.
 
+## The CoreML packages
+
+`MotionBERT.mlpackage` and `Yolo11nPose.mlpackage` live in
+`apps/mobile/ios/App/App` and are what the iOS target actually compiles
+against. They are gitignored (`*.mlpackage/`), which is fine on a machine that
+exported them and fatal on a clean CI checkout: Xcode finds a project
+referencing two models that are not there and `coremlc` fails the archive with
+`Model does not exist at file://…`, which is not a sentence that suggests a fix.
+
+They are delivered as **GitHub release assets** on the private repo rather than
+via R2, because R2 is a billing opt-in nobody has taken and the private repo's
+storage is already paid for. Release `pose-models-coreml-v1`, one asset per
+file inside the packages, paths flattened with `__` because asset names cannot
+contain slashes. No archive, so no checksum that depends on when a zip was made.
+
+    bun run models:fetch:ios      # into apps/mobile/ios/App/App
+    bun run models:publish:ios    # from a machine holding them
+
+`gh` has to be authenticated against the private repo. In CI that means
+`GH_TOKEN`, which `.github/workflows/ios.yml` sets from the job's
+`secrets.GITHUB_TOKEN`. After a re-export, update the checksums in the
+`coreml` block of `manifest.json`, bump the tag, and publish again.
+
 ## Current state
 
 The models are tracked in git (`7535c47`), so `bun run models:fetch` finds them

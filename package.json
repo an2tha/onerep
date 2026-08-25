@@ -23,6 +23,8 @@
     "test:convex": "vitest run --config convex/vitest.config.ts",
     "models:fetch": "bun scripts/pose-models/fetch.ts",
     "models:publish": "bun scripts/pose-models/publish.ts",
+    "models:fetch:ios": "bun scripts/pose-models/fetch.ts --coreml",
+    "models:publish:ios": "bun scripts/pose-models/publish.ts --coreml",
     "test:ota": "bun test --max-concurrency 1 ./scripts/ota ./apps/mobile/src/lib/__tests__/ota.test.ts ./apps/mobile/src/lib/__tests__/ota-manifest.test.ts ./apps/mobile/src/lib/__tests__/service-worker.test.ts ./apps/mobile/capacitor-config.test.ts ./apps/mobile/public-assets.test.ts",
     "test:watch": "bun test --watch --path-ignore-patterns \"convex/__tests__\"",
     "test:coverage": "bun test --coverage --path-ignore-patterns \"convex/__tests__\""

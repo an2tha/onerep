@@ -8,7 +8,13 @@
  * app and — via otaOrigin() — the native app both fetch them from at runtime.
  * They are deliberately excluded from the OTA zip for the same reason.
  *
- *   bun run models:fetch
+ *   bun run models:fetch            the .onnx weights
+ *   bun run models:fetch --coreml   those, plus the iOS .mlpackage bundles
+ *
+ * The CoreML packages are directories, and every file inside is an object of
+ * its own in the same versioned prefix — nothing to archive, nothing whose
+ * checksum depends on when the zip was made. Only the iOS build needs them,
+ * which is why they are behind a flag rather than in the default set.
  *
  * This has to run before `turbo run test` as well as before the build:
  * apps/mobile/public-assets.test.ts asserts both files are present, because a
@@ -25,8 +31,43 @@ import path from "node:path";
 
 const root = path.join(import.meta.dir, "../..");
 const manifest = await Bun.file(path.join(import.meta.dir, "manifest.json")).json();
-const targetDir = path.join(root, manifest.target);
 const force = process.argv.includes("--force");
+const withCoreML = process.argv.includes("--coreml");
+
+type Entry = { name: string; bytes: number; sha256: string };
+type Release = { repo: string; tag: string };
+const groups: { label: string; target: string; files: Entry[]; release?: Release }[] = [
+  { label: "onnx", target: manifest.target, files: manifest.files },
+];
+if (withCoreML) {
+  groups.push({
+    label: "coreml",
+    target: manifest.coremlTarget,
+    files: manifest.coreml,
+    release: manifest.coremlRelease,
+  });
+}
+
+// Release assets have flat names; the packages are trees. One separator, one
+// reversal, and nothing has to encode a directory listing anywhere.
+const assetName = (name: string) => name.replaceAll("/", "__");
+
+const downloadAsset = (release: Release, entry: Entry, dir: string) => {
+  const result = Bun.spawnSync(
+    ["gh", "release", "download", release.tag, "--repo", release.repo,
+     "--pattern", assetName(entry.name), "--dir", dir, "--clobber"],
+    { stdout: "inherit", stderr: "inherit" },
+  );
+  if (result.exitCode !== 0) {
+    throw new Error(
+      `Could not download ${entry.name} from ${release.repo}@${release.tag}.\n` +
+        `The CoreML packages are gitignored, so a clean checkout has to pull them:\n` +
+        `  - locally, gh must be authenticated against the private repo\n` +
+        `  - in CI, the job needs GH_TOKEN set to a token that can read releases\n` +
+        `If the release does not exist yet: bun run models:publish:ios, from a machine holding the packages.`,
+    );
+  }
+};
 
 const sha256 = async (file: string) => {
   const hasher = new Bun.CryptoHasher("sha256");
@@ -34,10 +75,13 @@ const sha256 = async (file: string) => {
   return hasher.digest("hex");
 };
 
-await mkdir(targetDir, { recursive: true });
-
 let fetched = 0;
-for (const entry of manifest.files as { name: string; bytes: number; sha256: string }[]) {
+let total = 0;
+for (const group of groups) {
+ const targetDir = path.join(root, group.target);
+ await mkdir(targetDir, { recursive: true });
+ for (const entry of group.files) {
+  total += 1;
   const target = path.join(targetDir, entry.name);
 
   if (!force && existsSync(target)) {
@@ -47,6 +91,27 @@ for (const entry of manifest.files as { name: string; bytes: number; sha256: str
       continue;
     }
     console.log(` stale ${entry.name} — checksum differs, re-fetching`);
+  }
+
+  // The release path: gh writes the asset to a scratch dir under the flat
+  // name, and it is verified and moved into place below like any other body.
+  if (group.release) {
+    const scratch = path.join(root, ".cache/pose-models");
+    await mkdir(scratch, { recursive: true });
+    console.log(` get   ${group.release.repo}@${group.release.tag} ${assetName(entry.name)}`);
+    downloadAsset(group.release, entry, scratch);
+    const staged = path.join(scratch, assetName(entry.name));
+    const body = new Uint8Array(await Bun.file(staged).arrayBuffer());
+    const hasher = new Bun.CryptoHasher("sha256");
+    hasher.update(body);
+    const digest = hasher.digest("hex");
+    if (digest !== entry.sha256) {
+      throw new Error(`${entry.name}: sha256 mismatch\n  expected ${entry.sha256}\n  got      ${digest}`);
+    }
+    await Bun.write(target, body);
+    console.log(` ok    ${entry.name} (${(body.byteLength / 1024 / 1024).toFixed(1)} MiB)`);
+    fetched += 1;
+    continue;
   }
 
   // Versioned key, so a redeploy of an older commit cannot pick up a model
@@ -89,6 +154,7 @@ for (const entry of manifest.files as { name: string; bytes: number; sha256: str
   await Bun.write(target, body);
   console.log(` ok    ${entry.name} (${(body.byteLength / 1024 / 1024).toFixed(1)} MiB)`);
   fetched += 1;
+ }
 }
 
-console.log(`${fetched} downloaded, ${manifest.files.length - fetched} already present.`);
+console.log(`${fetched} downloaded, ${total - fetched} already present.`);
