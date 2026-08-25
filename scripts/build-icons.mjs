@@ -230,6 +230,33 @@ write(
   )}\n`
 )
 
+// The watch app had no catalog at all, which App Store Connect only mentions
+// at upload time: "No icons found for watch application". watchOS takes one
+// 1024 raster and derives every size it needs, and it must be opaque — the
+// alpha channel is what the validator rejects next.
+const watchIcons = P("apps", "mobile", "ios", "App", "OneRepWatch", "Assets.xcassets", "AppIcon.appiconset")
+png(tile({ mode: "bleed" }), join(watchIcons, "AppIcon-watch.png"), {
+  width: 1024,
+  flatten: LIGHT_BG,
+})
+write(
+  join(watchIcons, "Contents.json"),
+  `${JSON.stringify(
+    {
+      images: [
+        { filename: "AppIcon-watch.png", idiom: "universal", platform: "watchos", size: "1024x1024" },
+      ],
+      info: { author: "xcode", version: 1 },
+    },
+    null,
+    2
+  )}\n`
+)
+write(
+  P("apps", "mobile", "ios", "App", "OneRepWatch", "Assets.xcassets", "Contents.json"),
+  `${JSON.stringify({ info: { author: "xcode", version: 1 } }, null, 2)}\n`
+)
+
 // ── Android ────────────────────────────────────────────────────────────────
 const androidRes = P("apps", "mobile", "android", "app", "src", "main", "res")
 /** mdpi is the unit; every other density is a multiple of it. */
