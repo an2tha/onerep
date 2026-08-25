@@ -134,6 +134,7 @@ is documented properly:
 
 - [Self-hosting overview](https://docs.onerep.life/selfhost/overview) and [install](https://docs.onerep.life/selfhost/install)
 - [Food databases](https://docs.onerep.life/selfhost/food-database): USDA, Open Food Facts, wger
+- [Reverse proxy](https://docs.onerep.life/selfhost/reverse-proxy): Caddy, nginx, Traefik, and the WebSocket that breaks without them
 - [Mobile apps](https://docs.onerep.life/selfhost/mobile-apps): PWA, Xcode, Android Studio
 - [Integrations](https://docs.onerep.life/selfhost/integrations): OpenRouter, Resend, Google, OIDC, telemetry
 - [`selfhost/docker-compose.yml`](selfhost/docker-compose.yml): every service, port, and volume

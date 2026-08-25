@@ -257,4 +257,10 @@ See what landed with `docker compose exec datasource bun src/cli.ts stats`.
 To serve on a real domain: edit CONVEX_CLOUD_ORIGIN, CONVEX_SITE_ORIGIN and
 APP_URL in selfhost/.env, put TLS in front of ports 3210/3211/8081, and re-run
 ./install.sh (the app rebuild picks up the new URLs).
+
+Behind a reverse proxy, those three ports need three hostnames, and 3210 needs
+its WebSocket upgrade headers forwarded or the app loads and shows nothing.
+Working Caddy, nginx and Traefik configs, and the mistakes worth skipping:
+
+  https://docs.onerep.life/selfhost/reverse-proxy
 EOF

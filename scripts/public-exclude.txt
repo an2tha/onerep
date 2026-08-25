@@ -6,6 +6,11 @@ convex/billing/_private
 apps/mobile/src/components/billing/_private
 # The marketing site stays internal; the public repo is the app, not the pitch.
 apps/web
-# The CI config names deployments, buckets, and signing references. Harmless on
-# its own, a map of the estate to anyone who collects such things.
+# CI config. Deleted from the tree, but it lived here long enough to be in the
+# history, and the history is what gets published. It named deployments and
+# signing references — harmless on its own, a map of the estate to anyone who
+# collects such things.
 codemagic.yaml
+# The Actions workflows run in the private repo. The mirror has no use for the
+# dispatch buttons, and less for the list of secret names.
+.github/workflows
