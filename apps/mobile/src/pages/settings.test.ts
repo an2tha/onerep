@@ -341,8 +341,12 @@ describe("Settings – production feature visibility", () => {
     assert.match(SETTINGS_SOURCE, /title="Nutrition strategy"/)
     assert.match(SETTINGS_SOURCE, /Install OneRep/)
     assert.match(SETTINGS_SOURCE, /handleInstallApp/)
-    assert.match(SETTINGS_SOURCE, /SettingsRow label="Haptic feedback"/)
+    assert.match(SETTINGS_SOURCE, /label="Haptic feedback"/)
     assert.match(SETTINGS_SOURCE, /handleHapticsChange/)
+    // Haptics are a dial, not a switch: Android's motor is coarse enough that
+    // "off" was the only escape from it before this.
+    assert.match(SETTINGS_SOURCE, /value: "light", label: "Light"/)
+    assert.match(SETTINGS_SOURCE, /value: "medium", label: "Medium"/)
     assert.match(SETTINGS_SOURCE, /oneRepExportDocument/)
     assert.match(SETTINGS_SOURCE, /Export downloaded with a verification code/)
     assert.doesNotMatch(SETTINGS_SOURCE, /AccordionItem/)

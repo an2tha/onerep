@@ -26,6 +26,9 @@ mock.module("@capacitor/haptics", () => ({
 
 const {
   HAPTICS_ENABLED_KEY,
+  HAPTICS_STRENGTH_KEY,
+  hapticStrength,
+  setHapticStrength,
   hapticHeavy,
   hapticMedium,
   hapticSelection,
@@ -98,6 +101,56 @@ describe("haptic preferences", () => {
 
     hapticTap()
     hapticMedium()
+    hapticHeavy()
+    hapticSelection()
+
+    expect(impactMock).not.toHaveBeenCalled()
+    expect(selectionChangedMock).not.toHaveBeenCalled()
+  })
+
+  test("defaults to full strength and stores the chosen level", () => {
+    expect(hapticStrength()).toBe("full")
+
+    setHapticStrength("light")
+    expect(localStorage.getItem(HAPTICS_STRENGTH_KEY)).toBe("light")
+    expect(hapticStrength()).toBe("light")
+    // The legacy key follows along so an older build still buzzes.
+    expect(localStorage.getItem(HAPTICS_ENABLED_KEY)).toBe("true")
+  })
+
+  test("honours a pre-dial opt-out stored under the old key", () => {
+    localStorage.setItem(HAPTICS_ENABLED_KEY, "false")
+    expect(hapticStrength()).toBe("off")
+    expect(hapticsEnabled()).toBe(false)
+  })
+
+  test("clamps every impact to the chosen strength", () => {
+    setHapticStrength("light")
+    hapticTap()
+    hapticMedium()
+    hapticHeavy()
+    expect(impactMock.mock.calls.map((call) => call[0])).toEqual([
+      { style: "LIGHT" },
+      { style: "LIGHT" },
+      { style: "LIGHT" },
+    ])
+
+    impactMock.mockClear()
+    setHapticStrength("medium")
+    hapticTap()
+    hapticMedium()
+    hapticHeavy()
+    expect(impactMock.mock.calls.map((call) => call[0])).toEqual([
+      { style: "LIGHT" },
+      { style: "MEDIUM" },
+      { style: "MEDIUM" },
+    ])
+  })
+
+  test("off silences impacts and selection alike", () => {
+    setHapticStrength("off")
+
+    hapticTap()
     hapticHeavy()
     hapticSelection()
 

@@ -29,12 +29,23 @@
                 <data android:scheme="@string/custom_url_scheme" />
             </intent-filter>
 
+            <!--
+                Android 13 and below: Health Connect lists an app in its
+                permission screen only if the app answers this action. Without
+                it OneRep declares every health permission in the world and
+                still never appears in Health Connect, which is a special kind
+                of nothing to debug from the user's side of the glass.
+            -->
+            <intent-filter>
+                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+            </intent-filter>
+
         </activity>
 
         <!--
-            Health Connect requires a rationale surface it can link to before the
-            user grants anything. Both the modern intent-filter and the legacy
-            activity-alias are needed to cover pre- and post-Android 14 devices.
+            Android 14 and above: the platform asks for the rationale through
+            the permission-usage alias instead of the legacy action above. Both
+            are needed; devices in the field span the split.
         -->
         <activity-alias
             android:name="ViewPermissionUsageActivity"

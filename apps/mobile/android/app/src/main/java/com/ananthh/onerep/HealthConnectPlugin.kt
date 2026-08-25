@@ -97,6 +97,10 @@ class HealthConnectPlugin : Plugin() {
 
     private companion object {
         const val HEALTH_CONNECT_PACKAGE = "com.google.android.apps.healthdata"
+
+        /** Health Connect's per-app permission screen. */
+        const val ACTION_MANAGE_HEALTH_PERMISSIONS =
+            "androidx.health.ACTION_MANAGE_HEALTH_PERMISSIONS"
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -393,12 +397,34 @@ class HealthConnectPlugin : Plugin() {
         if (opened) call.resolve() else call.reject("Unable to open the Play Store")
     }
 
+    /**
+     * Opens OneRep's own page inside Health Connect where possible.
+     *
+     * The generic settings action drops the user at the top of Health Connect,
+     * where finding one app among the installed ones is its own small errand —
+     * and the app appears in that list only after it has asked for something at
+     * least once, which is exactly the confusion people write in about. The
+     * per-app action goes straight to the toggles; the generic one is the
+     * fallback for devices whose provider is old enough not to know it.
+     */
     @PluginMethod
     fun openHealthSettings(call: PluginCall) {
-        val intent = Intent(HealthConnectClient.ACTION_HEALTH_CONNECT_SETTINGS)
-        runCatching { activity.startActivity(intent) }
-            .onSuccess { call.resolve() }
-            .onFailure { call.reject("Unable to open Health Connect", it.asException()) }
+        val candidates = listOf(
+            Intent(ACTION_MANAGE_HEALTH_PERMISSIONS)
+                .putExtra(Intent.EXTRA_PACKAGE_NAME, context.packageName),
+            Intent(HealthConnectClient.ACTION_HEALTH_CONNECT_SETTINGS),
+        )
+
+        for (intent in candidates) {
+            val opened = runCatching { activity.startActivity(intent); true }
+                .getOrDefault(false)
+            if (opened) {
+                call.resolve()
+                return
+            }
+        }
+
+        call.reject("Unable to open Health Connect")
     }
 
     // MARK: - Read
@@ -1258,7 +1284,7 @@ class HealthConnectPlugin : Plugin() {
                 startZoneOffset = spanOffset,
                 endTime = dayEnd,
                 endZoneOffset = spanOffset,
-                carbohydrate = Mass.grams(value),
+                totalCarbohydrate = Mass.grams(value),
                 metadata = meta,
             )
             "dietaryFatG" -> NutritionRecord(
@@ -1266,7 +1292,7 @@ class HealthConnectPlugin : Plugin() {
                 startZoneOffset = spanOffset,
                 endTime = dayEnd,
                 endZoneOffset = spanOffset,
-                fat = Mass.grams(value),
+                totalFat = Mass.grams(value),
                 metadata = meta,
             )
             "vo2Max" -> Vo2MaxRecord(time = at, zoneOffset = offset, vo2MillilitersPerMinuteKilogram = value, metadata = meta)

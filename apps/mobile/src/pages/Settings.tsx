@@ -84,9 +84,10 @@ import {
   hapticTap,
   hapticSelection,
   hapticMedium,
-  hapticsEnabled,
-  setHapticsEnabled,
+  hapticStrength,
+  setHapticStrength,
 } from "@/lib/haptics"
+import type { HapticStrength } from "@/lib/haptics"
 import {
   oneRepExportDocument,
   oneRepExportFilename,
@@ -514,9 +515,9 @@ export default function Settings({ onClose }: { onClose: () => void }) {
     viewParam && viewParam in SETTINGS_VIEW_TITLE_KEYS
       ? (viewParam as SettingsView)
       : "overview"
-  const [hapticsOn, setHapticsOn] = useState(() => {
-    if (typeof window === "undefined") return true
-    return hapticsEnabled()
+  const [hapticLevel, setHapticLevel] = useState<HapticStrength>(() => {
+    if (typeof window === "undefined") return "full"
+    return hapticStrength()
   })
   const [restBellOn, setRestBellOn] = useState(() => restBellEnabled())
   const [restVibrationOn, setRestVibrationOn] = useState(() =>
@@ -692,11 +693,15 @@ export default function Settings({ onClose }: { onClose: () => void }) {
     setTheme(nextTheme)
   }
 
-  function handleHapticsChange(enabled: boolean) {
-    if (enabled) hapticSelection()
-    setHapticsOn(enabled)
-    setHapticsEnabled(enabled)
-    toast.success(enabled ? "Haptics enabled" : "Haptics disabled")
+  function handleHapticsChange(strength: HapticStrength) {
+    setHapticLevel(strength)
+    setHapticStrength(strength)
+    // Fired after the write so the sample the user feels is the setting they
+    // just picked, not the one they are leaving.
+    if (strength !== "off") hapticMedium()
+    toast.success(
+      strength === "off" ? "Haptics off" : `Haptics set to ${strength}`
+    )
   }
 
   async function runSectionSave(action: () => Promise<void>, success: string) {
@@ -1759,12 +1764,22 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                       ]}
                     />
                   </SettingsRow>
-                  <SettingsRow label="Haptic feedback">
-                    <CompactSwitch
-                      onInteract={hapticSelection}
-                      checked={hapticsOn}
-                      onChange={handleHapticsChange}
+                  <SettingsRow
+                    label="Haptic feedback"
+                    detail="How hard the phone buzzes back when you tap"
+                  >
+                    <SegmentedControl
                       label="Haptic feedback"
+                      value={hapticLevel}
+                      onChange={(value) =>
+                        handleHapticsChange(value as HapticStrength)
+                      }
+                      options={[
+                        { value: "off", label: "Off" },
+                        { value: "light", label: "Light" },
+                        { value: "medium", label: "Medium" },
+                        { value: "full", label: "Full" },
+                      ]}
                     />
                   </SettingsRow>
                   <SettingsRow
@@ -2210,6 +2225,15 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                   OneRep can read completed workouts from {healthLabel}.
                   Imported sessions only join your training log when you add
                   them.
+                  {healthProvider() === "health_connect" && (
+                    <>
+                      {" "}
+                      Health Connect grants access from its own screen, not from
+                      Android&rsquo;s app info page, and it only lists OneRep
+                      once OneRep has asked — so turn on Import workouts below
+                      first.
+                    </>
+                  )}
                 </SettingsSectionIntro>
 
                 {healthProviderUnavailable && (
@@ -2359,7 +2383,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                         // it from here, so send the user to the app itself.
                         <ListRow
                           title="Manage permissions"
-                          detail="Change or withdraw access in Health Connect"
+                          detail="Open OneRep's page in Health Connect to change or withdraw access"
                           onClick={() => {
                             void openHealthSettings()
                           }}
