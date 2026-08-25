@@ -13,6 +13,15 @@ android {
         // Semver, because CapacitorUpdater.current().native feeds the
         // minNativeVersion gate in src/lib/ota-manifest.ts. "1.0" does not parse.
         versionName "1.1.5"
+        // CI has its own counter and no way to commit a bump, so it stamps
+        // over the literals above. The literals stay literal because
+        // scripts/generate-release.local.sh rewrites them with sed.
+        if (project.hasProperty('onerepVersionCode')) {
+            versionCode project.onerepVersionCode.toInteger()
+        }
+        if (project.hasProperty('onerepVersionName')) {
+            versionName project.onerepVersionName
+        }
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

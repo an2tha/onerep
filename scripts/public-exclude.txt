@@ -6,3 +6,6 @@ convex/billing/_private
 apps/mobile/src/components/billing/_private
 # The marketing site stays internal; the public repo is the app, not the pitch.
 apps/web
+# The CI config names deployments, buckets, and signing references. Harmless on
+# its own, a map of the estate to anyone who collects such things.
+codemagic.yaml
