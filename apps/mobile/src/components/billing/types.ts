@@ -22,9 +22,13 @@ export interface AiAccessRequiredModalProps {
   freeLimit?: number | null
   proLimit?: number | null
   usedCount?: number | null
-  /** Native builds cannot buy: Pro is sold on the web only. */
   isNative?: boolean
+  /** False while StoreKit has no product to sell, or Stripe is unconfigured. */
+  canPurchase?: boolean
+  /** iOS only. App Review looks for this, and reinstalls need it. */
+  canRestore?: boolean
   onClose: () => void
   onOpenPaywall: () => void
+  onRestore?: () => void
   onOpenSettings: () => void
 }

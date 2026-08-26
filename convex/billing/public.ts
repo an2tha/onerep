@@ -1,3 +1,4 @@
+import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import type { Doc } from "../_generated/dataModel";
 import { action, env, query } from "../_generated/server";
@@ -14,12 +15,19 @@ import {
 import { MONTHLY_PRODUCT_ID, PRO_ENTITLEMENT, nonEmptyString } from "./types";
 
 /**
- * OneRep Pro is sold on the web through Stripe and nowhere else.
+ * OneRep Pro is sold two ways: Stripe Checkout on the web, and StoreKit 2 in
+ * the iOS app.
  *
- * There is no in-app purchase path on any platform, so this module exposes no
- * receipt redemption or restore endpoint — a client cannot present a store
- * receipt for the server to honour, and legacy App Store / Play rows no longer
- * grant the entitlement.
+ * Both end in the same place. A purchase produces a row in
+ * `billingSubscriptions`, the rollup reduces every row a user holds to one
+ * entitlement, and nothing downstream asks where the money came from. A
+ * subscriber who bought on the web keeps Pro on their phone; one who bought on
+ * the phone keeps it in a browser.
+ *
+ * What the client is trusted with, exactly: handing over a payload Apple
+ * signed. Everything else — whether that payload is genuine, whose it is, and
+ * whether it still entitles anyone to anything — is decided in
+ * `convex/billing/apple.ts` against Apple's own API.
  */
 
 /**
@@ -39,6 +47,25 @@ function monthlyPriceLabel() {
 }
 
 const APPROVED_CHECKOUT_ORIGIN = "https://app.onerep.life";
+
+/** Where an App Store subscriber cancels. Apple owns that screen; we link. */
+const APPLE_MANAGEMENT_URL = "https://apps.apple.com/account/subscriptions";
+
+/**
+ * Whether the server can verify App Store purchases at all.
+ *
+ * Read from the environment rather than by importing `apple.ts`, which is a
+ * Node module and cannot be pulled into a V8 query. The app uses this to
+ * decide whether to show a purchase button, so a half-configured deployment
+ * shows no button rather than one that fails on tap.
+ */
+function appleBillingAvailable() {
+  return (
+    nonEmptyString(env.BILLING_APPLE_ISSUER_ID) !== undefined &&
+    nonEmptyString(env.BILLING_APPLE_KEY_ID) !== undefined &&
+    nonEmptyString(env.BILLING_APPLE_PRIVATE_KEY) !== undefined
+  );
+}
 
 function checkoutReturnUrl(
   name: "BILLING_CHECKOUT_SUCCESS_URL" | "BILLING_CHECKOUT_CANCEL_URL",
@@ -115,6 +142,7 @@ export const getStatus = query({
         appUserId: null,
         checkoutUrl: null,
         webProvider: "stripe" as const,
+        appleProvider: appleBillingAvailable(),
         offering: offering(),
         monthlyPriceLabel: monthlyPriceLabel(),
         status: null,
@@ -142,6 +170,7 @@ export const getStatus = query({
       // Stripe Checkout URLs are minted per session by `createCheckout`.
       checkoutUrl: null,
       webProvider: "stripe" as const,
+      appleProvider: appleBillingAvailable(),
       offering: offering(),
       monthlyPriceLabel: monthlyPriceLabel(),
       status: status
@@ -221,11 +250,70 @@ export const createCheckout = action({
 });
 
 /**
- * Re-read the user's Stripe subscriptions.
+ * The `appAccountToken` the app attaches to an App Store purchase.
  *
- * This is what the client's "refresh" control resolves to. Legacy App Store and
- * Play rows are skipped: we no longer hold credentials for those APIs, and they
- * no longer grant the entitlement.
+ * Minted once per account and never rotated. The app asks for it before every
+ * purchase rather than caching it, because the cost is one query and the
+ * failure mode of a stale cache is a renewal three years from now that nothing
+ * can attribute to anyone.
+ */
+export const getStoreIdentity = action({
+  args: {},
+  handler: async (ctx): Promise<{ appAccountToken: string }> => {
+    const user = await getAuthUser(ctx);
+    const appAccountToken: string = await ctx.runMutation(
+      internal.billing.store.ensureAppAccountToken,
+      { userId: user._id, token: crypto.randomUUID() },
+    );
+    return { appAccountToken };
+  },
+});
+
+/**
+ * Hand over a StoreKit transaction for verification.
+ *
+ * Serves both purchase and restore — they are the same operation from here,
+ * and the app calls this for every transaction StoreKit reports, including the
+ * ones that arrive unprompted through `Transaction.updates` when a renewal or
+ * a family-sharing change lands while the app happens to be open.
+ *
+ * The rate limit is generous because a legitimate restore on an account with
+ * several products is several calls in a row, and stingy enough that a client
+ * grinding forged payloads against the verifier gives up early.
+ */
+export const redeemAppleTransaction = action({
+  args: { signedTransaction: v.string() },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ redeemed: boolean; reason?: string }> => {
+    const user = await getAuthUser(ctx);
+    await ctx.runMutation(internal.security.claim, {
+      userId: user._id,
+      action: "purchase_restore",
+      limit: 30,
+      windowMs: 15 * 60 * 1000,
+    });
+
+    const result = await ctx.runAction(internal.billing.apple.redeemTransaction, {
+      userId: user._id,
+      signedTransaction: args.signedTransaction,
+    });
+
+    // Property-presence narrowing rather than the `stored` discriminant:
+    // `tsconfig.app.json` turns strictNullChecks off, and without it a boolean
+    // literal discriminant does not narrow. See the note in `mcp/oauthServer`.
+    if (!("reason" in result)) return { redeemed: true };
+    return { redeemed: false, reason: result.reason };
+  },
+});
+
+/**
+ * Re-read the user's subscriptions from whoever is billing them.
+ *
+ * Stripe and Apple both; Play rows are skipped, having no credentials behind
+ * them any more. A failure on one platform must not sink the others, which is
+ * why each is tried in its own try block and the count is of successes.
  */
 export const refreshStatus = action({
   args: {},
@@ -238,15 +326,23 @@ export const refreshStatus = action({
 
     let refreshed = 0;
     for (const subscription of subscriptions) {
-      if (subscription.platform !== "stripe") continue;
       try {
-        await ctx.runAction(internal.billing.stripe.refreshSubscription, {
-          platformSubscriptionId: subscription.platformSubscriptionId,
-          userId: user._id,
-        });
-        refreshed += 1;
+        if (subscription.platform === "stripe") {
+          await ctx.runAction(internal.billing.stripe.refreshSubscription, {
+            platformSubscriptionId: subscription.platformSubscriptionId,
+            userId: user._id,
+          });
+          refreshed += 1;
+        } else if (subscription.platform === "apple") {
+          await ctx.runAction(internal.billing.apple.refreshSubscription, {
+            platformSubscriptionId: subscription.platformSubscriptionId,
+            userId: user._id,
+            environment: subscription.environment,
+          });
+          refreshed += 1;
+        }
       } catch {
-        // A transient Stripe failure must not surface as an error here; the
+        // A transient store failure must not surface as an error here; the
         // reconciliation cron will retry.
       }
     }
@@ -269,7 +365,9 @@ export const createManagementSession = action({
     ctx,
     _args,
   ): Promise<
-    { kind: "portal"; url: string } | { kind: "none"; reason: string }
+    | { kind: "portal"; url: string }
+    | { kind: "store"; url: string }
+    | { kind: "none"; reason: string }
   > => {
     const user = await getAuthUser(ctx);
     const subscriptions: Doc<"billingSubscriptions">[] = await ctx.runQuery(
@@ -283,6 +381,19 @@ export const createManagementSession = action({
         subscription.state !== "expired" &&
         subscription.state !== "refunded",
     );
+    // Apple owns cancellation and payment method changes for anything bought
+    // through StoreKit; there is no server-side portal to mint, only a URL that
+    // deep-links into the Settings app.
+    const appleSubscription = subscriptions.find(
+      (subscription) =>
+        subscription.platform === "apple" &&
+        subscription.state !== "expired" &&
+        subscription.state !== "refunded",
+    );
+    if (appleSubscription && !stripeSubscription) {
+      return { kind: "store", url: APPLE_MANAGEMENT_URL };
+    }
+
     if (stripeSubscription?.platformCustomerId) {
       const { url }: { url: string } = await ctx.runAction(
         internal.billing.stripe.createPortalSession,
@@ -330,6 +441,24 @@ export const cancelSubscription = action({
         subscription.state !== "expired" &&
         subscription.state !== "refunded",
     );
+    if (!stripeSubscription) {
+      const appleSubscription = subscriptions.find(
+        (subscription) =>
+          subscription.platform === "apple" &&
+          subscription.state !== "expired" &&
+          subscription.state !== "refunded",
+      );
+      if (appleSubscription) {
+        // Apple does not let an app cancel its own subscription, and it is not
+        // being difficult: the charge is Apple's, so the off switch is Apple's.
+        return {
+          canceled: false,
+          managementUrl: APPLE_MANAGEMENT_URL,
+          reason: "Manage this subscription in the App Store.",
+        };
+      }
+    }
+
     if (stripeSubscription) {
       const result: { canceledAt: number } = await ctx.runAction(
         internal.billing.stripe.cancelSubscription,

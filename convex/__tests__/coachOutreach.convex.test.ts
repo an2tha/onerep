@@ -1,4 +1,4 @@
-import { describe, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { convexTest } from "convex-test";
 import schema from "../schema";
 import { internal } from "../_generated/api";
@@ -188,6 +188,128 @@ describe("sending without credentials", () => {
       reason: "outreach disabled",
       delivered: 0,
     });
+  });
+});
+
+describe("choosing a transport", () => {
+  // iOS registers an APNs device token and Android an FCM registration id.
+  // They look alike — opaque strings on a row — and sending one to the other's
+  // provider fails in a way that reads as a dead device, so the platform
+  // column is the only thing standing between a user and a silent unsubscribe.
+  async function seedToken(
+    t: ReturnType<typeof convexTest>,
+    platform: "ios" | "android",
+  ) {
+    await t.run(async (ctx) => {
+      await ctx.db.insert("pushTokens", {
+        userId: USER,
+        token: `token-${platform}`,
+        platform,
+        createdAt: Date.now(),
+        lastSeenAt: Date.now(),
+      });
+    });
+  }
+
+  async function generateApnsPem() {
+    const pair = await crypto.subtle.generateKey(
+      { name: "ECDSA", namedCurve: "P-256" },
+      true,
+      ["sign", "verify"],
+    );
+    const pkcs8 = new Uint8Array(
+      await crypto.subtle.exportKey("pkcs8", pair.privateKey),
+    );
+    let binary = "";
+    for (const byte of pkcs8) binary += String.fromCharCode(byte);
+    return `-----BEGIN PRIVATE KEY-----\n${btoa(binary)}\n-----END PRIVATE KEY-----`;
+  }
+
+  function stubApnsCredentials(pem: string) {
+    vi.stubEnv("APNS_KEY_ID", "ABC1234567");
+    vi.stubEnv("APNS_TEAM_ID", "TEAM123456");
+    vi.stubEnv("APNS_BUNDLE_ID", "com.ananthh.onerep");
+    vi.stubEnv("APNS_PRIVATE_KEY", pem);
+  }
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+
+  test("sends an iOS device to Apple, not to Google", async () => {
+    const t = convexTest(schema, modules);
+    await seedPreferences(t, USER);
+    await seedToken(t, "ios");
+    stubApnsCredentials(await generateApnsPem());
+    const fetchMock = vi.fn(async () => new Response("", { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const outcome = await t.action(internal.push.send.sendCoachTouch, {
+      userId: USER,
+      kind: "weekly_review",
+      dedupeKey: "2026-W33",
+      title: "Your week, reviewed",
+      body: "Four sessions, up from two.",
+    });
+
+    expect(outcome).toEqual({ sent: true, delivered: 1 });
+    expect(String(fetchMock.mock.calls[0][0])).toBe(
+      "https://api.push.apple.com/3/device/token-ios",
+    );
+  });
+
+  test("leaves a device it cannot address alone", async () => {
+    const t = convexTest(schema, modules);
+    await seedPreferences(t, USER);
+    await seedToken(t, "android");
+    stubApnsCredentials(await generateApnsPem());
+    const fetchMock = vi.fn(async () => new Response("", { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const outcome = await t.action(internal.push.send.sendCoachTouch, {
+      userId: USER,
+      kind: "weekly_review",
+      dedupeKey: "2026-W34",
+      title: "Your week, reviewed",
+      body: "Four sessions, up from two.",
+    });
+
+    expect(outcome.sent).toBe(false);
+    expect(fetchMock).not.toHaveBeenCalled();
+    // The row survives, and so does the chance to send this once FCM is
+    // configured: the dedupe key was never spent.
+    const rows = await t.run((ctx) => ctx.db.query("pushTokens").collect());
+    expect(rows).toHaveLength(1);
+    const gate = await t.query(internal.push.send.loadGateState, {
+      userId: USER,
+      kind: "weekly_review",
+      dedupeKey: "2026-W34",
+    });
+    expect(gate.alreadySent).toBe(false);
+  });
+
+  test("drops an iOS token Apple has stopped recognising", async () => {
+    const t = convexTest(schema, modules);
+    await seedPreferences(t, USER);
+    await seedToken(t, "ios");
+    stubApnsCredentials(await generateApnsPem());
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("", { status: 410 })),
+    );
+
+    const outcome = await t.action(internal.push.send.sendCoachTouch, {
+      userId: USER,
+      kind: "weekly_review",
+      dedupeKey: "2026-W35",
+      title: "Your week, reviewed",
+      body: "Four sessions, up from two.",
+    });
+
+    expect(outcome.sent).toBe(false);
+    const rows = await t.run((ctx) => ctx.db.query("pushTokens").collect());
+    expect(rows).toHaveLength(0);
   });
 });
 

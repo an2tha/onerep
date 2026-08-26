@@ -5,14 +5,14 @@ import { umamiPlugin } from "./vite.config"
  * The tracker used to be hardcoded in index.html, so every self-hosted install
  * reported to the project's analytics without anyone asking. These tests exist
  * to keep the new default honest: an unconfigured build ships no script, and
- * nothing short of both values being set changes that.
+ * nothing short of both values being set changes that. One tag, ever — the
+ * session recorder is gone and nothing here should be able to bring it back.
  */
 const inject = (
   scriptUrl?: string,
-  websiteId?: string,
-  recorder = false
+  websiteId?: string
 ): Array<{ attrs?: Record<string, unknown> }> => {
-  const plugin = umamiPlugin(scriptUrl, websiteId, recorder)
+  const plugin = umamiPlugin(scriptUrl, websiteId)
   const hook = plugin.transformIndexHtml
   const handler = typeof hook === "function" ? hook : hook?.handler
   // @ts-expect-error the hook is called by vite with an html string it ignores
@@ -44,18 +44,9 @@ describe("Umami tag injection", () => {
     })
   })
 
-  test("leaves the session recorder off unless separately asked for", () => {
-    expect(inject(SCRIPT, ID)).toHaveLength(1)
-    const withRecorder = inject(SCRIPT, ID, true)
-    expect(withRecorder).toHaveLength(2)
-    expect(withRecorder[1]?.attrs).toMatchObject({
-      src: "https://umami.example.com/recorder.js",
-    })
-  })
-
-  test("skips the recorder rather than guessing at a non-standard script URL", () => {
-    expect(inject("https://analytics.example.com/u.js", ID, true)).toHaveLength(
-      1
-    )
+  test("never injects a session recorder", () => {
+    const tags = inject(SCRIPT, ID)
+    expect(tags).toHaveLength(1)
+    expect(JSON.stringify(tags)).not.toContain("recorder")
   })
 })

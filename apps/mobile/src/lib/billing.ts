@@ -3,18 +3,33 @@ import { Capacitor } from "@capacitor/core"
 import { useAction, useQuery } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
 import { trackUmami } from "@/lib/analytics"
+import {
+  currentStoreEntitlements,
+  fetchStoreProducts,
+  finishStoreTransaction,
+  onStoreTransaction,
+  purchaseStoreProduct,
+  restoreStorePurchases,
+  storeKitAvailable,
+  storeKitSupported,
+  type SignedTransaction,
+  type StoreProduct,
+} from "@/lib/billing-plugin"
 
 /**
- * Billing hook for OneRep Pro, which is sold on the web through Stripe only.
+ * Billing hook for OneRep Pro, sold through Stripe on the web and StoreKit in
+ * the iOS app.
  *
- * There is no in-app purchase path on any platform: native builds cannot start
- * a purchase, cannot restore one, and carry no store SDK. They read the same
- * server-owned entitlement as the web app and can manage or cancel an existing
- * subscription, but a native user who wants Pro subscribes from the OneRep
- * website in their own browser.
+ * Which one a person used is not a distinction the rest of the app is allowed
+ * to care about. Both produce a row on the server, the server reduces every
+ * row to one entitlement, and this hook reports that entitlement. Someone who
+ * subscribed in a browser opens the phone and has Pro; someone who bought it on
+ * the phone opens a browser and has Pro.
  *
- * The governing rule is unchanged: the client never decides entitlement. Convex
- * owns it and the app reads it back through `api.billing.public.getStatus`.
+ * The governing rule is unchanged, and StoreKit does not weaken it: the client
+ * never decides entitlement. The most a purchase can do here is hand Convex a
+ * payload Apple signed and then re-read what Convex made of it through
+ * `api.billing.public.getStatus`.
  */
 
 export const ONEREP_PRO_ENTITLEMENT = "OneRep Pro"
@@ -107,9 +122,10 @@ function subscriptionDiagnosticError(message: string) {
 /**
  * Where an existing subscription was bought.
  *
- * `app_store` and `play_store` only appear for rows predating the removal of
- * in-app purchases, which no longer grant access; they are still labelled so a
- * user who recognises the origin knows where their old charge came from.
+ * Worth naming precisely, because it decides where the user has to go to
+ * cancel. `play_store` is the one dead end left: Play billing was removed and
+ * those rows grant nothing, but the label stays so somebody looking at an
+ * unexplained charge can at least tell who is charging them.
  */
 function subscriptionStoreLabel(store: string | null | undefined) {
   const normalized = store?.trim().toLowerCase()
@@ -220,17 +236,6 @@ export function subscriptionDiagnosticCopy({
     }
   }
 
-  // Native builds have no way to buy, so the free-plan copy has to say where
-  // Pro actually comes from rather than implying a purchase is a tap away.
-  if (isNative) {
-    return {
-      title: "Free plan",
-      detail: "OneRep Pro is managed on the OneRep website.",
-      tone: "muted",
-      canRetry: false,
-    }
-  }
-
   return {
     title: "Free plan",
     detail: `No active subscription found with ${origin}.`,
@@ -242,15 +247,20 @@ export function subscriptionDiagnosticCopy({
 export function useBilling({ userId }: UseBillingOptions) {
   const isNative = isNativePurchasesAvailable()
   const isWeb = isWebPurchasesAvailable()
+  const storeKit = storeKitSupported()
 
   const subscriptionQuery = useQuery(api.billing.public.getStatus, {})
   const refreshStatus = useAction(api.billing.public.refreshStatus)
   const cancelAction = useAction(api.billing.public.cancelSubscription)
   const manageAction = useAction(api.billing.public.createManagementSession)
   const createCheckout = useAction(api.billing.public.createCheckout)
+  const storeIdentity = useAction(api.billing.public.getStoreIdentity)
+  const redeemTransaction = useAction(api.billing.public.redeemAppleTransaction)
 
   const [error, setError] = useState<string | null>(null)
   const [isBusy, setIsBusy] = useState(false)
+  const [storeProduct, setStoreProduct] = useState<StoreProduct | null>(null)
+  const [storeReady, setStoreReady] = useState(false)
   const mounted = useRef(true)
 
   useEffect(() => {
@@ -259,6 +269,92 @@ export function useBilling({ userId }: UseBillingOptions) {
       mounted.current = false
     }
   }, [])
+
+  const monthlyProductId =
+    subscriptionQuery?.offering?.monthlyProductId ?? undefined
+  const appleProvider = subscriptionQuery?.appleProvider ?? false
+
+  /**
+   * Redeem one signed transaction, then finish it.
+   *
+   * Order matters and only in this direction: StoreKit keeps re-offering an
+   * unfinished transaction on every launch, which is the recovery mechanism
+   * for a purchase whose server round trip died on a train. Finishing before
+   * the server has agreed throws that mechanism away to save a few hundred
+   * milliseconds.
+   */
+  const redeem = useCallback(
+    async (transaction: SignedTransaction) => {
+      const result = await redeemTransaction({
+        signedTransaction: transaction.signedTransaction,
+      })
+      if (result.redeemed) {
+        await finishStoreTransaction(transaction.transactionId)
+      }
+      return result.redeemed
+    },
+    [redeemTransaction]
+  )
+
+  /** Load the catalogue once, and only where there is a catalogue to load. */
+  useEffect(() => {
+    if (!storeKit || !appleProvider || !monthlyProductId) return
+    let cancelled = false
+
+    void (async () => {
+      const available = await storeKitAvailable()
+      const products = available
+        ? await fetchStoreProducts([monthlyProductId])
+        : []
+      if (cancelled || !mounted.current) return
+      setStoreProduct(products[0] ?? null)
+      setStoreReady(available)
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [appleProvider, monthlyProductId, storeKit])
+
+  /**
+   * Catch up on anything StoreKit is still holding.
+   *
+   * Runs on sign-in rather than on launch: a transaction has to belong to
+   * somebody, and before the user is known the server has nobody to attribute
+   * it to. This is what rescues a purchase that completed while the app was
+   * being force-quit, and what carries a subscription onto a reinstall without
+   * anyone tapping Restore.
+   */
+  useEffect(() => {
+    if (!storeKit || !appleProvider || !userId) return
+    let cancelled = false
+
+    void (async () => {
+      const transactions = await currentStoreEntitlements()
+      for (const transaction of transactions) {
+        if (cancelled) return
+        try {
+          await redeem(transaction)
+        } catch {
+          // Offline, or the server said no. The cron and the next launch both
+          // get another go, and a failed redemption must not surface as an
+          // error on a screen the user did not ask for.
+        }
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [appleProvider, redeem, storeKit, userId])
+
+  /** Renewals and Ask to Buy approvals that land while the app is open. */
+  useEffect(() => {
+    if (!storeKit || !userId) return
+    return onStoreTransaction((transaction) => {
+      void redeem(transaction).catch(() => {})
+    })
+  }, [redeem, storeKit, userId])
 
   const serverStatus = subscriptionQuery?.status ?? null
   const isConfigured = Boolean(userId) && subscriptionQuery !== undefined
@@ -278,13 +374,120 @@ export function useBilling({ userId }: UseBillingOptions) {
   }, [refreshStatus, serverStatus, userId])
 
   /**
+   * Buy the monthly plan, through whichever till this platform has.
+   *
+   * On iOS that is StoreKit and nothing else — no link out, no web checkout in
+   * a browser sheet, no mention of a cheaper price elsewhere. Apple's cut is
+   * the cost of the button being there at all, and the alternative is a review
+   * rejection rather than a saving.
+   */
+  const purchaseNative = useCallback(
+    async (source: string) => {
+      setError(null)
+      setIsBusy(true)
+      try {
+        if (!monthlyProductId) {
+          setError("Subscriptions are unavailable right now. Try again later.")
+          return null
+        }
+
+        // Minted server-side and attached before the sheet opens, so even a
+        // purchase whose confirmation never reaches us is attributable later.
+        let appAccountToken: string | undefined
+        try {
+          appAccountToken = (await storeIdentity({})).appAccountToken
+        } catch {
+          // Not fatal. Attribution falls back to this same signed-in user
+          // redeeming the transaction, which is the common case anyway.
+        }
+
+        trackUmami("checkout_started", { source, store: "app_store" })
+        const outcome = await purchaseStoreProduct({
+          productId: monthlyProductId,
+          appAccountToken,
+        })
+
+        if (outcome.status === "cancelled") {
+          trackUmami("checkout_abandoned", { store: "app_store" })
+          return null
+        }
+        if (outcome.status === "pending") {
+          // Ask to Buy, or a bank asking for confirmation. The answer arrives
+          // through Transaction.updates whenever it arrives.
+          setError(
+            "Your purchase needs approval before it can finish. We'll unlock Pro as soon as it comes through."
+          )
+          return null
+        }
+        if (outcome.status !== "purchased") {
+          setError("The App Store couldn't complete that purchase.")
+          return null
+        }
+
+        const redeemed = await redeem(outcome)
+        if (!redeemed) {
+          // The money moved and the entitlement did not. Say so plainly, and
+          // leave the transaction unfinished so the next launch retries it.
+          setError(
+            "The App Store took your purchase but we couldn't confirm it. It'll finish on its own shortly — contact support if it doesn't."
+          )
+          return null
+        }
+
+        trackUmami("checkout_completed", { store: "app_store" })
+        return serverStatus
+      } catch (cause) {
+        trackUmami("checkout_start_failed", { source, store: "app_store" })
+        if (mounted.current) {
+          setError(billingErrorMessage(cause, "Could not complete the purchase"))
+        }
+        return null
+      } finally {
+        if (mounted.current) setIsBusy(false)
+      }
+    },
+    [monthlyProductId, redeem, serverStatus, storeIdentity]
+  )
+
+  /**
+   * Restore Purchases.
+   *
+   * Required by App Review, and genuinely needed: a reinstall, a new phone, or
+   * a second OneRep account on the same Apple Account all end up here. It
+   * prompts for the Apple Account password, so it only ever runs from a tap.
+   */
+  const restorePurchases = useCallback(async () => {
+    if (!storeKit) return { restored: 0 }
+    setError(null)
+    setIsBusy(true)
+    try {
+      const transactions = await restoreStorePurchases()
+      let restored = 0
+      for (const transaction of transactions) {
+        if (await redeem(transaction)) restored += 1
+      }
+      if (restored === 0) {
+        setError("No previous purchases were found on this Apple Account.")
+      }
+      return { restored }
+    } catch (cause) {
+      if (mounted.current) {
+        setError(billingErrorMessage(cause, "Could not restore purchases"))
+      }
+      return { restored: 0 }
+    } finally {
+      if (mounted.current) setIsBusy(false)
+    }
+  }, [redeem, storeKit])
+
+  /**
    * Start Stripe Checkout, which navigates away.
    *
-   * Native builds never reach the Stripe branch: they render no purchase
-   * control, and the guard here keeps that true even if one is added by
-   * mistake.
+   * Web only. On native the call is routed to StoreKit before it gets here;
+   * the guard stays because a Stripe redirect inside the app would be a
+   * guideline 3.1.1 violation wearing a bug's clothes.
    */
-  const purchaseMonthly = useCallback(
+  const purchaseWeb = useCallback(
     async (source = "unknown") => {
       if (isNative) return null
       setError(null)
@@ -307,6 +510,12 @@ export function useBilling({ userId }: UseBillingOptions) {
       }
     },
     [createCheckout, isNative]
+  )
+
+  const purchaseMonthly = useCallback(
+    async (source = "unknown") =>
+      isNative ? await purchaseNative(source) : await purchaseWeb(source),
+    [isNative, purchaseNative, purchaseWeb]
   )
 
   /**
@@ -393,12 +602,22 @@ export function useBilling({ userId }: UseBillingOptions) {
       status,
       cancelSubscription,
       openBillingManagement,
-      // Buying is web-only. Native builds render no purchase control at all.
-      canPurchase: isWeb && subscriptionQuery?.webProvider === "stripe",
+      // Native can buy once StoreKit has a product to sell and the server has
+      // credentials to verify it with; web needs Stripe configured. Either way
+      // the button appears only when the whole path behind it exists.
+      canPurchase: isNative
+        ? storeReady && storeProduct !== null && appleProvider
+        : isWeb && subscriptionQuery?.webProvider === "stripe",
+      canRestore: storeKit,
       hasActiveSubscription: hasActiveSubscription(customerInfo),
       hasOneRepPro: hasOneRepPro(customerInfo),
-      monthlyPrice: subscriptionQuery?.monthlyPriceLabel ?? null,
+      // StoreKit's price wins where there is one: it is localised, in the
+      // right currency, and reflects whatever regional price Apple set. The
+      // server label is a single number that is correct in one country.
+      monthlyPrice:
+        storeProduct?.displayPrice ?? subscriptionQuery?.monthlyPriceLabel ?? null,
       purchaseMonthly,
+      restorePurchases,
       refresh,
       subscriptionDiagnostic: subscriptionDiagnosticCopy({
         customerInfo,
@@ -411,6 +630,7 @@ export function useBilling({ userId }: UseBillingOptions) {
       subscriptionManagementUrl: managementUrl,
     }),
     [
+      appleProvider,
       cancelSubscription,
       openBillingManagement,
       customerInfo,
@@ -420,8 +640,12 @@ export function useBilling({ userId }: UseBillingOptions) {
       isWeb,
       managementUrl,
       purchaseMonthly,
+      restorePurchases,
       refresh,
       status,
+      storeKit,
+      storeProduct,
+      storeReady,
       subscriptionQuery?.monthlyPriceLabel,
       subscriptionQuery?.webProvider,
     ]

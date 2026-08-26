@@ -27,7 +27,17 @@ import type { DataModel } from "./dataModel.js";
 type Env = {
   readonly AI_PROCESSOR_APPROVED: string | undefined;
   readonly AI_USAGE_UNLIMITED: string | undefined;
+  readonly APNS_BUNDLE_ID: string | undefined;
+  readonly APNS_ENVIRONMENT: string | undefined;
+  readonly APNS_KEY_ID: string | undefined;
+  readonly APNS_PRIVATE_KEY: string | undefined;
+  readonly APNS_TEAM_ID: string | undefined;
   readonly AUTH_EMAIL_FROM: string | undefined;
+  readonly BILLING_APPLE_APP_APPLE_ID: string | undefined;
+  readonly BILLING_APPLE_BUNDLE_ID: string | undefined;
+  readonly BILLING_APPLE_ISSUER_ID: string | undefined;
+  readonly BILLING_APPLE_KEY_ID: string | undefined;
+  readonly BILLING_APPLE_PRIVATE_KEY: string | undefined;
   readonly BILLING_CHECKOUT_CANCEL_URL: string | undefined;
   readonly BILLING_CHECKOUT_SUCCESS_URL: string | undefined;
   readonly BILLING_COMP_ALL_USERS: string | undefined;

@@ -46,6 +46,34 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         return ApplicationDelegateProxy.shared.application(application, continue: userActivity, restorationHandler: restorationHandler)
     }
     
+    // MARK: Remote notifications
+
+    // Capacitor's push plugin does not swizzle the app delegate; it listens on
+    // NotificationCenter. Without these three forwards, register() succeeds,
+    // APNs hands the token to a delegate method nobody implemented, and the
+    // JavaScript "registration" event simply never fires — a silence that
+    // looks exactly like a user who declined the prompt.
+
+    func application(
+        _ application: UIApplication,
+        didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
+    ) {
+        NotificationCenter.default.post(
+            name: .capacitorDidRegisterForRemoteNotifications,
+            object: deviceToken
+        )
+    }
+
+    func application(
+        _ application: UIApplication,
+        didFailToRegisterForRemoteNotificationsWithError error: Error
+    ) {
+        NotificationCenter.default.post(
+            name: .capacitorDidFailToRegisterForRemoteNotifications,
+            object: error
+        )
+    }
+
     // MARK: UIScene life cycle
 
     func application(

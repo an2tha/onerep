@@ -92,6 +92,8 @@ export function useAiFeatureGate() {
       proLimit={usage?.proLimit ?? null}
       usedCount={usage?.count ?? null}
       isNative={billing.isNative}
+      canPurchase={billing.canPurchase}
+      canRestore={billing.canRestore}
       onClose={() => setModalOpen(false)}
       onOpenPaywall={() => {
         if (paywallBusy) return
@@ -115,6 +117,22 @@ export function useAiFeatureGate() {
                 ? error.message
                 : "We couldn’t start your subscription. Try again."
             if (message !== "Purchase canceled") toast.error(message)
+          } finally {
+            setPaywallBusy(false)
+          }
+        })()
+      }}
+      onRestore={() => {
+        if (paywallBusy) return
+        setPaywallBusy(true)
+        void (async () => {
+          try {
+            const { restored } = await billing.restorePurchases()
+            if (restored > 0) {
+              await billing.refresh()
+              celebrateSubscription()
+              setModalOpen(false)
+            }
           } finally {
             setPaywallBusy(false)
           }

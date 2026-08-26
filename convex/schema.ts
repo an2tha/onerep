@@ -1269,7 +1269,8 @@ export default defineSchema({
   // ── Coach outreach: the machinery for speaking first ─────────────────────
   // One row per device per user. A token is a routing address, not an
   // identity: the same phone handed to a second account gets a second row, and
-  // the stale one dies the next time FCM rejects it.
+  // the stale one dies the next time the provider rejects it. The platform
+  // decides the transport: iOS tokens go to APNs, Android tokens to FCM.
   pushTokens: defineTable({
     userId: v.string(),
     token: v.string(),
@@ -1618,11 +1619,12 @@ export default defineSchema({
     .index("by_platform_and_eventId", ["platform", "eventId"])
     .index("by_processedAt", ["processedAt"]),
 
-  // ── Store-facing account identifiers (legacy) ────────────────────────────
-  // Minted to link StoreKit's `appAccountToken` / Play's `obfuscatedAccountId`
-  // back to an account. In-app purchases were removed, so nothing reads or
-  // writes this any more; the table stays defined only so Convex can validate
-  // rows that already exist. Drop it once the purge migration has run.
+  // ── Store-facing account identifiers ─────────────────────────────────────
+  // Links StoreKit's `appAccountToken` back to an account. The app attaches the
+  // UUID as a purchase option, Apple signs it into every transaction the
+  // subscription ever produces, and that is what attributes a renewal three
+  // years from now to the person who bought it — including one that renews
+  // while the app is uninstalled. One row per user, never rotated.
   billingIdentities: defineTable({
     userId: v.string(),
     appAccountToken: v.string(),

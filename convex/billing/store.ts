@@ -148,6 +148,55 @@ export const findUserIdByStripeCustomer = internalQuery({
   },
 });
 
+/**
+ * The account behind an `appAccountToken`.
+ *
+ * StoreKit carries this UUID through the purchase and back out in the signed
+ * transaction, which makes it the only attribution that survives a purchase
+ * completing while the app is in the background, force-quit, or reinstalled on
+ * a different phone. Tokens are stored and compared lowercased: StoreKit
+ * normalises the UUID's case somewhere between `Product.PurchaseOption` and the
+ * signed payload, and it does not always pick the case we sent.
+ */
+export const findUserIdByAppAccountToken = internalQuery({
+  args: { appAccountToken: v.string() },
+  handler: async (ctx, args) => {
+    const identity = await ctx.db
+      .query("billingIdentities")
+      .withIndex("by_appAccountToken", (q) =>
+        q.eq("appAccountToken", args.appAccountToken.toLowerCase()),
+      )
+      .unique();
+    return identity?.userId ?? null;
+  },
+});
+
+/**
+ * The user's `appAccountToken`, minted on first use.
+ *
+ * One per account, forever: rotating it would orphan every subscription
+ * already carrying the old one, and Apple keeps handing back the token that
+ * was attached at purchase for as long as the subscription renews.
+ */
+export const ensureAppAccountToken = internalMutation({
+  args: { userId: v.string(), token: v.string() },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("billingIdentities")
+      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .first();
+    if (existing) return existing.appAccountToken;
+
+    const token = args.token.toLowerCase();
+    await ctx.db.insert("billingIdentities", {
+      userId: args.userId,
+      appAccountToken: token,
+      createdAt: Date.now(),
+    });
+    return token;
+  },
+});
+
 export const recordCheckout = internalMutation({
   args: {
     userId: v.string(),

@@ -74,40 +74,31 @@ export const runLegacyMediaDeletion = migrations.runner([
 ]);
 
 /**
- * Delete the App Store and Play rows left behind by in-app purchases.
+ * Delete the Play rows left behind when Play billing was removed.
  *
- * `subscriptionGrantsAccess` already ignores non-Stripe rows, so access is cut
- * off the moment that ships; this migration is the cleanup that makes it
- * possible to narrow `billingPlatform` to `stripe` and drop `billingIdentities`
- * from the schema afterwards.
+ * Narrowed from "every non-Stripe row" on 2026-08-26, when StoreKit came back:
+ * this migration ran against `platform !== "stripe"`, and running it in that
+ * form now would delete live App Store subscriptions — rows Apple is still
+ * billing against, and which the app has no way to recreate short of every
+ * affected user tapping Restore Purchases.
  *
  * The rollup is recomputed per affected user rather than left to the nightly
- * `reconcileRollups` cron, so `subscriptionStates` stops advertising an
- * `app_store`/`play_store` origin as soon as the row backing it is gone.
+ * `reconcileRollups` cron, so `subscriptionStates` stops advertising a
+ * `play_store` origin as soon as the row backing it is gone.
  */
-export const deleteStoreSubscriptions = migrations.define({
+export const deletePlaySubscriptions = migrations.define({
   table: "billingSubscriptions",
   batchSize: 50,
   migrateOne: async (ctx, subscription) => {
-    if (subscription.platform === "stripe") return;
+    if (subscription.platform !== "google") return;
     const { userId } = subscription;
     await ctx.db.delete(subscription._id);
     await recomputeRollupFor(ctx, userId);
   },
 });
 
-/** The `appAccountToken` mappings only ever served StoreKit and Play. */
-export const deleteStoreIdentities = migrations.define({
-  table: "billingIdentities",
-  batchSize: 50,
-  migrateOne: async (ctx, identity) => {
-    await ctx.db.delete(identity._id);
-  },
-});
-
 export const runStorePurchasePurge = migrations.runner([
-  internal.migrations.deleteStoreSubscriptions,
-  internal.migrations.deleteStoreIdentities,
+  internal.migrations.deletePlaySubscriptions,
 ]);
 
 /**

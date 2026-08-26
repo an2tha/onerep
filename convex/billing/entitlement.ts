@@ -14,11 +14,26 @@ export function isProCompedForEveryone() {
   return env.BILLING_COMP_ALL_USERS !== "false";
 }
 
+/**
+ * Platforms whose rows can grant the entitlement.
+ *
+ * Google Play is not among them. Play billing was removed in 2026-08 and has
+ * not come back, so a `google` row is a historical record of a charge we no
+ * longer have credentials to verify, refund, or cancel — honouring it would
+ * mean granting access on the strength of a number in a table.
+ *
+ * Apple rows are honoured again, old ones included. Anyone still carrying a
+ * pre-2026-08 App Store subscription has been paying Apple every month
+ * throughout, and the restore path re-verifies the row against the App Store
+ * Server API the first time they open Settings anyway.
+ */
+const GRANTING_PLATFORMS = new Set<BillingPlatform>(["stripe", "apple"]);
+
 export function subscriptionGrantsAccess(
   subscription: Doc<"billingSubscriptions">,
   now: number,
 ): boolean {
-  if (subscription.platform !== "stripe") return false;
+  if (!GRANTING_PLATFORMS.has(subscription.platform)) return false;
   if (
     stateGrantsAccess(
       subscription.state,

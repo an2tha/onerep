@@ -21,6 +21,18 @@ const app = defineApp({
     BILLING_MONTHLY_PRICE_LABEL: v.optional(v.string()),
     BILLING_CHECKOUT_SUCCESS_URL: v.optional(v.string()),
     BILLING_CHECKOUT_CANCEL_URL: v.optional(v.string()),
+    // App Store Server API credentials, for verifying StoreKit purchases and
+    // the notifications that follow them. All three are required together;
+    // with any of them missing the iOS app shows no purchase button rather
+    // than one that fails on tap. The private key is the .p8 contents, and
+    // Convex environment variables being single-line, an escaped "\n" form is
+    // accepted too. APP_APPLE_ID is the numeric id from App Store Connect and
+    // is only consulted for production payloads.
+    BILLING_APPLE_ISSUER_ID: v.optional(v.string()),
+    BILLING_APPLE_KEY_ID: v.optional(v.string()),
+    BILLING_APPLE_PRIVATE_KEY: v.optional(v.string()),
+    BILLING_APPLE_BUNDLE_ID: v.optional(v.string()),
+    BILLING_APPLE_APP_APPLE_ID: v.optional(v.string()),
     DATASOURCE_URL: v.optional(v.string()),
     DATASOURCE_API_TOKEN: v.optional(v.string()),
     RESEND_API_KEY: v.optional(v.string()),
@@ -35,6 +47,14 @@ const app = defineApp({
     FCM_PROJECT_ID: v.optional(v.string()),
     FCM_CLIENT_EMAIL: v.optional(v.string()),
     FCM_PRIVATE_KEY: v.optional(v.string()),
+    // Apple is spoken to directly: the iOS shell registers an APNs device
+    // token, which FCM has no way to address.
+    APNS_KEY_ID: v.optional(v.string()),
+    APNS_TEAM_ID: v.optional(v.string()),
+    APNS_PRIVATE_KEY: v.optional(v.string()),
+    APNS_BUNDLE_ID: v.optional(v.string()),
+    /** "sandbox" for development builds; anything else means production. */
+    APNS_ENVIRONMENT: v.optional(v.string()),
   },
 });
 app.use(crons);

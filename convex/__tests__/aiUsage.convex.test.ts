@@ -32,7 +32,7 @@ async function grantPro(t: ReturnType<typeof convexTest>, userId: string) {
     const now = Date.now();
     await ctx.db.insert("billingSubscriptions", {
       userId,
-      // Stripe is the only platform that grants Pro; there is no in-app purchase.
+      // Either till would do here; Stripe is simply the shorter row to write.
       platform: "stripe",
       platformSubscriptionId: `test_subscription:${userId}`,
       productId: "onerep_pro_monthly",

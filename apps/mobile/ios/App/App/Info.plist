@@ -52,12 +52,14 @@
 	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>OneRep uses the camera to snap and log meals.</string>
+	<string>OneRep uses the camera to photograph meals, scan barcodes on food packaging, and record video of your lifts so the form coach can check your technique.</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>OneRep reads Apple Health workouts, distance, heart rate, and routes to import cardio details, plus sleep, steps, resting heart rate, and heart rate variability so your coach can tell a hard week from an under-recovered one.</string>
 	<key>NSHealthUpdateUsageDescription</key>
@@ -76,20 +78,9 @@
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
 	<string>Main</string>
-	<key>UIRequiredDeviceCapabilities</key>
-	<array>
-		<string>armv7</string>
-	</array>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
-	</array>
-	<key>UISupportedInterfaceOrientations~ipad</key>
-	<array>
-		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationPortraitUpsideDown</string>
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>

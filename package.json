@@ -49,6 +49,7 @@
     "packages/*"
   ],
   "dependencies": {
+    "@apple/app-store-server-library": "3.1.0",
     "@convex-dev/better-auth": "^0.12.5",
     "@convex-dev/crons": "^0.2.0",
     "@convex-dev/migrations": "0.3.6",

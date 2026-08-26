@@ -4,13 +4,13 @@ import { httpAction } from "../_generated/server";
 /**
  * Inbound billing notification route.
  *
- * Stripe is the only payment provider: subscriptions are sold on the web and
- * there is no in-app purchase path, so there are no App Store Server
- * Notification or Play RTDN endpoints to serve.
+ * Two of them: Stripe on the web, App Store Server Notifications V2 from the
+ * iOS app. Play RTDN has no endpoint because Play billing has no code behind
+ * it any more.
  *
- * The handler follows the shape the platform requires:
+ * Both handlers follow the same shape:
  *   1. read the raw body as text *before* parsing — Stripe's signature is
- *      computed over exact bytes;
+ *      computed over exact bytes, and Apple's payload *is* a signature;
  *   2. verify the signature, returning 401 without persisting anything;
  *   3. claim the event id for idempotency, so replays are free;
  *   4. fetch authoritative state from Stripe rather than trusting the
@@ -27,6 +27,37 @@ export const stripeWebhook = httpAction(async (ctx, request) => {
   const result = await ctx.runAction(internal.billing.stripe.handleWebhook, {
     payload,
     signature,
+  });
+
+  if (!result.verified) {
+    return new Response("Invalid signature", { status: 401 });
+  }
+  return new Response(null, { status: 200 });
+});
+
+/**
+ * App Store Server Notifications V2.
+ *
+ * The whole body is a single JWS, so there is no signature header to read and
+ * nothing to compare it against but Apple's root certificate. A 401 here means
+ * a payload Apple did not sign, which is not something Apple will fix by
+ * retrying; anything that throws downstream answers 500, which it will retry
+ * five times over the next few days.
+ */
+export const appleNotification = httpAction(async (ctx, request) => {
+  const body = await request.text();
+  let payload: string | undefined;
+  try {
+    payload = JSON.parse(body)?.signedPayload;
+  } catch {
+    return new Response("Malformed body", { status: 400 });
+  }
+  if (typeof payload !== "string" || payload.length === 0) {
+    return new Response("Missing signedPayload", { status: 400 });
+  }
+
+  const result = await ctx.runAction(internal.billing.apple.handleNotification, {
+    payload,
   });
 
   if (!result.verified) {

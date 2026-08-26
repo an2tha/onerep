@@ -24,7 +24,8 @@ import {
   type CoachTouchKind,
 } from "../lib/outreach";
 import { zonedNow } from "../../packages/models/src/moments";
-import { hasPushCredentials, resolveFcmConfig, sendPush } from "./fcm";
+import { hasApnsCredentials, resolveApnsConfig, sendApnsPush } from "./apns";
+import { resolveFcmConfig, sendPush } from "./fcm";
 
 export const coachTouchKind = v.union(
   v.literal("weekly_review"),
@@ -143,30 +144,55 @@ export const sendCoachTouch = internalAction({
       return { sent: false, reason: decision.reason, delivered: 0 };
     }
 
-    const config = resolveFcmConfig();
-    if (!config || !hasPushCredentials()) {
+    // Two transports, one gate. Android tokens are FCM registration ids and
+    // iOS tokens are APNs device tokens; they are not interchangeable, and a
+    // deployment may hold credentials for one platform and not the other.
+    const fcmConfig = resolveFcmConfig();
+    const apnsConfig = resolveApnsConfig();
+    if (!fcmConfig && !apnsConfig) {
       // The review or nudge still exists server-side and will surface as a
       // moment on next open. Push is the doorbell, not the house.
       return { sent: false, reason: "push not configured", delivered: 0 };
     }
 
-    const tokens: Array<{ _id: Id<"pushTokens">; token: string }> =
-      await ctx.runQuery(internal.push.tokens.listForUser, {
-        userId: args.userId,
-      });
+    const tokens: Array<{
+      _id: Id<"pushTokens">;
+      token: string;
+      platform: "ios" | "android";
+    }> = await ctx.runQuery(internal.push.tokens.listForUser, {
+      userId: args.userId,
+    });
     if (tokens.length === 0) {
       return { sent: false, reason: "no registered devices", delivered: 0 };
     }
 
+    const message = {
+      title: args.title,
+      body: args.body,
+      link: args.link,
+      data: { kind: args.kind, dedupeKey: args.dedupeKey },
+    };
+
     const delivered: Id<"pushTokens">[] = [];
     const dead: Id<"pushTokens">[] = [];
+    let unroutable = 0;
     for (const row of tokens) {
-      const result = await sendPush(config, row.token, {
-        title: args.title,
-        body: args.body,
-        link: args.link,
-        data: { kind: args.kind, dedupeKey: args.dedupeKey },
-      });
+      // A device whose transport this deployment cannot speak is left exactly
+      // as it was found. It is not dead, it is unaddressable from here, and
+      // deleting it would cost the user a registration over a missing
+      // environment variable.
+      const result =
+        row.platform === "ios"
+          ? apnsConfig
+            ? await sendApnsPush(apnsConfig, row.token, message)
+            : null
+          : fcmConfig
+            ? await sendPush(fcmConfig, row.token, message)
+            : null;
+      if (!result) {
+        unroutable += 1;
+        continue;
+      }
       if (result.ok) delivered.push(row._id);
       else if (!result.retriable) dead.push(row._id);
       else
@@ -174,6 +200,17 @@ export const sendCoachTouch = internalAction({
           kind: args.kind,
           error: result.error,
         });
+    }
+
+    if (unroutable === tokens.length) {
+      // Nothing was attempted, so nothing should be remembered — least of all
+      // the dedupe key, which would suppress this send for good once the
+      // missing platform's credentials finally land.
+      return {
+        sent: false,
+        reason: "push not configured for these devices",
+        delivered: 0,
+      };
     }
 
     if (delivered.length > 0 || dead.length > 0) {

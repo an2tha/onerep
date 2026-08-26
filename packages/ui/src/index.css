@@ -7858,6 +7858,28 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   color: var(--muted-foreground);
 }
 
+/*
+ * Restore purchases. Quiet on purpose: it is a recovery path, not an offer,
+ * and the only people who need it already know they are looking for it.
+ */
+.ai-hint-restore {
+  display: block;
+  width: 100%;
+  min-height: 2.5rem;
+  margin-top: 0.35rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--muted-foreground);
+}
+
+.ai-hint-restore:active:not(:disabled) {
+  opacity: 0.7;
+}
+
+.ai-hint-restore:disabled {
+  opacity: 0.45;
+}
+
 /* Shown instead of the checkout button where Pro cannot be bought in-app. */
 .ai-hint-note {
   margin: 0;

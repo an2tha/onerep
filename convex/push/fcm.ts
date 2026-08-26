@@ -1,10 +1,11 @@
 /**
- * Firebase Cloud Messaging, HTTP v1.
+ * Firebase Cloud Messaging, HTTP v1. Android only.
  *
- * One transport for both platforms. The alternative — APNs over HTTP/2 for
- * iOS, FCM for Android — means two auth schemes, two payload shapes and two
- * ways for a release to be silently undeliverable on one platform only. Adding
- * Firebase to the iOS build costs a plist; running two senders costs forever.
+ * This was once the transport for both platforms, on the argument that one
+ * sender beats two. It beat two right up until anyone checked: the iOS shell
+ * registers a raw APNs device token, which FCM cannot address, so every iOS
+ * send went out to a name Google had never been told. Apple now gets spoken to
+ * directly in `apns.ts`, and this file keeps Android.
  *
  * Configured entirely by environment, and absent configuration this module
  * reports itself unavailable rather than throwing. A deployment with no push
@@ -34,10 +35,6 @@ export function resolveFcmConfig(): FcmConfig | null {
   const privateKey = (env.FCM_PRIVATE_KEY ?? "").replace(/\\n/g, "\n").trim();
   if (!projectId || !clientEmail || !privateKey) return null;
   return { projectId, clientEmail, privateKey };
-}
-
-export function hasPushCredentials() {
-  return resolveFcmConfig() !== null;
 }
 
 function base64UrlFromBytes(bytes: Uint8Array) {

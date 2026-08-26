@@ -9,6 +9,16 @@
 	<key>com.apple.developer.healthkit</key>
 	<true/>
 	<!--
+		Remote push. "development" is what a locally signed build needs; the
+		App Store re-signs distribution builds to "production" on ingest, so
+		this value is correct in both places despite reading like a mistake in
+		one of them. Sending a development token to the production APNs host
+		(or the reverse) returns BadDeviceToken, which is indistinguishable
+		from a dead registration — hence APNS_ENVIRONMENT on the server.
+	-->
+	<key>aps-environment</key>
+	<string>development</string>
+	<!--
 		Deliberately absent:
 		- healthkit.access (health-records): the plugin never reads clinical
 		  records, and claiming that scope invites an App Review question.

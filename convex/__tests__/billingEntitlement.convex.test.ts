@@ -92,20 +92,35 @@ describe("rollupForUser", () => {
     expect(status.activeSubscriptions).toHaveLength(1);
   });
 
-  // In-app purchases were removed outright, so a row left over from that era
-  // must not keep granting Pro no matter how healthy it last looked.
-  test.each(["apple", "google"])(
-    "an active %s row left over from in-app purchases grants nothing",
-    (platform) => {
-      const status = rollupForUser(
-        "user_1",
-        [subscription({ platform, state: "active" }) as never],
-        NOW,
-      );
-      expect(status.isActive).toBe(false);
-      expect(status.activeSubscriptions).toEqual([]);
-    },
-  );
+  // StoreKit is sold again, so an App Store row grants like any other — old
+  // rows included. Anyone carrying one has been paying Apple every month
+  // throughout, and the restore path re-verifies it against Apple's own API
+  // the first time they open Settings.
+  test("an active apple row grants, and reports where to cancel", () => {
+    const status = rollupForUser(
+      "user_1",
+      [subscription({ platform: "apple", state: "active" }) as never],
+      NOW,
+    );
+    expect(status.isActive).toBe(true);
+    expect(status.store).toBe("app_store");
+    expect(status.managementUrl).toBe(
+      "https://apps.apple.com/account/subscriptions",
+    );
+  });
+
+  // Play billing has no code behind it any more: no credentials to verify a
+  // row with, no way to cancel or refund one. Granting on the strength of a
+  // number in a table is not something to do on purpose.
+  test("an active google row still grants nothing", () => {
+    const status = rollupForUser(
+      "user_1",
+      [subscription({ platform: "google", state: "active" }) as never],
+      NOW,
+    );
+    expect(status.isActive).toBe(false);
+    expect(status.activeSubscriptions).toEqual([]);
+  });
 
   test("revokes when every subscription has lapsed", () => {
     const status = rollupForUser(
@@ -208,14 +223,14 @@ describe("hasActiveProEntitlement", () => {
     expect(granted).toBe(true);
   });
 
-  test("a legacy store row does not grant, even grandfathered", async () => {
+  test("a legacy Play row does not grant, even grandfathered", async () => {
     const t = convexTest(schema, modules);
     await t.run(async (ctx) => {
       await ctx.db.insert(
         "billingSubscriptions",
         subscription({
           userId: "user_store",
-          platform: "apple",
+          platform: "google",
           platformSubscriptionId: "orig_store",
           state: "active",
           expiresAt: NOW + 30 * DAY,

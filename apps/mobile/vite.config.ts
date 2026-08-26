@@ -59,14 +59,13 @@ function versionStampPlugin(version: string, commit: string): Plugin {
  * setting both VITE_UMAMI_SCRIPT_URL and VITE_UMAMI_WEBSITE_ID. Half a
  * configuration is a misconfiguration and gets you the same nothing.
  *
- * The session recorder is a separate switch on purpose. "Anonymous usage
- * counts" and "a replay of what you did in the app" are not the same promise,
- * and selfhost/install.sh never turns the second one on.
+ * Counts only. There is no session recorder here and there is not going to be
+ * one: a replay of everything you did in the app is a different promise than
+ * "anonymous usage counts", and it was never one worth making.
  */
 export function umamiPlugin(
   scriptUrl: string | undefined,
-  websiteId: string | undefined,
-  recorder: boolean
+  websiteId: string | undefined
 ): Plugin {
   const configured = Boolean(scriptUrl?.trim() && websiteId?.trim())
   return {
@@ -75,28 +74,13 @@ export function umamiPlugin(
       if (!configured) return []
       const src = scriptUrl!.trim()
       const id = websiteId!.trim()
-      const tags = [
+      return [
         {
           tag: "script",
           injectTo: "head" as const,
           attrs: { defer: true, src, "data-website-id": id },
         },
       ]
-      // recorder.js lives beside script.js on every Umami instance. If the URL
-      // has been pointed somewhere that does not follow that convention, skip
-      // the recorder rather than guessing at a 404.
-      if (recorder && src.endsWith("/script.js")) {
-        tags.push({
-          tag: "script",
-          injectTo: "head" as const,
-          attrs: {
-            defer: true,
-            src: src.replace(/\/script\.js$/, "/recorder.js"),
-            "data-website-id": id,
-          },
-        })
-      }
-      return tags
     },
   }
 }
@@ -151,11 +135,7 @@ export default defineConfig(({ command, mode }) => {
         env.VITE_BUNDLE_VERSION?.trim() || "0.0.0",
         env.VITE_BUNDLE_COMMIT?.trim() || "unknown"
       ),
-      umamiPlugin(
-        env.VITE_UMAMI_SCRIPT_URL,
-        env.VITE_UMAMI_WEBSITE_ID,
-        env.VITE_UMAMI_RECORDER?.trim() === "true"
-      ),
+      umamiPlugin(env.VITE_UMAMI_SCRIPT_URL, env.VITE_UMAMI_WEBSITE_ID),
     ],
     build: {
       rollupOptions: {

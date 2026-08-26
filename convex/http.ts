@@ -1,6 +1,6 @@
 import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
-import { stripeWebhook } from "./billing/webhooks";
+import { appleNotification, stripeWebhook } from "./billing/webhooks";
 import { mcpEndpoint } from "./mcp/server";
 import {
   authorize,
@@ -80,6 +80,16 @@ http.route({
   path: "/billing/stripe/webhook",
   method: "POST",
   handler: stripeWebhook,
+});
+
+// Configured in App Store Connect under the app's App Information, for both
+// the production and sandbox environments — they are separate fields and only
+// setting one is the classic way to have renewals work in TestFlight and
+// nowhere else.
+http.route({
+  path: "/billing/apple/notifications",
+  method: "POST",
+  handler: appleNotification,
 });
 
 // The MCP endpoint. Authorized by bearer token rather than a session, so it
