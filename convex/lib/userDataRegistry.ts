@@ -17,6 +17,7 @@ export const userDataRegistry = {
   recipes: "directly_user_owned",
   recipeCommunityShareEvents: "dependent_on_user_content",
   recipeReports: "dependent_on_user_content",
+  communityBlocks: "directly_user_owned",
   recipeRatings: "dependent_on_user_content",
   mealPresets: "directly_user_owned",
   customFoods: "directly_user_owned",

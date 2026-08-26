@@ -14,6 +14,7 @@ import {
 import { restApi } from "./api/rest";
 import { submit as waitlistSubmit } from "./marketing/waitlist";
 import {
+  appleAuthConfigured,
   authComponent,
   createAuth,
   googleAuthConfigured,
@@ -62,6 +63,7 @@ http.route({
     return new Response(
       JSON.stringify({
         google: googleAuthConfigured,
+        apple: appleAuthConfigured,
         oidc: oidcAuthConfigured,
         oidcName: oidcAuthConfigured ? oidcProviderName : null,
       }),

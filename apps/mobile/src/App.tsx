@@ -4,6 +4,7 @@ import {
   Barbell,
   CookingPot,
   ForkKnife,
+  GearSix,
   MagnifyingGlass,
   PintGlass,
   Pill,
@@ -241,8 +242,11 @@ function Dashboard() {
     day: "numeric",
   })
 
+  // The tab bar is fixed and the home column is a fixed-height flex, so
+  // without the bottom padding the week strip lives underneath it. Reserve the
+  // bar's own height plus the home indicator; the desk has no bar to clear.
   return (
-    <div className="dashboard-home desktop-canvas relative flex h-svh flex-col overflow-hidden bg-background lg:pr-8 lg:pl-72">
+    <div className="dashboard-home desktop-canvas relative flex h-svh flex-col overflow-hidden bg-background pb-[calc(env(safe-area-inset-bottom,0px)+4.25rem)] lg:pr-8 lg:pb-0 lg:pl-72">
       <span className="dashboard-home-wash" aria-hidden="true" />
       <div
         className="relative z-10 shrink-0"
@@ -256,6 +260,18 @@ function Dashboard() {
           // is not what is on screen.
           title={viewingToday ? undefined : dateLabel}
           subtitle={viewingToday ? undefined : daysAgoLabel(dateKey, todayKey)}
+          // The sidebar's profile row is a desktop thing; on a phone, and in
+          // the native shells especially, this is the only door into settings.
+          profile={
+            <button
+              type="button"
+              onClick={() => navigate("/settings", { motion: "forward" })}
+              aria-label="Open profile and settings"
+              className="-mr-1 flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground active:bg-muted/60 active:text-foreground lg:hidden"
+            >
+              <GearSix size={22} />
+            </button>
+          }
           action={
             <DashboardDials
               nutritionPercent={62}

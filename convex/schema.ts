@@ -270,6 +270,13 @@ export default defineSchema({
     ),
     createdAt: v.number(),
     updatedAt: v.number(),
+    /**
+     * Set when reports pulled this recipe out of the community feed. Kept on
+     * the recipe rather than deleted so the author can be told why their
+     * recipe vanished, and so re-sharing it can be refused.
+     */
+    communityRemovedAt: v.optional(v.number()),
+    communityRemovedReason: v.optional(v.string()),
   })
     .index("by_userId", ["userId"])
     .index("by_communityShared", ["isCommunityShared"]),
@@ -284,11 +291,31 @@ export default defineSchema({
     reporterId: v.string(),
     recipeId: v.id("recipes"),
     reason: v.optional(v.string()),
+    /**
+     * `reviewed` is set by the automatic takedown in logs/recipes.ts, not by a
+     * person. It used to be written once as `pending` and read by nothing,
+     * which is a reporting mechanism only in the sense that a suggestion box
+     * with no back is a suggestion box.
+     */
     status: v.union(v.literal("pending"), v.literal("reviewed")),
     createdAt: v.number(),
   })
     .index("by_recipeId", ["recipeId"])
     .index("by_reporterId_recipeId", ["reporterId", "recipeId"]),
+
+  /**
+   * One row per (blocker, blocked) pair. Blocking hides everything that
+   * author has shared, and stops their future shares appearing, without
+   * telling them — a block the other party is notified about is a block
+   * people are afraid to use.
+   */
+  communityBlocks: defineTable({
+    blockerId: v.string(),
+    blockedUserId: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_blockerId", ["blockerId"])
+    .index("by_blockerId_blockedUserId", ["blockerId", "blockedUserId"]),
 
   recipeRatings: defineTable({
     userId: v.string(),

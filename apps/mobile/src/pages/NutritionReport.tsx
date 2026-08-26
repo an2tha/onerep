@@ -475,7 +475,10 @@ export default function NutritionReport() {
               ))}
             </div>
             <p className="mt-5 text-[11px] tracking-[0.3em]">OneRep</p>
-            <p className="mt-3 text-[10px] normal-case">
+            {/* 11px, not 10: the receipt's own body is 12px, and this line is
+                the caveat on every number above it. Small enough to read as
+                fine print, large enough to actually be fine print. */}
+            <p className="mt-3 text-[11px] normal-case">
               Generated on {formatReportDate(today)}. Figures come from
               self-reported logs and are estimates.
             </p>

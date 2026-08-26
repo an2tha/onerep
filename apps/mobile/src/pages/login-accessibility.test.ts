@@ -44,6 +44,17 @@ describe("auth form mobile accessibility and autofill", () => {
     )
   })
 
+  test("apple sign-in mirrors the google flow, browser hop included", () => {
+    expect(LOGIN_SOURCE).toContain('provider: "apple"')
+    expect(LOGIN_SOURCE).toContain("socialProviders?.apple === true")
+    expect(LOGIN_SOURCE).toContain("Continue with Apple")
+    // The consent screen has to leave the WebView or Apple refuses it.
+    expect(LOGIN_SOURCE).toContain("await openNativeOAuth(url)")
+    expect(LOGIN_SOURCE).toContain(
+      "loading || googleLoading || appleLoading || oidcLoading"
+    )
+  })
+
   test("signed-in login redirect waits for Convex token validation", () => {
     expect(LOGIN_SOURCE).toContain("useConvexAuth")
     expect(LOGIN_SOURCE).toContain("authenticatedHandoffReady")

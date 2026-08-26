@@ -43,6 +43,20 @@ export const googleAuthConfigured = Boolean(
   googleClientId && googleClientSecret,
 );
 
+const appleClientId = process.env.APPLE_CLIENT_ID?.trim();
+const appleClientSecret = process.env.APPLE_CLIENT_SECRET?.trim();
+const appleBundleId = process.env.APPLE_APP_BUNDLE_IDENTIFIER?.trim();
+
+/**
+ * Same bargain as Google. Apple wants a Services ID and a client secret that
+ * is really a signed JWT with a six month life, so a deployment that has not
+ * minted one keeps the button off screen rather than sending people into a
+ * dead end. The bundle id is separate and optional: it only matters when an
+ * identity token comes from the iOS app itself, and it has to be listed as an
+ * audience or Apple's token will not validate.
+ */
+export const appleAuthConfigured = Boolean(appleClientId && appleClientSecret);
+
 const oidcClientId = process.env.OIDC_CLIENT_ID?.trim();
 const oidcClientSecret = process.env.OIDC_CLIENT_SECRET?.trim();
 const oidcIssuer = process.env.OIDC_ISSUER?.trim()?.replace(/\/+$/, "");
@@ -116,15 +130,34 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
         });
       },
     },
-    socialProviders: googleAuthConfigured
-      ? {
-          google: {
-            clientId: googleClientId!,
-            clientSecret: googleClientSecret!,
-            prompt: "select_account",
-          },
-        }
-      : {},
+    socialProviders: {
+      ...(googleAuthConfigured
+        ? {
+            google: {
+              clientId: googleClientId!,
+              clientSecret: googleClientSecret!,
+              prompt: "select_account",
+            },
+          }
+        : {}),
+      ...(appleAuthConfigured
+        ? {
+            apple: {
+              clientId: appleClientId!,
+              clientSecret: appleClientSecret!,
+              // Apple only returns a name and email on the very first consent,
+              // and only if we ask for them by name.
+              scope: ["name", "email"],
+              ...(appleBundleId
+                ? {
+                    appBundleIdentifier: appleBundleId,
+                    audience: [appleClientId!, appleBundleId],
+                  }
+                : {}),
+            },
+          }
+        : {}),
+    },
     account: {
       accountLinking: {
         // Google verifies the address it hands us, so an existing email and
@@ -133,7 +166,12 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
         enabled: true,
         // The OIDC issuer is configured by whoever runs the deployment, so an
         // email it asserts is trusted the same way Google's is.
-        trustedProviders: ["google", ...(oidcAuthConfigured ? ["oidc"] : [])],
+        // Apple verifies the address it asserts too, private relay included.
+        trustedProviders: [
+          "google",
+          ...(appleAuthConfigured ? ["apple" as const] : []),
+          ...(oidcAuthConfigured ? ["oidc"] : []),
+        ],
       },
     },
     user: {

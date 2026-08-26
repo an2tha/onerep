@@ -185,11 +185,17 @@ class NativeTabBarPlugin : Plugin() {
             )
         }
 
+        // Six destinations at the resting slot width are wider than a phone,
+        // so the slot is what gives: the pill keeps its margins and the orb
+        // keeps its size, and the icons sit closer together instead of the
+        // right-hand end of the bar walking off the screen.
+        val slotWidth = fittedItemWidth(pillItems.size, prominent != null)
+
         val pill = FrameLayout(activity).apply {
             elevation = dp(8f).toFloat()
             setPadding(dp(6f), 0, dp(6f), 0)
             layoutParams = LinearLayout.LayoutParams(
-                dp(pillItems.size * itemWidth + 12f), dp(barHeight)
+                dp(pillItems.size * slotWidth + 12f), dp(barHeight)
             )
         }
 
@@ -197,7 +203,7 @@ class NativeTabBarPlugin : Plugin() {
         // squircle, not a capsule: a rounded tile inside a pill, as iOS has it.
         val highlight = View(activity).apply {
             layoutParams = FrameLayout.LayoutParams(
-                dp(itemWidth - chipInsetX * 2), dp(barHeight - chipInsetY * 2),
+                dp(slotWidth - chipInsetX * 2), dp(barHeight - chipInsetY * 2),
                 Gravity.START or Gravity.CENTER_VERTICAL
             )
             alpha = 0f
@@ -212,9 +218,9 @@ class NativeTabBarPlugin : Plugin() {
             )
         }
         pillItems.forEach { item ->
-            val button = makeButton(item, slotWidth = itemWidth, iconSize = 22f)
+            val button = makeButton(item, slotWidth = slotWidth, iconSize = 22f)
             button.layoutParams =
-                LinearLayout.LayoutParams(dp(itemWidth), ViewGroup.LayoutParams.MATCH_PARENT)
+                LinearLayout.LayoutParams(dp(slotWidth), ViewGroup.LayoutParams.MATCH_PARENT)
             strip.addView(button)
             collected += item to button
         }
@@ -251,6 +257,20 @@ class NativeTabBarPlugin : Plugin() {
         applyInsets(container)
         // Slot geometry is only known post-layout, so seat the chip then.
         container.post { applySelection(selectedId, animated = false) }
+    }
+
+    /**
+     * The resting slot width, tightened until pill + orb fit the screen with
+     * a 16dp margin either side. Never wider than `itemWidth`: on a big phone
+     * the bar should stay the size it was designed at, not stretch.
+     */
+    private fun fittedItemWidth(count: Int, hasOrb: Boolean): Float {
+        if (count <= 0) return itemWidth
+        val screen = activity.resources.displayMetrics.widthPixels /
+            activity.resources.displayMetrics.density
+        val orbRoom = if (hasOrb) barHeight + 10f else 0f
+        val available = screen - 32f - orbRoom - 12f
+        return itemWidth.coerceAtMost(available / count).coerceAtLeast(34f)
     }
 
     /**
@@ -298,6 +318,7 @@ class NativeTabBarPlugin : Plugin() {
         "chart.bar" -> R.drawable.ic_tab_chart_bar
         "heart.text.square" -> R.drawable.ic_tab_heart_text_square
         "sparkles" -> R.drawable.ic_tab_sparkles
+        "gearshape" -> R.drawable.ic_tab_gearshape
         else -> R.drawable.ic_tab_house
     }
 

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Tab bar glyph for NativeTabBarPlugin. Drawn on a 24dp grid, stroked so it
+     sits next to the rest of the app's line iconography; tinted at runtime. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="#FF000000">
+    <path
+        android:pathData="M20.93,10.26 L20.93,13.74 L18.52,14.25 L18.20,15.02 L19.54,17.09 L17.09,19.54 L15.02,18.20 L14.25,18.52 L13.74,20.93 L10.26,20.93 L9.75,18.52 L8.98,18.20 L6.91,19.54 L4.46,17.09 L5.80,15.02 L5.48,14.25 L3.07,13.74 L3.07,10.26 L5.48,9.75 L5.80,8.98 L4.46,6.91 L6.91,4.46 L8.98,5.80 L9.75,5.48 L10.26,3.07 L13.74,3.07 L14.25,5.48 L15.02,5.80 L17.09,4.46 L19.54,6.91 L18.20,8.98 L18.52,9.75 Z"
+        android:strokeWidth="1.5"
+        android:strokeColor="#FF000000"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"/>
+    <path
+        android:pathData="M8.7,12a3.3,3.3 0 1,0 6.6,0a3.3,3.3 0 1,0 -6.6,0z"
+        android:strokeWidth="1.5"
+        android:strokeColor="#FF000000"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"/>
+</vector>

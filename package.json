@@ -16,7 +16,7 @@
     "typecheck": "bun run billing:ensure && bun run prompts:check && turbo run typecheck",
     "check-types": "bun run typecheck",
     "test": "bun run billing:ensure && bun run prompts:check && turbo run test test:convex-unit",
-    "test:convex-unit": "bun test --max-concurrency 1 ./convex/ai/provider.test.ts ./convex/lib/__tests__/calculateCalories.test.ts ./convex/lib/__tests__/estimateOnboardingCalories.test.ts ./convex/lib/__tests__/coachWorkspaceBudget.test.ts ./convex/lib/__tests__/outreach.test.ts ./convex/lib/__tests__/programming.test.ts ./convex/lib/__tests__/recovery.test.ts ./convex/lib/__tests__/healthScore.test.ts ./convex/lib/__tests__/healthSeries.test.ts ./convex/lib/__tests__/history.test.ts ./convex/lib/__tests__/memoryConsolidation.test.ts ./convex/lib/__tests__/dataImport.test.ts",
+    "test:convex-unit": "bun test --max-concurrency 1 ./convex/ai/provider.test.ts ./convex/lib/__tests__/calculateCalories.test.ts ./convex/lib/__tests__/estimateOnboardingCalories.test.ts ./convex/lib/__tests__/coachWorkspaceBudget.test.ts ./convex/lib/__tests__/outreach.test.ts ./convex/lib/__tests__/programming.test.ts ./convex/lib/__tests__/recovery.test.ts ./convex/lib/__tests__/healthScore.test.ts ./convex/lib/__tests__/healthSeries.test.ts ./convex/lib/__tests__/history.test.ts ./convex/lib/__tests__/memoryConsolidation.test.ts ./convex/lib/__tests__/dataImport.test.ts ./convex/lib/__tests__/communityModeration.test.ts",
     "icons:build": "node scripts/build-icons.mjs",
     "prompts:generate": "node scripts/generate-ai-prompts.mjs",
     "prompts:check": "node scripts/generate-ai-prompts.mjs --check",

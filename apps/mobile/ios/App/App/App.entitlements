@@ -9,6 +9,17 @@
 	<key>com.apple.developer.healthkit</key>
 	<true/>
 	<!--
+		Sign in with Apple. "Default" is the only value that exists here; the
+		array shape is Apple's, not ours. This must match the Sign In with
+		Apple capability on the App ID in the developer portal, or signing
+		fails with a provisioning profile that does not contain the
+		entitlement — a message that names the profile and not the cause.
+	-->
+	<key>com.apple.developer.applesignin</key>
+	<array>
+		<string>Default</string>
+	</array>
+	<!--
 		Remote push. "development" is what a locally signed build needs; the
 		App Store re-signs distribution builds to "production" on ingest, so
 		this value is correct in both places despite reading like a mistake in

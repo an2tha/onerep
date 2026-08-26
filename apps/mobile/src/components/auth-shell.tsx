@@ -97,3 +97,18 @@ export function GoogleMark() {
     </svg>
   )
 }
+
+/**
+ * Apple's mark, drawn in `currentColor` because their guidelines want the logo
+ * to match the button's text rather than carry a colour of its own.
+ */
+export function AppleMark() {
+  return (
+    <svg viewBox="0 0 18 18" aria-hidden="true" className="size-[18px]">
+      <path
+        fill="currentColor"
+        d="M13.62 9.47c-.02-1.79 1.46-2.65 1.53-2.69-.83-1.22-2.13-1.39-2.59-1.4-1.1-.11-2.15.65-2.71.65-.56 0-1.42-.63-2.34-.62-1.2.02-2.31.7-2.93 1.77-1.25 2.17-.32 5.38.9 7.14.6.86 1.31 1.83 2.24 1.79.9-.04 1.24-.58 2.33-.58 1.08 0 1.4.58 2.35.56.97-.02 1.58-.88 2.17-1.75.68-1 .96-1.97.98-2.02-.02-.01-1.88-.72-1.93-2.85ZM11.85 4.2c.5-.6.83-1.44.74-2.28-.71.03-1.58.48-2.09 1.08-.46.53-.86 1.38-.75 2.2.79.06 1.6-.4 2.1-1Z"
+      />
+    </svg>
+  )
+}

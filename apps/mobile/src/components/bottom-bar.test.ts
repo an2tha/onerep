@@ -9,6 +9,16 @@ const SOURCE = [
   .map((path) => readFileSync(new URL(path, import.meta.url), "utf8"))
   .join("\n")
 
+/**
+ * The English catalogue. The navigation labels went through i18n, so the
+ * source now carries a key where it used to carry the word. A test that only
+ * looked for the key would pass on a key that resolves to nothing, so both
+ * halves are checked: the source names the key, the catalogue gives it a name.
+ */
+const EN = JSON.parse(
+  readFileSync(new URL("../i18n/locales/en.json", import.meta.url), "utf8")
+)
+
 function expect(value: string) {
   return {
     toContain(expected: string) {
@@ -35,15 +45,25 @@ describe("bottom bar accessibility contract", () => {
   })
 
   test("primary navigation exposes its stable labeled destinations", () => {
-    for (const label of [
-      "Today",
-      "Nutrition",
-      "Training",
-      "Progress",
-      "Coach",
-    ]) {
-      expect(SOURCE).toContain(`label: "${label}"`)
+    // Pinned as (destination, key, word) rather than a loose search for the
+    // word: a tab pointing at the wrong route still reads correctly to a
+    // screen reader, and that is exactly the bug worth catching.
+    const destinations = [
+      ["/", "nav.today", "Today"],
+      ["/nutrition", "nav.nutrition", "Nutrition"],
+      ["/workouts", "nav.training", "Training"],
+      ["/progress", "nav.progress", "Progress"],
+      ["/coach", "nav.coach", "Coach"],
+    ] as const
+
+    for (const [path, key, label] of destinations) {
+      expect(SOURCE).toContain(`path: "${path}"`)
+      expect(SOURCE).toContain(`labelKey: "${key}"`)
+      const [, leaf] = key.split(".")
+      assert.equal(EN.nav[leaf], label, `${key} should read "${label}"`)
     }
+
+    expect(SOURCE).toContain("label: t(labelKey)")
   })
 
   test("the slide order matches the order the tabs are drawn in", () => {
@@ -112,9 +132,11 @@ describe("bottom bar accessibility contract", () => {
 
   test("settings stays out of the primary tabs and remains in the desktop profile area", () => {
     expect(SOURCE).not.toContain('{ path: "/settings", Icon:')
-    expect(SOURCE).toContain('aria-label="Open profile and settings"')
+    expect(SOURCE).toContain('aria-label={t("nav.openProfileSettings")}')
+    assert.equal(EN.nav.openProfileSettings, "Open profile and settings")
     // The walkthrough points here instead of a standalone tooltip.
     expect(SOURCE).toContain('anchor="today-profile"')
-    expect(SOURCE).toContain("Profile & settings")
+    expect(SOURCE).toContain('t("nav.profileSettings")')
+    assert.equal(EN.nav.profileSettings, "Profile & settings")
   })
 })

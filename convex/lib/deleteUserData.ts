@@ -102,6 +102,11 @@ export async function deleteUserDataBatch(
     ["recipeRatings", "by_userId_recipeId"],
     ["recipeReports", "by_reporterId_recipeId", "reporterId"],
     ["recipeCommunityShareEvents", "by_userId_sharedAt"],
+    // Blocks this account placed. Blocks placed *against* it die with the
+    // content: once the recipes are gone there is nothing left to hide, and
+    // sweeping them by blockedUserId would need an index that exists only to
+    // serve deletion.
+    ["communityBlocks", "by_blockerId", "blockerId"],
     // Sharing: the account is both an owner and possibly an invitee, and the
     // comments they wrote on other people's diaries must go too.
     ["diaryComments", "by_authorUserId", "authorUserId"],

@@ -3,11 +3,13 @@ import {
   AUTH_CARD_CLASS,
   AuthLayout,
   AuthMark,
+  AppleMark,
   GoogleMark,
 } from "@/components/auth-shell"
 import { useSearchParams } from "react-router"
 import { useConvexAuth } from "convex/react"
 import { CaretDown, Eye, EyeSlash } from "@phosphor-icons/react"
+import { MINIMUM_AGE } from "@repo/models"
 import { safeAuthRedirectPath } from "@/lib/auth-session"
 import {
   authClient,
@@ -127,6 +129,7 @@ export default function Login() {
   const [message, setMessage] = useState<string | undefined>()
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
+  const [appleLoading, setAppleLoading] = useState(false)
   const [oidcLoading, setOidcLoading] = useState(false)
   const [serverPickerOpen, setServerPickerOpen] = useState(false)
   const authActionRef = useRef(false)
@@ -135,11 +138,14 @@ export default function Login() {
   // why this button was hidden on native for a while. `native-oauth.ts` now
   // sends the consent screen to the system browser, so it is offered again.
   const googleAvailable = socialProviders?.google === true
+  // Apple's consent screen has the same webview allergy, and takes the same
+  // trip out to the system browser.
+  const appleAvailable = socialProviders?.apple === true
   // Self-hosted identity providers do not carry Google's webview ban, so the
   // OIDC button stays on everywhere.
   const oidcAvailable = socialProviders?.oidc === true
   const oidcName = socialProviders?.oidcName ?? "SSO"
-  const submitting = loading || googleLoading || oidcLoading
+  const submitting = loading || googleLoading || appleLoading || oidcLoading
   const redirectingSignedInUser = authLoaded && isSignedIn
   const authenticatedHandoffReady =
     redirectingSignedInUser && convexAuth.isAuthenticated
@@ -188,7 +194,9 @@ export default function Login() {
     setError(undefined)
     setMessage(undefined)
     if (mode === "signup" && !legalAccepted) {
-      setError("Confirm that you are at least 13 and accept the Terms")
+      setError(
+        `Confirm that you are at least ${MINIMUM_AGE} and accept the Terms`
+      )
       return
     }
     if (authActionRef.current || submitting) return
@@ -244,13 +252,74 @@ export default function Login() {
     }
   }
 
+  async function handleAppleSignIn() {
+    if (redirectIfSignedIn()) return
+
+    setError(undefined)
+    setMessage(undefined)
+    if (mode === "signup" && !legalAccepted) {
+      setError(
+        `Confirm that you are at least ${MINIMUM_AGE} and accept the Terms`
+      )
+      return
+    }
+    if (authActionRef.current || submitting) return
+
+    authActionRef.current = true
+    setAppleLoading(true)
+
+    try {
+      const native = isNativeOAuthPlatform()
+      const { data, error } = await withAuthActionTimeout(
+        "Sign in",
+        authClient.signIn.social({
+          provider: "apple",
+          callbackURL: getSocialCallbackUrl(nextPath),
+          newUserCallbackURL: getSocialCallbackUrl("/onboarding", {
+            isNewUser: true,
+          }),
+          errorCallbackURL: getAuthCallbackUrl("/login"),
+          ...(native ? { disableRedirect: true } : {}),
+        })
+      )
+      if (error) {
+        setError(betterAuthErrorMessage(error, "Apple sign-in failed"))
+        return
+      }
+
+      if (native) {
+        const url = (data as { url?: string } | null)?.url
+        if (!url) {
+          setError("Apple sign-in failed")
+          return
+        }
+        await openNativeOAuth(url)
+      }
+
+      setMessage("Opening Apple…")
+      return
+    } catch (error) {
+      setError(
+        betterAuthErrorMessage(
+          error,
+          "Could not reach Apple. Check your connection and try again."
+        )
+      )
+    } finally {
+      authActionRef.current = false
+      setAppleLoading(false)
+    }
+  }
+
   async function handleOidcSignIn() {
     if (redirectIfSignedIn()) return
 
     setError(undefined)
     setMessage(undefined)
     if (mode === "signup" && !legalAccepted) {
-      setError("Confirm that you are at least 13 and accept the Terms")
+      setError(
+        `Confirm that you are at least ${MINIMUM_AGE} and accept the Terms`
+      )
       return
     }
     if (authActionRef.current || submitting) return
@@ -315,7 +384,9 @@ export default function Login() {
       return
     }
     if (mode === "signup" && !legalAccepted) {
-      setError("Confirm that you are at least 13 and accept the Terms")
+      setError(
+        `Confirm that you are at least ${MINIMUM_AGE} and accept the Terms`
+      )
       return
     }
     if (authActionRef.current || submitting) return
@@ -476,19 +547,7 @@ export default function Login() {
           </label>
 
           <label className={FIELD_CLASS}>
-            <span className="flex items-baseline justify-between gap-3">
-              <span className={LABEL_CLASS}>Password</span>
-              {mode === "signin" && (
-                <button
-                  type="button"
-                  onClick={handlePasswordReset}
-                  disabled={submitting}
-                  className="text-[13px] font-semibold text-muted-foreground transition-colors hover:text-foreground active:opacity-60 disabled:opacity-50"
-                >
-                  Forgot password?
-                </button>
-              )}
-            </span>
+            <span className={LABEL_CLASS}>Password</span>
             <span className="relative block">
               <input
                 type={showPassword ? "text" : "password"}
@@ -522,6 +581,23 @@ export default function Login() {
             {mode === "signup" && (
               <span className="native-field-hint">At least 8 characters</span>
             )}
+            {/*
+              Below the field, not beside the label. Sharing that top-right
+              corner with the reveal toggle put two targets six pixels apart in
+              the same 48px column, so a thumb aimed at one regularly got the
+              other — and getting this one navigates you off the screen. The
+              negative margin keeps the taller tap area from opening a gap.
+            */}
+            {mode === "signin" && (
+              <button
+                type="button"
+                onClick={handlePasswordReset}
+                disabled={submitting}
+                className="-my-2 -mr-1 self-end px-1 py-2 text-[13px] font-semibold text-muted-foreground transition-colors hover:text-foreground active:opacity-60 disabled:opacity-50"
+              >
+                Forgot password?
+              </button>
+            )}
           </label>
 
           {mode === "signup" && (
@@ -535,7 +611,7 @@ export default function Login() {
                 className="mt-0.5 size-4 shrink-0 accent-foreground"
               />
               <span>
-                I confirm that I am at least 13 and agree to the{" "}
+                I confirm that I am at least {MINIMUM_AGE} and agree to the{" "}
                 <a
                   href="https://onerep.life/terms"
                   target="_blank"
@@ -592,7 +668,7 @@ export default function Login() {
           </button>
         </form>
 
-        {(googleAvailable || oidcAvailable) && (
+        {(googleAvailable || appleAvailable || oidcAvailable) && (
           <>
             <div className="my-5 flex items-center gap-3">
               <span className="h-px flex-1 bg-border" />
@@ -611,6 +687,19 @@ export default function Login() {
                 >
                   <GoogleMark />
                   {googleLoading ? "Opening Google…" : "Continue with Google"}
+                </button>
+              )}
+
+              {appleAvailable && (
+                <button
+                  type="button"
+                  onClick={handleAppleSignIn}
+                  disabled={submitting}
+                  aria-busy={appleLoading}
+                  className="native-secondary-button min-h-12 w-full rounded-[0.8rem]"
+                >
+                  <AppleMark />
+                  {appleLoading ? "Opening Apple…" : "Continue with Apple"}
                 </button>
               )}
 

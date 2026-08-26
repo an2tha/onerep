@@ -46,7 +46,21 @@ const NATIVE_TAB_ITEMS: NativeTabBarItem[] = [
   { id: "/progress", symbol: "chart.bar", label: "Progress" },
   { id: "/health", symbol: "heart.text.square", label: "Health" },
   { id: "/coach", symbol: "sparkles", label: "Coach", prominent: true },
+  { id: "/settings", symbol: "gearshape", label: "Settings" },
 ]
+
+/**
+ * Settings is not a web tab — on the desktop it lives in the sidebar's profile
+ * area, and on the phone the web bar has no room for it. The native bar is the
+ * only chrome a native build ever draws, so without an entry here there is no
+ * way into settings at all. `activeTabPath` only knows the shared tabs, hence
+ * the fallback.
+ */
+function nativeSelection(pathname: string): string {
+  const tab = activeTabPath(pathname)
+  if (tab) return tab
+  return isTabActive(pathname, "/settings") ? "/settings" : ""
+}
 
 const NATIVE_TAB_BAR_PLATFORMS = new Set(["ios", "android"])
 
@@ -119,7 +133,7 @@ export function useNativeTabBar({
   }, [onSelect])
 
   // Build the bar once and subscribe to taps.
-  const initialSelectionRef = useRef(activeTabPath(pathname) ?? "")
+  const initialSelectionRef = useRef(nativeSelection(pathname))
   useEffect(() => {
     if (!supported) return
     let handle: PluginListenerHandle | undefined
@@ -147,7 +161,7 @@ export function useNativeTabBar({
   useEffect(() => {
     if (!supported) return
     void nativeTabBar
-      .setSelected({ id: activeTabPath(pathname) ?? "" })
+      .setSelected({ id: nativeSelection(pathname) })
       .catch(() => undefined)
   }, [supported, pathname])
 

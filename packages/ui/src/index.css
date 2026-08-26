@@ -5362,6 +5362,100 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
 
 /* The Profile membership surface borrows Coach's depth and motion while
    keeping billing controls calm, legible, and clearly secondary. */
+/*
+ * The upgrade entry in Settings' overview.
+ *
+ * The same deep-indigo surface as the subscription card two screens in, cut
+ * down to a single band, so the two read as one product rather than two
+ * pitches. It earns its prominence by being the only saturated thing on a
+ * screen of hairlines and grey rows — no eyebrow, no icon tile, no second
+ * card competing with the account row above it.
+ */
+.settings-upgrade-band {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  width: auto;
+  min-height: 3.75rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  overflow: hidden;
+  margin: 0.85rem var(--app-page-x) 0;
+  border: 1px solid rgba(194, 201, 230, 0.16);
+  border-radius: 1.1rem;
+  padding: 0.9rem 1rem;
+  text-align: left;
+  color: #f8f9ff;
+  background:
+    radial-gradient(
+      circle at 92% 0%,
+      rgba(118, 95, 231, 0.35),
+      transparent 38%
+    ),
+    linear-gradient(145deg, #131c4e, #060a1f 65%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.02),
+    0 18px 34px -26px rgba(4, 7, 20, 0.95);
+  transition: transform 160ms var(--motion-ease-standard);
+}
+
+.settings-upgrade-band:active {
+  transform: scale(0.985);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-upgrade-band {
+    transition: none;
+  }
+
+  .settings-upgrade-band:active {
+    transform: none;
+  }
+}
+
+.settings-upgrade-copy {
+  display: block;
+  min-width: 0;
+}
+
+.settings-upgrade-title {
+  display: block;
+  color: #ffffff;
+  font-size: 1rem;
+  line-height: 1.25;
+  font-weight: 680;
+  letter-spacing: -0.022em;
+}
+
+.settings-upgrade-detail {
+  display: block;
+  margin-top: 0.2rem;
+  color: rgba(226, 230, 249, 0.7);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  text-wrap: pretty;
+}
+
+.settings-upgrade-trailing {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.4rem;
+  color: rgba(233, 236, 255, 0.55);
+}
+
+.settings-upgrade-price {
+  color: #ffffff;
+  font-size: 0.95rem;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  /* Lining figures, so a price never shifts the chevron as it changes. */
+  font-variant-numeric: tabular-nums;
+}
+
 .profile-pro-group {
   overflow: visible;
   width: auto;
@@ -5494,6 +5588,48 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   letter-spacing: -0.02em;
   text-align: right;
   font-variant-numeric: tabular-nums;
+}
+
+/*
+  The auto-renewal terms, under the plan row. Quiet on purpose — it is the
+  small print, and pretending otherwise by shouting it would be its own kind of
+  dishonest — but held above the contrast floor, because small print nobody can
+  read is small print nobody agreed to.
+*/
+.profile-pro-terms {
+  margin-top: 0.75rem;
+  color: rgba(213, 218, 243, 0.72);
+  font-size: 0.7875rem;
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+
+/* Terms and privacy, at the foot of the card that takes the money. */
+.profile-pro-legal {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1.1rem;
+  color: rgba(213, 218, 243, 0.5);
+  font-size: 0.78rem;
+  line-height: 1.3;
+}
+
+.profile-pro-legal a {
+  min-height: 2.75rem;
+  display: inline-flex;
+  align-items: center;
+  color: rgba(249, 250, 255, 0.88);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: rgba(229, 232, 255, 0.32);
+  text-underline-offset: 0.25em;
+}
+
+.profile-pro-legal a:active {
+  color: #ffffff;
 }
 
 .profile-pro-diagnostic {
@@ -7522,8 +7658,6 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
     0 0 0 1px var(--border),
     0 12px 32px color-mix(in srgb, black 14%, transparent);
 }
-
-
 
 /* ── Dashboard tiles ──────────────────────────────────────────────────────── */
 

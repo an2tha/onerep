@@ -17,7 +17,12 @@ import { PushNotifications } from "@capacitor/push-notifications"
 import { ensureNotificationChannels } from "./notification-channels"
 
 export type PushRegistrationOutcome =
-  "registered" | "denied" | "unsupported" | "failed"
+  | "registered"
+  | "denied"
+  | "unsupported"
+  | "failed"
+  /** Listeners are up; the OS has not been asked yet and is waiting for a reason. */
+  | "deferred"
 
 /** Where a tapped notification should land, by the link the server sent. */
 export const PUSH_LINK_ROUTES: Record<string, string> = {
@@ -87,13 +92,25 @@ export function registeredPushToken() {
  * The token arrives asynchronously on the `registration` event rather than
  * from `register()`, so the caller supplies what to do with it and this
  * resolves as soon as registration has been *requested* successfully.
+ *
+ * `prompt` decides whether this is allowed to put the system dialog on screen.
+ * It defaults to false, and that default is the important part: the app used
+ * to spend its one and only notification prompt during the first render after
+ * sign-in, on somebody who had not yet been told that Coach writes to them.
+ * Denied there, it is denied for the life of the install, and the only way
+ * back is a trip through iOS Settings that nobody takes. So the launch path
+ * registers silently — which still covers every install that has already said
+ * yes — and the prompt is left to the two places where the question answers
+ * itself: opening Coach, and turning outreach on.
  */
 export async function registerForCoachPush({
   onToken,
   onTapped,
+  prompt = false,
 }: {
   onToken: (token: string, platform: "ios" | "android") => void | Promise<void>
   onTapped?: (link: string | null) => void
+  prompt?: boolean
 }): Promise<PushRegistrationOutcome> {
   if (!pushSupported()) return "unsupported"
   // Checked before the permission prompt, not just before register(): asking
@@ -132,11 +149,17 @@ export async function registerForCoachPush({
     }
 
     const existing = await PushNotifications.checkPermissions()
-    const permission =
+    const undecided =
       existing.receive === "prompt" ||
       existing.receive === "prompt-with-rationale"
-        ? await PushNotifications.requestPermissions()
-        : existing
+    // Nothing to lose by leaving: the listeners above are attached for the
+    // rest of the session, so whichever surface asks next only pays for the
+    // dialog.
+    if (undecided && !prompt) return "deferred"
+
+    const permission = undecided
+      ? await PushNotifications.requestPermissions()
+      : existing
     if (permission.receive !== "granted") return "denied"
 
     await PushNotifications.register()

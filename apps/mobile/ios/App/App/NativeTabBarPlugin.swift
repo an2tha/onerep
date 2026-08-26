@@ -191,10 +191,20 @@ public class NativeTabBarPlugin: CAPPlugin, CAPBridgedPlugin {
             buttons.append((item, button))
         }
 
+        // Preferred, not required: six destinations at the resting slot width
+        // are wider than a phone, and a required width would push the orb off
+        // the right edge rather than tighten the slots. The minimum inset below
+        // wins, the stack divides whatever is left, and the chip follows the
+        // measured frame either way.
+        let restingWidth = pill.widthAnchor.constraint(
+            equalToConstant: CGFloat(pillItems.count) * itemWidth + 12)
+        restingWidth.priority = .defaultHigh
+
         var constraints: [NSLayoutConstraint] = [
             pill.heightAnchor.constraint(equalToConstant: barHeight),
-            pill.widthAnchor.constraint(
-                equalToConstant: CGFloat(pillItems.count) * itemWidth + 12),
+            restingWidth,
+            pill.leadingAnchor.constraint(
+                greaterThanOrEqualTo: container.leadingAnchor, constant: 16),
             pill.centerYAnchor.constraint(equalTo: container.centerYAnchor),
             stack.topAnchor.constraint(equalTo: pill.contentView.topAnchor),
             stack.bottomAnchor.constraint(equalTo: pill.contentView.bottomAnchor),
@@ -228,14 +238,19 @@ public class NativeTabBarPlugin: CAPPlugin, CAPBridgedPlugin {
                 button.bottomAnchor.constraint(equalTo: orb.contentView.bottomAnchor),
                 button.leadingAnchor.constraint(equalTo: orb.contentView.leadingAnchor),
                 button.trailingAnchor.constraint(equalTo: orb.contentView.trailingAnchor),
+                orb.trailingAnchor.constraint(
+                    lessThanOrEqualTo: container.trailingAnchor, constant: -16),
                 // Pill + orb sit centred as one composition.
                 pill.centerXAnchor.constraint(
                     equalTo: container.centerXAnchor,
                     constant: -(barHeight + 10) / 2)
             ])
         } else {
-            constraints.append(
-                pill.centerXAnchor.constraint(equalTo: container.centerXAnchor))
+            constraints.append(contentsOf: [
+                pill.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+                pill.trailingAnchor.constraint(
+                    lessThanOrEqualTo: container.trailingAnchor, constant: -16)
+            ])
         }
 
         NSLayoutConstraint.activate(constraints)
@@ -254,6 +269,9 @@ public class NativeTabBarPlugin: CAPPlugin, CAPBridgedPlugin {
             UIImage(systemName: item.symbol, withConfiguration: config),
             for: .normal)
         button.tintColor = iconTint(active: false)
+        // The pill divides the room it has; a button that insists on its
+        // intrinsic width would break the layout instead of getting narrower.
+        button.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         button.accessibilityLabel = item.label
         button.accessibilityIdentifier = "native-tab-\(item.id)"
         button.addAction(

@@ -109,6 +109,7 @@ export function useAppAuth() {
  */
 export type SocialProviders = {
   google: boolean
+  apple: boolean
   oidc: boolean
   oidcName: string | null
 }
@@ -126,6 +127,7 @@ export function useSocialProviders() {
         if (data)
           setProviders({
             google: data.google === true,
+            apple: data.apple === true,
             oidc: data.oidc === true,
             oidcName:
               typeof data.oidcName === "string" && data.oidcName.length > 0

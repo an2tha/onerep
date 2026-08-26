@@ -401,3 +401,185 @@ describe("recipes Convex functions", () => {
     expect(stored!.ingredients[2].name).toBe("Olive Oil");
   });
 });
+
+/**
+ * Guideline 1.2: filtering, reporting, blocking, and acting on reports.
+ *
+ * Written with the accessor form of `withIdentity` — `t.withIdentity(id)`
+ * returns an identity-bound handle, and the callback form this file uses
+ * elsewhere is silently ignored by convex-test, so those callbacks never run
+ * and their assertions never execute.
+ */
+describe("community moderation", () => {
+  const author = { name: "Author", subject: "author" };
+  const reader = { name: "Reader", subject: "reader" };
+  const second = { name: "Second reader", subject: "second-reader" };
+
+  async function sharedRecipe(t: ReturnType<typeof convexTest>, name = "Soup") {
+    const asAuthor = t.withIdentity(author);
+    const recipeId = await asAuthor.mutation(api.logs.recipes.save, {
+      name,
+      ingredients: [ingredient],
+    });
+    await asAuthor.mutation(api.logs.recipes.setCommunitySharing, {
+      id: recipeId,
+      shared: true,
+    });
+    return recipeId;
+  }
+
+  test("refuses to publish a recipe whose text fails the screen", async () => {
+    const t = convexTest(schema, modules);
+    const asAuthor = t.withIdentity(author);
+    const recipeId = await asAuthor.mutation(api.logs.recipes.save, {
+      name: "faggot casserole",
+      ingredients: [ingredient],
+    });
+
+    await expect(
+      asAuthor.mutation(api.logs.recipes.setCommunitySharing, {
+        id: recipeId,
+        shared: true,
+      }),
+    ).rejects.toThrow(/isn't allowed/);
+
+    // Saving it privately is still fine. The screen guards publication, not
+    // what somebody keeps in their own recipe box.
+    const mine = await asAuthor.query(api.logs.recipes.list, {});
+    expect(mine).toHaveLength(1);
+    expect(
+      await t.withIdentity(reader).query(api.logs.recipes.listCommunity, {}),
+    ).toHaveLength(0);
+  });
+
+  test("enough reports pull a recipe out of the feed and mark them handled", async () => {
+    const t = convexTest(schema, modules);
+    const recipeId = await sharedRecipe(t);
+
+    await t
+      .withIdentity(reader)
+      .mutation(api.logs.recipes.reportCommunityRecipe, { recipeId });
+    // One report is not a verdict.
+    expect(
+      await t.withIdentity(second).query(api.logs.recipes.listCommunity, {}),
+    ).toHaveLength(1);
+
+    await t
+      .withIdentity(second)
+      .mutation(api.logs.recipes.reportCommunityRecipe, { recipeId });
+
+    expect(
+      await t.withIdentity(reader).query(api.logs.recipes.listCommunity, {}),
+    ).toHaveLength(0);
+
+    const recipe = await t.run(async (ctx) => ctx.db.get(recipeId));
+    expect(recipe?.isCommunityShared).toBe(false);
+    expect(recipe?.communityRemovedReason).toBe("reported");
+
+    const reports = await t.run(async (ctx) =>
+      ctx.db.query("recipeReports").collect(),
+    );
+    expect(reports).toHaveLength(2);
+    expect(reports.every((report) => report.status === "reviewed")).toBe(true);
+  });
+
+  test("a removed recipe cannot be put back by its author", async () => {
+    const t = convexTest(schema, modules);
+    const recipeId = await sharedRecipe(t);
+    for (const identity of [reader, second]) {
+      await t
+        .withIdentity(identity)
+        .mutation(api.logs.recipes.reportCommunityRecipe, { recipeId });
+    }
+
+    await expect(
+      t.withIdentity(author).mutation(api.logs.recipes.setCommunitySharing, {
+        id: recipeId,
+        shared: true,
+      }),
+    ).rejects.toThrow(/removed from the community/);
+  });
+
+  test("blocking hides that author's recipes, and only from the blocker", async () => {
+    const t = convexTest(schema, modules);
+    const recipeId = await sharedRecipe(t, "Soup");
+    await sharedRecipe(t, "Stew");
+
+    const asReader = t.withIdentity(reader);
+    expect(
+      await asReader.query(api.logs.recipes.listCommunity, {}),
+    ).toHaveLength(2);
+
+    await asReader.mutation(api.logs.recipes.blockCommunityAuthor, {
+      recipeId,
+    });
+
+    // Everything they have shared, not just the recipe that prompted it.
+    expect(
+      await asReader.query(api.logs.recipes.listCommunity, {}),
+    ).toHaveLength(0);
+    // And nobody else's feed changed.
+    expect(
+      await t.withIdentity(second).query(api.logs.recipes.listCommunity, {}),
+    ).toHaveLength(2);
+  });
+
+  test("blocking is idempotent and reversible", async () => {
+    const t = convexTest(schema, modules);
+    const recipeId = await sharedRecipe(t);
+    const asReader = t.withIdentity(reader);
+
+    const first = await asReader.mutation(
+      api.logs.recipes.blockCommunityAuthor,
+      { recipeId },
+    );
+    const again = await asReader.mutation(
+      api.logs.recipes.blockCommunityAuthor,
+      { recipeId },
+    );
+    expect(again).toBe(first);
+
+    const blocked = await asReader.query(
+      api.logs.recipes.listBlockedAuthors,
+      {},
+    );
+    expect(blocked).toHaveLength(1);
+    expect(blocked[0].name).toBe("Author");
+
+    await asReader.mutation(api.logs.recipes.unblockCommunityAuthor, {
+      blockId: blocked[0].id,
+    });
+    expect(
+      await asReader.query(api.logs.recipes.listCommunity, {}),
+    ).toHaveLength(1);
+  });
+
+  test("one person cannot unblock on another person's behalf", async () => {
+    const t = convexTest(schema, modules);
+    const recipeId = await sharedRecipe(t);
+    const asReader = t.withIdentity(reader);
+    await asReader.mutation(api.logs.recipes.blockCommunityAuthor, {
+      recipeId,
+    });
+    const [block] = await asReader.query(
+      api.logs.recipes.listBlockedAuthors,
+      {},
+    );
+
+    await expect(
+      t.withIdentity(second).mutation(api.logs.recipes.unblockCommunityAuthor, {
+        blockId: block.id,
+      }),
+    ).rejects.toThrow(/not found/);
+  });
+
+  test("blocking yourself is refused", async () => {
+    const t = convexTest(schema, modules);
+    const recipeId = await sharedRecipe(t);
+    await expect(
+      t.withIdentity(author).mutation(api.logs.recipes.blockCommunityAuthor, {
+        recipeId,
+      }),
+    ).rejects.toThrow(/yourself/);
+  });
+});

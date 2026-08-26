@@ -73,8 +73,10 @@ import {
   hapticSelection,
   hapticTap,
 } from "@/lib/haptics"
+import { MINIMUM_AGE } from "@repo/models"
+import { MedicalDisclaimer } from "@/components/medical-disclaimer"
 
-const AGE_MIN = 13
+const AGE_MIN = MINIMUM_AGE
 const AGE_MAX = 100
 const HEIGHT_MIN = 100
 const HEIGHT_MAX = 250
@@ -2102,6 +2104,13 @@ export function OnboardingMobile() {
             </div>
           ))}
         </div>
+        {/*
+          Above the consent box, not below it: the targets are on screen, they
+          were produced by arithmetic rather than a clinician, and that is
+          worth saying before somebody agrees to anything. The chat line at the
+          top of this step says a version of it too, but that scrolls away.
+        */}
+        <MedicalDisclaimer tone="panel" />
         <label className="flex cursor-pointer items-start gap-3 rounded-[var(--radius-card)] border border-border bg-[var(--surface-panel)] p-4 text-[13px] leading-5 text-muted-foreground">
           <input
             type="checkbox"

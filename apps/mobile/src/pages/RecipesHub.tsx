@@ -13,6 +13,7 @@ import {
   Heart,
   MagnifyingGlass,
   Plus,
+  Prohibit,
   SealCheck,
   ShareNetwork,
   ShoppingCart,
@@ -716,6 +717,9 @@ export default function RecipesHub() {
   const reportCommunityRecipe = useMutation(
     api.logs.recipes.reportCommunityRecipe
   )
+  const blockCommunityAuthor = useMutation(
+    api.logs.recipes.blockCommunityAuthor
+  )
   const addFoodEntry = useMutation(api.logs.foodLogs.addEntry)
   const claimRatingPrompt = useMutation(api.logs.recipes.claimRatingPrompt)
   const rateCommunityRecipe = useMutation(api.logs.recipes.rateCommunityRecipe)
@@ -742,6 +746,7 @@ export default function RecipesHub() {
   const [shareAnonymously, setShareAnonymously] = useState(false)
   const [sharing, setSharing] = useState(false)
   const [reporting, setReporting] = useState(false)
+  const [blocking, setBlocking] = useState(false)
   const [loggingCommunity, setLoggingCommunity] = useState<Recipe | null>(null)
   const [loggingMeal, setLoggingMeal] = useState<string | null>(null)
   const [ratingRecipe, setRatingRecipe] = useState<Recipe | null>(null)
@@ -976,6 +981,31 @@ export default function RecipesHub() {
       )
     } finally {
       setReporting(false)
+    }
+  }
+
+  /**
+   * Stop seeing this author, everywhere, immediately.
+   *
+   * Separate from reporting on purpose. Reporting asks somebody else to look;
+   * blocking is the thing you can do yourself and have take effect before you
+   * put the phone down. The sheet closes because the recipe behind it has just
+   * stopped existing as far as this account is concerned.
+   */
+  async function blockAuthor(recipe: Recipe) {
+    if (!recipe._id || blocking) return
+    setBlocking(true)
+    try {
+      await blockCommunityAuthor({ recipeId: recipe._id as Id<"recipes"> })
+      hapticTap()
+      setSelectedCommunity(null)
+      toast.success("Blocked. You won't see their recipes again.")
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Could not block that author"
+      )
+    } finally {
+      setBlocking(false)
     }
   }
 
@@ -1805,16 +1835,34 @@ export default function RecipesHub() {
                       Take down from public search
                     </button>
                   ) : (
-                    <button
-                      type="button"
-                      disabled={reporting}
-                      aria-busy={reporting}
-                      onClick={() => void reportRecipe(recipe)}
-                      className="mt-7 flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-border text-[13px] font-semibold text-muted-foreground"
-                    >
-                      <Flag size={15} />
-                      {reporting ? "Reporting…" : "Report recipe"}
-                    </button>
+                    <div className="mt-7 grid gap-2">
+                      <button
+                        type="button"
+                        disabled={reporting}
+                        aria-busy={reporting}
+                        onClick={() => void reportRecipe(recipe)}
+                        className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-border text-[13px] font-semibold text-muted-foreground"
+                      >
+                        <Flag size={15} />
+                        {reporting ? "Reporting…" : "Report recipe"}
+                      </button>
+                      {/*
+                        Reporting and blocking are not the same favour. One
+                        asks us to look at a recipe; this one is the reader
+                        deciding, on their own, that they are done with a
+                        person. Both have to be here.
+                      */}
+                      <button
+                        type="button"
+                        disabled={blocking}
+                        aria-busy={blocking}
+                        onClick={() => void blockAuthor(recipe)}
+                        className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-border text-[13px] font-semibold text-muted-foreground"
+                      >
+                        <Prohibit size={15} />
+                        {blocking ? "Blocking…" : "Block this author"}
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>

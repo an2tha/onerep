@@ -203,10 +203,13 @@ export function DialButton({
       }}
       aria-label={`${label}: ${detail}`}
       className={cn(
-        "health-dial-button motion-tactile progress-tab-enter flex min-w-0 shrink flex-col items-center gap-2",
+        "health-dial-button motion-tactile progress-tab-enter flex shrink-0 flex-col items-center gap-2",
         className
       )}
-      style={{ animationDelay: `${index * 70}ms` }}
+      // Never narrower than its dial, never narrower than its own name: the
+      // shrink that once kept nine of these on a 360px phone did it by sliding
+      // the rings into each other and the labels into one another's letters.
+      style={{ animationDelay: `${index * 70}ms`, minWidth: size }}
     >
       {/*
         The arc lives on the dial, not on the button: with an `items-end` row
@@ -231,7 +234,7 @@ export function DialButton({
           <CaretRight size={10} weight="bold" />
         </span>
       </span>
-      <span className="block truncate text-[13px] leading-none font-semibold">
+      <span className="block text-[13px] leading-none font-semibold whitespace-nowrap">
         {label}
       </span>
     </button>

@@ -131,6 +131,7 @@ export function DashboardHero({
   title,
   subtitle,
   action,
+  profile,
   fill = 0,
   children,
 }: {
@@ -156,6 +157,14 @@ export function DashboardHero({
    */
   subtitle?: string
   action?: ReactNode
+  /**
+   * The way into settings on a phone.
+   *
+   * The desktop keeps it in the sidebar, under the tabs. There is no sidebar
+   * on a phone and no room for a seventh tab, so the greeting row carries it —
+   * hide it at `lg` and the two never both appear.
+   */
+  profile?: ReactNode
   /**
    * How far through the day's calories, 0-100. The field spreads and warms
    * with it, the same way Nutrition's does — the background is reporting,
@@ -183,7 +192,12 @@ export function DashboardHero({
               {subtitle ?? dateLabel}
             </p>
           </div>
-          {action && <div className="shrink-0 pt-0.5">{action}</div>}
+          {(profile || action) && (
+            <div className="flex shrink-0 items-start gap-1 pt-0.5">
+              {profile}
+              {action}
+            </div>
+          )}
         </header>
 
         {children && (

@@ -51,6 +51,7 @@ import type * as lib_authEmail from "../lib/authEmail.js";
 import type * as lib_bodyMeasurements from "../lib/bodyMeasurements.js";
 import type * as lib_calculateCalories from "../lib/calculateCalories.js";
 import type * as lib_coachWorkspaceBudget from "../lib/coachWorkspaceBudget.js";
+import type * as lib_communityModeration from "../lib/communityModeration.js";
 import type * as lib_customMetricScoring from "../lib/customMetricScoring.js";
 import type * as lib_customProgressMetrics from "../lib/customProgressMetrics.js";
 import type * as lib_dataImport from "../lib/dataImport.js";
@@ -189,6 +190,7 @@ declare const fullApi: ApiFromModules<{
   "lib/bodyMeasurements": typeof lib_bodyMeasurements;
   "lib/calculateCalories": typeof lib_calculateCalories;
   "lib/coachWorkspaceBudget": typeof lib_coachWorkspaceBudget;
+  "lib/communityModeration": typeof lib_communityModeration;
   "lib/customMetricScoring": typeof lib_customMetricScoring;
   "lib/customProgressMetrics": typeof lib_customProgressMetrics;
   "lib/dataImport": typeof lib_dataImport;

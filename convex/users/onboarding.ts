@@ -6,6 +6,7 @@ import {
   getLatestOnboardingProfile,
   listOnboardingProfilesForUser,
 } from "../lib/onboardingProfiles";
+import { MINIMUM_AGE } from "../../packages/models/src/onboarding";
 
 async function requireUser(ctx: QueryCtx | MutationCtx) {
   const user = await getAuthUser(ctx);
@@ -102,6 +103,15 @@ export const save = mutation({
   },
   handler: async (ctx, args) => {
     const user = await requireUser(ctx);
+
+    // The stepper in the app already stops here, which is worth exactly
+    // nothing: this mutation is reachable by anyone holding a session token.
+    // The age drives calorie targets, and it decides whether Coach runs in the
+    // gentler under-18 mode, so a number below the floor is either a mistake
+    // or somebody working around the floor. Both get the same answer.
+    if (!Number.isFinite(args.age) || args.age < MINIMUM_AGE) {
+      throw new Error(`You must be at least ${MINIMUM_AGE} to use OneRep`);
+    }
 
     const [existing, ...duplicates] = await listOnboardingProfilesForUser(
       ctx,

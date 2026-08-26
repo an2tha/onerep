@@ -20,6 +20,10 @@ const SETTINGS_SOURCE = readFileSync(
   new URL("./Settings.tsx", import.meta.url),
   "utf8"
 )
+/** The English catalogue, so a title assertion can follow the key it moved to. */
+const EN = JSON.parse(
+  readFileSync(new URL("../i18n/locales/en.json", import.meta.url), "utf8")
+)
 const APP_STYLES_SOURCE = readFileSync(
   new URL("../../../../packages/ui/src/index.css", import.meta.url),
   "utf8"
@@ -710,6 +714,43 @@ describe("AI subscription hint", () => {
 
 // ─── Agent access ─────────────────────────────────────────────────────────────
 
+describe("upgrading is findable", () => {
+  // It used to take four steps and a guess: tap the row labelled with your own
+  // name, scroll past a usage bar and an API-key field, find a button. Most
+  // people met the paywall instead, which is a worse way to be asked for money.
+  test("the overview carries a distinct upgrade entry", () => {
+    assert.match(SETTINGS_SOURCE, /className="settings-upgrade-band"/)
+    assert.match(SETTINGS_SOURCE, /Upgrade to OneRep Pro/)
+    assert.match(SETTINGS_SOURCE, /showAiPaywall\(\)/)
+    assert.match(SETTINGS_SOURCE, /aria-label="Upgrade to OneRep Pro"/)
+  })
+
+  test("it is hidden from subscribers, and while the answer is unknown", () => {
+    // `!hasOneRepPro` alone is also true for the beat before the entitlement
+    // query resolves, which would flash a sales pitch at a paying customer.
+    assert.match(
+      SETTINGS_SOURCE,
+      /\{billing\.isConfigured && !billing\.hasOneRepPro && \(/
+    )
+  })
+
+  test("no price is shown until there is a real one", () => {
+    // "Monthly ›" in the price slot reads as a price and is not one.
+    assert.match(SETTINGS_SOURCE, /const upgradePrice = \/\\d\/\.test\(/)
+    assert.match(SETTINGS_SOURCE, /\{upgradePrice && \(/)
+  })
+
+  test("subscription sits above AI usage on the account screen", () => {
+    const subscription = SETTINGS_SOURCE.indexOf('title="Subscription"')
+    const usage = SETTINGS_SOURCE.indexOf('title="AI usage"')
+    assert.ok(subscription > 0 && usage > 0)
+    assert.ok(
+      subscription < usage,
+      "the subscription panel must come before the AI usage meter"
+    )
+  })
+})
+
 describe("agent access is findable", () => {
   const KEYS_PANEL = readFileSync(
     new URL("../components/api-keys-section.tsx", import.meta.url),
@@ -721,7 +762,10 @@ describe("agent access is findable", () => {
     // and the delete-account box. Nobody was going to find it there.
     assert.match(SETTINGS_SOURCE, /title="API & MCP"/)
     assert.match(SETTINGS_SOURCE, /showView\("agents"\)/)
-    assert.match(SETTINGS_SOURCE, /agents: "API & MCP"/)
+    // The view title went through i18n, so the assertion has to follow it:
+    // the map holds a key, and the key is what has to resolve to the name.
+    assert.match(SETTINGS_SOURCE, /agents: "settings\.titles\.agents"/)
+    assert.equal(EN.settings.titles.agents, "API & MCP")
   })
 
   test("the row says whether anything is connected before you open it", () => {
@@ -759,5 +803,32 @@ describe("agent access is findable", () => {
   test("the plaintext is presented as shown-once, and revocation is one tap", () => {
     assert.match(KEYS_PANEL, /only time it will be shown/i)
     assert.match(KEYS_PANEL, /revokeKey\(/)
+  })
+})
+
+/**
+ * There is no sidebar on a phone, and the web tab bar has no room for a
+ * seventh destination — which is how the native builds shipped with settings
+ * reachable from nowhere at all. Two doors now, and both are worth pinning:
+ * the greeting row on Today, and the native bar the shells draw themselves.
+ */
+describe("settings is reachable without a desktop sidebar", () => {
+  const DASHBOARD = readFileSync(new URL("../App.tsx", import.meta.url), "utf8")
+  const NATIVE_BAR = readFileSync(
+    new URL("../lib/native-tab-bar.ts", import.meta.url),
+    "utf8"
+  )
+
+  test("the Today greeting carries a settings button on phone widths", () => {
+    assert.match(DASHBOARD, /profile=\{/)
+    assert.match(DASHBOARD, /navigate\("\/settings"/)
+    assert.match(DASHBOARD, /aria-label="Open profile and settings"/)
+    // Paired with the sidebar's own row, so the two never both appear.
+    assert.match(DASHBOARD, /lg:hidden/)
+  })
+
+  test("the native tab bar carries settings, and lights up on it", () => {
+    assert.match(NATIVE_BAR, /id: "\/settings", symbol: "gearshape"/)
+    assert.match(NATIVE_BAR, /isTabActive\(pathname, "\/settings"\)/)
   })
 })

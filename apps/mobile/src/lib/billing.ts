@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Capacitor } from "@capacitor/core"
+import { Browser } from "@capacitor/browser"
 import { useAction, useQuery } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
 import { trackUmami } from "@/lib/analytics"
@@ -75,6 +76,26 @@ function isNativePurchasesAvailable() {
 
 function isWebPurchasesAvailable() {
   return typeof window !== "undefined" && !Capacitor.isNativePlatform()
+}
+
+/**
+ * Open a billing URL outside the app.
+ *
+ * `window.open` inside the Capacitor WKWebView is not reliably a navigation —
+ * it can return null and do nothing, which turns "Manage in the App Store"
+ * into a button that visibly does nothing. That is a worse bug than it sounds
+ * on the one screen where somebody is trying to stop paying us. The Browser
+ * plugin hands the URL to the system, which is also what makes
+ * apps.apple.com/account/subscriptions bounce into Settings rather than
+ * rendering a web page about subscriptions.
+ */
+async function openExternally(url: string) {
+  if (Capacitor.isNativePlatform()) {
+    await Browser.open({ url })
+    return
+  }
+  const opened = window.open(url, "_blank", "noopener,noreferrer")
+  if (!opened) window.location.assign(url)
 }
 
 export function hasHydratedWebSubscription(isNative: boolean, status: unknown) {
@@ -173,6 +194,12 @@ export function subscriptionDiagnosticCopy({
   const store = subscriptionStoreLabel(customerInfo?.store)
   const source = subscriptionSourceLabel(customerInfo?.source)
   const origin = store ? `${source} · ${store}` : source
+  // Naming where a subscription is billed is useful to somebody who has one.
+  // Naming it to somebody on iOS who has *not* bought anything is a sentence
+  // that reads "there is a web checkout, go and find it" — which is the thing
+  // guideline 3.1.1 exists to stop. Telling a subscriber who charges them
+  // stays; advertising a till they are not standing at does not.
+  const namesAnotherTill = isNative && !/App Store/.test(origin)
 
   if (error) {
     return {
@@ -238,7 +265,9 @@ export function subscriptionDiagnosticCopy({
 
   return {
     title: "Free plan",
-    detail: `No active subscription found with ${origin}.`,
+    detail: namesAnotherTill
+      ? "No active subscription on this account."
+      : `No active subscription found with ${origin}.`,
     tone: "muted",
     canRetry: false,
   }
@@ -439,7 +468,9 @@ export function useBilling({ userId }: UseBillingOptions) {
       } catch (cause) {
         trackUmami("checkout_start_failed", { source, store: "app_store" })
         if (mounted.current) {
-          setError(billingErrorMessage(cause, "Could not complete the purchase"))
+          setError(
+            billingErrorMessage(cause, "Could not complete the purchase")
+          )
         }
         return null
       } finally {
@@ -535,8 +566,7 @@ export function useBilling({ userId }: UseBillingOptions) {
         return false
       }
       trackUmami("billing_portal_opened")
-      const opened = window.open(result.url, "_blank", "noopener,noreferrer")
-      if (!opened) window.location.assign(result.url)
+      await openExternally(result.url)
       return true
     } catch (cause) {
       if (mounted.current) {
@@ -602,11 +632,18 @@ export function useBilling({ userId }: UseBillingOptions) {
       status,
       cancelSubscription,
       openBillingManagement,
-      // Native can buy once StoreKit has a product to sell and the server has
-      // credentials to verify it with; web needs Stripe configured. Either way
-      // the button appears only when the whole path behind it exists.
+      // Native can buy once the device allows purchases and the server has
+      // credentials to verify one with; web needs Stripe configured.
+      //
+      // Deliberately not gated on `storeProduct`: a catalogue that has not
+      // loaded yet, a product still in "Ready to Submit", or a slow
+      // `Product.products` call would all hide the only purchase button in the
+      // binary — which is the state App Review lands in, and reads as
+      // Guideline 3.1.1 steering. `purchaseNative` needs the product *id*,
+      // which comes from the server, not from StoreKit's catalogue; if the
+      // sheet cannot open, the App Store says so itself.
       canPurchase: isNative
-        ? storeReady && storeProduct !== null && appleProvider
+        ? storeReady && appleProvider
         : isWeb && subscriptionQuery?.webProvider === "stripe",
       canRestore: storeKit,
       hasActiveSubscription: hasActiveSubscription(customerInfo),
@@ -614,8 +651,23 @@ export function useBilling({ userId }: UseBillingOptions) {
       // StoreKit's price wins where there is one: it is localised, in the
       // right currency, and reflects whatever regional price Apple set. The
       // server label is a single number that is correct in one country.
-      monthlyPrice:
-        storeProduct?.displayPrice ?? subscriptionQuery?.monthlyPriceLabel ?? null,
+      //
+      // `displayPrice` is the amount and nothing else — "€3.99" — so the
+      // renewal period gets glued back on. App Review reads a bare amount as
+      // a one-off purchase, and so, more to the point, does everybody else.
+      //
+      // And on iOS the server label is not a fallback, it is a lie waiting to
+      // happen: it is one hardcoded euro figure, while the App Store charges
+      // whatever Apple set for the buyer's storefront. Better to show no price
+      // and let the purchase sheet quote it than to show the wrong one to
+      // everybody outside the eurozone.
+      monthlyPrice: storeProduct
+        ? storeProduct.period
+          ? `${storeProduct.displayPrice} / ${storeProduct.period}`
+          : storeProduct.displayPrice
+        : isNative
+          ? null
+          : (subscriptionQuery?.monthlyPriceLabel ?? null),
       purchaseMonthly,
       restorePurchases,
       refresh,

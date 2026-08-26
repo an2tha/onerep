@@ -25,6 +25,8 @@ import { useAction, useMutation, useQuery } from "convex/react"
 import { ConvexError } from "convex/values"
 import { supportsLiveWorkoutStatusSetting } from "@/lib/workout-live-activity"
 import { registeredPushToken, unregisterForCoachPush } from "@/lib/coach-push"
+import { promptForCoachPush } from "@/components/coach-push-registration"
+import { MedicalDisclaimer } from "@/components/medical-disclaimer"
 import {
   getHealthAvailability,
   getRecentHealthWorkouts,
@@ -269,6 +271,12 @@ export default function Settings({ onClose }: { onClose: () => void }) {
   const onboarding = useQuery(api.users.onboarding.get)
   const aiUsage = useQuery(api.ai.usage.getMonthlyUsage, {})
   const { showAiPaywall, aiAccessModal } = useAiFeatureGate()
+  // StoreKit hands back a localised price; the server label is the web
+  // fallback. Either way it is only shown once it contains a digit — until
+  // then the catalogue has not loaded and there is no price to quote.
+  const upgradePrice = /\d/.test(billing.monthlyPrice ?? "")
+    ? billing.monthlyPrice
+    : null
   const byokStatus = useQuery(api.ai.byok.getStatus, {})
   const saveByokKey = useAction(api.ai.byok.setKey)
   const removeByokKey = useMutation(api.ai.byok.removeKey)
@@ -385,6 +393,11 @@ export default function Settings({ onClose }: { onClose: () => void }) {
   const setLiveWorkoutStatus = useMutation(api.users.users.setLiveWorkoutStatus)
   const setCoachOutreach = useMutation(api.users.users.setCoachOutreach)
   const unregisterPushToken = useMutation(api.push.tokens.unregister)
+  const blockedAuthors = useQuery(api.logs.recipes.listBlockedAuthors, {}) ?? []
+  const unblockCommunityAuthor = useMutation(
+    api.logs.recipes.unblockCommunityAuthor
+  )
+  const [unblocking, setUnblocking] = useState<string | null>(null)
 
   // Best-effort, before the session dies: revoking needs auth, and a token
   // left behind keeps receiving coaching for an account somebody walked away
@@ -1283,6 +1296,51 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                   </span>
                 </button>
 
+                {/*
+                  The only way in. Before this existed, upgrading meant
+                  tapping a row labelled with your own name, scrolling past
+                  AI usage and an API-key field, and finding a button — or
+                  waiting to be turned away by the paywall, which is a poor
+                  way to be asked for money. Shown only to people who are not
+                  already paying: an upsell aimed at a subscriber is just an
+                  insult with a price on it. Gated on `isConfigured` as well,
+                  because "not Pro" is also what the hook says for the second
+                  before the entitlement query resolves, and a subscriber
+                  should never watch a sales pitch flash past their own name.
+                */}
+                {billing.isConfigured && !billing.hasOneRepPro && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      hapticMedium()
+                      trackUmami("upgrade_entry_tapped", { place: "settings" })
+                      showAiPaywall()
+                    }}
+                    className="settings-upgrade-band"
+                    aria-label="Upgrade to OneRep Pro"
+                  >
+                    <span className="settings-upgrade-copy">
+                      <span className="settings-upgrade-title">
+                        Upgrade to OneRep Pro
+                      </span>
+                      <span className="settings-upgrade-detail">
+                        Coach, meal photos, generated workouts. The rest is
+                        free.
+                      </span>
+                    </span>
+                    <span className="settings-upgrade-trailing">
+                      {/* No price until there is a real one: "Monthly ›" reads
+                          as a price and is not one. */}
+                      {upgradePrice && (
+                        <span className="settings-upgrade-price">
+                          {upgradePrice}
+                        </span>
+                      )}
+                      <CaretRight size={16} weight="bold" aria-hidden="true" />
+                    </span>
+                  </button>
+                )}
+
                 <SettingsSectionLabel
                   title="Plan"
                   detail="Targets, training, and daily guidance"
@@ -1421,6 +1479,13 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                 <p className="native-row-detail px-[var(--app-page-x)] pt-7 text-center">
                   OneRep keeps core tracking available without Pro.
                 </p>
+                {/*
+                  Bottom of the root list, under everything, where a footnote
+                  belongs. It is the only copy of this sentence a person will
+                  see after onboarding, so it is here rather than buried a
+                  level down in Legal with the two documents nobody opens.
+                */}
+                <MedicalDisclaimer className="pt-3 pb-2" />
               </>
             )}
 
@@ -1466,7 +1531,8 @@ export default function Settings({ onClose }: { onClose: () => void }) {
             {activeView === "account" && (
               <>
                 <SettingsSectionIntro>
-                  Review your account, AI usage, and OneRep Pro subscription.
+                  Your account, your subscription, and what the AI allowance has
+                  left in it.
                 </SettingsSectionIntro>
                 <GroupedList label="Signed in account">
                   <ListRow
@@ -1475,6 +1541,19 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                     leading={<UserCircle size={22} weight="regular" />}
                     value={billing.hasOneRepPro ? "Pro" : "Free"}
                   />
+                </GroupedList>
+                {/*
+                  Above AI usage and the key field, not below them. This is the
+                  screen someone opens to answer "what am I paying, and how do
+                  I stop" — burying that under a progress bar and an API key
+                  field answered a question nobody had come to ask.
+                */}
+                <SettingsSectionLabel title="Subscription" />
+                <GroupedList
+                  label="OneRep Pro subscription"
+                  className="profile-pro-group"
+                >
+                  <BillingSubscriptionPanel billing={billing} />
                 </GroupedList>
                 <SettingsSectionLabel title="AI usage" />
                 <GroupedList label="AI usage">
@@ -1549,13 +1628,6 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                     </PrimaryButton>
                   </div>
                 )}
-                <SettingsSectionLabel title="Subscription" />
-                <GroupedList
-                  label="OneRep Pro subscription"
-                  className="profile-pro-group"
-                >
-                  <BillingSubscriptionPanel billing={billing} />
-                </GroupedList>
                 <SettingsSectionLabel title="Session" />
                 <GroupedList label="Session actions">
                   <ListRow
@@ -2091,6 +2163,10 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                         const settings = { ...coachOutreach, enabled: next }
                         setCoachOutreachState(settings)
                         void setCoachOutreach(settings)
+                        // Turning it on is consent to be written to, given
+                        // while reading the sentence that says what will
+                        // arrive. If iOS has not been asked yet, ask here.
+                        if (next) promptForCoachPush()
                       }}
                       label="Let Coach reach out"
                     />
@@ -2580,6 +2656,59 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                     />
                   </SettingsRow>
                 </GroupedList>
+
+                {/*
+                  A block placed from a recipe sheet is easy to place and, until
+                  this existed, impossible to take back. Only rendered when
+                  there is something to undo — an empty "Blocked authors" list
+                  is a section about a thing that has never happened to you.
+                */}
+                {blockedAuthors.length > 0 && (
+                  <>
+                    <SettingsSectionLabel
+                      title="Blocked"
+                      detail="Community recipes from these people stay hidden"
+                    />
+                    <GroupedList label="Blocked community authors">
+                      {blockedAuthors.map((author) => (
+                        <ListRow
+                          key={author.id}
+                          title={author.name}
+                          detail="Their shared recipes are hidden from you"
+                          trailing={
+                            <button
+                              type="button"
+                              aria-label={`Unblock ${author.name}`}
+                              disabled={unblocking === author.id}
+                              className="native-secondary-button h-10 px-4 text-[14px]"
+                              onClick={async () => {
+                                setUnblocking(author.id)
+                                try {
+                                  await unblockCommunityAuthor({
+                                    blockId: author.id,
+                                  })
+                                  toast.success("Unblocked")
+                                } catch (error) {
+                                  toast.error(
+                                    error instanceof Error
+                                      ? error.message
+                                      : "Could not unblock"
+                                  )
+                                } finally {
+                                  setUnblocking(null)
+                                }
+                              }}
+                            >
+                              {unblocking === author.id
+                                ? "Unblocking..."
+                                : "Unblock"}
+                            </button>
+                          }
+                        />
+                      ))}
+                    </GroupedList>
+                  </>
+                )}
 
                 <SettingsSectionLabel
                   title="Sharing"

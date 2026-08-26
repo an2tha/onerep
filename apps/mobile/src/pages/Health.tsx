@@ -325,17 +325,12 @@ function HealthHub({ data }: { data: Dashboard }) {
     .filter((dial) => dial.present)
 
   // The row is centred, wraps nothing, and every dial carries a label under it
-  // that must stay legible. 84px stopped fitting somewhere around six, and the
-  // flex shrink that rescues five on a 360px phone turns nine into a row of
-  // beads — so the requested size keeps stepping down instead.
+  // that must stay legible. 84px stopped fitting somewhere around six, so the
+  // requested size steps down — but only to a floor. Below that the dials turn
+  // into beads and the labels into ellipses, so past seven the row stops
+  // shrinking and starts scrolling instead.
   const dialSize =
-    visibleDials.length >= 8
-      ? 58
-      : visibleDials.length >= 7
-        ? 66
-        : visibleDials.length >= 5
-          ? 84
-          : 104
+    visibleDials.length >= 7 ? 72 : visibleDials.length >= 5 ? 84 : 104
 
   return (
     <>
@@ -366,31 +361,35 @@ function HealthHub({ data }: { data: Dashboard }) {
         {/*
           The size falls out of how many are actually shown rather than being
           fixed: somebody tracking one custom metric and nothing else gets the
-          big readable ring, and somebody running all nine still gets a row that
-          fits a 360px phone.
+          big readable ring. Past seven the row scrolls rather than squeezing —
+          and since centring a flex row that overflows puts its first child out
+          of reach, the strip is the scroller and the dials ride a shrink-wrapped
+          track that centres on its own margins while it still fits.
         */}
-        <div
-          className="relative mt-9 flex items-end justify-center gap-1.5 pb-1 sm:mt-12 sm:gap-4"
-          style={{ "--dial-arc": "clamp(8px, 3.2vw, 38px)" } as CSSProperties}
-        >
-          {visibleDials.map((dial, index) => (
-            <DialButton
-              key={dial.key}
-              score={dial.score}
-              label={dial.label}
-              detail={dial.detail}
-              to={dial.route}
-              size={dialSize}
-              index={index}
-              // The ends of the arc sit highest, the middle lowest, whatever
-              // the count: a fixed table of lifts only ever looked right for
-              // exactly four.
-              lift={
-                index === 0 || index === visibleDials.length - 1 ? 1 : 1 / 9
-              }
-              tone={AREA_TONES[dial.key] ?? AREA_TONES.recovery}
-            />
-          ))}
+        <div className="app-scroll-strip relative -mx-[var(--app-page-x)] mt-9 overflow-x-auto px-[var(--app-page-x)] sm:mt-12">
+          <div
+            className="mx-auto flex w-max items-end gap-2.5 pb-1 sm:gap-4"
+            style={{ "--dial-arc": "clamp(8px, 3.2vw, 38px)" } as CSSProperties}
+          >
+            {visibleDials.map((dial, index) => (
+              <DialButton
+                key={dial.key}
+                score={dial.score}
+                label={dial.label}
+                detail={dial.detail}
+                to={dial.route}
+                size={dialSize}
+                index={index}
+                // The ends of the arc sit highest, the middle lowest, whatever
+                // the count: a fixed table of lifts only ever looked right for
+                // exactly four.
+                lift={
+                  index === 0 || index === visibleDials.length - 1 ? 1 : 1 / 9
+                }
+                tone={AREA_TONES[dial.key] ?? AREA_TONES.recovery}
+              />
+            ))}
+          </div>
         </div>
       </section>
 

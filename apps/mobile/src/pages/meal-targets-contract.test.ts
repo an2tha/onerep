@@ -52,6 +52,12 @@ describe("per-meal calorie targets", () => {
 
   test("the report compares planned against actual per meal", () => {
     expect(REPORT_SOURCE).toContain("mealTargetsEnabled")
-    expect(REPORT_SOURCE).toContain("planned ")
+    expect(REPORT_SOURCE).toContain("mealTargetByMeal")
+    // The receipt says "plan", not "planned", and the number beside it is the
+    // daily budget scaled to the days actually logged — comparing one day's
+    // target against a fortnight of eating is how you accuse someone of
+    // triple their intake.
+    expect(REPORT_SOURCE).toContain("` · plan ${Math.round(")
+    expect(REPORT_SOURCE).toContain("report.daysLogged")
   })
 })

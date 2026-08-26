@@ -9,6 +9,11 @@ import {
   getUploadUrl,
   requireReadyUpload,
 } from "../lib/uploads";
+import {
+  AUTO_REMOVED_REASON,
+  AUTO_REMOVE_REPORT_THRESHOLD,
+  findBlockedTerm,
+} from "../lib/communityModeration";
 
 async function requireUser(ctx: MutationCtx | QueryCtx) {
   const user = await getAuthUser(ctx);
@@ -247,11 +252,29 @@ export const listCommunity = query({
   handler: async (ctx, args) => {
     const user = await safeGetAuthUser(ctx);
     if (!user) return [];
-    const recipes = await ctx.db
-      .query("recipes")
-      .withIndex("by_communityShared", (q) => q.eq("isCommunityShared", true))
-      .order("desc")
-      .take(Math.max(1, Math.min(args.limit ?? 60, 100)));
+    const limit = Math.max(1, Math.min(args.limit ?? 60, 100));
+
+    const blocked = new Set(
+      (
+        await ctx.db
+          .query("communityBlocks")
+          .withIndex("by_blockerId", (q) => q.eq("blockerId", user._id))
+          .collect()
+      ).map((block) => block.blockedUserId),
+    );
+
+    // Over-fetch when there is anything to hide, so blocking one prolific
+    // author does not quietly shorten the feed for everybody they annoyed.
+    const recipes = (
+      await ctx.db
+        .query("recipes")
+        .withIndex("by_communityShared", (q) => q.eq("isCommunityShared", true))
+        .order("desc")
+        .take(blocked.size > 0 ? Math.min(limit * 2, 200) : limit)
+    )
+      .filter((recipe) => !blocked.has(recipe.userId))
+      .slice(0, limit);
+
     return await Promise.all(
       recipes.map(
         async ({ userId, photoStorageIds, photoUploadIds, ...recipe }) => {
@@ -289,6 +312,37 @@ export const setCommunitySharing = mutation({
       throw new Error("Recipe not found or access denied");
     }
     const originCountry = args.originCountry?.trim().slice(0, 56);
+
+    if (args.shared) {
+      // A recipe pulled by reports does not go back up by toggling the switch
+      // again. There is no appeal queue to route this through, and an author
+      // who can undo a takedown makes the takedown decorative.
+      if (recipe.communityRemovedAt) {
+        throw new Error(
+          "This recipe was removed from the community after being reported and cannot be shared again.",
+        );
+      }
+      // Screened before publication rather than after a complaint: Apple asks
+      // for a filtering method, and a filter that runs once somebody has
+      // already seen the thing is not one.
+      const blocked = findBlockedTerm([
+        recipe.name,
+        recipe.description,
+        recipe.notes,
+        recipe.category,
+        ...(recipe.tags ?? []),
+        ...(recipe.steps ?? []),
+        ...recipe.ingredients.map((ingredient) => ingredient.name),
+      ]);
+      if (blocked) {
+        // The term is not named. Saying which word tripped the filter is a
+        // lesson in how to get past it.
+        throw new Error(
+          "This recipe can't be shared: the text contains language that isn't allowed in the community feed.",
+        );
+      }
+    }
+
     if (args.shared && !recipe.isCommunityShared) {
       const startOfUtcDay = new Date();
       startOfUtcDay.setUTCHours(0, 0, 0, 0);
@@ -341,7 +395,7 @@ export const reportCommunityRecipe = mutation({
       )
       .unique();
     if (existing) return existing._id;
-    return await ctx.db.insert("recipeReports", {
+    const reportId = await ctx.db.insert("recipeReports", {
       reporterId: user._id,
       recipeId: args.recipeId,
       ...(args.reason?.trim()
@@ -350,6 +404,116 @@ export const reportCommunityRecipe = mutation({
       status: "pending",
       createdAt: Date.now(),
     });
+
+    // Guideline 1.2 asks for a mechanism that acts on reports within 24 hours.
+    // There is nobody to act, so the count acts: once enough separate accounts
+    // have said the same thing, the recipe leaves the feed immediately and the
+    // reports are marked handled. Wrong sometimes, and wrong within seconds
+    // rather than never, which is the trade being made here on purpose.
+    const reports = await ctx.db
+      .query("recipeReports")
+      .withIndex("by_recipeId", (q) => q.eq("recipeId", args.recipeId))
+      .take(AUTO_REMOVE_REPORT_THRESHOLD);
+
+    if (reports.length >= AUTO_REMOVE_REPORT_THRESHOLD) {
+      await ctx.db.patch(args.recipeId, {
+        isCommunityShared: false,
+        communityRemovedAt: Date.now(),
+        communityRemovedReason: AUTO_REMOVED_REASON,
+        updatedAt: Date.now(),
+      });
+      for (const report of reports) {
+        if (report.status === "pending") {
+          await ctx.db.patch(report._id, { status: "reviewed" });
+        }
+      }
+    }
+
+    return reportId;
+  },
+});
+
+/**
+ * Hide everything an author has shared, and everything they share next.
+ *
+ * Blocking is one-way and silent. The blocked account is not told and loses
+ * nothing; the blocker simply stops seeing them. Guideline 1.2 requires this
+ * alongside reporting, and the two are not substitutes: reporting is a request
+ * that somebody else act, blocking is the thing you can do yourself.
+ */
+export const blockCommunityAuthor = mutation({
+  args: { recipeId: v.id("recipes") },
+  handler: async (ctx, args) => {
+    const user = await requireUser(ctx);
+    const recipe = await ctx.db.get(args.recipeId);
+    if (!recipe?.isCommunityShared) {
+      throw new Error("Community recipe not found");
+    }
+    if (recipe.userId === user._id) {
+      throw new Error("You can't block yourself");
+    }
+
+    const existing = await ctx.db
+      .query("communityBlocks")
+      .withIndex("by_blockerId_blockedUserId", (q) =>
+        q.eq("blockerId", user._id).eq("blockedUserId", recipe.userId),
+      )
+      .unique();
+    if (existing) return existing._id;
+
+    return await ctx.db.insert("communityBlocks", {
+      blockerId: user._id,
+      blockedUserId: recipe.userId,
+      createdAt: Date.now(),
+    });
+  },
+});
+
+/** Everyone this account has blocked, so the list can be undone in Settings. */
+export const listBlockedAuthors = query({
+  args: {},
+  handler: async (ctx) => {
+    const user = await safeGetAuthUser(ctx);
+    if (!user) return [];
+    const blocks = await ctx.db
+      .query("communityBlocks")
+      .withIndex("by_blockerId", (q) => q.eq("blockerId", user._id))
+      .collect();
+
+    return await Promise.all(
+      blocks.map(async (block) => {
+        // The display name lives on the shared recipes, not on the block, so
+        // that unblocking someone who has since deleted everything still shows
+        // a row worth tapping rather than a blank one.
+        const [recipe] = await ctx.db
+          .query("recipes")
+          .withIndex("by_communityShared", (q) =>
+            q.eq("isCommunityShared", true),
+          )
+          .filter((q) => q.eq(q.field("userId"), block.blockedUserId))
+          .take(1);
+        return {
+          id: block._id,
+          blockedUserId: block.blockedUserId,
+          name: recipe?.communityAnonymous
+            ? "Anonymous"
+            : (recipe?.communityAuthorName ?? "A OneRep member"),
+          createdAt: block.createdAt,
+        };
+      }),
+    );
+  },
+});
+
+export const unblockCommunityAuthor = mutation({
+  args: { blockId: v.id("communityBlocks") },
+  handler: async (ctx, args) => {
+    const user = await requireUser(ctx);
+    const block = await ctx.db.get(args.blockId);
+    if (!block || block.blockerId !== user._id) {
+      throw new Error("Block not found");
+    }
+    await ctx.db.delete(args.blockId);
   },
 });
 

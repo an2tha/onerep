@@ -57,6 +57,7 @@ import {
   safeLocalStorageSet,
 } from "@/lib/utils"
 import { useAiFeatureGate } from "@/lib/ai-access"
+import { promptForCoachPush } from "@/components/coach-push-registration"
 import { trackUmami, usageBucket } from "@/lib/analytics"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { useEnergyUnit } from "@/lib/use-energy-unit"
@@ -685,6 +686,15 @@ export default function Coach({
     onApply: (draft: AgentWorkoutDraft) => Promise<void> | void
   }
 } = {}) {
+  // Opening Coach is the moment the notification prompt makes sense: this is
+  // the screen that will be doing the notifying, and the user just walked into
+  // it. Asking on the first render after sign-in, which is what happened
+  // before, spent the one prompt iOS grants on somebody who had not yet met
+  // the feature. A no-op after the first answer, and on the web.
+  useEffect(() => {
+    promptForCoachPush()
+  }, [])
+
   const energyUnit = useEnergyUnit()
   const { context, loading } = useCoachContext()
   const navigate = useSmoothNavigate()

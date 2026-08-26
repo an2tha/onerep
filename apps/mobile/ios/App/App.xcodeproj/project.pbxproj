@@ -26,10 +26,10 @@
 		7C41A0012D09000000000001 /* AppleHealthPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C41A0022D09000000000002 /* AppleHealthPlugin.swift */; };
 		7C41A0032D09000000000003 /* BridgeViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C41A0042D09000000000004 /* BridgeViewController.swift */; };
 		7C41A0112D09000000000011 /* NativeTabBarPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C41A0102D09000000000010 /* NativeTabBarPlugin.swift */; };
-		A1B2C0200000000000000020 /* BillingPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C0210000000000000021 /* BillingPlugin.swift */; };
+		7C41A0202D09000000000020 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 7C41A0212D09000000000021 /* PrivacyInfo.xcprivacy */; };
 		A1B2C0110000000000000011 /* OneRep Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = A1B2C0020000000000000002 /* OneRep Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		A1B2C0150000000000000015 /* WatchSyncPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C0140000000000000014 /* WatchSyncPlugin.swift */; };
-		7C41A0202D09000000000020 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 7C41A0212D09000000000021 /* PrivacyInfo.xcprivacy */; };
+		A1B2C0200000000000000020 /* BillingPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C0210000000000000021 /* BillingPlugin.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -95,12 +95,12 @@
 		7C41A0022D09000000000002 /* AppleHealthPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleHealthPlugin.swift; sourceTree = "<group>"; };
 		7C41A0042D09000000000004 /* BridgeViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeViewController.swift; sourceTree = "<group>"; };
 		7C41A0052D09000000000005 /* App.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };
-		7C41A0212D09000000000021 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		7C41A0102D09000000000010 /* NativeTabBarPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeTabBarPlugin.swift; sourceTree = "<group>"; };
-		A1B2C0210000000000000021 /* BillingPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BillingPlugin.swift; sourceTree = "<group>"; };
+		7C41A0212D09000000000021 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
 		A1B2C0020000000000000002 /* OneRep Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "OneRep Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		A1B2C0140000000000000014 /* WatchSyncPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchSyncPlugin.swift; sourceTree = "<group>"; };
+		A1B2C0210000000000000021 /* BillingPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BillingPlugin.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -449,6 +449,7 @@
 				CODE_SIGN_ENTITLEMENTS = OneRep/OneRep.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 4;
+				DEVELOPMENT_TEAM = 4DURGSKS8J;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -474,7 +475,7 @@
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -492,6 +493,7 @@
 				CODE_SIGN_ENTITLEMENTS = OneRep/OneRep.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 4;
+				DEVELOPMENT_TEAM = 4DURGSKS8J;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -515,7 +517,7 @@
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};
@@ -659,7 +661,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -682,7 +684,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};
