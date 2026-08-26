@@ -1,3 +1,5 @@
+import { cn } from "../lib/utils"
+
 /**
  * The one place the "not a medical device" sentence lives.
  *
@@ -31,13 +33,11 @@ export function MedicalDisclaimer({
     return (
       <div
         role="note"
-        className={[
+        className={cn(
           "rounded-[var(--radius-card)] border border-border bg-[var(--surface-panel)] p-4",
           "text-[13px] leading-5 text-muted-foreground",
-          className,
-        ]
-          .filter(Boolean)
-          .join(" ")}
+          className
+        )}
       >
         {body}
       </div>
@@ -47,12 +47,10 @@ export function MedicalDisclaimer({
   return (
     <p
       role="note"
-      className={[
+      className={cn(
         "native-row-detail px-[var(--app-page-x)] text-center text-balance",
-        className,
-      ]
-        .filter(Boolean)
-        .join(" ")}
+        className
+      )}
     >
       {body}
     </p>

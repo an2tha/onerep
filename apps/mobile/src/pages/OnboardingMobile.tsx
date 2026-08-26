@@ -74,7 +74,7 @@ import {
   hapticTap,
 } from "@/lib/haptics"
 import { MINIMUM_AGE } from "@repo/models"
-import { MedicalDisclaimer } from "@/components/medical-disclaimer"
+import { MedicalDisclaimer } from "@repo/ui"
 
 const AGE_MIN = MINIMUM_AGE
 const AGE_MAX = 100

@@ -26,7 +26,7 @@ import { ConvexError } from "convex/values"
 import { supportsLiveWorkoutStatusSetting } from "@/lib/workout-live-activity"
 import { registeredPushToken, unregisterForCoachPush } from "@/lib/coach-push"
 import { promptForCoachPush } from "@/components/coach-push-registration"
-import { MedicalDisclaimer } from "@/components/medical-disclaimer"
+import { MedicalDisclaimer } from "@repo/ui"
 import {
   getHealthAvailability,
   getRecentHealthWorkouts,
