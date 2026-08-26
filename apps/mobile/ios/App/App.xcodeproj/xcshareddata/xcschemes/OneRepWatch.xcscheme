@@ -17,6 +17,7 @@
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "A1B2C0060000000000000006"
                BuildableName = "OneRep Watch App.app"
+               BlueprintName = "OneRepWatch"
                ReferencedContainer = "container:App.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
