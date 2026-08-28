@@ -18,6 +18,33 @@ const convexSiteUrl =
   )
 const AUTH_LOAD_TIMEOUT_MS = 6500
 
+/**
+ * Auth requests must not go through CapacitorHttp.
+ *
+ * With the plugin enabled (see capacitor.config.ts) Capacitor's native bridge
+ * replaces window.fetch with one that reconstructs the request as
+ * `new Request(resource, options)` and forwards only the headers it can read
+ * back off it. `Origin` is a forbidden header name, so the Request constructor
+ * strips it and the native HTTP stack sends the request with no Origin at all
+ * — while still attaching the cookie jar's Cookie header. better-auth treats
+ * any cookie-bearing request as CSRF-relevant and rejects a missing Origin
+ * outright (MISSING_OR_NULL_ORIGIN), before it ever consults trustedOrigins.
+ * Setting the header ourselves cannot work: the same constructor drops it.
+ *
+ * The bridge stashes the untouched fetch on window.CapacitorWebFetch before
+ * patching. Going through that keeps auth on the WebView's own networking,
+ * which sends a real `Origin: https://localhost` — the origin this WebView
+ * actually has, and one convex/lib/auth.ts already trusts.
+ */
+const nativeAuthFetch = (
+  input: RequestInfo | URL,
+  init?: RequestInit
+): Promise<Response> => {
+  const webFetch = (window as unknown as { CapacitorWebFetch?: typeof fetch })
+    .CapacitorWebFetch
+  return (webFetch ?? fetch)(input, init)
+}
+
 export const authServiceConfigured = Boolean(convexSiteUrl)
 
 export const authClient = createAuthClient({
@@ -29,13 +56,8 @@ export const authClient = createAuthClient({
     }),
     genericOAuthClient(),
   ],
-  // The CapacitorHttp plugin routes fetch/XHR through the native iOS/Android
-  // HTTP stack, which drops the Origin header on cookie-bearing requests.
-  // better-auth's origin check then rejects them as MISSING_OR_NULL_ORIGIN
-  // even though "https://localhost" (this WebView's real origin, per
-  // capacitor.config.ts) is already in the server's trustedOrigins list.
   ...(Capacitor.isNativePlatform()
-    ? { fetchOptions: { headers: { Origin: "https://localhost" } } }
+    ? { fetchOptions: { customFetchImpl: nativeAuthFetch } }
     : {}),
 })
 export const providerAuthClient = authClient as unknown as AuthClient
