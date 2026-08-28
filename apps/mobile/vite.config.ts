@@ -137,6 +137,15 @@ export default defineConfig(({ command, mode }) => {
       ),
       umamiPlugin(env.VITE_UMAMI_SCRIPT_URL, env.VITE_UMAMI_WEBSITE_ID),
     ],
+    /**
+     * The Needle worker is spawned with `type: "module"`, and Rollup refuses to
+     * code-split an IIFE — which is Vite's default worker format, and which the
+     * worker's own dynamic imports of the wasm runtime immediately violate. So:
+     * ES modules, matching what the Worker constructor was already asking for.
+     */
+    worker: {
+      format: "es" as const,
+    },
     build: {
       rollupOptions: {
         output: {
