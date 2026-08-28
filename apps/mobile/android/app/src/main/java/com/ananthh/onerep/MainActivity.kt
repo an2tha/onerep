@@ -24,6 +24,7 @@ class MainActivity : BridgeActivity() {
         registerPlugin(HomeWidgetsPlugin::class.java)
         registerPlugin(NativeTabBarPlugin::class.java)
         registerPlugin(PushSupportPlugin::class.java)
+        registerPlugin(NeedlePlugin::class.java)
         intent = rewriteHealthRationale(intent)
         super.onCreate(savedInstanceState)
     }

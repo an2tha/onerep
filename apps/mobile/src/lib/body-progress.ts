@@ -52,9 +52,19 @@ const ADVANCED_MEASUREMENT_KEYS = [
   "neckCm",
 ] as const
 
+/**
+ * A stored measurement as something a person can stand to edit.
+ *
+ * Rounded, because these numbers do not all come from a keyboard. A smart
+ * scale syncing through Apple Health stores body fat as a float, and the
+ * percentage that falls out of it is 18.299999237060547 — which the check-in
+ * form then dutifully prefilled, so correcting a waist measurement meant
+ * first staring at nineteen significant figures of body fat. One decimal is
+ * more precision than any of these instruments actually has.
+ */
 function measurementInputValue(value: number | undefined) {
   return typeof value === "number" && Number.isFinite(value)
-    ? String(value)
+    ? String(Number(value.toFixed(1)))
     : ""
 }
 

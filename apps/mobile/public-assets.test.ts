@@ -61,6 +61,17 @@ describe("static assets shipped to Cloudflare Pages", () => {
     expect(models.filter((name) => name.endsWith(".data"))).toEqual([])
   })
 
+  test("the Needle engine and its weights are present to be served", () => {
+    // Same argument as the pose models: fetched from Hugging Face by
+    // `bun run needle:fetch`, never committed, and a deploy without them 404s
+    // every on-device tool call rather than falling back to anything.
+    const needle = readdirSync(path.join(publicDir, "needle"))
+
+    expect(needle).toContain("needle2.cact")
+    expect(needle).toContain("needle.js")
+    expect(needle).toContain("needle.wasm")
+  })
+
   test("models are addressed by absolute origin on native only", async () => {
     // On native these sit outside the OTA bundle — too big to ship in every
     // update — so a root-relative path resolves inside the bundle directory
@@ -74,6 +85,16 @@ describe("static assets shipped to Cloudflare Pages", () => {
 
     expect(source).toMatch(
       /isNativePlatform\(\)\s*\?\s*`\$\{otaOrigin\(\)\}\/models`\s*:\s*"\/models"/
+    )
+  })
+
+  test("the Needle assets follow the same origin rule", async () => {
+    const source = await Bun.file(
+      path.join(import.meta.dir, "src/lib/needle.ts")
+    ).text()
+
+    expect(source).toMatch(
+      /isNativePlatform\(\)\s*\?\s*`\$\{otaOrigin\(\)\}\/needle`\s*:\s*"\/needle"/
     )
   })
 })

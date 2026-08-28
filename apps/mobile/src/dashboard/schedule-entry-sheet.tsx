@@ -24,7 +24,7 @@ export function ScheduleEntrySheet({
   onClose,
 }: {
   request: ScheduleEntryRequest | null
-  onLog: (kind: EntryReminderKind) => void
+  onLog: (kind: EntryReminderKind, minutes: number) => void
   onClose: () => void
 }) {
   const [pendingKind, setPendingKind] = useState<EntryReminderKind | null>(null)
@@ -47,7 +47,10 @@ export function ScheduleEntrySheet({
     if (pendingKind) return
     hapticMedium()
     if (phase === "past") {
-      onLog(kind)
+      // The minute the wheel was pointing at, not the minute the
+      // drawer happened to open. Dropping it here is what made every
+      // back-filled entry land at whatever o'clock it was typed.
+      onLog(kind, request.minutes)
       onClose()
       return
     }

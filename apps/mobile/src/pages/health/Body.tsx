@@ -47,9 +47,10 @@ export default function HealthBody() {
       }[]
     | undefined
 
-  const weighed = (measurements ?? [])
-    .filter((row) => row.weightKg != null)
+  const chronological = (measurements ?? [])
+    .slice()
     .sort((a, b) => a.loggedAt.localeCompare(b.loggedAt))
+  const weighed = chronological.filter((row) => row.weightKg != null)
   const latest = weighed[weighed.length - 1]
   const first = weighed[0]
   // Against the first reading in the log rather than the previous one: a
@@ -59,7 +60,11 @@ export default function HealthBody() {
     latest && first && latest !== first
       ? (latest.weightKg as number) - (first.weightKg as number)
       : null
-  const withFat = weighed.filter((row) => row.bodyFatPct != null)
+  // Off every reading, not off the weighed ones. A smart scale that reports
+  // body fat on a morning it could not get a stable weight — or a caliper
+  // entry typed on its own — used to land in the table and show up nowhere,
+  // because this list was filtered down to days that had a weight first.
+  const withFat = chronological.filter((row) => row.bodyFatPct != null)
   const latestFat = withFat[withFat.length - 1]
 
   return (

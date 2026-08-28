@@ -145,11 +145,37 @@ const WATER_CUSTOM_MAX = 3000
  * the visual is reporting rather than decorating, and every control writes
  * immediately: one chip tap, one logged.
  */
+/**
+ * The moment an entry belongs to.
+ *
+ * `undefined` means now, which is what every door into these drawers meant
+ * before the wheel grew + buttons. When the wheel hands over a minute, the
+ * entry is stamped at that minute on the day being viewed — otherwise a meal
+ * back-filled at eleven at night claims to have been eaten at eleven at night,
+ * and the timeline it was logged from disagrees with the timeline it lands in.
+ */
+export function stampAt(dateKey: string, atMinutes?: number) {
+  if (atMinutes === undefined) return new Date().toISOString()
+  const [year, month, day] = dateKey.split("-").map(Number)
+  const at = new Date(
+    year,
+    (month ?? 1) - 1,
+    day ?? 1,
+    Math.floor(atMinutes / 60) % 24,
+    Math.round(atMinutes % 60),
+    0,
+    0
+  )
+  return at.toISOString()
+}
+
 function WaterDrawer({
   dateKey,
+  atMinutes,
   onClose,
 }: {
   dateKey: string
+  atMinutes?: number
   onClose: () => void
 }) {
   const navigate = useSmoothNavigate()
@@ -180,7 +206,7 @@ function WaterDrawer({
     const entry = {
       id: crypto.randomUUID(),
       amountMl: clamped,
-      loggedAt: new Date().toISOString(),
+      loggedAt: stampAt(dateKey, atMinutes),
     }
     void setWaterDay({ date: dateKey, entries: [...entries, entry] })
     toast.success(`${fmtWater(clamped)} of water logged`)
@@ -315,10 +341,12 @@ function WaterDrawer({
  */
 function FoodDrawer({
   dateKey,
+  atMinutes,
   onClose,
   editEntry,
 }: {
   dateKey: string
+  atMinutes?: number
   onClose: () => void
   editEntry?: FoodLogEntry | null
 }) {
@@ -377,7 +405,7 @@ function FoodDrawer({
     const entries = choice.entries().map((entry) => ({
       ...entry,
       id: createClientId(),
-      loggedAt: new Date().toISOString(),
+      loggedAt: stampAt(dateKey, atMinutes),
       meal: entry.meal ?? defaultMeal(),
     }))
     setBusy(true)
@@ -554,9 +582,11 @@ function FoodEntryEditor({
  */
 function RecipesDrawer({
   dateKey,
+  atMinutes,
   onClose,
 }: {
   dateKey: string
+  atMinutes?: number
   onClose: () => void
 }) {
   const navigate = useSmoothNavigate()
@@ -579,7 +609,7 @@ function RecipesDrawer({
       id: createClientId(),
       name: recipe.name,
       ...totals,
-      loggedAt: new Date().toISOString(),
+      loggedAt: stampAt(dateKey, atMinutes),
       meal: defaultMeal(),
       recipeId: recipe._id,
     }) as FoodLogEntry
@@ -1043,11 +1073,14 @@ const DRAWER_LABELS: Record<QuickActionId, string> = {
 export function QuickActionDrawer({
   id,
   dateKey,
+  atMinutes,
   onClose,
   editEntry,
 }: {
   id: QuickActionId | null
   dateKey: string
+  /** The minute the wheel picked, when one was picked. */
+  atMinutes?: number
   onClose: () => void
   editEntry?: FoodLogEntry | null
 }) {
@@ -1055,12 +1088,19 @@ export function QuickActionDrawer({
 
   return (
     <MobileSheet onClose={onClose} ariaLabel={`${DRAWER_LABELS[id]} drawer`}>
-      {id === "water" && <WaterDrawer dateKey={dateKey} onClose={onClose} />}
+      {id === "water" && (
+        <WaterDrawer dateKey={dateKey} atMinutes={atMinutes} onClose={onClose} />
+      )}
       {id === "food" && (
-        <FoodDrawer dateKey={dateKey} onClose={onClose} editEntry={editEntry} />
+        <FoodDrawer
+          dateKey={dateKey}
+          atMinutes={atMinutes}
+          onClose={onClose}
+          editEntry={editEntry}
+        />
       )}
       {id === "recipes" && (
-        <RecipesDrawer dateKey={dateKey} onClose={onClose} />
+        <RecipesDrawer dateKey={dateKey} atMinutes={atMinutes} onClose={onClose} />
       )}
       {id === "recipe-create" && <CreateRecipeDrawer onClose={onClose} />}
       {id === "workout" && <WorkoutDrawer onClose={onClose} />}

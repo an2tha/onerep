@@ -186,6 +186,28 @@ describe("healthWorkouts", () => {
     });
   });
 
+  test("the log lands at the hour the workout ended, not the hour it was added", async () => {
+    const t = convexTest(schema, modules);
+    const user = t.withIdentity({ tokenIdentifier: "test|when" });
+    await grantConsent(user);
+    await user.mutation(api.logs.healthWorkouts.importHealthWorkouts, {
+      provider: "apple_health",
+      workouts: [RUN],
+    });
+
+    const [row] = await user.query(api.logs.healthWorkouts.list, {});
+    await user.mutation(api.logs.healthWorkouts.linkToTrainingLog, {
+      id: row._id,
+    });
+
+    const logs = await user.query(api.logs.workouts.getLog, {
+      date: "2026-07-30",
+    });
+    // A morning run adopted in the evening used to sit on the timeline after
+    // dinner, because the log defaulted to the moment of the write.
+    expect(logs[0].completedAt).toBe(Date.parse(RUN.endedAt));
+  });
+
   test("linking twice stays idempotent", async () => {
     const t = convexTest(schema, modules);
     const user = t.withIdentity({ tokenIdentifier: "test|link-twice" });

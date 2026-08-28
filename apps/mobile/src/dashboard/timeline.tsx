@@ -72,8 +72,18 @@ const NEAR_EVENT_MINUTES = 45
 // reading as separate things.
 const MERGE_MINUTES = 25
 const BULGE_HEIGHT = 72
-// The card the anchor grows into over a selected event.
-const CARD_HEIGHT = 132
+// The card the anchor grows into over a selected event: one row on one
+// slab — icon, entry, actions.
+const CARD_HEIGHT = 72
+const ICON_BOX = 36
+// The icon surface is centred on the axis, where the row's dot was. The
+// 8 is the band's own inset from the strip.
+const ICON_LEFT = LINE_LEFT - 8 - ICON_BOX / 2
+const ENTRY_LEFT = ICON_LEFT + ICON_BOX + 15
+// The stack that drops out of a shared minute. Nothing here scrolls, so
+// these two are what the lift has to make room for.
+const STACK_ITEM_HEIGHT = 46
+const STACK_GAP = 6
 // How close a row has to sit to the band before its own numbers start
 // showing, in px from the band's center.
 const FACT_REVEAL_PX = 150
@@ -183,7 +193,21 @@ export function DayTimeline({
     )
     return () => window.clearInterval(timer)
   }, [])
+  useEffect(
+    () => () => {
+      if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current)
+    },
+    []
+  )
   const [isInteracting, setIsInteracting] = useState(false)
+  // Whether the card is showing every entry of a shared minute. Scoped to
+  // the group under the band, so scrolling to the next one closes it
+  // rather than dumping you into someone else's list already open.
+  const [expandedKey, setExpandedKey] = useState<string | null>(null)
+  const [stackClosing, setStackClosing] = useState(false)
+  const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined
+  )
   const interactingTimeoutRef = useRef<
     ReturnType<typeof setTimeout> | undefined
   >(undefined)
@@ -289,9 +313,48 @@ export function DayTimeline({
   const prevNearestIdRef = useRef<string | null>(null)
   useEffect(() => {
     const id = nearestGroup?.key ?? null
-    if (id && id !== prevNearestIdRef.current) hapticSelection()
+    if (id !== prevNearestIdRef.current) {
+      if (id) hapticSelection()
+      // A list left open belongs to the group you just scrolled off.
+      setExpandedKey(null)
+      setStackClosing(false)
+    }
     prevNearestIdRef.current = id
   }, [nearestGroup?.key])
+
+  const single = nearestGroup?.members.length === 1
+  const expanded = !single && !!nearestGroup && expandedKey === nearestGroup.key
+  // The stack outlives its own dismissal by one animation: the items fold
+  // away farthest-first, and unmounting them on the tap would skip that.
+  const stackGroup = expanded ? nearestGroup : null
+  const actionsWidth = single ? 104 : 44
+
+  const toggleStack = () => {
+    hapticTap()
+    if (!nearestGroup) return
+    if (expandedKey === nearestGroup.key) {
+      setStackClosing(true)
+      if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current)
+      closeTimeoutRef.current = setTimeout(() => {
+        setExpandedKey(null)
+        setStackClosing(false)
+      }, 260)
+      return
+    }
+    if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current)
+    setStackClosing(false)
+    setExpandedKey(nearestGroup.key)
+  }
+
+  // How far the band has to ride up for the whole stack to land on screen —
+  // never past the top of the strip, and never further than the list needs.
+  const lift = (() => {
+    if (!stackGroup || stackClosing || !viewportHeight) return 0
+    const needed =
+      stackGroup.members.length * (STACK_ITEM_HEIGHT + STACK_GAP) + 12
+    const room = viewportHeight / 2 - CARD_HEIGHT / 2 - 20
+    return Math.max(0, Math.min(needed - room, room - 8))
+  })()
 
   const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
     const node = event.currentTarget
@@ -388,7 +451,7 @@ export function DayTimeline({
       )}
       <div
         ref={scrollRef}
-        className="app-scroll-strip relative h-full overflow-y-auto"
+        className="app-scroll-strip relative h-full overflow-x-hidden overflow-y-auto"
         style={{
           WebkitMaskImage: "linear-gradient(to bottom, transparent, black 18%)",
           maskImage: "linear-gradient(to bottom, transparent, black 18%)",
@@ -481,212 +544,279 @@ export function DayTimeline({
             the band becomes the card, which is also the only place an
             entry's actions live. */}
           <div className="pointer-events-none sticky top-1/2 z-20 h-0">
+            {/* The lift. An open stack needs the bottom half of the screen,
+              and the band is parked in the middle of it — so the band and
+              its stack ride up together, which reads as the view panning
+              down onto the list. Collapsing puts them back. The ruler
+              underneath never moves: the card stays over its own dot. */}
             <div
-              className={`absolute inset-x-2 -translate-y-1/2 transition-all duration-300 ease-out ${
-                nearestGroup
-                  ? "scale-100"
-                  : isInteracting
-                    ? "scale-[0.94]"
-                    : "scale-[0.84]"
-              }`}
-              style={{ height: nearestGroup ? CARD_HEIGHT : BULGE_HEIGHT }}
+              className="absolute inset-x-2 top-0 h-0"
+              style={{
+                transform: `translateY(${-lift}px)`,
+                transition: "transform 420ms var(--motion-ease-emphasized)",
+              }}
             >
               <div
-                className={`day-timeline-bulge absolute inset-0 ${
-                  nearestGroup ? "day-timeline-bulge-active" : ""
+                className={`absolute inset-x-0 -translate-y-1/2 transition-all duration-300 ease-out ${
+                  nearestGroup
+                    ? "scale-100"
+                    : isInteracting
+                      ? "scale-[0.94]"
+                      : "scale-[0.84]"
                 }`}
-                aria-hidden="true"
-              />
-              {/* Resting readout — one row, nothing floating: the minute on
-                the left, the quick-log pair tucked on the right. */}
-              <div
-                className="absolute inset-0 flex h-full items-center transition-opacity duration-200"
-                style={{ opacity: nearestGroup ? 0 : 1 }}
+                style={{ height: nearestGroup ? CARD_HEIGHT : BULGE_HEIGHT }}
               >
-                <span
-                  className={`absolute text-[19px] font-semibold tabular-nums transition-colors duration-300 ${
-                    isInteracting ? "text-foreground" : "text-foreground/70"
-                  }`}
-                  style={{ left: LINE_LEFT + 25 }}
-                >
-                  {minutesToTime(centerMinutes)}
-                </span>
                 <div
-                  className="absolute right-3 flex items-center gap-1"
-                  style={{ pointerEvents: nearestGroup ? "none" : "auto" }}
+                  className={`day-timeline-bulge absolute inset-0 ${
+                    nearestGroup ? "day-timeline-bulge-active" : ""
+                  }`}
+                  aria-hidden="true"
+                />
+                {/* Resting readout — one row, nothing floating: the minute on
+                  the left, the quick-log pair tucked on the right. */}
+                <div
+                  className="absolute inset-0 flex h-full items-center transition-opacity duration-200"
+                  style={{ opacity: nearestGroup ? 0 : 1 }}
                 >
-                  {[
-                    {
-                      phase: "past" as const,
-                      label: isToday
-                        ? "Log something earlier today"
-                        : "Log something into this day",
-                      icon: Plus,
-                    },
-                    // Nothing can be scheduled into a day that has already
-                    // happened, so the clock goes rather than sitting there
-                    // taking taps that cannot mean anything.
-                    ...(isToday
-                      ? [
-                          {
-                            phase: "future" as const,
-                            label: "Schedule something ahead",
-                            icon: Clock,
-                          },
-                        ]
-                      : []),
-                  ].map((button) => (
-                    <button
-                      key={button.phase}
-                      type="button"
-                      aria-label={button.label}
-                      title={button.label}
-                      onClick={() =>
-                        onQuickLog?.(button.phase, Math.round(centerMinutes))
-                      }
-                      className="motion-tactile flex size-7 items-center justify-center rounded-full border bg-card/80"
-                      style={{
-                        borderColor:
-                          "color-mix(in srgb, var(--foreground) 40%, transparent)",
-                        color: "var(--muted-foreground)",
-                      }}
-                    >
-                      <button.icon size={13} weight="bold" />
-                    </button>
-                  ))}
+                  <span
+                    className={`absolute text-[19px] font-semibold tabular-nums transition-colors duration-300 ${
+                      isInteracting ? "text-foreground" : "text-foreground/70"
+                    }`}
+                    style={{ left: LINE_LEFT + 25 }}
+                  >
+                    {minutesToTime(centerMinutes)}
+                  </span>
+                  <div
+                    className="absolute right-3 flex items-center gap-1"
+                    style={{ pointerEvents: nearestGroup ? "none" : "auto" }}
+                  >
+                    {[
+                      {
+                        phase: "past" as const,
+                        label: isToday
+                          ? "Log something earlier today"
+                          : "Log something into this day",
+                        icon: Plus,
+                      },
+                      // Nothing can be scheduled into a day that has already
+                      // happened, so the clock goes rather than sitting there
+                      // taking taps that cannot mean anything.
+                      ...(isToday
+                        ? [
+                            {
+                              phase: "future" as const,
+                              label: "Schedule something ahead",
+                              icon: Clock,
+                            },
+                          ]
+                        : []),
+                    ].map((button) => (
+                      <button
+                        key={button.phase}
+                        type="button"
+                        aria-label={button.label}
+                        title={button.label}
+                        onClick={() =>
+                          onQuickLog?.(button.phase, Math.round(centerMinutes))
+                        }
+                        className="motion-tactile flex size-7 items-center justify-center rounded-full border bg-card/80"
+                        style={{
+                          borderColor:
+                            "color-mix(in srgb, var(--foreground) 40%, transparent)",
+                          color: "var(--muted-foreground)",
+                        }}
+                      >
+                        <button.icon size={13} weight="bold" />
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-              {/* The card: everything the selected entry carries. Takes
-                pointer events itself — the sticky wrapper above is none —
-                but only while it's actually open: at rest this layer is
-                invisible, and an invisible layer with pointer events would
-                silently eat every click aimed at the + / clock buttons. */}
-              <div
-                className={`${
-                  nearestGroup ? "pointer-events-auto" : "pointer-events-none"
-                } absolute inset-0 flex h-full items-center gap-3 px-4 transition-opacity duration-200`}
-                style={{ opacity: nearestGroup ? 1 : 0 }}
-                aria-hidden={!nearestGroup}
-              >
-                {nearestGroup &&
-                  (nearestGroup.members.length === 1 ? (
+                {/* The card. Its icon sits on the axis, exactly where the
+                  row's dot was, or the whole thing looks like it slides in
+                  sideways every time you scroll onto an entry. */}
+                <div
+                  className={`${
+                    nearestGroup ? "pointer-events-auto" : "pointer-events-none"
+                  } absolute inset-0 transition-opacity duration-200`}
+                  style={{ opacity: nearestGroup ? 1 : 0 }}
+                  aria-hidden={!nearestGroup}
+                >
+                  {nearestGroup && (
                     <>
-                      <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-foreground text-background">
-                        <EntryIcon
-                          kind={nearestGroup.members[0].kind}
-                          size={16}
-                        />
+                      <span
+                        className="absolute flex items-center justify-center rounded-full bg-foreground text-background"
+                        style={{
+                          left: ICON_LEFT,
+                          top: (CARD_HEIGHT - ICON_BOX) / 2,
+                          width: ICON_BOX,
+                          height: ICON_BOX,
+                        }}
+                      >
+                        {single ? (
+                          <EntryIcon
+                            kind={nearestGroup.members[0].kind}
+                            size={16}
+                          />
+                        ) : (
+                          <Stack size={16} weight="bold" />
+                        )}
                       </span>
-                      <div className="min-w-0 flex-1">
+                      <div
+                        className="absolute inset-y-0 flex flex-col justify-center"
+                        style={{
+                          left: ENTRY_LEFT,
+                          right: actionsWidth + 8,
+                        }}
+                      >
                         <div className="flex items-baseline gap-2">
                           <span className="min-w-0 truncate text-[16px] leading-tight font-semibold text-foreground">
-                            {nearestGroup.members[0].title}
+                            {single
+                              ? nearestGroup.members[0].title
+                              : `${nearestGroup.members.length} logged items`}
                           </span>
                           <span className="shrink-0 text-[12px] font-medium text-muted-foreground tabular-nums">
-                            {nearestGroup.members[0].time}
+                            {single
+                              ? nearestGroup.members[0].time
+                              : `${nearestGroup.members[0].time} – ${
+                                  nearestGroup.members[
+                                    nearestGroup.members.length - 1
+                                  ].time
+                                }`}
                           </span>
                         </div>
-                        <p className="truncate text-[13px] text-muted-foreground">
-                          {nearestGroup.members[0].detail}
+                        <p className="mt-0.5 truncate text-[12px] text-muted-foreground">
+                          {single
+                            ? [
+                                nearestGroup.members[0].detail,
+                                ...(nearestGroup.members[0].facts ?? []).map(
+                                  (fact) => `${fact.label} ${fact.value}`
+                                ),
+                              ]
+                                .filter(Boolean)
+                                .join(" · ")
+                            : nearestGroup.members
+                                .map((member) => member.title)
+                                .join(" · ")}
                         </p>
-                        {nearestGroup.members[0].facts &&
-                          nearestGroup.members[0].facts.length > 0 && (
-                            <p className="mt-1 flex flex-wrap gap-1">
-                              {nearestGroup.members[0]
-                                .facts!.slice(0, 4)
-                                .map((fact) => (
-                                  <span
-                                    key={fact.label}
-                                    className="rounded-full bg-muted px-2 py-0.5 text-[11px] leading-none text-muted-foreground"
-                                  >
-                                    <span className="font-medium text-foreground/70">
-                                      {fact.label}
-                                    </span>{" "}
-                                    {fact.value}
-                                  </span>
-                                ))}
-                            </p>
-                          )}
                       </div>
-                      <EntryActions
-                        onEdit={
-                          onEditEntry
-                            ? () => onEditEntry(nearestGroup.members[0])
-                            : undefined
-                        }
-                        onDelete={
-                          onDeleteEntry
-                            ? () => onDeleteEntry(nearestGroup.members[0])
-                            : undefined
-                        }
-                        onAdd={
-                          onAddEntry
-                            ? () => onAddEntry(nearestGroup.members[0].kind)
-                            : undefined
-                        }
-                      />
-                    </>
-                  ) : (
-                    <>
-                      <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-foreground text-background">
-                        <Stack size={16} weight="bold" />
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-baseline gap-2">
-                          <span className="text-[16px] leading-tight font-semibold text-foreground">
-                            {nearestGroup.members.length} logged items
-                          </span>
-                          <span className="text-[12px] font-medium text-muted-foreground tabular-nums">
-                            {nearestGroup.members[0].time} –{" "}
-                            {
-                              nearestGroup.members[
-                                nearestGroup.members.length - 1
-                              ].time
+                      {/* Nine things logged in the same minute don't fit in
+                        a card and never will. The card says how many; the
+                        list itself opens underneath it. */}
+                      <span
+                        className="absolute inset-y-0 right-0 flex items-center justify-center gap-1 pr-2"
+                        style={{ width: actionsWidth }}
+                      >
+                        {single ? (
+                          <EntryActions
+                            onEdit={
+                              onEditEntry
+                                ? () => onEditEntry(nearestGroup.members[0])
+                                : undefined
                             }
-                          </span>
-                        </div>
-                        <ul className="mt-1 flex max-h-[76px] flex-col gap-0.5 overflow-y-auto">
-                          {nearestGroup.members.map((member) => (
-                            <li
-                              key={member.id}
-                              className="flex items-center gap-2 text-[12px] leading-tight"
-                            >
-                              <span className="w-14 shrink-0 text-muted-foreground tabular-nums">
-                                {member.time}
-                              </span>
-                              <span className="min-w-0 flex-1 truncate text-foreground/80">
-                                {member.title}
-                              </span>
-                              {onDeleteEntry && (
-                                <button
-                                  type="button"
-                                  aria-label={`Delete ${member.title}`}
-                                  title="Delete"
-                                  onClick={() => onDeleteEntry(member)}
-                                  className="motion-tactile flex size-5 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-destructive"
-                                >
-                                  <Trash size={10} weight="bold" />
-                                </button>
-                              )}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                      <EntryActions
-                        onEdit={
-                          onEditEntry
-                            ? () => onEditEntry(nearestGroup.members[0])
-                            : undefined
-                        }
-                        onAdd={
-                          onAddEntry
-                            ? () => onAddEntry(nearestGroup.members[0].kind)
-                            : undefined
-                        }
-                      />
+                            onDelete={
+                              onDeleteEntry
+                                ? () => onDeleteEntry(nearestGroup.members[0])
+                                : undefined
+                            }
+                            onAdd={
+                              onAddEntry
+                                ? () => onAddEntry(nearestGroup.members[0].kind)
+                                : undefined
+                            }
+                          />
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={toggleStack}
+                            aria-expanded={expanded}
+                            aria-label={
+                              expanded
+                                ? "Hide these entries"
+                                : `Show all ${nearestGroup.members.length} entries`
+                            }
+                            className="motion-tactile flex size-8 items-center justify-center rounded-full text-foreground/80"
+                          >
+                            <CaretDown
+                              size={14}
+                              weight="bold"
+                              className="transition-transform duration-300"
+                              style={{
+                                transform: expanded
+                                  ? "rotate(180deg)"
+                                  : "none",
+                              }}
+                            />
+                          </button>
+                        )}
+                      </span>
                     </>
-                  ))}
+                  )}
+                </div>
               </div>
+              {/* The list, once asked for: small cards of their own, dealt
+                out under the main one one after the next. Nothing scrolls
+                and nothing is cut off — the lift above made the room. */}
+              {stackGroup && (
+                <div
+                  data-state={stackClosing ? "closing" : "open"}
+                  className="pointer-events-auto absolute inset-x-0 flex flex-col"
+                  style={{
+                    top: CARD_HEIGHT / 2 + 8,
+                    gap: STACK_GAP,
+                    paddingLeft: ENTRY_LEFT - 8,
+                  }}
+                >
+                  {stackGroup.members.map((member, index) => (
+                    <div
+                      key={member.id}
+                      className="day-stack-item flex items-center gap-2.5 rounded-2xl border border-border/70 bg-card/95 px-2.5 shadow-sm backdrop-blur-sm"
+                      style={{
+                        height: STACK_ITEM_HEIGHT,
+                        ["--stack-index" as string]: index,
+                        ["--stack-index-out" as string]:
+                          stackGroup.members.length - 1 - index,
+                      }}
+                    >
+                      <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-foreground/10 text-foreground">
+                        <EntryIcon kind={member.kind} size={12} />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[12px] leading-tight font-semibold text-foreground">
+                          {member.title}
+                        </span>
+                        <span className="block truncate text-[11px] leading-tight text-muted-foreground">
+                          {member.detail}
+                        </span>
+                      </span>
+                      <span className="shrink-0 text-[11px] text-muted-foreground tabular-nums">
+                        {member.time}
+                      </span>
+                      {onEditEntry && (
+                        <button
+                          type="button"
+                          aria-label={`Edit ${member.title}`}
+                          title="Edit"
+                          onClick={() => onEditEntry(member)}
+                          className="motion-tactile flex size-6 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground"
+                        >
+                          <PencilSimple size={12} weight="bold" />
+                        </button>
+                      )}
+                      {onDeleteEntry && (
+                        <button
+                          type="button"
+                          aria-label={`Delete ${member.title}`}
+                          title="Delete"
+                          onClick={() => onDeleteEntry(member)}
+                          className="motion-tactile flex size-6 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-destructive"
+                        >
+                          <Trash size={12} weight="bold" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
@@ -888,9 +1018,10 @@ export function DayTimeline({
   )
 }
 
-// The three things you can do to an entry, as quiet ghost buttons that
-// only exist in the card — rows stay pure content, and the actions appear
-// exactly where your eyes already are when you've decided to act.
+// The three things you can do to an entry, as quiet ghost buttons on a
+// surface of their own at the end of the card — rows stay pure content, and
+// the actions appear exactly where your eyes already are when you've
+// decided to act.
 function EntryActions({
   onEdit,
   onDelete,
@@ -907,7 +1038,7 @@ function EntryActions({
   ].filter((action) => action.onClick)
   if (actions.length === 0) return null
   return (
-    <span className="flex shrink-0 flex-col items-center gap-0.5 self-center">
+    <span className="flex shrink-0 items-center gap-1">
       {actions.map((action) => (
         <button
           key={action.label}

@@ -3570,14 +3570,27 @@ export default function Nutrition() {
                           actionClassName="rounded-r-lg"
                           rowClassName="flex items-center justify-between gap-3 bg-background px-1"
                         >
-                          <div className="min-w-0 flex-1">
+                          {/* The same door the diary rows have. Intake used to
+                              offer delete and nothing else, so a mistyped
+                              portion could only be thrown away and logged
+                              again — which is what a tester meant by having
+                              to wait until the next day to fix anything. */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              hapticTap()
+                              setEntryDetail(entry.id)
+                            }}
+                            aria-label={`Details for ${entry.name}`}
+                            className="min-w-0 flex-1 py-1 text-left"
+                          >
                             <p className="native-row-title truncate">
                               {entry.name}
                             </p>
                             <p className="native-row-detail mt-0.5">
                               {timeLabel(entry.loggedAt)}
                             </p>
-                          </div>
+                          </button>
                           {(entry.recipeId || entry.recipeDraft) && (
                             <button
                               type="button"
@@ -3969,7 +3982,7 @@ export default function Nutrition() {
             </div>
             {quickRepeatFoods.length > 0 && (
               <section className="mb-5" aria-label="Recent foods">
-                <h3 className="native-section-title mb-2">Log again</h3>
+                <h3 className="native-section-title mb-2">Recent foods</h3>
                 <div className="divide-y divide-border border-y border-border">
                   {quickRepeatFoods.map((food) => {
                     const busy = quickRepeatBusyKey === food.key

@@ -1,0 +1,1127 @@
+[
+  {
+    "name": "search_food",
+    "description": "Show what the food catalogue has for a name, with nutrition, without logging anything.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "What to search for, e.g. 'greek yoghurt'",
+          "minLength": 2
+        },
+        "limit": {
+          "type": "integer",
+          "description": "How many candidates to return. Fewer is easier to choose from.",
+          "minimum": 1,
+          "maximum": 8
+        }
+      },
+      "required": [
+        "query"
+      ]
+    }
+  },
+  {
+    "name": "log_food",
+    "description": "Log a food by name and portion — the everyday case. Searches the catalogue and logs the best match.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "food": {
+          "type": "string",
+          "description": "What was eaten, e.g. 'greek yoghurt'",
+          "minLength": 2
+        },
+        "grams": {
+          "type": "number",
+          "description": "Portion in grams",
+          "exclusiveMinimum": 0,
+          "maximum": 5000
+        },
+        "meal": {
+          "type": "string",
+          "enum": [
+            "breakfast",
+            "lunch",
+            "dinner",
+            "snack"
+          ],
+          "description": "Which meal it belongs to"
+        },
+        "date": {
+          "type": "string",
+          "description": "A date as YYYY-MM-DD, or 'today' / 'yesterday' / 'tomorrow'"
+        }
+      },
+      "required": [
+        "food"
+      ]
+    }
+  },
+  {
+    "name": "log_food_by_barcode",
+    "description": "Add a food to the diary from a scanned barcode. Only for actual barcode digits, never a food name.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "barcode": {
+          "type": "string",
+          "description": "The digits under the barcode, nothing else",
+          "pattern": "^[0-9]{6,14}$"
+        },
+        "grams": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 5000
+        },
+        "meal": {
+          "type": "string",
+          "enum": [
+            "breakfast",
+            "lunch",
+            "dinner",
+            "snack"
+          ],
+          "description": "Which meal it belongs to"
+        },
+        "date": {
+          "type": "string",
+          "description": "A date as YYYY-MM-DD, or 'today' / 'yesterday' / 'tomorrow'"
+        }
+      },
+      "required": [
+        "barcode"
+      ]
+    }
+  },
+  {
+    "name": "log_quick_food",
+    "description": "Add a food by its numbers, for something not in the catalogue. Use only when search_food finds nothing.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "calories": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 10000
+        },
+        "protein": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "carbs": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "fat": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "meal": {
+          "type": "string",
+          "enum": [
+            "breakfast",
+            "lunch",
+            "dinner",
+            "snack"
+          ],
+          "description": "Which meal it belongs to"
+        },
+        "date": {
+          "type": "string",
+          "description": "A date as YYYY-MM-DD, or 'today' / 'yesterday' / 'tomorrow'"
+        }
+      },
+      "required": [
+        "name",
+        "calories"
+      ]
+    }
+  },
+  {
+    "name": "list_food_log",
+    "description": "Read back what has been eaten on a day, with per-entry ids and totals.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "date": {
+          "type": "string",
+          "description": "A date as YYYY-MM-DD, or 'today' / 'yesterday' / 'tomorrow'"
+        }
+      }
+    }
+  },
+  {
+    "name": "remove_food_entry",
+    "description": "Delete, remove or undo one food already logged in the diary, by its name.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "food": {
+          "type": "string",
+          "description": "The name of the logged food",
+          "minLength": 1
+        },
+        "meal": {
+          "type": "string",
+          "enum": [
+            "breakfast",
+            "lunch",
+            "dinner",
+            "snack"
+          ],
+          "description": "Narrows it when the same food is in two meals"
+        },
+        "date": {
+          "type": "string",
+          "description": "A date as YYYY-MM-DD, or 'today' / 'yesterday' / 'tomorrow'"
+        }
+      },
+      "required": [
+        "food"
+      ]
+    }
+  },
+  {
+    "name": "log_recipe",
+    "description": "Log a saved recipe as a meal, scaled to a number of servings.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "recipe": {
+          "type": "string",
+          "description": "The name of the saved recipe",
+          "minLength": 1
+        },
+        "servings": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 20
+        },
+        "meal": {
+          "type": "string",
+          "enum": [
+            "breakfast",
+            "lunch",
+            "dinner",
+            "snack"
+          ],
+          "description": "Which meal it belongs to"
+        },
+        "date": {
+          "type": "string",
+          "description": "A date as YYYY-MM-DD, or 'today' / 'yesterday' / 'tomorrow'"
+        }
+      },
+      "required": [
+        "recipe"
+      ]
+    }
+  },
+  {
+    "name": "list_recipes",
+    "description": "List the user's saved recipes, so one can be logged by name.",
+    "parameters": {
+      "type": "object",
+      "properties": {}
+    }
+  },
+  {
+    "name": "log_meal_preset",
+    "description": "Log a saved meal — a group of foods the user eats together — in one go.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "savedMeal": {
+          "type": "string",
+          "description": "The name of the saved meal",
+          "minLength": 1
+        },
+        "meal": {
+          "type": "string",
+          "enum": [
+            "breakfast",
+            "lunch",
+            "dinner",
+            "snack"
+          ],
+          "description": "Which meal it belongs to"
+        },
+        "date": {
+          "type": "string",
+          "description": "A date as YYYY-MM-DD, or 'today' / 'yesterday' / 'tomorrow'"
+        }
+      },
+      "required": [
+        "savedMeal"
+      ]
+    }
+  },
+  {
+    "name": "list_meal_presets",
+    "description": "The user's saved meals — groups of foods they log together.",
+    "parameters": {
+      "type": "object",
+      "properties": {}
+    }
+  },
+  {
+    "name": "save_meal_preset",
+    "description": "Save what was logged for a meal today as a reusable saved meal, under a name.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "What to call it, e.g. 'usual breakfast'",
+          "minLength": 1
+        },
+        "meal": {
+          "type": "string",
+          "enum": [
+            "breakfast",
+            "lunch",
+            "dinner",
+            "snack"
+          ],
+          "description": "Which meal it belongs to"
+        },
+        "date": {
+          "type": "string",
+          "description": "A date as YYYY-MM-DD, or 'today' / 'yesterday' / 'tomorrow'"
+        }
+      },
+      "required": [
+        "name",
+        "meal"
+      ]
+    }
+  },
+  {
+    "name": "delete_meal_preset",
+    "description": "Delete a saved meal for good.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "savedMeal": {
+          "type": "string",
+          "description": "The name of the saved meal",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "savedMeal"
+      ]
+    }
+  },
+  {
+    "name": "repeat_meal_from_day",
+    "description": "Copy a meal from another day onto a day — 'the same breakfast as yesterday'.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "meal": {
+          "type": "string",
+          "enum": [
+            "breakfast",
+            "lunch",
+            "dinner",
+            "snack"
+          ],
+          "description": "Which meal it belongs to"
+        },
+        "from": {
+          "type": "string",
+          "description": "The day to copy from. Defaults to yesterday.",
+          "minLength": 1
+        },
+        "to": {
+          "type": "string",
+          "description": "The day to copy onto. Defaults to today.",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "meal"
+      ]
+    }
+  },
+  {
+    "name": "add_grocery_item",
+    "description": "Add an item to buy to the groceries, so it is not forgotten.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "What to buy, e.g. 'oat milk'",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "name"
+      ]
+    }
+  },
+  {
+    "name": "show_grocery_list",
+    "description": "Read back what is on the shopping list.",
+    "parameters": {
+      "type": "object",
+      "properties": {}
+    }
+  },
+  {
+    "name": "check_off_grocery_item",
+    "description": "Tick something off the shopping list, or untick it.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "item": {
+          "type": "string",
+          "description": "The name of the shopping list item",
+          "minLength": 1
+        },
+        "checked": {
+          "type": "boolean",
+          "description": "Defaults to ticking it off"
+        }
+      },
+      "required": [
+        "item"
+      ]
+    }
+  },
+  {
+    "name": "clear_checked_groceries",
+    "description": "Clear everything already ticked off the shopping list.",
+    "parameters": {
+      "type": "object",
+      "properties": {}
+    }
+  },
+  {
+    "name": "list_meal_prep",
+    "description": "Batch-cooked food in the fridge, and how many servings are left.",
+    "parameters": {
+      "type": "object",
+      "properties": {}
+    }
+  },
+  {
+    "name": "consume_meal_prep",
+    "description": "Take servings out of a batch-cooked meal.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "batch": {
+          "type": "string",
+          "description": "The name of the batch-cooked meal",
+          "minLength": 1
+        },
+        "servings": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 20
+        }
+      },
+      "required": [
+        "batch"
+      ]
+    }
+  },
+  {
+    "name": "create_repeat_meal",
+    "description": "Set a meal to log itself at the same time every day, from what was eaten for that meal today.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "meal": {
+          "type": "string",
+          "enum": [
+            "breakfast",
+            "lunch",
+            "dinner",
+            "snack"
+          ],
+          "description": "Which meal it belongs to"
+        },
+        "hour": {
+          "type": "integer",
+          "description": "Hour of day, 24-hour clock",
+          "minimum": 0,
+          "maximum": 23
+        },
+        "minute": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 59
+        }
+      },
+      "required": [
+        "name",
+        "meal",
+        "hour"
+      ]
+    }
+  },
+  {
+    "name": "list_repeat_meals",
+    "description": "The meals set to log themselves, and when.",
+    "parameters": {
+      "type": "object",
+      "properties": {}
+    }
+  },
+  {
+    "name": "pause_repeat_meal",
+    "description": "Turn a repeating meal off, or back on, without deleting it.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "repeat": {
+          "type": "string",
+          "description": "The name of the repeating meal",
+          "minLength": 1
+        },
+        "enabled": {
+          "type": "boolean",
+          "description": "Defaults to turning it off"
+        }
+      },
+      "required": [
+        "repeat"
+      ]
+    }
+  },
+  {
+    "name": "delete_repeat_meal",
+    "description": "Delete a repeating meal for good.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "repeat": {
+          "type": "string",
+          "description": "The name of the repeating meal",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "repeat"
+      ]
+    }
+  },
+  {
+    "name": "open_screen",
+    "description": "Navigate: open, show, go to, take me to, or view a screen in the app. Use for looking at something rather than changing it.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "screen": {
+          "type": "string",
+          "enum": [
+            "dashboard",
+            "nutrition",
+            "workouts",
+            "recipes",
+            "groceries",
+            "progress",
+            "health",
+            "coach",
+            "settings",
+            "supplements",
+            "fasting",
+            "meal prep",
+            "food search"
+          ]
+        }
+      },
+      "required": [
+        "screen"
+      ]
+    }
+  },
+  {
+    "name": "list_presets",
+    "description": "The user's workout presets in their chosen order, with the ids the other preset tools need.",
+    "parameters": {
+      "type": "object",
+      "properties": {}
+    }
+  },
+  {
+    "name": "create_preset",
+    "description": "Make a new workout preset from a list of exercise names. Sets and reps can be left out.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "What to call the session, e.g. 'Push A'",
+          "minLength": 1
+        },
+        "exercises": {
+          "type": "array",
+          "description": "Exercises in the preset",
+          "minItems": 1,
+          "maxItems": 20,
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "sets": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 20
+              },
+              "reps": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100
+              }
+            },
+            "required": [
+              "name"
+            ]
+          }
+        },
+        "focus": {
+          "type": "string",
+          "description": "Muscle focus, e.g. 'chest and triceps'"
+        }
+      },
+      "required": [
+        "name",
+        "exercises"
+      ]
+    }
+  },
+  {
+    "name": "rename_preset",
+    "description": "Change a workout preset's name, leaving its exercises alone.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "preset": {
+          "type": "string",
+          "description": "The name of the workout preset",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "description": "The new name",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "preset",
+        "name"
+      ]
+    }
+  },
+  {
+    "name": "delete_preset",
+    "description": "Delete, remove or get rid of a saved workout preset. Permanent; logged workouts keep their history.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "preset": {
+          "type": "string",
+          "description": "The name of the workout preset",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "preset"
+      ]
+    }
+  },
+  {
+    "name": "reorder_presets",
+    "description": "Put the workout presets in a new order. Name them first to last; any left out keep their relative places.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "presets": {
+          "type": "array",
+          "description": "Workout preset names, in the order wanted, first to last",
+          "minItems": 1,
+          "maxItems": 50,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "required": [
+        "presets"
+      ]
+    }
+  },
+  {
+    "name": "move_preset_to_position",
+    "description": "Move one workout preset up or down the list, without listing all the others.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "preset": {
+          "type": "string",
+          "description": "The name of the workout preset",
+          "minLength": 1
+        },
+        "position": {
+          "type": "integer",
+          "description": "Where it should end up. 1 is the top of the list.",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "preset",
+        "position"
+      ]
+    }
+  },
+  {
+    "name": "schedule_preset_on_day",
+    "description": "Put a workout preset on a day of the week in the routine.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "preset": {
+          "type": "string",
+          "description": "The name of the workout preset",
+          "minLength": 1
+        },
+        "day": {
+          "type": "string",
+          "enum": [
+            "Mon",
+            "Tue",
+            "Wed",
+            "Thu",
+            "Fri",
+            "Sat",
+            "Sun"
+          ]
+        }
+      },
+      "required": [
+        "preset",
+        "day"
+      ]
+    }
+  },
+  {
+    "name": "clear_scheduled_day",
+    "description": "Take whatever workout is scheduled off a day of the week.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "day": {
+          "type": "string",
+          "enum": [
+            "Mon",
+            "Tue",
+            "Wed",
+            "Thu",
+            "Fri",
+            "Sat",
+            "Sun"
+          ]
+        }
+      },
+      "required": [
+        "day"
+      ]
+    }
+  },
+  {
+    "name": "show_weekly_routine",
+    "description": "Read back which workout is scheduled on each day of the week.",
+    "parameters": {
+      "type": "object",
+      "properties": {}
+    }
+  },
+  {
+    "name": "start_workout",
+    "description": "Start a workout from one of the saved presets.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "preset": {
+          "type": "string",
+          "description": "The name of the workout preset",
+          "minLength": 1
+        },
+        "slot": {
+          "type": "integer",
+          "enum": [
+            1,
+            2
+          ],
+          "description": "Session slot: 1 for the first workout of the day, 2 for a second"
+        }
+      },
+      "required": [
+        "preset"
+      ]
+    }
+  },
+  {
+    "name": "show_active_workout",
+    "description": "What is running right now: which session, how long it has been going.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "slot": {
+          "type": "integer",
+          "enum": [
+            1,
+            2
+          ],
+          "description": "Session slot: 1 for the first workout of the day, 2 for a second"
+        }
+      }
+    }
+  },
+  {
+    "name": "finish_workout",
+    "description": "Finish the workout that is running and write it to the log with everything recorded so far.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "slot": {
+          "type": "integer",
+          "enum": [
+            1,
+            2
+          ],
+          "description": "Session slot: 1 for the first workout of the day, 2 for a second"
+        },
+        "date": {
+          "type": "string",
+          "description": "A date as YYYY-MM-DD, or 'today' / 'yesterday' / 'tomorrow'"
+        }
+      }
+    }
+  },
+  {
+    "name": "abort_workout",
+    "description": "Throw away the workout that is running. Every set recorded in it is lost and nothing is written to the log.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "slot": {
+          "type": "integer",
+          "enum": [
+            1,
+            2
+          ],
+          "description": "Session slot: 1 for the first workout of the day, 2 for a second"
+        }
+      }
+    }
+  },
+  {
+    "name": "mark_rest_day",
+    "description": "Mark a day as a deliberate rest day so it does not read as a missed session.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "date": {
+          "type": "string",
+          "description": "A date as YYYY-MM-DD, or 'today' / 'yesterday' / 'tomorrow'"
+        }
+      }
+    }
+  },
+  {
+    "name": "unmark_rest_day",
+    "description": "Take the rest-day mark off a day.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "date": {
+          "type": "string",
+          "description": "A date as YYYY-MM-DD, or 'today' / 'yesterday' / 'tomorrow'"
+        }
+      }
+    }
+  },
+  {
+    "name": "show_workout_history",
+    "description": "The last few completed sessions, with dates and how long they took.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10
+        }
+      }
+    }
+  },
+  {
+    "name": "log_water",
+    "description": "Log water. Use size for words like 'a glass' or 'a bottle'; use amountMl only when an actual number of millilitres is said.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "size": {
+          "type": "string",
+          "enum": [
+            "sip",
+            "glass",
+            "cup",
+            "mug",
+            "bottle",
+            "large bottle",
+            "litre"
+          ],
+          "description": "The size drunk, when said in words rather than numbers"
+        },
+        "amountMl": {
+          "type": "integer",
+          "description": "Millilitres, only if the user gave a number",
+          "minimum": 10,
+          "maximum": 5000
+        },
+        "date": {
+          "type": "string",
+          "description": "A date as YYYY-MM-DD, or 'today' / 'yesterday' / 'tomorrow'"
+        }
+      }
+    }
+  },
+  {
+    "name": "undo_last_water",
+    "description": "Remove the most recent water entry, for a mis-tap.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "date": {
+          "type": "string",
+          "description": "A date as YYYY-MM-DD, or 'today' / 'yesterday' / 'tomorrow'"
+        }
+      }
+    }
+  },
+  {
+    "name": "start_fast",
+    "description": "Start a fast, with a target length in hours.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "hours": {
+          "type": "number",
+          "description": "Target length, e.g. 16",
+          "minimum": 1,
+          "maximum": 72
+        },
+        "protocol": {
+          "type": "string",
+          "description": "What to call it, e.g. '16:8'. Defaults to the hours."
+        }
+      },
+      "required": [
+        "hours"
+      ]
+    }
+  },
+  {
+    "name": "stop_fast",
+    "description": "End the fast that is running and record how long it lasted.",
+    "parameters": {
+      "type": "object",
+      "properties": {}
+    }
+  },
+  {
+    "name": "list_supplements",
+    "description": "The supplements the user takes.",
+    "parameters": {
+      "type": "object",
+      "properties": {}
+    }
+  },
+  {
+    "name": "log_supplement",
+    "description": "Mark a supplement as taken.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "supplement": {
+          "type": "string",
+          "description": "The name of the supplement",
+          "minLength": 1
+        },
+        "servings": {
+          "type": "number",
+          "description": "How many servings, if not one",
+          "exclusiveMinimum": 0,
+          "maximum": 10
+        },
+        "date": {
+          "type": "string",
+          "description": "A date as YYYY-MM-DD, or 'today' / 'yesterday' / 'tomorrow'"
+        }
+      },
+      "required": [
+        "supplement"
+      ]
+    }
+  },
+  {
+    "name": "skip_supplement",
+    "description": "Mark a supplement as deliberately skipped, so the streak knows why.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "supplement": {
+          "type": "string",
+          "description": "The name of the supplement",
+          "minLength": 1
+        },
+        "date": {
+          "type": "string",
+          "description": "A date as YYYY-MM-DD, or 'today' / 'yesterday' / 'tomorrow'"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "supplement"
+      ]
+    }
+  },
+  {
+    "name": "log_weight",
+    "description": "Record a body weight check-in.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "weightKg": {
+          "type": "number",
+          "description": "Weight in kilograms",
+          "minimum": 20,
+          "maximum": 400
+        },
+        "date": {
+          "type": "string",
+          "description": "A date as YYYY-MM-DD, or 'today' / 'yesterday' / 'tomorrow'"
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 200
+        }
+      },
+      "required": [
+        "weightKg"
+      ]
+    }
+  },
+  {
+    "name": "log_body_measurements",
+    "description": "Record tape measurements — waist, chest, arms and so on — in centimetres.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "waistCm": {
+          "type": "number",
+          "minimum": 20,
+          "maximum": 300
+        },
+        "chestCm": {
+          "type": "number",
+          "minimum": 20,
+          "maximum": 300
+        },
+        "hipsCm": {
+          "type": "number",
+          "minimum": 20,
+          "maximum": 300
+        },
+        "armsCm": {
+          "type": "number",
+          "minimum": 10,
+          "maximum": 150
+        },
+        "thighsCm": {
+          "type": "number",
+          "minimum": 10,
+          "maximum": 200
+        },
+        "calvesCm": {
+          "type": "number",
+          "minimum": 10,
+          "maximum": 150
+        },
+        "neckCm": {
+          "type": "number",
+          "minimum": 10,
+          "maximum": 100
+        },
+        "bodyFatPct": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 70
+        },
+        "date": {
+          "type": "string",
+          "description": "A date as YYYY-MM-DD, or 'today' / 'yesterday' / 'tomorrow'"
+        }
+      }
+    }
+  },
+  {
+    "name": "log_daily_metric",
+    "description": "Record a health number by hand — steps, resting heart rate, sleep hours — overriding the phone's sync for that day.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "field": {
+          "type": "string",
+          "enum": [
+            "steps",
+            "restingHeartRate",
+            "sleepMinutes",
+            "activeCalories",
+            "hrv"
+          ],
+          "description": "Which metric"
+        },
+        "value": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100000
+        },
+        "date": {
+          "type": "string",
+          "description": "A date as YYYY-MM-DD, or 'today' / 'yesterday' / 'tomorrow'"
+        }
+      },
+      "required": [
+        "field",
+        "value"
+      ]
+    }
+  }
+]

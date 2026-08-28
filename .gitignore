@@ -105,3 +105,8 @@ scripts/form-JEPA/datasets/
 apps/mobile/ios/App/App/public/models/
 
 ideas.txt
+
+# Needle 2 engine and weights: 90 MB of build artifacts from the model repo,
+# fetched by `bun run needle:fetch`. See scripts/needle/manifest.json.
+apps/mobile/vendor/needle/
+apps/mobile/public/needle/

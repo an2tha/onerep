@@ -1,0 +1,36 @@
+{
+  "name": "@repo/needle",
+  "module": "src/index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "bun test ./src",
+    "format": "prettier --write \"src/**/*.ts\""
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./graph": "./src/graph.ts",
+    "./wasm": "./src/runtime-wasm.ts",
+    "./worker": "./src/runtime-worker.ts",
+    "./native": "./src/runtime-native.ts",
+    "./agent-tools": "./src/agent-tools.ts"
+  },
+  "dependencies": {
+    "@langchain/core": "^1.2.8",
+    "@langchain/langgraph": "^1.4.10",
+    "zod": "^4.4.3"
+  },
+  "peerDependencies": {
+    "@capacitor/core": "^8.3.4"
+  },
+  "peerDependenciesMeta": {
+    "@capacitor/core": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@capacitor/core": "^8.3.4"
+  }
+}

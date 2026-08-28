@@ -37,6 +37,7 @@ import {
   visiblePopularFoodSearches,
   writeRecentFoodSearches,
 } from "@/lib/food-search-recents"
+import { promoteLoggedFoods } from "@/lib/food-search-ranking"
 import { reportOfflineMutationError } from "@/lib/offline-mutation-errors"
 import { hapticSelection } from "@/lib/haptics"
 import { cn } from "@/lib/utils"
@@ -207,7 +208,21 @@ export default function SearchFoods() {
     }
   }, [query, preferences?.foodSearchLanguage, retryNonce])
 
-  const results = searchResults
+  // Everything the diary has seen lately, by name. The search catalogue has
+  // no idea what this person eats; this is the only place that does.
+  const recentLoggedDays = useQuery(api.logs.foodLogs.getRecent, {})
+  const loggedNames = useMemo(
+    () =>
+      ((recentLoggedDays ?? []) as Array<{ entries?: Array<{ name?: string }> }>)
+        .flatMap((day) => day.entries ?? [])
+        .map((entry) => entry.name ?? "")
+        .filter(Boolean),
+    [recentLoggedDays]
+  )
+  const results = useMemo(
+    () => promoteLoggedFoods(searchResults, loggedNames),
+    [loggedNames, searchResults]
+  )
   // A search can span catalogs, so credit whichever ones actually answered it
   // rather than naming one and hoping.
   const resultSources = useMemo(

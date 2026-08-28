@@ -13,6 +13,7 @@ import {
   ArrowsClockwise,
   Barcode,
   Camera as CameraIcon,
+  ImagesSquare,
   Plus,
   Minus,
   X,
@@ -483,6 +484,45 @@ export default function SnapAndLog() {
     }
   }
 
+  /**
+   * The same meal, from the roll instead of the lens.
+   *
+   * A tester photographed dinner with the ordinary camera app and then found
+   * the only way into OneRep was to hand the picture to the coach — a chat
+   * turn, an upload, and a conversation, to do what this screen does in one
+   * tap. `CameraSource.Photos` asks for the library rather than the camera,
+   * so it also works on a device that refused camera permission outright.
+   */
+  async function handlePickFromLibrary() {
+    if (mode === "snap" && !requireAiAccess(1, "snap_capture")) return
+    try {
+      const photo = await NativeCamera.getPhoto({
+        source: CameraSource.Photos,
+        resultType: CameraResultType.Uri,
+        quality: 85,
+        correctOrientation: true,
+      })
+      if (!photo.webPath) return
+      const blob = await fetch(photo.webPath).then((res) => res.blob())
+      if (mode === "snap") {
+        captureFeatureUsage(posthog, "food_snap_captured")
+        await processSnapBlob(blob)
+      } else {
+        setBarcodeScanning(true)
+        setBarcodeResult(null)
+        setBarcodeError(null)
+        await processBarcodeBlob(blob)
+        setBarcodeScanning(false)
+      }
+    } catch (err) {
+      if (isCancelledCapture(err)) return
+      console.warn("Picking a photo from the library failed", err)
+      setCameraFailure(describeCameraError(err))
+      if (mode === "snap") setSnapPhase("error")
+      else setBarcodeError("That photo could not be read. Try another.")
+    }
+  }
+
   function handleShutter() {
     if (
       firedRef.current ||
@@ -529,26 +569,30 @@ export default function SnapAndLog() {
 
   // ── Log a food item ───────────────────────────────────────────────────────
 
-  async function handleAdd(item: FoodResult) {
+  async function handleAdd(item: FoodResult, grams?: number) {
     if (loggingTargetRef.current || added === item.id) return
     loggingTargetRef.current = item.id
     setLoggingTarget(item.id)
     const card = foodCardMacros(item)
+    // The card quotes one serving, and one serving is still the default —
+    // logging the per-100 g figures under the serving's own label is how a
+    // scanned 30 g bar used to land in the diary at triple its calories.
+    // What is new is that the row can say otherwise, for the half packet.
+    const portion = grams ?? card.grams
+    const macros =
+      portion === card.grams ? card : scaleFoodForGrams(item, portion)
     const entry = stripUndefined({
       id: Math.random().toString(36).slice(2),
       name: item.name,
-      // The card quotes one serving, so one serving is what gets logged.
-      // Logging the per-100 g figures under the serving's own label is how a
-      // scanned 30 g bar used to land in the diary at triple its calories.
-      calories: card.calories,
-      protein: card.protein,
-      carbs: card.carbs,
-      fat: card.fat,
+      calories: macros.calories,
+      protein: macros.protein,
+      carbs: macros.carbs,
+      fat: macros.fat,
       loggedAt: new Date().toISOString(),
       meal,
       source: "openfoodfacts" as const,
       foodCode: item.code,
-      quantityGrams: card.grams,
+      quantityGrams: portion,
       servingGrams: card.grams,
       servingLabel: card.servingLabel,
       imageUrl: item.imageUrl,
@@ -566,7 +610,19 @@ export default function SnapAndLog() {
       // The camera stays open after a barcode log, so without an explicit
       // confirmation people scan again "to make sure" and double-log.
       void hapticMedium()
-      toast.success(item.name ? `${item.name} logged` : "Food logged")
+      // Undo restores the day as it was a moment ago rather than deleting by
+      // id: the camera stays open, and a scan-happy hand can be three entries
+      // ahead by the time somebody notices the wrong product.
+      toast.success(item.name ? `${item.name} logged` : "Food logged", {
+        action: {
+          label: "Undo",
+          onClick: () => {
+            void setDay({ date, entries: existingEntries }).catch(() =>
+              toast.error("Couldn't undo that")
+            )
+          },
+        },
+      })
       setAdded(item.id)
       setTimeout(() => setAdded(null), 1800)
     } catch (error) {
@@ -605,7 +661,17 @@ export default function SnapAndLog() {
 
       setAdded("snap-review")
       toast.success(
-        entries.length === 1 ? "Meal logged" : `${entries.length} foods logged`
+        entries.length === 1 ? "Meal logged" : `${entries.length} foods logged`,
+        {
+          action: {
+            label: "Undo",
+            onClick: () => {
+              void setDay({ date, entries: existingEntries }).catch(() =>
+                toast.error("Couldn't undo that")
+              )
+            },
+          },
+        }
       )
       setTimeout(() => {
         setAdded(null)
@@ -953,7 +1019,18 @@ export default function SnapAndLog() {
             />
           </button>
 
-          <div className="h-11 w-11" />
+          <button
+            type="button"
+            onClick={() => void handlePickFromLibrary()}
+            className="flex h-11 w-11 items-center justify-center rounded-[12px] border border-white/10 bg-black/45 text-white/70 backdrop-blur-md transition-opacity active:opacity-60"
+            aria-label={
+              mode === "barcode"
+                ? "Scan a barcode from a photo"
+                : "Choose a photo from your library"
+            }
+          >
+            <ImagesSquare size={18} />
+          </button>
         </div>
       )}
 
@@ -1468,14 +1545,22 @@ function BarcodeResultRow({
   added: boolean
   logging: boolean
   disabled: boolean
-  onAdd: (item: FoodResult) => void
+  onAdd: (item: FoodResult, grams: number) => void
 }) {
   const energyUnit = useEnergyUnit()
   const mealCfg = mealConfig(meal)
   const card = foodCardMacros(item)
+  // Starts at the product's own serving, which is what the label quotes and
+  // what this screen logged unconditionally until now. A tester ate half a
+  // packet and had to go and re-edit the entry afterwards; the scanner knows
+  // the food, it just never asked how much.
+  const [grams, setGrams] = useState(card.grams)
+  const scaled =
+    grams === card.grams ? card : scaleFoodForGrams(item, clampSnapGrams(grams))
 
   return (
-    <div className="flex items-center gap-3 py-3">
+    <div className="py-3">
+    <div className="flex items-center gap-3">
       <div className="min-w-0 flex-1">
         <p className="truncate text-[15px] font-semibold text-white">
           {item.name}
@@ -1491,28 +1576,28 @@ function BarcodeResultRow({
         </div>
         <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
           <span className="text-[13px] font-medium text-white/80 tabular-nums">
-            {energyDisplay(card.calories, energyUnit)} {energyUnit}
+            {energyDisplay(scaled.calories, energyUnit)} {energyUnit}
           </span>
           <DarkMacroPill
             label="Protein"
-            value={card.protein}
+            value={scaled.protein}
             color={MACRO_COLORS.protein}
           />
           <DarkMacroPill
             label="Carbs"
-            value={card.carbs}
+            value={scaled.carbs}
             color={MACRO_COLORS.carbs}
           />
           <DarkMacroPill
             label="Fat"
-            value={card.fat}
+            value={scaled.fat}
             color={MACRO_COLORS.fat}
           />
         </div>
       </div>
       <button
         type="button"
-        onClick={() => onAdd(item)}
+        onClick={() => onAdd(item, clampSnapGrams(grams))}
         disabled={disabled}
         aria-busy={logging}
         className="flex h-11 min-w-11 shrink-0 items-center justify-center rounded-lg px-2 text-[14px] font-semibold transition-opacity active:opacity-75"
@@ -1529,6 +1614,14 @@ function BarcodeResultRow({
           <span className="text-white">Add</span>
         )}
       </button>
+    </div>
+      <div className="mt-2">
+        <SnapQuantityControl
+          grams={grams}
+          disabled={disabled}
+          onChange={setGrams}
+        />
+      </div>
     </div>
   )
 }

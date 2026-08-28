@@ -49,7 +49,7 @@ import type { Id } from "../../../../convex/_generated/dataModel"
 // The same file the backend validates against, so the picker can never offer
 // a model the server would turn away.
 import modelCatalog from "../../../../convex/ai/models.json"
-import { toast } from "@repo/ui"
+import { MedicalDisclaimer, toast } from "@repo/ui"
 import {
   cn,
   createClientId,
@@ -2484,7 +2484,7 @@ export default function Coach({
             data-coach-mode={activeMode}
             data-swipe-direction={modeSwipeDirection}
           >
-            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-5 sm:px-5">
+            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 pt-5 pb-8 sm:px-5">
               {loading ? (
                 <CoachLoadingState />
               ) : messages.length === 0 ? (
@@ -2681,6 +2681,11 @@ export default function Coach({
                         </CoachBriefTile>
                       </div>
                     ) : null}
+                    {/* The sentence belongs where the advice is given, not
+                        only in Settings and the last step of onboarding. A
+                        tester read every screen of this app and never once
+                        saw it. */}
+                    <MedicalDisclaimer className="mt-9 px-0 text-left" />
                   </div>
                 </div>
               ) : (
@@ -2856,7 +2861,7 @@ export default function Coach({
           !guidedIntent &&
           !recipeCustomization ? (
             <div
-              className="coach-starter-row z-20 mx-auto -mb-1 flex w-full max-w-3xl shrink-0 gap-2 overflow-x-auto pb-3"
+              className="coach-starter-row z-20 mx-auto flex w-full max-w-3xl shrink-0 gap-2 overflow-x-auto pt-1 pb-3"
               aria-label="Suggested questions"
             >
               {starters.map((starter) => {
@@ -2884,7 +2889,7 @@ export default function Coach({
               event.preventDefault()
               void submit()
             }}
-            className="z-20 mx-auto w-full max-w-3xl min-w-0 shrink-0 border-t border-border/55 bg-transparent pt-3 pb-[calc(var(--app-safe-bottom)+4.25rem)] lg:pb-4"
+            className="z-20 mx-auto w-full max-w-3xl min-w-0 shrink-0 border-t border-border/55 bg-transparent pt-3 pb-[calc(env(safe-area-inset-bottom,0px)+4.25rem)] lg:pb-4"
           >
             <TourAnchor
               anchor="coach-composer"

@@ -549,6 +549,10 @@ export const linkToTrainingLog = mutation({
       slot: target.slot,
       durationSeconds: workout.durationSeconds,
       exercises: [exercise],
+      // The hour the ride ended, not the hour somebody tapped Add. Without
+      // this the log defaults to the write time, so a morning run adopted
+      // that evening sat on the timeline after dinner.
+      completedAt: workout.endedAt,
     });
 
     await ctx.db.patch(args.id, {

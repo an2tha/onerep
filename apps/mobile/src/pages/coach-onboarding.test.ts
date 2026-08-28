@@ -194,7 +194,7 @@ describe("Coach first-open experience", () => {
     expect(COACH_SOURCE).toContain("Estimated per serving")
     expect(COACH_SOURCE).toContain("Ingredients")
     expect(COACH_SOURCE).toContain("Method")
-    expect(COACH_SOURCE).toContain("overflow-y-auto px-3 py-5 sm:px-5")
+    expect(COACH_SOURCE).toContain("overflow-y-auto px-3 pt-5 pb-8 sm:px-5")
     expect(COACH_SOURCE).not.toContain("bg-[rgba(2,8,23,0.74)]")
     expect(COACH_PROMPT_SOURCE).toContain(
       "A save_recipe operation must always use confirmation=confirm"

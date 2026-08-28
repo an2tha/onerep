@@ -2905,9 +2905,29 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
   --sidebar-border: oklch(0.92 0.004 286.32);
   --sidebar-ring: oklch(0.705 0.015 286.067);
+
+  /* Glass.
+   *
+   * How hard the light hits the button and the hold page. In daylight the
+   * app is already bright and a full-strength specular reads as glare, so
+   * the light half of these is deliberately weak — the rim is a suggestion
+   * of an edge, not a chrome trim. The dark theme turns them all up, where
+   * a bright edge is the only thing separating glass from background. */
+  --glass-fill: 68%;
+  --glass-rim: 0.34;
+  --glass-sheen: 0.4;
+  --glass-pour: 0.16;
+  --glass-pour-soft: 0.08;
+  --glass-depth: 0.26;
 }
 
 .dark {
+  --glass-fill: 54%;
+  --glass-rim: 0.72;
+  --glass-sheen: 0.85;
+  --glass-pour: 0.34;
+  --glass-pour-soft: 0.16;
+  --glass-depth: 0.4;
   --accent-food: #ef9a68;
   --accent-water: #66b8ef;
   --accent-supplement: #80c786;
@@ -7363,6 +7383,501 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   animation-delay: calc(var(--fab-index-out, 0) * 40ms);
 }
 
+/* The hold, drawn.
+ *
+ * One circle, parked at the point the finger landed and sized to reach the
+ * farthest corner from there. The four beats of the gesture only ever move
+ * `--hold-scale`; the transition does the rest, so the growth is the
+ * browser's problem and not a rAF loop's. Cancelling sets the scale back to
+ * zero and the same transition runs it home.
+ *
+ * The pour is `--background`, not `--foreground`. Getting that backwards is
+ * what made the page arrive bone white in the dark theme: the sheet has to be
+ * the colour the app already is, only thicker, or the hold turns the lights
+ * on. */
+.quick-add-reveal {
+  position: absolute;
+  top: var(--hold-y, 50%);
+  left: var(--hold-x, 50%);
+  width: var(--hold-size, 0px);
+  height: var(--hold-size, 0px);
+  margin-top: calc(var(--hold-size, 0px) / -2);
+  margin-left: calc(var(--hold-size, 0px) / -2);
+  border-radius: 9999px;
+  background-color: color-mix(in srgb, var(--background) 82%, transparent);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--foreground) 10%, transparent),
+    inset 0 2px 0 color-mix(in srgb, var(--foreground) 6%, transparent),
+    0 30px 70px -24px rgba(0, 0, 0, 0.45);
+  transform: scale(var(--hold-scale, 0));
+  transition:
+    transform 560ms cubic-bezier(0.22, 0.9, 0.3, 1),
+    background-color 480ms var(--motion-ease-out);
+  will-change: transform;
+}
+
+/* No backdrop-filter on this one, at any size.
+ *
+ * A full-screen blur is a full-screen readback every frame it is composited,
+ * and Gecko in particular will not do that and hold a smooth animation at the
+ * same time — this sheet is what was slowing whole browsers down. It is also
+ * the layer that needs it least: at 94% opacity the blur was moving perhaps
+ * two pixels of anything. What is left — the near-opaque pour, the auroras,
+ * the grain, the lit rim — is where the glass was actually coming from.
+ *
+ * The button keeps its blur. Forty-eight pixels of it is a different question
+ * from a whole screen of it. */
+.quick-add-reveal[data-settled="true"] {
+  background-color: color-mix(in srgb, var(--background) 94%, transparent);
+}
+
+/* The page rides on the circle rather than bringing its own backdrop — it
+   waits for the ink to land, then whatever it carries arrives on top of it. */
+@keyframes quick-add-more-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.quick-add-more > * {
+  animation: quick-add-more-in 320ms var(--motion-ease-out) both;
+  animation-delay: 440ms;
+}
+
+.quick-add-more[data-state="closing"] > * {
+  animation: none;
+  opacity: 0;
+  transform: none;
+  transition: opacity 140ms var(--motion-ease-standard);
+}
+
+/* The canvas.
+ *
+ * Two coloured auroras bled in from opposite corners, at strengths that never
+ * resolve into a colour — they are there so the sheet reads as lit from
+ * somewhere rather than filled with paint. They borrow the app's own accents
+ * rather than inventing a palette, and they do not move: this sheet sits over
+ * a live dashboard and every animated pixel here is a frame the reveal does
+ * not get. The grain on top is what stops them banding on an OLED. */
+.quick-add-more::before,
+.quick-add-more::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+@keyframes quick-add-wash-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.quick-add-more::before {
+  animation: quick-add-wash-in 520ms var(--motion-ease-out) both;
+  animation-delay: 260ms;
+  background:
+    radial-gradient(
+      90% 55% at 4% -8%,
+      color-mix(in srgb, var(--accent-water) 22%, transparent),
+      transparent 62%
+    ),
+    radial-gradient(
+      80% 50% at 104% 106%,
+      color-mix(in srgb, var(--accent-food) 16%, transparent),
+      transparent 60%
+    );
+}
+
+.quick-add-more::after {
+  /* Plain alpha, not `mix-blend-mode`. A blended full-screen layer forces the
+     same readback the blur above did, for a texture nobody can point to. */
+  opacity: 0.035;
+  animation: quick-add-wash-in 520ms var(--motion-ease-out) both;
+  animation-delay: 260ms;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* The safe box. Landscape on a notched phone puts a sidebar's worth of dead
+   space down one side; a page that ignores it puts its content under the
+   hardware. Everything this page ever holds goes in here. */
+.quick-add-page {
+  position: absolute;
+  inset: 0;
+  padding-top: calc(env(safe-area-inset-top, 0px) + 3.25rem);
+  padding-right: calc(env(safe-area-inset-right, 0px) + 1.25rem);
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 1.25rem);
+  padding-left: calc(env(safe-area-inset-left, 0px) + 1.25rem);
+}
+
+/* The sheet covers the sidebar; the content must not sit on top of it. The
+   sidebar is a layout fact at this breakpoint, not a safe-area inset, so it
+   gets added here rather than hidden inside an `env()`. 16rem is the
+   sidebar's own width — see `.desktop-sidebar`. */
+@media (min-width: 1024px) {
+  .quick-add-page {
+    padding-top: calc(env(safe-area-inset-top, 0px) + 3.5rem);
+    padding-left: calc(env(safe-area-inset-left, 0px) + 16rem + 2rem);
+    padding-right: calc(env(safe-area-inset-right, 0px) + 2rem);
+  }
+}
+
+/* Inside the sheet: thin glass, hard edges.
+ *
+ * The sheet is the frosted thing, so nothing in here gets a blur of its own —
+ * stacking backdrop filters is both mud and frames. What these surfaces have
+ * instead is a hairline border, a whisper of fill, and a lit top edge, which
+ * is enough to read as glass sitting on glass without costing anything. */
+.quick-add-chip,
+.quick-add-editor {
+  border: 1px solid color-mix(in srgb, var(--foreground) 14%, transparent);
+  background-color: color-mix(in srgb, var(--card) 55%, transparent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #fff 22%, transparent),
+    0 1px 2px rgba(0, 0, 0, 0.04);
+  transition:
+    background-color var(--motion-fast) var(--motion-ease-standard),
+    border-color var(--motion-fast) var(--motion-ease-standard);
+}
+
+.quick-add-chip {
+  border-radius: 0.875rem;
+}
+
+.quick-add-chip:active {
+  border-color: color-mix(in srgb, var(--foreground) 34%, transparent);
+  background-color: color-mix(in srgb, var(--card) 85%, transparent);
+}
+
+.quick-add-chip[data-armed="true"] {
+  border-color: color-mix(in srgb, var(--foreground) 42%, transparent);
+  background-color: color-mix(in srgb, var(--card) 92%, transparent);
+}
+
+/* The editor gets the deeper well and the stronger edge, because it is the
+   only thing on the page that takes input. */
+.quick-add-editor {
+  border-radius: 1.25rem;
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #fff 26%, transparent),
+    inset 0 18px 30px -28px rgba(0, 0, 0, 0.55),
+    0 18px 40px -32px rgba(0, 0, 0, 0.5);
+}
+
+.quick-add-editor:focus-within {
+  border-color: color-mix(in srgb, var(--foreground) 38%, transparent);
+}
+
+.quick-add-input::placeholder {
+  color: color-mix(in srgb, var(--foreground) 38%, transparent);
+}
+
+/* The one filled thing here: solid ink, the sheet cut out of the glyph. */
+.quick-add-run {
+  border-radius: 0.875rem;
+  background-color: var(--foreground);
+  color: var(--background);
+  box-shadow: 0 10px 24px -14px
+    color-mix(in srgb, var(--foreground) 70%, transparent);
+  transition:
+    opacity var(--motion-fast) var(--motion-ease-standard),
+    scale var(--motion-fast) var(--motion-ease-out);
+}
+
+.quick-add-run:active {
+  scale: 0.94;
+}
+
+.quick-add-run:disabled {
+  opacity: 0.4;
+}
+
+/* The readout. Everything the engine hands back that is worth a glance —
+   which device it ran on, how sure it was, how fast. Tabular figures so the
+   numbers stop dancing between runs. */
+.quick-add-meta {
+  color: color-mix(in srgb, var(--foreground) 52%, transparent);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The arguments, one step quieter than the tool that took them and set in
+   the numerals that do not shift between runs. */
+.quick-add-payload {
+  color: color-mix(in srgb, var(--foreground) 58%, transparent);
+  font-variant-numeric: tabular-nums;
+}
+
+.quick-add-credit {
+  color: color-mix(in srgb, var(--foreground) 42%, transparent);
+}
+
+/* A run in flight: the editor's edge cycles, once, slowly, and nothing else
+   on the page moves.
+ *
+ * On its own layer, and not on the editor itself, because the editor already
+ * owns an `animation` — the one that brought it in. Two rules setting the same
+ * property means the last one to win replaces the other, so every time a run
+ * started or stopped, the entrance animation restarted: the field vanished for
+ * its delay and rose back in. That was the flicker. An overlay has no such
+ * argument to have. */
+.quick-add-editor {
+  position: relative;
+}
+
+.quick-add-editor::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 1px solid transparent;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--motion-medium) var(--motion-ease-standard);
+}
+
+@keyframes quick-add-thinking {
+  0%,
+  100% {
+    border-color: color-mix(in srgb, var(--foreground) 12%, transparent);
+  }
+  50% {
+    border-color: color-mix(in srgb, var(--foreground) 52%, transparent);
+  }
+}
+
+.quick-add-editor[data-busy="true"]::after {
+  opacity: 1;
+  animation: quick-add-thinking 1.4s var(--motion-ease-standard) infinite;
+}
+
+/* What came back. One row per call the model made, named in the app's words
+   rather than the tool's. */
+.quick-add-result {
+  border-top: 1px solid color-mix(in srgb, var(--foreground) 10%, transparent);
+}
+
+.quick-add-result[data-tone="error"] {
+  color: var(--destructive);
+}
+
+/* The shortcut rail scrolls, and says so by fading out at the edge instead of
+   guillotining the last chip. */
+.quick-add-rail {
+  mask-image: linear-gradient(to right, #000 90%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, #000 90%, transparent 100%);
+  scrollbar-width: none;
+}
+
+.quick-add-rail::-webkit-scrollbar {
+  display: none;
+}
+
+/* The heading arrives with everything else, in the order it is read. One
+   element, one transform, no per-letter anything: thirteen spans each
+   animating a blur filter is a stunt the first time and a stutter every time
+   after. */
+@keyframes quick-add-rise-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 14px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.quick-add-rise {
+  animation: quick-add-rise-in 460ms var(--motion-ease-out) both;
+  animation-delay: calc(760ms + var(--rise, 0) * 55ms);
+}
+
+/* A zero-cost ruler. JavaScript cannot resolve an `env()` — it comes back as
+   the literal string — so anything needing the safe-area insets as numbers
+   measures this instead and reads all four off one rectangle.
+ *
+ * Deleting this rule does not break a layout, which is what makes it worth a
+ * comment: the only thing that notices is `measureBounds`, which then reads a
+ * zero-sized box at the origin, believes the screen is a point, and parks the
+ * button off the top of it. */
+.app-inset-probe {
+  position: fixed;
+  top: env(safe-area-inset-top, 0px);
+  right: env(safe-area-inset-right, 0px);
+  bottom: env(safe-area-inset-bottom, 0px);
+  left: env(safe-area-inset-left, 0px);
+  z-index: -1;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+/* The button goes where it is put, up and down its own column.
+ *
+ * Everything about where it lives is still the CSS corner below; the drag
+ * only ever contributes a vertical offset from it, so safe-area insets stay
+ * in one place. That offset rides the `translate` property rather than
+ * `transform`, which leaves `transform` free for the float, `scale` free for
+ * the press, and means none of the three ever has to know about the others.
+ * While the finger is down the offset is tracked with no transition — a
+ * transition here is lag, nothing else. */
+
+/* Molten glass: a thick lens with something slow moving inside it.
+ *
+ * The body is a translucent pour of the foreground over a heavy backdrop
+ * blur, so it takes the colour of whatever it is floating above and stays
+ * legible on either theme. The highlights are white and the depth is black
+ * in both themes on purpose: light does not invert when the app does, and a
+ * specular keyed to `--background` turns into a dark smear in the dark.
+ *
+ * Four shadows do the glass: two below it for the float, a bright inset
+ * along the top edge for the lit rim, and a dark one along the bottom for
+ * the thickness of the pour. */
+.coach-fab-trigger {
+  isolation: isolate;
+  border: 1px solid rgba(255, 255, 255, calc(var(--glass-rim) * 0.24));
+  background-color: color-mix(
+    in srgb,
+    var(--foreground) var(--glass-fill, 60%),
+    transparent
+  );
+  /* A denser core under the icon: the rim can be as transparent as it likes
+     so long as the glyph still has something to sit against. */
+  background-image: radial-gradient(
+    closest-side at 50% 54%,
+    color-mix(in srgb, var(--foreground) 34%, transparent),
+    transparent 100%
+  );
+  backdrop-filter: blur(14px) saturate(190%);
+  -webkit-backdrop-filter: blur(14px) saturate(190%);
+  box-shadow:
+    0 22px 40px -16px color-mix(in srgb, var(--foreground) 58%, transparent),
+    0 6px 14px -8px rgba(0, 0, 0, 0.28),
+    inset 0 1.4px 0 rgba(255, 255, 255, var(--glass-rim)),
+    inset 0 -10px 16px -12px rgba(0, 0, 0, var(--glass-depth));
+  translate: 0 var(--fab-dy, 0px);
+  transition:
+    scale 460ms cubic-bezier(0.18, 1.46, 0.4, 1),
+    box-shadow var(--motion-medium) var(--motion-ease-standard);
+  will-change: translate, transform;
+}
+
+.coach-fab-trigger::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border-radius: 9999px;
+  background:
+    radial-gradient(
+      52% 52% at 34% 30%,
+      rgba(255, 255, 255, var(--glass-pour)),
+      transparent 74%
+    ),
+    radial-gradient(
+      40% 40% at 74% 74%,
+      rgba(255, 255, 255, var(--glass-pour-soft)),
+      transparent 78%
+    );
+  filter: blur(4px);
+  pointer-events: none;
+}
+
+/* The specular: a bright arc riding the top-left rim, and nothing in the
+   middle. A highlight in the centre of a circle reads as a bead of glass;
+   a highlight on the edge reads as a lens with a thickness to it. The ring
+   is drawn all the way round and then masked back to the lit quarter. */
+.coach-fab-gloss {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: radial-gradient(
+    circle at 50% 50%,
+    transparent 58%,
+    rgba(255, 255, 255, var(--glass-sheen)) 74%,
+    rgba(255, 255, 255, calc(var(--glass-sheen) * 0.3)) 86%,
+    transparent 96%
+  );
+  mask-image: linear-gradient(
+    142deg,
+    #000 6%,
+    rgba(0, 0, 0, 0.35) 34%,
+    transparent 58%
+  );
+  -webkit-mask-image: linear-gradient(
+    142deg,
+    #000 6%,
+    rgba(0, 0, 0, 0.35) 34%,
+    transparent 58%
+  );
+  pointer-events: none;
+  transition:
+    opacity var(--motion-medium) var(--motion-ease-standard),
+    scale var(--motion-medium) var(--motion-ease-out);
+}
+
+/* The icon sits on top of the pour, not in it. */
+.coach-fab-trigger > svg {
+  position: relative;
+  z-index: 1;
+}
+
+/* Touch.
+ *
+ * Down is fast and flat: the lens compresses, the light spreads as it does,
+ * and the float shadow collapses toward the surface as though the button had
+ * been pushed into the page. Up is slow and springy — the overshoot in the
+ * release curve is the glass finding its shape again, and it is the reason
+ * the two directions get different easings. */
+.coach-fab-trigger:active {
+  scale: 0.9;
+  box-shadow:
+    0 6px 14px -10px color-mix(in srgb, var(--foreground) 50%, transparent),
+    0 2px 5px -4px rgba(0, 0, 0, 0.26),
+    inset 0 1px 1px color-mix(in srgb, var(--background) 70%, transparent),
+    inset 0 -12px 18px -14px
+      color-mix(in srgb, var(--background) 55%, transparent);
+  transition:
+    scale 120ms cubic-bezier(0.3, 0, 0.35, 1),
+    box-shadow 120ms var(--motion-ease-standard);
+}
+
+/* Pressed, the arc slides out and thins, the way a highlight travels when
+   the surface under it flexes. */
+.coach-fab-trigger:active .coach-fab-gloss {
+  opacity: 0.82;
+  scale: 1.03;
+}
+
+.coach-fab-trigger[data-drag="parking"] {
+  transition:
+    translate 420ms cubic-bezier(0.2, 1.14, 0.32, 1),
+    scale 460ms cubic-bezier(0.18, 1.46, 0.4, 1),
+    box-shadow var(--motion-medium) var(--motion-ease-standard);
+}
+
+/* Carried: lifted off the page, the pour running a little hotter. */
+.coach-fab-trigger[data-drag="true"] {
+  scale: 1.06;
+  box-shadow:
+    0 26px 44px -14px color-mix(in srgb, var(--foreground) 62%, transparent),
+    0 8px 18px -8px rgba(0, 0, 0, 0.32),
+    inset 0 1px 1px color-mix(in srgb, var(--background) 70%, transparent),
+    inset 0 -12px 18px -14px
+      color-mix(in srgb, var(--background) 55%, transparent);
+  cursor: grabbing;
+  animation: none;
+}
+
+/* The fan is drawn from the button's home corner, so it has to be carried
+   along by the same offset or it opens somewhere the button no longer is. */
+.coach-fab-menu {
+  transform: translate3d(0, var(--fab-dy, 0px), 0);
+}
+
 /* The trigger turns as it opens, and its icon is swapped underneath the turn,
    so the same control reads as both the way in and the way out. */
 .coach-fab-trigger svg {
@@ -7385,6 +7900,27 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
 
   .coach-fab-trigger svg {
     transition: none;
+  }
+
+  .coach-fab-trigger[data-drag="parking"] {
+    transition-duration: 1ms;
+  }
+
+  .coach-fab-trigger[data-hint="true"]::after {
+    animation: none;
+  }
+
+  .coach-fab-hint-tip,
+  .day-stack-item,
+  [data-state="closing"] > .day-stack-item,
+  .quick-add-more > *,
+  .quick-add-more::before,
+  .quick-add-more::after {
+    animation: none;
+  }
+
+  .quick-add-reveal {
+    transition-duration: 1ms;
   }
 }
 
@@ -7657,6 +8193,43 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   box-shadow:
     0 0 0 1px var(--border),
     0 12px 32px color-mix(in srgb, black 14%, transparent);
+}
+
+/* The stack under a shared minute, dealt out top-down: each card arrives a
+   beat after the one above it, overshoots once and settles. Folding it away
+   runs the same move backwards — farthest first, faster, no overshoot,
+   because nothing that is leaving should ask to be watched. */
+@keyframes day-stack-item-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -14px, 0) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes day-stack-item-out {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translate3d(0, -10px, 0) scale(0.94);
+  }
+}
+
+.day-stack-item {
+  transform-origin: 50% 0;
+  animation: day-stack-item-in 380ms cubic-bezier(0.34, 1.42, 0.52, 1) both;
+  animation-delay: calc(var(--stack-index, 0) * 45ms);
+}
+
+[data-state="closing"] > .day-stack-item {
+  animation: day-stack-item-out 170ms var(--motion-ease-standard) both;
+  animation-delay: calc(var(--stack-index-out, 0) * 26ms);
 }
 
 /* ── Dashboard tiles ──────────────────────────────────────────────────────── */

@@ -24,7 +24,7 @@ describe("Today and nutrition UX contract", () => {
 
   test("Nutrition keeps logging direct and avoids duplicating target guidance", () => {
     assert.match(NUTRITION_SOURCE, /Add to diary/)
-    assert.match(NUTRITION_SOURCE, /Log again/)
+    assert.match(NUTRITION_SOURCE, /Recent foods/)
     assert.match(NUTRITION_SOURCE, /GoalsCardWrapper/)
     assert.doesNotMatch(NUTRITION_SOURCE, /Daily targets/)
     assert.doesNotMatch(NUTRITION_SOURCE, /Why these targets\?/)

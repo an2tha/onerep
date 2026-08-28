@@ -229,9 +229,16 @@ function Dashboard() {
   const [quickAction, setQuickAction] = useState<{
     id: QuickActionId
     dateKey: string
+    /** Minutes past local midnight the entry belongs at, when the wheel
+     *  picked one. Undefined means now, which is what every other door
+     *  into these drawers means. */
+    atMinutes?: number
   } | null>(null)
-  const openQuickAction = (id: QuickActionId, forDateKey = dateKey) =>
-    setQuickAction({ id, dateKey: forDateKey })
+  const openQuickAction = (
+    id: QuickActionId,
+    forDateKey = dateKey,
+    atMinutes?: number
+  ) => setQuickAction({ id, dateKey: forDateKey, atMinutes })
   const [editFoodEntry, setEditFoodEntry] = useState<FoodLogEntry | null>(null)
   const [scheduleRequest, setScheduleRequest] =
     useState<ScheduleEntryRequest | null>(null)
@@ -390,6 +397,7 @@ function Dashboard() {
       <QuickActionDrawer
         id={quickAction?.id ?? null}
         dateKey={quickAction?.dateKey ?? dateKey}
+        atMinutes={quickAction?.atMinutes}
         editEntry={editFoodEntry ?? null}
         onClose={() => {
           setQuickAction(null)
@@ -398,7 +406,7 @@ function Dashboard() {
       />
       <ScheduleEntrySheet
         request={scheduleRequest}
-        onLog={(kind) => openQuickAction(kind, dateKey)}
+        onLog={(kind, minutes) => openQuickAction(kind, dateKey, minutes)}
         onClose={() => setScheduleRequest(null)}
       />
     </div>

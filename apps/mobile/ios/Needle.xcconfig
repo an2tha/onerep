@@ -1,0 +1,25 @@
+// Build settings for the on-device Needle 2 engine.
+//
+// Set this as the App target's base configuration for Debug and Release (or
+// paste the four settings in by hand). It is a separate file because
+// debug.xcconfig is wired to the Debug configuration only, and a plugin that
+// links in Debug and fails to link in Release is the worst of the options.
+//
+// `bun run needle:fetch` puts the archives where these paths expect them.
+// They are build artifacts of the model repo — 14 MB each, four slices — so
+// they are fetched rather than committed, exactly like the pose weights.
+
+// libneedle.a ships one archive per slice. $(CURRENT_ARCH) is wrong here
+// because the simulator and the device are both arm64 and need different files.
+LIBNEEDLE_DIR[sdk=iphoneos*] = $(SRCROOT)/../../vendor/needle/ios-arm64
+LIBNEEDLE_DIR[sdk=iphonesimulator*] = $(SRCROOT)/../../vendor/needle/ios-sim-arm64
+
+LIBRARY_SEARCH_PATHS = $(inherited) $(LIBNEEDLE_DIR)
+HEADER_SEARCH_PATHS = $(inherited) $(SRCROOT)/App/Needle
+
+// -lc++ is not optional: the engine is C++ behind a C interface, and without it
+// the link fails on ___cxa_throw and a few dozen std:: symbols, which reads
+// like a corrupt archive rather than a missing flag.
+OTHER_LDFLAGS = $(inherited) -lneedle -lc++
+
+SWIFT_OBJC_BRIDGING_HEADER = $(SRCROOT)/App/Needle/App-Bridging-Header.h

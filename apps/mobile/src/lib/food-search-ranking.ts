@@ -104,3 +104,37 @@ export function rankAndFilterFoodSearchResults<T extends FoodSearchRankable>(
     .sort((a, b) => b.score - a.score || a.index - b.index)
     .map(({ item }) => item)
 }
+
+/**
+ * Food you have eaten before, first.
+ *
+ * A tester put it plainly: searching should surface what is already in the
+ * diary before it offers something new. The catalogue does not know that —
+ * it ranks by name, and a stranger's product with a tidier title outranks the
+ * yoghurt you have logged forty times.
+ *
+ * Deliberately a stable partition and not a score. Boosting inside
+ * `foodSearchRelevanceScore` would make the promotion negotiable against name
+ * length and brand bonuses, which is how "prioritize" quietly becomes
+ * "sometimes". Two groups, each still in relevance order, is the promise the
+ * sentence actually makes.
+ */
+export function promoteLoggedFoods<T extends FoodSearchRankable>(
+  items: T[],
+  loggedNames: Iterable<string>
+): T[] {
+  const logged = new Set<string>()
+  for (const name of loggedNames) {
+    const key = resultReferenceKey({ name })
+    if (key) logged.add(key)
+  }
+  if (logged.size === 0) return items
+
+  const seen: T[] = []
+  const fresh: T[] = []
+  for (const item of items) {
+    if (logged.has(resultReferenceKey(item))) seen.push(item)
+    else fresh.push(item)
+  }
+  return [...seen, ...fresh]
+}

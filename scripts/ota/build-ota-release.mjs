@@ -136,6 +136,10 @@ function moveFile(from, to) {
  *
  * `ota` is a previous run's artifacts, which would nest a bundle in a bundle.
  *
+ * `needle` is the 14 MB Needle 2 engine and its weights, for the same reason as
+ * `models` below — and with the same origin rule, in `apps/mobile/src/lib/
+ * needle.ts`.
+ *
  * `models` is the ~19 MB of pose weights. They change only when the models are
  * re-exported, which is far rarer than a web release, so shipping them in every
  * update would multiply the size of a typical OTA by an order of magnitude for
@@ -143,7 +147,7 @@ function moveFile(from, to) {
  * from an absolute origin — see `modelBase` in `apps/mobile/src/lib/
  * onnx-runtime.ts`, which explains why absolute and not root-relative.
  */
-const EXCLUDED_FROM_BUNDLE = ["ota", "models"]
+const EXCLUDED_FROM_BUNDLE = ["ota", "models", "needle"]
 
 export function stageBundle(distDir) {
   const stageRoot = mkdtempSync(path.join(tmpdir(), "onerep-ota-"))

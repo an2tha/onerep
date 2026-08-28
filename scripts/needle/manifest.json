@@ -1,0 +1,75 @@
+{
+  "comment": "Needle 2, from Hugging Face, pinned to one commit. Every artifact here is a build output of the Cactus engine \u2014 90 MB across five slices \u2014 so it is fetched at build time rather than committed, exactly like the pose weights in scripts/pose-models. Bump `revision` and every checksum together; a mixed set is an engine talking to weights it was not built for.",
+  "repo": "Cactus-Compute/needle2",
+  "revision": "98fbd955b0347e78059be0c253cc1ffa09b87bc7",
+  "groups": [
+    {
+      "label": "runtime",
+      "comment": "Served to the browser and, on native, fetched from the OTA origin. Deliberately outside the OTA zip \u2014 see EXCLUDED_FROM_BUNDLE in scripts/ota/build-ota-release.mjs.",
+      "target": "apps/mobile/public/needle",
+      "files": [
+        {
+          "remote": "needle2.cact",
+          "name": "needle2.cact",
+          "bytes": 13737807,
+          "sha256": "b43aabfcaf1a6db6acf488076eab71d823c08697c7af4521fc1d174b60ede5ba"
+        },
+        {
+          "remote": "wasm/needle.js",
+          "name": "needle.js",
+          "bytes": 62433,
+          "sha256": "06499ec635d7e2790cb84791bc0e323fa4d0c5a8948108ca357b76685e085a66"
+        },
+        {
+          "remote": "wasm/needle.wasm",
+          "name": "needle.wasm",
+          "bytes": 333324,
+          "sha256": "077a7ba9f9b7a7eed21bc24f5ca5611b0f333c72633b9662a88b23f10e6a0531"
+        }
+      ]
+    },
+    {
+      "label": "native",
+      "comment": "Static archives, one per slice, plus the header the bridging header and the JNI shim include. Each archive embeds needle2.cact verbatim as `needle_weights`, so a native build needs nothing from the runtime group \u2014 and must not fetch it, because cap sync would copy a second unread copy of the model into the app bundle.",
+      "target": "apps/mobile/vendor/needle",
+      "files": [
+        {
+          "remote": "ios-arm64/libneedle.a",
+          "name": "ios-arm64/libneedle.a",
+          "bytes": 14191912,
+          "sha256": "a61d38c05e5c3997ff10ab9c72f8bfa5800cbff95bfcf10f7a0f2ae2f35efcfe"
+        },
+        {
+          "remote": "ios-sim-arm64/libneedle.a",
+          "name": "ios-sim-arm64/libneedle.a",
+          "bytes": 14200776,
+          "sha256": "b8e56b17c17acf03e62e03f7a5a728fd1a5745beb9e3af671a1f65d58b680b53"
+        },
+        {
+          "remote": "android-arm64/libneedle.a",
+          "name": "android-arm64/libneedle.a",
+          "bytes": 20717670,
+          "sha256": "a1333d28c57a35d33b4a0fb688706573dac56d851dea467771480f745f59f9f6"
+        },
+        {
+          "remote": "android-arm64/needle.h",
+          "name": "android-arm64/needle.h",
+          "bytes": 562,
+          "sha256": "cb7a720eba7bc895b5bbfa5d6f6fc635906938fdc569eb2520a2c09ba06d9eed"
+        },
+        {
+          "remote": "android-armv7/libneedle.a",
+          "name": "android-armv7/libneedle.a",
+          "bytes": 17956728,
+          "sha256": "26524107a553c7b729c26ca36b8d82d93867413c78c3b7f61de647e3a23f95d1"
+        },
+        {
+          "remote": "android-armv7/needle.h",
+          "name": "android-armv7/needle.h",
+          "bytes": 562,
+          "sha256": "cb7a720eba7bc895b5bbfa5d6f6fc635906938fdc569eb2520a2c09ba06d9eed"
+        }
+      ]
+    }
+  ]
+}

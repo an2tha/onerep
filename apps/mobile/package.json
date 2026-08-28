@@ -41,6 +41,7 @@
     "@phosphor-icons/react": "^2.1.10",
     "@posthog/react": "^1.9.1",
     "@repo/models": "*",
+    "@repo/needle": "*",
     "@repo/ui": "*",
     "@tailwindcss/vite": "^4.2.1",
     "@zxing/browser": "^0.1.5",
