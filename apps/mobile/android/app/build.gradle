@@ -5,6 +5,12 @@ apply plugin: 'org.jetbrains.kotlin.plugin.compose'
 android {
     namespace = "com.ananthh.onerep"
     compileSdk = rootProject.ext.compileSdkVersion
+    // Pinned rather than inherited. The CMake build below needs an NDK, and
+    // without a version here Gradle takes whatever the machine happens to have
+    // — which on a CI runner is whatever that week's image shipped. A runner
+    // bump would then surface as a link error in needle_jni.c, which reads
+    // like our bug rather than a toolchain that moved underneath us.
+    ndkVersion = "27.0.12077973"
     defaultConfig {
         applicationId "com.ananthh.onerep"
         minSdkVersion rootProject.ext.minSdkVersion
