@@ -282,6 +282,21 @@ export default function Settings({ onClose }: { onClose: () => void }) {
   const removeByokKey = useMutation(api.ai.byok.removeKey)
   const [byokInput, setByokInput] = useState("")
   const [byokBusy, setByokBusy] = useState(false)
+  /**
+   * Where OneRep sells Pro, a personal OpenRouter key is a way around the
+   * paywall, so the input is not offered. A key saved before that — or on a
+   * self-hosted deployment, where Pro is comped and there is nothing to walk
+   * around — still gets its row, because a key we are quietly spending
+   * requests on has to remain removable.
+   */
+  const byokSection: "open" | "legacy" | "hidden" =
+    byokStatus === undefined
+      ? "hidden"
+      : byokStatus.available !== false
+        ? "open"
+        : byokStatus.configured
+          ? "legacy"
+          : "hidden"
 
   const healthSync = preferences?.healthSync
   const wearableConsent =
@@ -1559,10 +1574,16 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                 <GroupedList label="AI usage">
                   <AiUsageProgress usage={aiUsage} />
                 </GroupedList>
-                <SettingsSectionLabel
-                  title="Your own AI key"
-                  detail="Add your OpenRouter API key and AI features run on it — no monthly cap, no Pro required. You pay OpenRouter directly for what you use."
-                />
+                {byokSection !== "hidden" && (
+                  <SettingsSectionLabel
+                    title="Your own AI key"
+                    detail={
+                      byokSection === "open"
+                        ? "Add your OpenRouter API key and AI features run on it — no monthly cap, no Pro required. You pay OpenRouter directly for what you use."
+                        : "Your key is still serving your AI requests. Remove it and the included allowance takes over."
+                    }
+                  />
+                )}
                 {byokStatus?.configured ? (
                   <GroupedList label="Your OpenRouter key">
                     <ListRow
@@ -1589,7 +1610,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                       }}
                     />
                   </GroupedList>
-                ) : (
+                ) : byokSection === "open" ? (
                   <div className="flex items-center gap-2 px-[var(--app-page-x)]">
                     <input
                       type="password"
@@ -1627,7 +1648,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                       {byokBusy ? "Verifying…" : "Save"}
                     </PrimaryButton>
                   </div>
-                )}
+                ) : null}
                 <SettingsSectionLabel title="Session" />
                 <GroupedList label="Session actions">
                   <ListRow

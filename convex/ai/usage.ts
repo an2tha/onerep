@@ -8,6 +8,7 @@ import {
 } from "../_generated/server";
 import { safeGetAuthUser } from "../lib/auth";
 import { hasActiveProEntitlement } from "../billing/entitlement";
+import { isProCompedForEveryone } from "../billing/entitlement";
 import { byokKeyFor } from "./byok";
 
 /** Monthly AI requests included without a OneRep Pro subscription. */
@@ -315,10 +316,15 @@ export async function consumeAiUsageOrThrow(
         ? `This one costs ${cost} of your monthly AI requests and you have ${quota.remaining} left`
         : `Monthly AI request limit reached (${quota.limit}/month${quota.isPro ? "" : " on the free plan"})`;
 
+    // Only a deployment that still offers BYOK points at it here; on the
+    // hosted service the Settings field it names is not on the screen.
+    const byokHint = isProCompedForEveryone()
+      ? "add your own OpenRouter key in Settings, "
+      : "";
     throw new Error(
       quota.isPro
         ? `${reason}. Try again next month.`
-        : `${reason}. Upgrade to OneRep Pro for ${AI_PRO_MONTHLY_REQUEST_LIMIT} a month, add your own OpenRouter key in Settings, or try again next month.`,
+        : `${reason}. Upgrade to OneRep Pro for ${AI_PRO_MONTHLY_REQUEST_LIMIT} a month, ${byokHint}or try again next month.`,
     );
   }
 

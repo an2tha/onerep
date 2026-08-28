@@ -9,6 +9,7 @@ import {
   type QueryCtx,
 } from "../_generated/server";
 import { getAuthUser, safeGetAuthUser } from "../lib/auth";
+import { isProCompedForEveryone } from "../billing/entitlement";
 import { OPENROUTER_BASE_URL } from "./provider";
 
 /**
@@ -19,7 +20,18 @@ import { OPENROUTER_BASE_URL } from "./provider";
  * spends serving them — stops applying. The key is stored server-side in
  * `aiKeys`, is only ever read inside Convex functions, and every status
  * surface exposes nothing beyond its last four characters.
+ *
+ * It is offered only where OneRep is not selling Pro. On the hosted service a
+ * user's own key is a way around the paywall rather than a way around a cost
+ * we are carrying, so `available` reports false and the app hides the input. A
+ * self-hosted deployment comps Pro to everyone, has no paywall to walk around,
+ * and keeps the feature.
  */
+
+/** Whether this deployment offers BYOK at all. */
+function byokAvailable() {
+  return isProCompedForEveryone();
+}
 
 /** Reads the stored key inside a query/mutation; null when none is set. */
 export async function byokKeyFor(ctx: QueryCtx, userId: string) {
@@ -39,15 +51,19 @@ export const getKeyForUser = internalQuery({
 export const getStatus = query({
   args: {},
   handler: async (ctx) => {
+    const available = byokAvailable();
     const user = await safeGetAuthUser(ctx);
-    if (!user) return { configured: false as const, last4: null };
+    if (!user) return { available, configured: false as const, last4: null };
     const row = await ctx.db
       .query("aiKeys")
       .withIndex("by_userId", (q) => q.eq("userId", user._id))
       .unique();
+    // A key saved before this deployment started selling Pro still resolves in
+    // `byokKeyFor`, so it is still reported here — hiding it would leave the
+    // user unable to remove a key that is quietly serving their requests.
     return row
-      ? { configured: true as const, last4: row.last4 }
-      : { configured: false as const, last4: null };
+      ? { available, configured: true as const, last4: row.last4 }
+      : { available, configured: false as const, last4: null };
   },
 });
 
