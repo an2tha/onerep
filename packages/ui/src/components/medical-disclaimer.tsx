@@ -22,10 +22,10 @@ export function MedicalDisclaimer({
 }) {
   const body = (
     <>
-      OneRep is a fitness and food diary, not a medical device. Targets, Coach
-      answers, and form feedback are estimates, not a diagnosis, a treatment, or
-      medical advice. Talk to a doctor before you change how you eat or train —
-      and if something hurts, stop and get it looked at.
+      OneRep is a tracking tool, not a medical device. Coach responses,
+      targets, and exercise feedback are non-medical estimates. Consult a doctor
+      before making dietary or fitness changes. Stop immediately if you feel
+      pain.
     </>
   )
 

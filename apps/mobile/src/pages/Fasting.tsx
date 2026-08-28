@@ -151,14 +151,33 @@ export default function Fasting({
     if (busy) return
     setBusy(true)
     try {
-      await startFast({
+      const started = await startFast({
         targetMinutes,
         protocol,
         startDate: today,
         ...(from ? { startedAt: from } : {}),
       })
       hapticSelection()
-      toast.success("Fast started")
+      // Offline the write is queued and there is no session id to delete yet,
+      // so the toast goes out plain rather than with a button that only errors.
+      const id = typeof started === "string" ? started : null
+      toast.success(
+        "Fast started",
+        id
+          ? {
+              action: {
+                label: "Undo",
+                onClick: () => {
+                  void removeFast({ id: id as Id<"fastingSessions"> }).catch(
+                    () => {
+                      toast.error("Couldn't undo that")
+                    }
+                  )
+                },
+              },
+            }
+          : undefined
+      )
     } catch (error) {
       reportOfflineMutationError(error, "Could not start this fast")
     } finally {
@@ -208,12 +227,30 @@ export default function Fasting({
       return
     }
     try {
+      const previous = active?.startedAt
       await updateFast({
         id: id as Id<"fastingSessions">,
         startedAt: parsed,
       })
       setEditingStart(false)
-      toast.success("Start time updated")
+      toast.success(
+        "Start time updated",
+        typeof previous === "number"
+          ? {
+              action: {
+                label: "Undo",
+                onClick: () => {
+                  void updateFast({
+                    id: id as Id<"fastingSessions">,
+                    startedAt: previous,
+                  }).catch(() => {
+                    toast.error("Couldn't undo that")
+                  })
+                },
+              },
+            }
+          : undefined
+      )
     } catch (error) {
       reportOfflineMutationError(error, "Could not update the start time")
     }

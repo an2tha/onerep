@@ -405,7 +405,17 @@ export function QuickAddMore({
                   </p>
                 ) : (
                   <>
-                    <ul className="flex flex-col gap-2">
+                    {/* An `ol`, and numbered, because the order is the point:
+                        a logged yoghurt was looked up first, and the lookup is
+                        where a wrong match becomes a wrong diary entry. One
+                        call has no order to show, so it keeps the plain list. */}
+                    <ol
+                      className={
+                        calls.length > 1
+                          ? "quick-add-chain flex list-decimal flex-col gap-2"
+                          : "flex flex-col gap-2"
+                      }
+                    >
                       {calls.map((call, index) => (
                         <li
                           key={`${call.name}-${index}`}
@@ -427,7 +437,7 @@ export function QuickAddMore({
                           )}
                         </li>
                       ))}
-                    </ul>
+                    </ol>
                     {undoable > 0 && (
                       <button
                         type="button"

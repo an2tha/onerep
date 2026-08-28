@@ -1032,6 +1032,7 @@ export function findSmartMealPresetSuggestion({
         .filter((preset) => preset.meal === currentMeal)
         .filter((preset) => preset.signature.length > 0)
         .filter((preset) => !todayMealSignatures.has(preset.key))
+        .filter((preset) => !dismissed.has(preset.key))
         .sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0))[0]
 
   if (logPreset) {

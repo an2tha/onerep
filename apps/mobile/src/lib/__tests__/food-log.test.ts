@@ -392,6 +392,25 @@ describe("smart meal preset helpers", () => {
     expect(suggestion.mealLabel).toBe("Breakfast")
   })
 
+  test("stays dismissed after the log suggestion's X is tapped", () => {
+    const preset = breakfastPreset()
+    const args = {
+      recentDays: [],
+      presets: [preset],
+      todayEntries: [],
+      currentMeal: "breakfast",
+    }
+    const suggestion = findSmartMealPresetSuggestion(args)
+
+    expect(suggestion?.kind).toBe("log")
+    expect(
+      findSmartMealPresetSuggestion({
+        ...args,
+        dismissedKeys: [suggestion?.key ?? ""],
+      })
+    ).toBeNull()
+  })
+
   test("does not suggest logging a saved usual meal already in today's diary", () => {
     const preset = breakfastPreset()
     const suggestion = findSmartMealPresetSuggestion({

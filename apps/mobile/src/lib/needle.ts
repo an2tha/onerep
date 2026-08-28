@@ -69,14 +69,41 @@ let pending: Promise<NeedleSession> | null = null
  * over a global — so a second session would not be a second model, it would be
  * two callers corrupting one KV cache.
  */
+/**
+ * The weights this app runs on.
+ *
+ * Not the stock `needle2.cact` the package defaults to: this is the base with
+ * the OneRep LoRA merged in, trained on the tool schemas in
+ * scripts/needle2-finetune/schema.json. It reads portions and meals out of
+ * ordinary sentences the base refuses — "half a chicken breast" becomes
+ * `chicken breast, 50 g` rather than a catalogue lookup for a food of that
+ * name, and "three eggs for breakfast" becomes a call at all.
+ *
+ * It is also less calibrated than the base and will occasionally produce a
+ * confident call for a sentence that asked for nothing. `minConfidence` below
+ * is the only thing standing between that and the diary, so raising the floor
+ * is the lever if it starts writing things nobody asked for.
+ *
+ * Native reads this over the network like the web does — the linked-in weights
+ * are the stock ones — which is why `needleBase()` has to be absolute there.
+ */
+const TUNED_WEIGHTS = "needle2-onerep.cact"
+
 export function needle(options: CreateNeedleOptions = {}) {
   pending ??= createNeedleSession({
     baseUrl: needleBase(),
+    weights: { url: `${needleBase()}/${TUNED_WEIGHTS}` },
     system: needleFacts(),
     // Escalate rather than act. The calibration holds that both the confidence
     // head and the decode probability have to agree, so the failure mode below
     // this line is "ask again", not "log the wrong meal".
-    minConfidence: 0.6,
+    //
+    // 0.4 rather than 0.6 because the tuned weights sit 20-25 points lower
+    // than the stock ones on the same sentences — at 0.6 they refused work
+    // they had got right. The cost is known and specific: "I skipped lunch
+    // today" decodes as `log_food{greek yoghurt, lunch}` at 0.47, which used
+    // to be refused and now is not. Negation is the shape to watch.
+    minConfidence: 0.4,
     ...options,
   })
   return pending

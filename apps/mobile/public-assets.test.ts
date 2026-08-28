@@ -68,6 +68,10 @@ describe("static assets shipped to Cloudflare Pages", () => {
     const needle = readdirSync(path.join(publicDir, "needle"))
 
     expect(needle).toContain("needle2.cact")
+    // The weights the app actually loads. Copied by `needle:tuned`, which
+    // `needle:fetch` chains — a deploy that serves only the stock blob leaves
+    // every session 404ing on the one it asks for by name.
+    expect(needle).toContain("needle2-onerep.cact")
     expect(needle).toContain("needle.js")
     expect(needle).toContain("needle.wasm")
   })

@@ -130,4 +130,37 @@ describe("bodyProgress Convex functions", () => {
       expect(entries[0].weightKg).toBe(80);
     });
   });
+  test("a check-in takes over the scale's row for that day", async () => {
+    const t = convexTest(schema, modules);
+    const user = t.withIdentity({
+      subject: "body-scale-user",
+      issuer: "test",
+      tokenIdentifier: "body-scale-user",
+    });
+
+    await user.mutation(api.logs.healthMetrics.sync, {
+      provider: "apple_health",
+      days: [{ date: "2026-06-24", weightKg: 81.2 }],
+    });
+    await user.mutation(api.bodyProgress.save, {
+      clientId: "typed-client-id",
+      loggedAt: "2026-06-24",
+      weightKg: 79.5,
+    });
+
+    // One morning, one check-in. The scale row is amended, not shadowed.
+    const entries = await user.query(api.bodyProgress.list, {});
+    expect(entries).toHaveLength(1);
+    expect(entries[0].weightKg).toBe(79.5);
+    expect(entries[0].source).toBe("manual");
+
+    // And the next sync leaves the corrected figure where it is.
+    await user.mutation(api.logs.healthMetrics.sync, {
+      provider: "apple_health",
+      days: [{ date: "2026-06-24", weightKg: 81.4 }],
+    });
+    const after = await user.query(api.bodyProgress.list, {});
+    expect(after).toHaveLength(1);
+    expect(after[0].weightKg).toBe(79.5);
+  });
 });

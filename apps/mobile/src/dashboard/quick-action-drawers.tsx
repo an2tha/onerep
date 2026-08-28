@@ -32,6 +32,7 @@ import {
 import { MobileSheet, toast, tint, useReplayKey } from "@repo/ui"
 
 import { api } from "../../../../convex/_generated/api"
+import type { Id } from "../../../../convex/_generated/dataModel"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { hapticMedium, hapticRain, hapticTap } from "@/lib/haptics"
@@ -185,6 +186,11 @@ function WaterDrawer({
     api.logs.water.setDay,
     "logs.water.setDay"
   )
+  // Targeted, so taking one glass back never rewrites the day around it.
+  const removeWaterEntry = useOfflineMutation(
+    api.logs.water.removeEntry,
+    "logs.water.removeEntry"
+  )
   const rain = useReplayKey(1100)
   const [custom, setCustom] = useState("")
 
@@ -209,7 +215,16 @@ function WaterDrawer({
       loggedAt: stampAt(dateKey, atMinutes),
     }
     void setWaterDay({ date: dateKey, entries: [...entries, entry] })
-    toast.success(`${fmtWater(clamped)} of water logged`)
+    toast.success(`${fmtWater(clamped)} of water logged`, {
+      action: {
+        label: "Undo",
+        onClick: () => {
+          void removeWaterEntry({ date: dateKey, id: entry.id }).catch(() => {
+            toast.error("Couldn't undo that")
+          })
+        },
+      },
+    })
   }
 
   function submitCustom() {
@@ -600,6 +615,7 @@ function RecipesDrawer({
       }>
     | undefined
   const addFood = useMutation(api.logs.foodLogs.addEntry)
+  const removeFood = useMutation(api.logs.foodLogs.removeEntry)
   const [busy, setBusy] = useState(false)
 
   async function logRecipe(recipe: NonNullable<typeof recipes>[number]) {
@@ -617,7 +633,16 @@ function RecipesDrawer({
     try {
       await addFood({ date: dateKey, entry })
       hapticMedium()
-      toast.success(`${recipe.name} logged`)
+      toast.success(`${recipe.name} logged`, {
+        action: {
+          label: "Undo",
+          onClick: () => {
+            void removeFood({ date: dateKey, entryId: entry.id }).catch(() => {
+              toast.error("Couldn't undo that")
+            })
+          },
+        },
+      })
     } catch (error) {
       logDevWarn("Failed to log a recipe from the drawer", error)
       toast.error("Couldn't log that. Try again.")
@@ -770,6 +795,7 @@ function FastingDrawer({
   const active = useQuery(api.logs.fasting.getActive, {})
   const startFast = useMutation(api.logs.fasting.start)
   const stopFast = useMutation(api.logs.fasting.stop)
+  const removeFast = useMutation(api.logs.fasting.remove)
   const [busy, setBusy] = useState(false)
   // Ticking clock, read outside render so re-renders stay pure.
   const [now, setNow] = useState(() => Date.now())
@@ -782,13 +808,24 @@ function FastingDrawer({
     if (busy) return
     setBusy(true)
     try {
-      await startFast({
+      const id = await startFast({
         targetMinutes: hours * 60,
         protocol,
         startDate: dateKey,
       })
       hapticMedium()
-      toast.success(`${protocol} fast started`)
+      // Deleting the session rather than stopping it: a fast started by
+      // mistake should leave no three-second entry in the history.
+      toast.success(`${protocol} fast started`, {
+        action: {
+          label: "Undo",
+          onClick: () => {
+            void removeFast({ id }).catch(() => {
+              toast.error("Couldn't undo that")
+            })
+          },
+        },
+      })
     } catch (error) {
       logDevWarn("Failed to start a fast from the drawer", error)
       toast.error("Couldn't start the fast. Try again.")
@@ -935,6 +972,7 @@ function SupplementsDrawer({
     api.logs.supplements.logTaken,
     "logs.supplements.logTaken"
   )
+  const removeLog = useMutation(api.logs.supplements.removeLog)
   const overview = (overviewRaw ?? undefined) as
     SupplementOverviewShape | undefined
   const [busyId, setBusyId] = useState<string | null>(null)
@@ -958,9 +996,29 @@ function SupplementsDrawer({
     if (busyId) return
     setBusyId(item._id)
     try {
-      await logTaken({ supplementId: item._id, date: dateKey })
+      const result = await logTaken({ supplementId: item._id, date: dateKey })
       hapticMedium()
-      toast.success(`${item.name} taken`)
+      // Queued offline, the write returns no log to point at yet — the
+      // toast goes out without a button rather than with a broken one.
+      const logId =
+        result && typeof result === "object" && "id" in result
+          ? (result as { id: Id<"supplementIntakeLogs"> }).id
+          : null
+      toast.success(
+        `${item.name} taken`,
+        logId
+          ? {
+              action: {
+                label: "Undo",
+                onClick: () => {
+                  void removeLog({ logId }).catch(() => {
+                    toast.error("Couldn't undo that")
+                  })
+                },
+              },
+            }
+          : undefined
+      )
     } catch (error) {
       logDevWarn("Failed to log a supplement from the drawer", error)
       toast.error("Couldn't log that. Try again.")

@@ -1698,7 +1698,19 @@ export default function Coach({
         pinned: true,
       })
       hapticTap()
-      toast.success("Goal pinned to Today")
+      toast.success("Goal pinned to Today", {
+        action: {
+          label: "Undo",
+          onClick: () => {
+            void setCoachGoalPinned({
+              id: goalId as Id<"coachGoals">,
+              pinned: false,
+            }).catch(() => {
+              toast.error("Couldn't undo that")
+            })
+          },
+        },
+      })
     } catch (error) {
       hapticHeavy()
       toast.error(
@@ -2795,7 +2807,20 @@ export default function Coach({
                                       pinned: true,
                                     })
                                     hapticTap()
-                                    toast.success("Widget added to dashboard")
+                                    toast.success("Widget added to dashboard", {
+                                      action: {
+                                        label: "Undo",
+                                        onClick: () => {
+                                          void setDashboardWidgetPinned({
+                                            widgetId:
+                                              widgetId as Id<"dashboardWidgets">,
+                                            pinned: false,
+                                          }).catch(() => {
+                                            toast.error("Couldn't undo that")
+                                          })
+                                        },
+                                      },
+                                    })
                                   }}
                                   onCreateWidgetFollowUp={(widget) => {
                                     const title =

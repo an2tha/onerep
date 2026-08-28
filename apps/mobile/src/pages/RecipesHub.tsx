@@ -721,6 +721,7 @@ export default function RecipesHub() {
     api.logs.recipes.blockCommunityAuthor
   )
   const addFoodEntry = useMutation(api.logs.foodLogs.addEntry)
+  const removeFoodEntry = useMutation(api.logs.foodLogs.removeEntry)
   const claimRatingPrompt = useMutation(api.logs.recipes.claimRatingPrompt)
   const rateCommunityRecipe = useMutation(api.logs.recipes.rateCommunityRecipe)
   const savedRecipes = (useQuery(api.logs.recipes.list, {}) ?? []) as Recipe[]
@@ -1024,10 +1025,12 @@ export default function RecipesHub() {
       )
       // Log a single serving, matching the per-serving figures on the card.
       const servings = Math.max(1, recipe.servings ?? 1)
+      const date = currentDateKey()
+      const entryId = crypto.randomUUID()
       await addFoodEntry({
-        date: currentDateKey(),
+        date,
         entry: {
-          id: crypto.randomUUID(),
+          id: entryId,
           name: recipe.name,
           calories: Math.round(nutrition.calories / servings),
           protein: Math.round(nutrition.protein / servings),
@@ -1042,7 +1045,16 @@ export default function RecipesHub() {
         recipeId: recipe._id as Id<"recipes">,
       }).catch(() => false)
       hapticTap()
-      toast.success(`${recipe.name} logged to ${meal}`)
+      toast.success(`${recipe.name} logged to ${meal}`, {
+        action: {
+          label: "Undo",
+          onClick: () => {
+            void removeFoodEntry({ date, entryId }).catch(() => {
+              toast.error("Couldn't undo that")
+            })
+          },
+        },
+      })
       setLoggingCommunity(null)
       setSelectedCommunity(null)
       if (shouldPrompt) setRatingRecipe(recipe)

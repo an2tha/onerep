@@ -483,7 +483,17 @@ export default function LegacyApp() {
         pinned: false,
       })
       hapticSelection()
-      toast.success("Goal unpinned from Today")
+      const unpinned = confirmUnpinGoalId as Id<"coachGoals">
+      toast.success("Goal unpinned from Today", {
+        action: {
+          label: "Undo",
+          onClick: () => {
+            void setCoachGoalPinned({ id: unpinned, pinned: true }).catch(() => {
+              toast.error("Couldn't undo that")
+            })
+          },
+        },
+      })
       setConfirmUnpinGoalId(null)
     } catch (error) {
       hapticHeavy()

@@ -31,7 +31,6 @@ import { MobileSheet } from "@/components/mobile-sheet"
 import { CoachSheet } from "@/components/coach-sheet"
 import { FastingSheet } from "@/components/fasting-sheet"
 import { useBottomBarAction } from "@/components/bottom-bar"
-import { SlideToDeleteRow } from "@repo/ui"
 import { TourAnchor, useTourAnchor } from "@/components/walkthrough/tour-anchor"
 import { DateSelectorButton } from "@repo/ui"
 import { useSmoothNavigate } from "@/lib/navigation"
@@ -3562,19 +3561,16 @@ export default function Nutrition() {
                   {recentFood.length > 0 ? (
                     <div className="space-y-2">
                       {recentFood.map((entry) => (
-                        <SlideToDeleteRow
+                        <div
                           key={entry.id}
-                          deleteLabel={`Delete ${entry.name}`}
-                          onDelete={() => removeFoodEntry(entry.id)}
-                          className="-mx-1 rounded-lg"
-                          actionClassName="rounded-r-lg"
-                          rowClassName="flex items-center justify-between gap-3 bg-background px-1"
+                          className="flex items-center justify-between gap-1 px-1"
                         >
                           {/* The same door the diary rows have. Intake used to
-                              offer delete and nothing else, so a mistyped
-                              portion could only be thrown away and logged
-                              again — which is what a tester meant by having
-                              to wait until the next day to fix anything. */}
+                              hide delete behind a swipe and offer editing only
+                              for recipes, so a mistyped portion could only be
+                              thrown away and logged again — which is what a
+                              tester meant by having to wait until the next day
+                              to fix anything. */}
                           <button
                             type="button"
                             onClick={() => {
@@ -3591,24 +3587,30 @@ export default function Nutrition() {
                               {timeLabel(entry.loggedAt)}
                             </p>
                           </button>
-                          {(entry.recipeId || entry.recipeDraft) && (
-                            <button
-                              type="button"
-                              onClick={(event) => {
-                                event.stopPropagation()
-                                editRecipeFromLogEntry(entry)
-                              }}
-                              className="native-toolbar-button h-11 w-11 px-0 text-muted-foreground"
-                              aria-label={`Edit recipe for ${entry.name}`}
-                            >
-                              <PencilSimple size={17} weight="bold" />
-                            </button>
-                          )}
                           <span className="shrink-0 text-[14px] font-semibold tabular-nums">
                             {fmt(energyDisplay(entry.calories, energyUnit))}{" "}
                             {energyUnit}
                           </span>
-                        </SlideToDeleteRow>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              hapticTap()
+                              setEntryDetail(entry.id)
+                            }}
+                            className="native-toolbar-button h-11 w-11 px-0 text-muted-foreground"
+                            aria-label={`Edit ${entry.name}`}
+                          >
+                            <PencilSimple size={17} weight="bold" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => removeFoodEntry(entry.id)}
+                            className="native-toolbar-button h-11 w-11 px-0 text-destructive"
+                            aria-label={`Remove ${entry.name}`}
+                          >
+                            <Trash size={17} weight="bold" />
+                          </button>
+                        </div>
                       ))}
                       {entries.length > 3 && (
                         <button

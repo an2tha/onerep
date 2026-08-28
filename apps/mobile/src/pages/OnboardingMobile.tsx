@@ -1367,7 +1367,19 @@ export function OnboardingMobile() {
         pinned: true,
       })
       hapticTap()
-      toast.success("Goal pinned to Today")
+      toast.success("Goal pinned to Today", {
+        action: {
+          label: "Undo",
+          onClick: () => {
+            void setCoachGoalPinned({
+              id: goalId as Id<"coachGoals">,
+              pinned: false,
+            }).catch(() => {
+              toast.error("Couldn't undo that")
+            })
+          },
+        },
+      })
     } catch (caught) {
       hapticHeavy()
       toast.error(
@@ -1411,7 +1423,19 @@ export function OnboardingMobile() {
         pinned: true,
       })
       hapticTap()
-      toast.success("Added to your dashboard")
+      toast.success("Added to your dashboard", {
+        action: {
+          label: "Undo",
+          onClick: () => {
+            void setDashboardWidgetPinned({
+              widgetId: widgetId as Id<"dashboardWidgets">,
+              pinned: false,
+            }).catch(() => {
+              toast.error("Couldn't undo that")
+            })
+          },
+        },
+      })
     } catch (caught) {
       hapticHeavy()
       toast.error(

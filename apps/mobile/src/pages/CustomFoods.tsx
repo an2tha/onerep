@@ -80,6 +80,10 @@ export default function CustomFoods() {
     api.logs.foodLogs.addEntry,
     "logs.foodLogs.addEntry"
   )
+  const removeFoodEntry = useOfflineMutation(
+    api.logs.foodLogs.removeEntry,
+    "logs.foodLogs.removeEntry"
+  )
 
   const [query, setQuery] = useState("")
   // Arriving from a search that found nothing: the name the user typed is the
@@ -176,16 +180,27 @@ export default function CustomFoods() {
   ) {
     const id = food.id ?? food._id
     hapticSelection()
+    const entry = foodLogEntryFromCustomFood(food, {
+      meal: options.meal,
+      servings: options.servings,
+    })
     try {
-      await addFoodEntry({
-        date: today,
-        entry: foodLogEntryFromCustomFood(food, {
-          meal: options.meal,
-          servings: options.servings,
-        }),
-      })
+      await addFoodEntry({ date: today, entry })
       if (id) await markUsed({ id: id as Id<"customFoods"> })
-      toast.success(`Logged ${food.name}`)
+      // The entry carries its own id, so undo works offline too: the queue
+      // takes the removal the same way it took the log.
+      toast.success(`Logged ${food.name}`, {
+        action: {
+          label: "Undo",
+          onClick: () => {
+            void removeFoodEntry({ date: today, entryId: entry.id }).catch(
+              () => {
+                toast.error("Couldn't undo that")
+              }
+            )
+          },
+        },
+      })
       setLogTarget(null)
     } catch (error) {
       reportOfflineMutationError(error, "Could not log this food")

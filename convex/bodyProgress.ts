@@ -122,12 +122,26 @@ export const save = mutation({
       throw new Error(APP_UPDATE_REQUIRED);
     }
 
-    const existing = await ctx.db
-      .query("bodyMeasurements")
-      .withIndex("by_userId_clientId", (q) =>
-        q.eq("userId", user._id).eq("clientId", args.clientId),
-      )
-      .unique();
+    const existing =
+      (await ctx.db
+        .query("bodyMeasurements")
+        .withIndex("by_userId_clientId", (q) =>
+          q.eq("userId", user._id).eq("clientId", args.clientId),
+        )
+        .unique()) ??
+      // Nothing under this client id, so look for a row the health sync wrote
+      // for the same day and take it over. Without this the check-in landed
+      // beside the scale reading instead of on top of it — two rows for one
+      // morning, both shown, and the Body screen picking between them on
+      // insertion order. A day has one check-in; whose hand filled it in is a
+      // field on the row, not a reason for a second one.
+      (await ctx.db
+        .query("bodyMeasurements")
+        .withIndex("by_userId_and_loggedAt", (q) =>
+          q.eq("userId", user._id).eq("loggedAt", args.loggedAt),
+        )
+        .filter((q) => q.eq(q.field("source"), "health"))
+        .first());
 
     const now = Date.now();
     if (args.photoUploadId) {
@@ -148,6 +162,9 @@ export const save = mutation({
     if (existing) {
       await ctx.db.patch(existing._id, {
         loggedAt: args.loggedAt,
+        // An adopted scale row answers to the caller's id from here on, so a
+        // later edit or delete finds it the ordinary way.
+        clientId: args.clientId,
         ...definedMeasurementFields(args),
         ...clearedMeasurementFields(args.clearFields),
         ...(args.photoUploadId !== undefined

@@ -7616,6 +7616,65 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   color: color-mix(in srgb, var(--foreground) 42%, transparent);
 }
 
+/* The chain a multi-step run actually walked.
+   A model that logs a yoghurt looks the food up first, and the lookup is not
+   an implementation detail — it is where a wrong match becomes a wrong entry,
+   and the only place anyone can catch it. So the steps are numbered and
+   joined, in the order they ran, rather than listed as if they happened at
+   once. A single-call run gets no rail: there is no order to show. */
+/* An explicit counter, not `list-item`: the rows are flex children, and a
+   flex item is not a list item however the `ol` is marked up, so
+   `counter(list-item)` reads 0 on every step. */
+.quick-add-chain {
+  counter-reset: quick-add-step;
+}
+
+.quick-add-chain > li {
+  position: relative;
+  counter-increment: quick-add-step;
+  padding-left: 1.5rem;
+}
+
+.quick-add-chain > li::before {
+  content: counter(quick-add-step);
+  position: absolute;
+  left: 0;
+  top: 0.05rem;
+  display: flex;
+  width: 1rem;
+  height: 1rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--foreground) 22%, transparent);
+  background: color-mix(in srgb, var(--card) 70%, transparent);
+  font-size: 9px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--foreground) 62%, transparent);
+}
+
+/* Drawn from the marker to the next one rather than as a full-height rule, so
+   the last step ends the chain instead of trailing off the bottom. */
+.quick-add-chain > li:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  left: 0.5rem;
+  top: 1.2rem;
+  bottom: -0.6rem;
+  width: 1px;
+  background: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--foreground) 18%, transparent),
+    color-mix(in srgb, var(--foreground) 6%, transparent)
+  );
+}
+
+.quick-add-chain > li[data-tone="error"]::before {
+  border-color: color-mix(in srgb, var(--destructive) 55%, transparent);
+  color: color-mix(in srgb, var(--destructive) 85%, transparent);
+}
+
 /* A run in flight: the editor's edge cycles, once, slowly, and nothing else
    on the page moves.
  *
