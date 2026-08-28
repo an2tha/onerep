@@ -26,14 +26,26 @@ set_target_properties(needle PROPERTIES IMPORTED_LOCATION "${NEEDLE_DIR}/libneed
 add_library(needlejni SHARED needle_jni.c)
 target_include_directories(needlejni PRIVATE "${NEEDLE_DIR}")
 
-# The engine is C++ behind a C interface. Without c++_static the link fails on
-# __cxa_throw and a pile of std:: symbols, which reads like a corrupt archive
-# rather than a missing runtime; static rather than shared so the app does not
+# The engine is C++ behind a C interface, and needle_jni.c is the only source
+# here, so CMake picks C as the link language and drives the link with clang
+# instead of clang++. That silently drops the entire C++ runtime: naming
+# c++_static by hand gets libc++_static.a onto the line, but not the
+# libc++abi.a it depends on, and the link dies on __cxa_throw,
+# __cxa_free_exception and the __cxxabiv1 type_info vtables — every one of
+# them referenced from inside libc++_static.a's own members, which reads like
+# a corrupt archive rather than a runtime that was never linked.
+#
+# Declaring the link language CXX is what makes the NDK toolchain append its
+# STL for us, libc++abi and the unwinder included, rather than guessing at
+# sysroot library names here. Static rather than shared so the app does not
 # have to package libc++_shared.so as well.
+#
 # lld resolves archives in one pass, so libneedle.a's references into
 # libc++_static.a (and libc++_static.a's references into itself, e.g.
 # __cxa_throw pulled in from a different member than std::runtime_error) need
 # --start-group/--end-group to be re-scanned until nothing new resolves.
+set_target_properties(needlejni PROPERTIES LINKER_LANGUAGE CXX)
+
 target_link_libraries(needlejni PRIVATE
   log
   "-Wl,--start-group" needle c++_static "-Wl,--end-group"

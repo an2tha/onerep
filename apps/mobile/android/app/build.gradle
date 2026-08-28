@@ -29,11 +29,19 @@ android {
             versionName project.onerepVersionName
         }
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-        // The Needle 2 engine ships as a static archive per ABI, and only for
-        // these two. Anything else has no libneedle.a to link, so the NDK build
-        // is scoped rather than left to fail on x86 emulators.
+        // The Needle 2 engine ships as a static archive per ABI, and arm64 is
+        // the only one we can link. Anything else has no libneedle.a, so the
+        // NDK build is scoped rather than left to fail on x86 emulators.
+        //
+        // armeabi-v7a is gone on purpose. Its archive was compiled against the
+        // libc++ in NDK 30.0.14904198 — a preview release — and references
+        // std::__ndk1::__hash_memory, which no stable NDK defines: not the 27
+        // pinned below, not 29. (The arm64 slice never references it, which is
+        // why only the 32-bit link broke.) Putting it back means rebuilding
+        // that archive upstream against the NDK this project pins, not
+        // widening the filter here.
         ndk {
-            abiFilters 'arm64-v8a', 'armeabi-v7a'
+            abiFilters 'arm64-v8a'
         }
         externalNativeBuild {
             cmake {

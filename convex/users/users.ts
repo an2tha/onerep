@@ -1,5 +1,6 @@
 import { v } from "convex/values";
-import { mutation, query } from "../_generated/server";
+import { internal } from "../_generated/api";
+import { internalMutation, mutation, query } from "../_generated/server";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { getAuthUser, safeGetAuthUser } from "../lib/auth";
 import { calculateCalories } from "../lib/calculateCalories";
@@ -1091,6 +1092,61 @@ export const deleteMyDataBatch = mutation({
   handler: async (ctx, args) => {
     const user = await requireUser(ctx);
     return await deleteUserDataBatch(ctx, user._id, args.batchSize ?? 100);
+  },
+});
+
+const PURGE_BATCH_SIZE = 100;
+
+/**
+ * Finish deleting an account's data after Better Auth has removed the login.
+ *
+ * Scheduled from the `afterDelete` hook in `convex/lib/auth.ts`, which is the
+ * only caller and the only moment it is safe: the user row, its accounts and
+ * its sessions are already gone by then, so there is no one left who could be
+ * signed in to the rows this is about to remove.
+ *
+ * It has to run here rather than in the client, because the client loses its
+ * session the instant the account goes and cannot finish what it started. The
+ * old flow wiped the data first and asked Better Auth second, which meant a
+ * failure at the second step — and for anyone signed in with Google or Apple,
+ * that step failed every time — left the data destroyed and the login intact.
+ * Now the login is the gate, and this is the part that cannot be interrupted:
+ * a batch that finds more work reschedules itself, so the purge outlives the
+ * request, the phone, and whatever the network was doing.
+ */
+export const purgeDeletedUserData = internalMutation({
+  args: {
+    userId: v.string(),
+    deletedSoFar: v.optional(v.number()),
+    passes: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const { deleted, remaining } = await deleteUserDataBatch(
+      ctx,
+      args.userId,
+      PURGE_BATCH_SIZE,
+    );
+    const deletedSoFar = (args.deletedSoFar ?? 0) + deleted;
+    const passes = (args.passes ?? 0) + 1;
+
+    // A pass that clears nothing and still reports work left cannot be fixed
+    // by running it again. Stopping loudly beats a mutation that reschedules
+    // itself forever, one document short of done.
+    if (remaining && deleted === 0) {
+      throw new Error(
+        `Purge for ${args.userId} stalled after ${passes} passes with ${deletedSoFar} rows deleted`,
+      );
+    }
+
+    if (remaining) {
+      await ctx.scheduler.runAfter(0, internal.users.users.purgeDeletedUserData, {
+        userId: args.userId,
+        deletedSoFar,
+        passes,
+      });
+    }
+
+    return { deleted: deletedSoFar, done: !remaining, passes };
   },
 });
 

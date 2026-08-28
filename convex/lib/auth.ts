@@ -2,7 +2,7 @@ import { createClient, type GenericCtx } from "@convex-dev/better-auth";
 import { convex, crossDomain } from "@convex-dev/better-auth/plugins";
 import { betterAuth, type BetterAuthOptions } from "better-auth";
 import { genericOAuth } from "better-auth/plugins";
-import { components } from "../_generated/api";
+import { components, internal } from "../_generated/api";
 import type { DataModel } from "../_generated/dataModel";
 import type { ActionCtx, MutationCtx, QueryCtx } from "../_generated/server";
 import authConfig from "../auth.config";
@@ -177,7 +177,56 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
     user: {
       deleteUser: {
         enabled: true,
+        /**
+         * The rest of the account, once the login is gone.
+         *
+         * Better Auth's own `deleteUser` clears the component's `session`,
+         * `account` and `user` rows, and stops there — everything OneRep
+         * stores lives in app tables it has never heard of. Those used to be
+         * the client's job, wiped in a loop before this endpoint was even
+         * called, which put the destructive half first and the half that
+         * could fail second. Here it runs after, server side, and cannot be
+         * abandoned halfway by a phone that locked.
+         *
+         * `afterDelete` rather than `beforeDelete` on purpose: a purge that
+         * ran and then watched the deletion fail would be the same bug wearing
+         * a different hat.
+         *
+         * The id is Convex's token identifier, `issuer|subject`, which is what
+         * `safeGetAuthUser` writes onto every row. The issuer is this
+         * deployment's site URL and the subject is Better Auth's user id, so
+         * the two halves are both already here.
+         */
+        afterDelete: async (user) => {
+          // Queries have no scheduler. Deletion only ever arrives through the
+          // HTTP action that serves the auth routes, so this is a type guard
+          // rather than a real branch.
+          if (!("scheduler" in ctx)) return;
+          await ctx.scheduler.runAfter(
+            0,
+            internal.users.users.purgeDeletedUserData,
+            { userId: `${convexSiteUrl}|${user.id}` },
+          );
+        },
       },
+    },
+    // Account deletion, and only account deletion, turns on this dial.
+    //
+    // `/delete-user` takes a password instead of a fresh session, and falls
+    // back to demanding one when no password is sent. Better Auth's default
+    // freshness window is 24 hours, so a session older than that gets
+    // SESSION_EXPIRED. Someone who signed in with Google or Apple has no
+    // credential account and therefore no password to send — sending one
+    // earns CREDENTIAL_ACCOUNT_NOT_FOUND — which left them with no way at all
+    // to delete their account the day after they signed in. Apple requires
+    // that path to work, and it was silently dead.
+    //
+    // The two endpoints that read freshness through the other middleware are
+    // /unlink-account and /list-sessions, and this app calls neither. What
+    // still guards deletion: a valid session, and the word DELETE typed by
+    // hand in Settings.
+    session: {
+      freshAge: 0,
     },
     plugins: [
       crossDomain({ siteUrl }),

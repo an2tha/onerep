@@ -423,7 +423,6 @@ export default function Settings({ onClose }: { onClose: () => void }) {
   const mcpTokenCount = mcpTokens?.length ?? 0
   const { startPreview } = useMomentPreview()
   const tour = useTour()
-  const deleteMyDataBatch = useMutation(api.users.users.deleteMyDataBatch)
 
   const [workoutFocus, setWorkoutFocus] = useState<WorkoutFocus>(
     (preferences?.dashboardSettings?.workoutFocus as WorkoutFocus) || "strength"
@@ -1182,30 +1181,31 @@ export default function Settings({ onClose }: { onClose: () => void }) {
     if (deleteConfirmText !== "DELETE" || deleting) return
     setDeleting(true)
     try {
-      let remaining = true
-      let batches = 0
-      while (remaining && batches < 100) {
-        const result = await deleteMyDataBatch({ batchSize: 100 })
-        remaining = result.remaining
-        batches += 1
-        if (result.deleted === 0 && result.remaining) {
-          throw new Error("Could not finish deleting account data")
-        }
-      }
-      if (remaining)
-        throw new Error("Account has too much data to delete in one session")
+      // Everything that needs this session happens before the account goes,
+      // because afterwards there is no session to spend. Push registration is
+      // the one piece the server purge cannot reach: it lives with the push
+      // provider, not in our tables.
+      await revokeCoachPush().catch(() => undefined)
 
+      // One call, and the account is gone: Better Auth drops the login, its
+      // OAuth links and its sessions, then the afterDelete hook in
+      // convex/lib/auth.ts schedules the purge of every row this account owns.
+      // The client deliberately deletes nothing itself. It used to wipe the
+      // data first and ask for the login second, so a refusal at the second
+      // step — and /delete-user refused every Google and Apple account whose
+      // session had aged past a day — left the data destroyed and the login
+      // alive. Now nothing is destroyed until the login is, and finishing the
+      // job no longer depends on this phone staying awake.
       const deletedAccount = await authClient.deleteUser({})
       if (deletedAccount.error) {
         throw new Error(
           betterAuthErrorMessage(
             deletedAccount.error,
-            "Could not delete the account login"
+            "Could not delete the account. Nothing has been removed."
           )
         )
       }
 
-      await revokeCoachPush()
       clearOfflineQueue()
       await signOutApp().catch(() => undefined)
 
