@@ -1,3 +1,4 @@
+import { Capacitor } from "@capacitor/core"
 import { useEffect, useState } from "react"
 import {
   convexClient,
@@ -28,6 +29,14 @@ export const authClient = createAuthClient({
     }),
     genericOAuthClient(),
   ],
+  // The CapacitorHttp plugin routes fetch/XHR through the native iOS/Android
+  // HTTP stack, which drops the Origin header on cookie-bearing requests.
+  // better-auth's origin check then rejects them as MISSING_OR_NULL_ORIGIN
+  // even though "https://localhost" (this WebView's real origin, per
+  // capacitor.config.ts) is already in the server's trustedOrigins list.
+  ...(Capacitor.isNativePlatform()
+    ? { fetchOptions: { headers: { Origin: "https://localhost" } } }
+    : {}),
 })
 export const providerAuthClient = authClient as unknown as AuthClient
 

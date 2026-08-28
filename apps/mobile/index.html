@@ -15,6 +15,25 @@
     <meta name="theme-color" content="#f4f3ef" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#0d0d0c" media="(prefers-color-scheme: dark)" />
     <meta name="color-scheme" content="light dark" />
+    <style>
+      /*
+        Painted before any bundle CSS loads. Matters most for the SSO
+        handoff in native-oauth.ts, which lands here via a hard
+        window.location.replace() (a real WebView navigation, not a
+        router transition) — without this, that reload flashes stark
+        white for as long as the JS bundle takes to boot.
+      */
+      html,
+      body {
+        background-color: #f4f3ef;
+      }
+      @media (prefers-color-scheme: dark) {
+        html,
+        body {
+          background-color: #0d0d0c;
+        }
+      }
+    </style>
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="OneRep" />
