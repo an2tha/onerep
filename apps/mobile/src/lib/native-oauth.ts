@@ -18,6 +18,7 @@
 import { Browser } from "@capacitor/browser"
 import { Capacitor } from "@capacitor/core"
 import { authClient } from "@/lib/auth-client"
+import { OAuthSession } from "@/lib/oauth-session-plugin"
 
 /**
  * Logged at every level, not just in development. Sign-in failing on someone
@@ -30,6 +31,15 @@ function log(message: string, detail?: unknown) {
 
 /** Matches `getNativeAppOrigin` in `auth-redirects.ts`. */
 const AUTH_HOST = "auth"
+const DEFAULT_SCHEME = "onerep"
+
+/** The scheme half of the same callback URL, without the `://auth`. */
+function callbackScheme() {
+  const configured = import.meta.env.VITE_CAPACITOR_URL_SCHEME as
+    | string
+    | undefined
+  return (configured || DEFAULT_SCHEME).replace(/:\/*$/, "")
+}
 
 type CrossDomainClient = {
   crossDomain: {
@@ -47,11 +57,54 @@ export function isNativeOAuthPlatform(): boolean {
 }
 
 /**
- * Opens the provider outside the WebView. Resolves once the browser is up; the
- * rest of the flow arrives as a deep link.
+ * Opens the provider outside the WebView.
+ *
+ * iOS goes through `ASWebAuthenticationSession`, which is handed the callback
+ * scheme up front and so can catch the `onerep://auth/...` redirect itself.
+ * An `SFSafariViewController` — what `Browser.open` gives us — cannot: it has
+ * no callback contract, refuses to follow a redirect out to a custom scheme,
+ * and leaves the sheet parked on a dead page while the app waits for an
+ * `appUrlOpen` that never comes. Apple's `response_mode=form_post` makes that
+ * a blank white screen; Google just hangs.
+ *
+ * Android keeps the Custom Tab, which resolves `onerep://` through the
+ * manifest's intent filter and delivers the deep link on its own.
+ *
+ * Resolves once the flow is done, not once the browser is up.
  */
 export async function openNativeOAuth(url: string): Promise<void> {
-  await Browser.open({ url, presentationStyle: "popover" })
+  if (Capacitor.getPlatform() !== "ios") {
+    await Browser.open({ url, presentationStyle: "popover" })
+    return
+  }
+
+  const result = await OAuthSession.start({
+    url,
+    callbackScheme: callbackScheme(),
+  })
+  if (result.cancelled) {
+    log("sheet dismissed before the provider answered")
+    return
+  }
+  if (!result.url) {
+    log("session ended with no callback url")
+    return
+  }
+
+  await finishNativeOAuth(result.url)
+}
+
+/**
+ * Redeems the callback and lands on the screen it points at.
+ *
+ * A full load rather than `router.navigate`: the session now lives in
+ * localStorage, and booting the app is what reliably picks it up. Nudging the
+ * in-place session signal leaves Convex unauthenticated, because nothing in
+ * this WebView ever navigated.
+ */
+export async function finishNativeOAuth(url: string): Promise<void> {
+  const authPath = await completeNativeOAuth(url)
+  if (authPath) window.location.replace(authPath)
 }
 
 /** True for the callbacks this module owns, so other deep links fall through. */

@@ -111,7 +111,7 @@ import { useEnergyUnit } from "@/lib/use-energy-unit"
 import { AppVersionReport } from "@/components/app-version-report"
 import { Capacitor } from "@capacitor/core"
 import { App as CapacitorApp } from "@capacitor/app"
-import { completeNativeOAuth, isAuthDeepLink } from "@/lib/native-oauth"
+import { finishNativeOAuth, isAuthDeepLink } from "@/lib/native-oauth"
 import { deepLinkToPath } from "./lib/deep-links"
 import { hapticMedium, hapticSelection, hapticTap } from "./lib/haptics"
 import { initializePwaInstallTracking } from "./lib/pwa-install"
@@ -1248,13 +1248,9 @@ if (Capacitor.isNativePlatform()) {
     // be redeemed before the router lands on /sso-callback, which waits on a
     // session that would otherwise never arrive.
     if (isAuthDeepLink(url)) {
-      void completeNativeOAuth(url).then((authPath) => {
-        // A full load rather than router.navigate: the session now lives in
-        // localStorage, and booting the app is what reliably picks it up.
-        // Nudging the in-place session signal leaves Convex unauthenticated,
-        // because nothing in this WebView ever navigated.
-        if (authPath) window.location.replace(authPath)
-      })
+      // Android's path. On iOS the callback never becomes a deep link at all:
+      // ASWebAuthenticationSession hands it back inside openNativeOAuth.
+      void finishNativeOAuth(url)
       return
     }
     const path = deepLinkToPath(url)
