@@ -29,6 +29,8 @@
     <br />
     <a href="https://app.onerep.life">Try it</a>
     &middot;
+    <a href="https://testflight.apple.com/join/edJwRJDP">Join the iOS beta</a>
+    &middot;
     <a href="https://docs.onerep.life/selfhost/overview">Self-host it</a>
     &middot;
     <a href="#contributing">Contribute</a>

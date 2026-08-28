@@ -1,0 +1,36 @@
+# Override for docker-compose.yml: builds datasource and app from source
+# instead of pulling the published GHCR images.
+#
+# Needed whenever the app isn't served from the default http://127.0.0.1 —
+# VITE_CONVEX_URL/VITE_APP_URL/etc. are baked into the JS bundle at image
+# build time (see apps/mobile/Dockerfile), so a custom domain means baking
+# your own image rather than reusing the published default-URL one.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+
+services:
+  datasource:
+    build:
+      context: ..
+      dockerfile: apps/datasource/Dockerfile
+
+  app:
+    build:
+      context: ..
+      dockerfile: apps/mobile/Dockerfile
+      args:
+        VITE_CONVEX_URL: ${CONVEX_CLOUD_ORIGIN:-http://127.0.0.1:3210}
+        VITE_CONVEX_SITE_URL: ${CONVEX_SITE_ORIGIN:-http://127.0.0.1:3211}
+        VITE_APP_URL: ${APP_URL:-http://127.0.0.1:8081}
+        VITE_SITE_URL: ${APP_URL:-http://127.0.0.1:8081}
+        # Anonymous usage telemetry. install.sh asks and writes the answer to
+        # UMAMI_* in selfhost/.env; the prompt defaults to yes. Here they are
+        # empty, and empty is the whole feature: with either one unset the
+        # build injects no analytics script at all.
+        VITE_UMAMI_SCRIPT_URL: ${UMAMI_SCRIPT_URL:-}
+        VITE_UMAMI_WEBSITE_ID: ${UMAMI_WEBSITE_ID:-}
+
+  convex-deploy:
+    build:
+      context: ..
+      dockerfile: selfhost/convex-deploy.Dockerfile

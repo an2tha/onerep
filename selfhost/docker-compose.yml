@@ -1,15 +1,23 @@
 # Self-hosted OneRep: the whole public stack in one file.
 #
-#   backend     Convex (database, functions, auth, crons) — the entire backend
-#   dashboard   Convex dashboard, so you can see what the backend is doing
-#   datasource  USDA food + wger exercise search (Bun + SQLite), Convex-only,
-#               never exposed to the host — Convex reaches it on the compose
-#               network as http://datasource:3100
-#   app         The OneRep client (responsive web app / PWA), static files
+#   backend        Convex (database, functions, auth, crons) — the whole backend
+#   dashboard      Convex dashboard, so you can see what the backend is doing
+#   datasource     USDA food + wger exercise search (Bun + SQLite), Convex-only,
+#                  never exposed to the host — Convex reaches it on the compose
+#                  network as http://datasource:3100
+#   app            The OneRep client (responsive web app / PWA), static files
+#   convex-deploy  One-shot: deploys Convex functions, then exits. Not part of
+#                  `docker compose up` (profile: deploy) — install.sh runs it.
 #
 # The marketing site and private billing are deliberately absent; this mirrors
 # scripts/public-exclude.txt. Billing is stubbed and every account has Pro by
 # default, which is the self-hosting answer.
+#
+# datasource and app pull prebuilt images from GHCR by default — no bun/node
+# and no multi-minute app build on the host. That only covers the default
+# 127.0.0.1 setup: VITE_CONVEX_URL/VITE_APP_URL/etc. are baked into the app's
+# JS bundle at image-build time, not read at runtime. Serving on a real domain
+# means building locally instead — see docker-compose.build.yml.
 #
 # Run ./install.sh instead of `docker compose up` the first time: the backend
 # needs an admin key generated and functions deployed before the app is useful.
@@ -52,15 +60,7 @@ services:
     restart: unless-stopped
 
   datasource:
-    build:
-      context: ..
-      dockerfile_inline: |
-        FROM oven/bun:1.3.4-alpine
-        WORKDIR /app
-        COPY apps/datasource .
-        ENV HOST=0.0.0.0 PORT=3100 DATA_DIR=/data
-        EXPOSE 3100
-        CMD ["bun", "src/index.ts"]
+    image: ${DATASOURCE_IMAGE:-ghcr.io/an2tha/onerep-datasource:latest}
     environment:
       - API_TOKEN=${DATASOURCE_API_TOKEN:?run install.sh to generate .env}
     # No host port on purpose: Convex is the only client this service has ever
@@ -77,29 +77,34 @@ services:
     restart: unless-stopped
 
   app:
-    build:
-      context: ..
-      dockerfile: apps/mobile/Dockerfile
-      args:
-        # Baked into the static bundle at build time; changing any of these
-        # means `docker compose build app` again.
-        VITE_CONVEX_URL: ${CONVEX_CLOUD_ORIGIN:-http://127.0.0.1:3210}
-        VITE_CONVEX_SITE_URL: ${CONVEX_SITE_ORIGIN:-http://127.0.0.1:3211}
-        VITE_APP_URL: ${APP_URL:-http://127.0.0.1:8081}
-        VITE_SITE_URL: ${APP_URL:-http://127.0.0.1:8081}
-        # Anonymous usage telemetry. install.sh asks and writes the answer to
-        # UMAMI_* in selfhost/.env; the prompt defaults to yes. Here they are
-        # empty, and empty is the whole feature: with either one unset the build
-        # injects no analytics script at all, so a bare `docker compose build
-        # app` on a fresh clone that never ran install.sh phones nobody.
-        VITE_UMAMI_SCRIPT_URL: ${UMAMI_SCRIPT_URL:-}
-        VITE_UMAMI_WEBSITE_ID: ${UMAMI_WEBSITE_ID:-}
+    image: ${APP_IMAGE:-ghcr.io/an2tha/onerep-app:latest}
     ports:
       - "8081:3000"
     depends_on:
       backend:
         condition: service_healthy
     restart: unless-stopped
+
+  # One-shot: deploys Convex functions and sets deployment env vars, then
+  # exits. `docker compose run --rm convex-deploy` — install.sh does this so
+  # nothing on the host needs bun or node. Never starts with `up`.
+  convex-deploy:
+    image: ${CONVEX_DEPLOY_IMAGE:-ghcr.io/an2tha/onerep-convex-deploy:latest}
+    profiles: ["deploy"]
+    environment:
+      # Talks to the backend over the compose network, not the host-published
+      # port — CONVEX_CLOUD_ORIGIN is what clients use and may not even be
+      # reachable from inside this container (e.g. a public domain in front
+      # of a reverse proxy that isn't running yet).
+      - CONVEX_SELF_HOSTED_URL=http://backend:3210
+      - CONVEX_SELF_HOSTED_ADMIN_KEY=${CONVEX_SELF_HOSTED_ADMIN_KEY:?run install.sh}
+      - APP_URL=${APP_URL:-http://127.0.0.1:8081}
+      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:?run install.sh to generate .env}
+      - DATASOURCE_API_TOKEN=${DATASOURCE_API_TOKEN:?run install.sh to generate .env}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+    depends_on:
+      backend:
+        condition: service_healthy
 
 volumes:
   convex-data:

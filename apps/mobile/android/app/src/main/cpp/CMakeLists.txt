@@ -30,4 +30,11 @@ target_include_directories(needlejni PRIVATE "${NEEDLE_DIR}")
 # __cxa_throw and a pile of std:: symbols, which reads like a corrupt archive
 # rather than a missing runtime; static rather than shared so the app does not
 # have to package libc++_shared.so as well.
-target_link_libraries(needlejni PRIVATE needle log c++_static)
+# lld resolves archives in one pass, so libneedle.a's references into
+# libc++_static.a (and libc++_static.a's references into itself, e.g.
+# __cxa_throw pulled in from a different member than std::runtime_error) need
+# --start-group/--end-group to be re-scanned until nothing new resolves.
+target_link_libraries(needlejni PRIVATE
+  log
+  "-Wl,--start-group" needle c++_static "-Wl,--end-group"
+)

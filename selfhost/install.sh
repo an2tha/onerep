@@ -8,8 +8,12 @@
 #   2. writes selfhost/.env with generated secrets (kept if it already exists)
 #   3. starts the Convex backend and waits for it to be healthy
 #   4. generates a deploy admin key
-#   5. deploys the Convex functions and sets the deployment's env vars
-#   6. builds and starts the datasource and the app
+#   5. deploys the Convex functions and sets the deployment's env vars, via
+#      the convex-deploy image — nothing on the host needs bun or node
+#   6. starts the datasource and the app: pulled from GHCR by default, or
+#      built locally if PUBLIC_HOST isn't the default (a custom domain means
+#      the app's URLs have to be baked into its own image — see
+#      docker-compose.build.yml)
 #
 # Optional env vars before running (all have localhost defaults):
 #   PUBLIC_HOST          hostname clients will use         (default 127.0.0.1)
@@ -26,7 +30,6 @@
 
 set -euo pipefail
 cd "$(dirname "$0")"
-REPO_ROOT="$(cd .. && pwd)"
 
 say()  { printf '\n\033[1m%s\033[0m\n' "$*"; }
 fail() { printf 'error: %s\n' "$*" >&2; exit 1; }
@@ -36,12 +39,11 @@ fail() { printf 'error: %s\n' "$*" >&2; exit 1; }
 command -v docker >/dev/null || fail "docker is required: https://docs.docker.com/get-docker/"
 docker compose version >/dev/null 2>&1 || fail "docker compose v2 is required"
 
-if command -v bunx >/dev/null; then
-  RUNNER=bunx JS=bun INSTALL="bun install"
-elif command -v npx >/dev/null; then
-  RUNNER=npx JS=node INSTALL="npm install"
-else
-  fail "bun or node is required on the host to run the Convex CLI (deploys functions)"
+# Non-default PUBLIC_HOST means the app's URLs can't be the published image's
+# baked-in localhost defaults, so datasource and app build locally instead.
+COMPOSE=(docker compose)
+if [ "${PUBLIC_HOST:-127.0.0.1}" != "127.0.0.1" ]; then
+  COMPOSE=(docker compose -f docker-compose.yml -f docker-compose.build.yml)
 fi
 
 # ---------- 1. telemetry (asked plainly, defaults to on) ---------------------
@@ -167,8 +169,8 @@ fi
 # ---------- 3. backend up ----------------------------------------------------
 
 say "Starting Convex backend"
-docker compose up -d backend dashboard
-until docker compose exec backend curl -sf http://localhost:3210/version >/dev/null 2>&1; do
+"${COMPOSE[@]}" up -d backend dashboard
+until "${COMPOSE[@]}" exec backend curl -sf http://localhost:3210/version >/dev/null 2>&1; do
   printf '.'; sleep 2
 done
 echo " up."
@@ -176,41 +178,24 @@ echo " up."
 # ---------- 4. admin key -----------------------------------------------------
 
 say "Generating admin key"
-ADMIN_KEY="$(docker compose exec backend ./generate_admin_key.sh | tail -n 1 | tr -d '\r')"
+ADMIN_KEY="$("${COMPOSE[@]}" exec backend ./generate_admin_key.sh | tail -n 1 | tr -d '\r')"
 [ -n "$ADMIN_KEY" ] || fail "could not generate an admin key; check 'docker compose logs backend'"
-
-export CONVEX_SELF_HOSTED_URL="http://127.0.0.1:3210"
-export CONVEX_SELF_HOSTED_ADMIN_KEY="$ADMIN_KEY"
 
 # ---------- 5. deploy functions + deployment env -----------------------------
 
-say "Installing dependencies and deploying Convex functions"
-(cd "$REPO_ROOT" && $INSTALL)
-# Installs the checked-in billing stubs if the private provider is absent, so
-# the deploy bundles cleanly on a fresh clone.
-(cd "$REPO_ROOT" && $JS scripts/ensure-billing-provider.mjs)
-(cd "$REPO_ROOT" && $RUNNER convex deploy -y)
-
-say "Setting deployment environment variables"
-set_env() { # name value — skips empty values so optional keys stay unset
-  if [ -n "$2" ]; then
-    (cd "$REPO_ROOT" && $RUNNER convex env set "$1" -- "$2")
-  fi
-}
-set_env SITE_URL              "$APP_URL"
-set_env BETTER_AUTH_SECRET    "$BETTER_AUTH_SECRET"
-set_env DATASOURCE_URL        "http://datasource:3100"
-set_env DATASOURCE_API_TOKEN  "$DATASOURCE_API_TOKEN"
-set_env OPENROUTER_API_KEY    "${OPENROUTER_API_KEY:-}"
-set_env AI_PROCESSOR_APPROVED "${OPENROUTER_API_KEY:+true}"
-# You run the inference bill here, so the monthly AI request caps that protect
-# the hosted app's wallet have nothing to protect. Off by default on selfhost.
-set_env AI_USAGE_UNLIMITED    "true"
+say "Deploying Convex functions"
+CONVEX_SELF_HOSTED_ADMIN_KEY="$ADMIN_KEY" "${COMPOSE[@]}" run --rm --profile deploy convex-deploy
 
 # ---------- 6. everything else ----------------------------------------------
 
-say "Building and starting the datasource and the app (the app build takes a while)"
-docker compose up -d --build datasource app
+if [ "${#COMPOSE[@]}" -gt 2 ]; then
+  say "Building and starting the datasource and the app (the app build takes a while)"
+  "${COMPOSE[@]}" up -d --build datasource app
+else
+  say "Pulling and starting the datasource and the app"
+  "${COMPOSE[@]}" pull datasource app
+  "${COMPOSE[@]}" up -d datasource app
+fi
 
 # ---------- done -------------------------------------------------------------
 
