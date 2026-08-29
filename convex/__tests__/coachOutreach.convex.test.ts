@@ -192,6 +192,17 @@ describe("sending without credentials", () => {
 });
 
 describe("choosing a transport", () => {
+  // These tests care about which provider gets the call, not about the clock,
+  // so they seed a user with quiet hours collapsed to a single instant —
+  // never silent. Leaving the 21:30–08:00 default in place meant every CI run
+  // that started after dinner was told "quiet hours" and failed.
+  const alwaysAudible = {
+    enabled: true,
+    weeklyReview: true,
+    nudges: true,
+    quietHours: { startMinutes: 0, endMinutes: 0 },
+  };
+
   // iOS registers an APNs device token and Android an FCM registration id.
   // They look alike — opaque strings on a row — and sending one to the other's
   // provider fails in a way that reads as a dead device, so the platform
@@ -239,7 +250,7 @@ describe("choosing a transport", () => {
 
   test("sends an iOS device to Apple, not to Google", async () => {
     const t = convexTest(schema, modules);
-    await seedPreferences(t, USER);
+    await seedPreferences(t, USER, alwaysAudible);
     await seedToken(t, "ios");
     stubApnsCredentials(await generateApnsPem());
     const fetchMock = vi.fn(async () => new Response("", { status: 200 }));
@@ -261,7 +272,7 @@ describe("choosing a transport", () => {
 
   test("leaves a device it cannot address alone", async () => {
     const t = convexTest(schema, modules);
-    await seedPreferences(t, USER);
+    await seedPreferences(t, USER, alwaysAudible);
     await seedToken(t, "android");
     stubApnsCredentials(await generateApnsPem());
     const fetchMock = vi.fn(async () => new Response("", { status: 200 }));
@@ -291,7 +302,7 @@ describe("choosing a transport", () => {
 
   test("drops an iOS token Apple has stopped recognising", async () => {
     const t = convexTest(schema, modules);
-    await seedPreferences(t, USER);
+    await seedPreferences(t, USER, alwaysAudible);
     await seedToken(t, "ios");
     stubApnsCredentials(await generateApnsPem());
     vi.stubGlobal(

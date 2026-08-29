@@ -1,0 +1,82 @@
+<!doctype html>
+<meta charset="utf-8">
+<style>
+@font-face{font-family:Archivo;src:url(../apps/web/node_modules/@fontsource-variable/archivo/files/archivo-latin-wght-normal.woff2) format('woff2-variations');font-weight:100 900}
+@font-face{font-family:Plex;src:url(../apps/web/node_modules/@fontsource-variable/ibm-plex-sans/files/ibm-plex-sans-latin-wght-normal.woff2) format('woff2-variations');font-weight:100 700}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:1280px;height:640px}
+body{
+  font-family:Plex,sans-serif;color:#171916;
+  background:#f4f3ef;
+  display:flex;
+}
+.card{position:relative;width:100%;height:100%;overflow:hidden;padding:72px 80px;display:flex;flex-direction:column;justify-content:space-between}
+/* faint ruled paper, the same grid the progress charts sit on */
+.card::before{content:"";position:absolute;inset:0;
+  background:repeating-linear-gradient(to bottom,transparent 0 39px,rgba(23,25,22,.05) 39px 40px);
+  mask-image:linear-gradient(to left,#000 10%,transparent 62%)}
+.trend{position:absolute;right:0;top:0;height:640px;width:1280px}
+.brand{display:flex;align-items:center;gap:18px;position:relative}
+.brand .mark{width:56px;height:56px;border-radius:14px;background:#171916;display:grid;place-items:center}
+.brand .mark svg{width:44px;height:44px}
+.brand .name{font-family:Archivo;font-weight:700;font-size:30px;letter-spacing:-.02em}
+.brand .slash{color:rgba(23,25,22,.28);font-size:24px}
+.brand .repo{font-size:20px;color:#6f706a;letter-spacing:.01em}
+h1{position:relative;font-family:Archivo;font-weight:700;font-size:78px;line-height:1.02;letter-spacing:-.035em;max-width:800px}
+h1 em{font-style:normal;color:#5f7c17}
+p.sub{position:relative;margin-top:22px;font-size:24px;line-height:1.45;color:#4a4c46;max-width:660px}
+.foot{position:relative;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.chip{font-size:17px;letter-spacing:.02em;color:#3a3c37;border:1px solid rgba(23,25,22,.16);border-radius:999px;padding:9px 16px;background:rgba(255,255,255,.55)}
+.chip.dark{background:#171916;color:#f4f3ef;border-color:#171916}
+</style>
+<div class="card">
+  <svg class="trend" viewBox="0 0 1280 640" fill="none" aria-hidden="true">
+    <defs>
+      <linearGradient id="fade" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" stop-color="#fff" stop-opacity="0"/>
+        <stop offset=".72" stop-color="#fff" stop-opacity="1"/>
+      </linearGradient>
+      <mask id="m"><rect width="1280" height="640" fill="url(#fade)"/></mask>
+    </defs>
+    <g mask="url(#m)">
+    <path d="M620 700 C 720 640 780 560 850 470 C 910 394 950 356 1010 300 C 1090 226 1180 150 1300 78"
+      fill="none" stroke="#5f7c17" stroke-width="3" stroke-linecap="round" opacity=".9"/>
+    <path d="M620 700 C 720 640 780 560 850 470 C 910 394 950 356 1010 300 C 1090 226 1180 150 1300 78 L 1300 700 L 620 700 Z"
+      fill="#5f7c17" opacity=".08"/>
+    <circle cx="1010" cy="300" r="6" fill="#5f7c17"/>
+    <circle cx="850" cy="470" r="6" fill="#5f7c17"/>
+    </g>
+  </svg>
+
+  <div class="brand">
+    <span class="mark">
+      <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+        <g transform="translate(256 260) scale(0.99) translate(-256 -256)">
+          <g fill="none" stroke="#f4f3ef" stroke-width="25" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M152 204 C 146 144 179 120 230 120 C 281 120 313 144 307 204"/>
+            <path d="M224 242 C 208 200 173 180 143 186 C 111 192 89 218 91 256 C 93 296 125 336 179 362 C 203 372 231 360 253 342"/>
+            <path d="M224 242 C 241 202 275 184 305 192 C 329 200 341 220 335 240"/>
+            <path d="M253 342 C 293 320 333 280 393 200"/>
+            <path d="M359 280 C 359 324 343 370 303 404 C 271 430 243 436 227 418 C 213 402 219 382 235 378"/>
+          </g>
+          <path d="M426 158 L 409 231 L 356 191 Z" fill="#f4f3ef" stroke="#f4f3ef" stroke-width="11" stroke-linejoin="round"/>
+        </g>
+      </svg>
+    </span>
+    <span class="name">OneRep</span>
+    <span class="slash">/</span>
+    <span class="repo">the open-source fitness OS</span>
+  </div>
+
+  <div>
+    <h1>Every rep.<br>Every meal.<br><em>One clear picture.</em></h1>
+    <p class="sub">Training, nutrition, recovery and an AI coach in one app &mdash; on our servers or entirely on yours.</p>
+  </div>
+
+  <div class="foot">
+    <span class="chip dark">Self-hostable</span>
+    <span class="chip">iOS &amp; Android</span>
+    <span class="chip">Bun &middot; React Native &middot; Convex</span>
+    <span class="chip">onerep.life</span>
+  </div>
+</div>
