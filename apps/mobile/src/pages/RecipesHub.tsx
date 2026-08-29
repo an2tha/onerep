@@ -24,6 +24,7 @@ import {
 import type { Id } from "../../../../convex/_generated/dataModel"
 import { api } from "../../../../convex/_generated/api"
 import { NavigationBar, ToolbarButton } from "@repo/ui"
+import { MobileSheet } from "@/components/mobile-sheet"
 import { hapticSelection, hapticTap } from "@/lib/haptics"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { COACH_RECIPE_PLACEHOLDER } from "@/lib/recipe-images"
@@ -754,7 +755,6 @@ export default function RecipesHub() {
   const [submittingRating, setSubmittingRating] = useState(false)
   const [savingId, setSavingId] = useState<string | null>(null)
   const heartSavesInFlightRef = useRef<Set<string>>(new Set())
-  const [closingOverlay, setClosingOverlay] = useState(false)
   const [favorites, setFavorites] = useState<Set<string>>(() => {
     try {
       return new Set(JSON.parse(safeLocalStorageGet(FAVORITES_KEY) ?? "[]"))
@@ -1065,15 +1065,6 @@ export default function RecipesHub() {
     } finally {
       setLoggingMeal(null)
     }
-  }
-
-  function closeOverlay(clear: () => void) {
-    if (closingOverlay) return
-    setClosingOverlay(true)
-    window.setTimeout(() => {
-      clear()
-      setClosingOverlay(false)
-    }, 300)
   }
 
   async function submitRating(rating: number) {
@@ -1609,81 +1600,77 @@ export default function RecipesHub() {
       </main>
 
       {shareTarget && (
-        <div
-          className={`${closingOverlay ? "sheet-backdrop-exit" : "sheet-backdrop-enter"} fixed inset-0 z-[110] flex items-end justify-center bg-black/50 backdrop-blur-sm md:items-center md:p-6`}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="share-recipe-title"
+        <MobileSheet
+          onClose={() => setShareTarget(null)}
+          ariaLabel="Share recipe"
+          overlayClassName="bg-black/50"
+          panelClassName="w-full max-w-md rounded-t-[2rem] bg-background p-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] md:rounded-[2rem] md:p-6"
         >
-          <div
-            className={`${closingOverlay ? "sheet-panel-exit" : "sheet-panel-enter"} w-full max-w-md rounded-t-[2rem] bg-background p-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] md:rounded-[2rem] md:p-6`}
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-[11px] font-semibold tracking-[0.1em] text-muted-foreground uppercase">
-                  OneRep community
-                </p>
-                <h2
-                  id="share-recipe-title"
-                  className="mt-1 text-[22px] font-semibold"
-                >
-                  Share {shareTarget.name}
-                </h2>
-              </div>
-              <button
-                type="button"
-                onClick={() => closeOverlay(() => setShareTarget(null))}
-                aria-label="Close sharing dialog"
-                className="grid size-10 place-items-center rounded-full bg-muted"
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-[11px] font-semibold tracking-[0.1em] text-muted-foreground uppercase">
+                OneRep community
+              </p>
+              <h2
+                id="share-recipe-title"
+                className="mt-1 text-[22px] font-semibold"
               >
-                <X size={15} />
-              </button>
+                Share {shareTarget.name}
+              </h2>
             </div>
-            <p className="mt-3 text-[13px] leading-5 text-muted-foreground">
-              Its recipe details, nutrition estimates, photos, your display
-              name, and country of origin will be visible to signed-in OneRep
-              members. You can unshare it at any time.
-            </p>
-            <label className="mt-5 block">
-              <span className="text-[12px] font-semibold">
-                Country of origin
-              </span>
-              <input
-                value={shareCountry}
-                onChange={(event) => setShareCountry(event.target.value)}
-                placeholder="e.g. Italy"
-                aria-label="Recipe country of origin"
-                className="mt-2 min-h-12 w-full rounded-2xl border border-border bg-muted/25 px-4 text-[14px] outline-none focus:border-foreground/35"
-              />
-            </label>
-            <label className="mt-4 flex items-start gap-3 rounded-2xl bg-muted/45 p-3.5">
-              <input
-                type="checkbox"
-                checked={shareAnonymously}
-                onChange={(event) => setShareAnonymously(event.target.checked)}
-                className="mt-0.5 size-4 accent-foreground"
-              />
-              <span>
-                <span className="block text-[13px] font-semibold">
-                  Share anonymously
-                </span>
-                <span className="mt-0.5 block text-[11px] leading-4 text-muted-foreground">
-                  Your display name will be replaced with “Anonymous”.
-                </span>
-              </span>
-            </label>
             <button
               type="button"
-              disabled={!shareCountry.trim() || sharing}
-              aria-busy={sharing}
-              onClick={() => void publishRecipe()}
-              className="mt-5 flex min-h-13 w-full items-center justify-center gap-2 rounded-2xl bg-foreground px-4 text-[14px] font-semibold text-background disabled:opacity-40"
+              onClick={() => setShareTarget(null)}
+              aria-label="Close sharing dialog"
+              className="grid size-10 place-items-center rounded-full bg-muted"
             >
-              <ShareNetwork size={17} />
-              {sharing ? "Sharing…" : "Share with community"}
+              <X size={15} />
             </button>
           </div>
-        </div>
+          <p className="mt-3 text-[13px] leading-5 text-muted-foreground">
+            Its recipe details, nutrition estimates, photos, your display
+            name, and country of origin will be visible to signed-in OneRep
+            members. You can unshare it at any time.
+          </p>
+          <label className="mt-5 block">
+            <span className="text-[12px] font-semibold">
+              Country of origin
+            </span>
+            <input
+              value={shareCountry}
+              onChange={(event) => setShareCountry(event.target.value)}
+              placeholder="e.g. Italy"
+              aria-label="Recipe country of origin"
+              className="mt-2 min-h-12 w-full rounded-2xl border border-border bg-muted/25 px-4 text-[14px] outline-none focus:border-foreground/35"
+            />
+          </label>
+          <label className="mt-4 flex items-start gap-3 rounded-2xl bg-muted/45 p-3.5">
+            <input
+              type="checkbox"
+              checked={shareAnonymously}
+              onChange={(event) => setShareAnonymously(event.target.checked)}
+              className="mt-0.5 size-4 accent-foreground"
+            />
+            <span>
+              <span className="block text-[13px] font-semibold">
+                Share anonymously
+              </span>
+              <span className="mt-0.5 block text-[11px] leading-4 text-muted-foreground">
+                Your display name will be replaced with “Anonymous”.
+              </span>
+            </span>
+          </label>
+          <button
+            type="button"
+            disabled={!shareCountry.trim() || sharing}
+            aria-busy={sharing}
+            onClick={() => void publishRecipe()}
+            className="mt-5 flex min-h-13 w-full items-center justify-center gap-2 rounded-2xl bg-foreground px-4 text-[14px] font-semibold text-background disabled:opacity-40"
+          >
+            <ShareNetwork size={17} />
+            {sharing ? "Sharing…" : "Share with community"}
+          </button>
+        </MobileSheet>
       )}
 
       {selectedCommunity &&
@@ -1694,43 +1681,33 @@ export default function RecipesHub() {
             recipe.photoUrls?.[0] ??
             (recipe.placeholderImage ? COACH_RECIPE_PLACEHOLDER : undefined)
           return (
-            <div
-              className={`${closingOverlay ? "sheet-backdrop-exit" : "sheet-backdrop-enter"} fixed inset-0 z-[100] flex items-end justify-center bg-black/55 backdrop-blur-sm md:items-center md:p-6`}
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="community-recipe-title"
-              onMouseDown={(event) => {
-                if (event.target === event.currentTarget)
-                  closeOverlay(() => setSelectedCommunity(null))
-              }}
+            <MobileSheet
+              onClose={() => setSelectedCommunity(null)}
+              ariaLabel="Community recipe"
+              panelClassName="max-h-[90svh] w-full max-w-xl overflow-y-auto rounded-t-[2rem] bg-background md:rounded-[2rem]"
             >
-              <div
-                className={`${closingOverlay ? "sheet-panel-exit" : "sheet-panel-enter"} max-h-[90svh] w-full max-w-xl overflow-y-auto rounded-t-[2rem] bg-background md:rounded-[2rem]`}
-              >
-                <div className="relative h-56">
-                  {image ? (
-                    <img
-                      src={image}
-                      alt=""
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <div className="grid h-full place-items-center bg-muted">
-                      <ForkKnife size={28} className="text-muted-foreground" />
-                    </div>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() =>
-                      closeOverlay(() => setSelectedCommunity(null))
-                    }
-                    aria-label="Close community recipe"
-                    className="absolute top-4 right-4 grid size-10 place-items-center rounded-full bg-black/50 text-white backdrop-blur"
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
-                <div className="p-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] md:p-7">
+              <div className="relative h-56">
+                {image ? (
+                  <img
+                    src={image}
+                    alt=""
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="grid h-full place-items-center bg-muted">
+                    <ForkKnife size={28} className="text-muted-foreground" />
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setSelectedCommunity(null)}
+                  aria-label="Close community recipe"
+                  className="absolute top-4 right-4 grid size-10 place-items-center rounded-full bg-black/50 text-white backdrop-blur"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+              <div className="p-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] md:p-7">
                   <div className="flex items-center justify-between gap-3 text-[11px] font-medium text-muted-foreground">
                     <span>
                       By {recipe.communityAuthorName ?? "OneRep member"}
@@ -1877,140 +1854,122 @@ export default function RecipesHub() {
                     </div>
                   )}
                 </div>
-              </div>
-            </div>
+            </MobileSheet>
           )
         })()}
 
       {loggingCommunity && (
-        <div
-          className="sheet-backdrop-enter fixed inset-0 z-[120] flex items-end justify-center bg-black/55 backdrop-blur-sm md:items-center md:p-6"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="log-community-recipe-title"
+        <MobileSheet
+          onClose={() => setLoggingCommunity(null)}
+          ariaLabel="Log recipe to a meal"
+          closeOnBackdrop={!loggingMeal}
+          panelClassName="w-full max-w-sm rounded-t-[2rem] bg-background p-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] md:rounded-[2rem]"
         >
-          <div className="sheet-panel-enter w-full max-w-sm rounded-t-[2rem] bg-background p-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] md:rounded-[2rem]">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-[11px] font-semibold tracking-[0.1em] text-muted-foreground uppercase">
-                  Add to today
-                </p>
-                <h2
-                  id="log-community-recipe-title"
-                  className="mt-1 text-[22px] font-semibold"
-                >
-                  Log {loggingCommunity.name}
-                </h2>
-              </div>
-              <button
-                type="button"
-                onClick={() => setLoggingCommunity(null)}
-                disabled={Boolean(loggingMeal)}
-                aria-label="Close meal selection"
-                className="grid size-10 place-items-center rounded-full bg-muted disabled:opacity-40"
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-[11px] font-semibold tracking-[0.1em] text-muted-foreground uppercase">
+                Add to today
+              </p>
+              <h2
+                id="log-community-recipe-title"
+                className="mt-1 text-[22px] font-semibold"
               >
-                <X size={15} />
-              </button>
-            </div>
-            <div className="mt-5 grid grid-cols-2 gap-2">
-              {["Breakfast", "Lunch", "Dinner", "Snack"].map((meal) => (
-                <button
-                  key={meal}
-                  type="button"
-                  disabled={Boolean(loggingMeal)}
-                  aria-busy={loggingMeal === meal}
-                  onClick={() =>
-                    void logCommunityRecipe(loggingCommunity, meal)
-                  }
-                  className="min-h-12 rounded-2xl border border-border bg-card px-3 text-[13px] font-semibold disabled:opacity-45"
-                >
-                  {loggingMeal === meal ? "Logging…" : meal}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {ratingRecipe && (
-        <div
-          className="sheet-backdrop-enter fixed inset-0 z-[130] flex items-end justify-center bg-black/55 backdrop-blur-sm md:items-center md:p-6"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="rate-recipe-title"
-        >
-          <div className="sheet-panel-enter w-full max-w-sm rounded-t-[2rem] bg-background p-6 pb-[max(1.75rem,env(safe-area-inset-bottom))] text-center md:rounded-[2rem]">
-            <div className="mx-auto grid size-12 place-items-center rounded-full bg-amber-500/12 text-amber-500">
-              <Star size={24} weight="fill" />
-            </div>
-            <h2
-              id="rate-recipe-title"
-              className="mt-4 text-[22px] font-semibold"
-            >
-              How was {ratingRecipe.name}?
-            </h2>
-            <p className="mt-2 text-[13px] leading-5 text-muted-foreground">
-              Your rating helps everyone find recipes worth making.
-            </p>
-            <div
-              className="mt-5 flex justify-center gap-1"
-              aria-label="Rate from 1 to 5 stars"
-            >
-              {[1, 2, 3, 4, 5].map((rating) => (
-                <button
-                  key={rating}
-                  type="button"
-                  disabled={submittingRating}
-                  onClick={() => void submitRating(rating)}
-                  aria-label={`${rating} star${rating === 1 ? "" : "s"}`}
-                  className="grid size-12 place-items-center rounded-full text-amber-500 transition-transform active:scale-90 disabled:opacity-40"
-                >
-                  <Star size={29} weight="regular" />
-                </button>
-              ))}
+                Log {loggingCommunity.name}
+              </h2>
             </div>
             <button
               type="button"
-              disabled={submittingRating}
-              onClick={() => setRatingRecipe(null)}
-              className="mt-3 min-h-11 px-5 text-[13px] font-semibold text-muted-foreground disabled:opacity-40"
+              onClick={() => setLoggingCommunity(null)}
+              disabled={Boolean(loggingMeal)}
+              aria-label="Close meal selection"
+              className="grid size-10 place-items-center rounded-full bg-muted disabled:opacity-40"
             >
-              Not now
+              <X size={15} />
             </button>
           </div>
-        </div>
+          <div className="mt-5 grid grid-cols-2 gap-2">
+            {["Breakfast", "Lunch", "Dinner", "Snack"].map((meal) => (
+              <button
+                key={meal}
+                type="button"
+                disabled={Boolean(loggingMeal)}
+                aria-busy={loggingMeal === meal}
+                onClick={() => void logCommunityRecipe(loggingCommunity, meal)}
+                className="min-h-12 rounded-2xl border border-border bg-card px-3 text-[13px] font-semibold disabled:opacity-45"
+              >
+                {loggingMeal === meal ? "Logging…" : meal}
+              </button>
+            ))}
+          </div>
+        </MobileSheet>
+      )}
+
+      {ratingRecipe && (
+        <MobileSheet
+          onClose={() => setRatingRecipe(null)}
+          ariaLabel="Rate this recipe"
+          closeOnBackdrop={!submittingRating}
+          panelClassName="w-full max-w-sm rounded-t-[2rem] bg-background p-6 pb-[max(1.75rem,env(safe-area-inset-bottom))] text-center md:rounded-[2rem]"
+        >
+          <div className="mx-auto grid size-12 place-items-center rounded-full bg-amber-500/12 text-amber-500">
+            <Star size={24} weight="fill" />
+          </div>
+          <h2 id="rate-recipe-title" className="mt-4 text-[22px] font-semibold">
+            How was {ratingRecipe.name}?
+          </h2>
+          <p className="mt-2 text-[13px] leading-5 text-muted-foreground">
+            Your rating helps everyone find recipes worth making.
+          </p>
+          <div
+            className="mt-5 flex justify-center gap-1"
+            aria-label="Rate from 1 to 5 stars"
+          >
+            {[1, 2, 3, 4, 5].map((rating) => (
+              <button
+                key={rating}
+                type="button"
+                disabled={submittingRating}
+                onClick={() => void submitRating(rating)}
+                aria-label={`${rating} star${rating === 1 ? "" : "s"}`}
+                className="grid size-12 place-items-center rounded-full text-amber-500 transition-transform active:scale-90 disabled:opacity-40"
+              >
+                <Star size={29} weight="regular" />
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            disabled={submittingRating}
+            onClick={() => setRatingRecipe(null)}
+            className="mt-3 min-h-11 px-5 text-[13px] font-semibold text-muted-foreground disabled:opacity-40"
+          >
+            Not now
+          </button>
+        </MobileSheet>
       )}
 
       {selected && (
-        <div
-          className={`${closingOverlay ? "sheet-backdrop-exit" : "sheet-backdrop-enter"} fixed inset-0 z-[100] flex items-end justify-center bg-black/55 p-0 backdrop-blur-sm md:items-center md:p-6`}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="recipe-preview-title"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget)
-              closeOverlay(() => setSelected(null))
-          }}
+        <MobileSheet
+          onClose={() => setSelected(null)}
+          ariaLabel="Recipe preview"
+          panelClassName="max-h-[90svh] w-full max-w-xl overflow-y-auto rounded-t-[2rem] bg-background md:rounded-[2rem]"
         >
-          <div
-            className={`${closingOverlay ? "sheet-panel-exit" : "sheet-panel-enter"} max-h-[90svh] w-full max-w-xl overflow-y-auto rounded-t-[2rem] bg-background md:rounded-[2rem]`}
-          >
-            <div className="relative h-56">
-              <img
-                src={selected.image}
-                alt=""
-                className="h-full w-full object-cover"
-              />
-              <button
-                type="button"
-                onClick={() => closeOverlay(() => setSelected(null))}
-                aria-label="Close recipe preview"
-                className="absolute top-4 right-4 grid size-10 place-items-center rounded-full bg-black/50 text-white backdrop-blur"
-              >
-                <X size={16} />
-              </button>
-            </div>
-            <div className="p-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] md:p-7">
+          <div className="relative h-56">
+            <img
+              src={selected.image}
+              alt=""
+              className="h-full w-full object-cover"
+            />
+            <button
+              type="button"
+              onClick={() => setSelected(null)}
+              aria-label="Close recipe preview"
+              className="absolute top-4 right-4 grid size-10 place-items-center rounded-full bg-black/50 text-white backdrop-blur"
+            >
+              <X size={16} />
+            </button>
+          </div>
+          <div className="p-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] md:p-7">
               <p className="text-[11px] font-semibold tracking-[0.1em] text-muted-foreground uppercase">
                 {selected.category} · {selected.difficulty}
               </p>
@@ -2099,9 +2058,8 @@ export default function RecipesHub() {
               >
                 <ChefHat size={17} /> Customize with Chef Coach
               </button>
-            </div>
           </div>
-        </div>
+        </MobileSheet>
       )}
     </div>
   )

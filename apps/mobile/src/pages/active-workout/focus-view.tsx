@@ -6,7 +6,14 @@
  */
 
 import { useState } from "react"
-import { ArrowsOut, CheckCircle, Minus, Plus, X } from "@phosphor-icons/react"
+import {
+  ArrowCounterClockwise,
+  ArrowsOut,
+  CheckCircle,
+  Minus,
+  Plus,
+  X,
+} from "@phosphor-icons/react"
 import { RestTimerSheet, formatRestDuration as formatRest } from "@repo/ui"
 import { cn } from "@/lib/utils"
 import { formatElapsed, toDisplay } from "@/lib/workout-logging"
@@ -24,34 +31,11 @@ import {
 const DIAL = 212
 const CENTER = DIAL / 2
 const RING_RADIUS = 88
+const RING_STROKE = 13
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS
-const TICK_COUNT = 60
-
-function DialTicks({ fraction }: { fraction: number }) {
-  return (
-    <g>
-      {Array.from({ length: TICK_COUNT }, (_, index) => {
-        const lit = index / TICK_COUNT < fraction
-        const angle = (index / TICK_COUNT) * 2 * Math.PI - Math.PI / 2
-        const outer = RING_RADIUS + 9
-        const inner = RING_RADIUS + (lit ? 1 : 4)
-        return (
-          <line
-            key={index}
-            x1={CENTER + Math.cos(angle) * inner}
-            y1={CENTER + Math.sin(angle) * inner}
-            x2={CENTER + Math.cos(angle) * outer}
-            y2={CENTER + Math.sin(angle) * outer}
-            stroke="currentColor"
-            strokeWidth={1.5}
-            strokeLinecap="round"
-            className={lit ? "text-foreground/45" : "text-foreground/10"}
-          />
-        )
-      })}
-    </g>
-  )
-}
+// The pane fills the ring exactly: the track's inner edge is the radius minus
+// half its own stroke. Same instrument as the nutrition and training dials.
+const GLASS_INSET = CENTER - (RING_RADIUS - RING_STROKE / 2)
 
 export function FocusWorkoutView({
   exerciseName,
@@ -75,6 +59,7 @@ export function FocusWorkoutView({
   onSkipRest,
   onAddSet,
   onSkipSet,
+  onUncompleteSet,
   onExpand,
   onEnd,
 }: {
@@ -99,6 +84,7 @@ export function FocusWorkoutView({
   onSkipRest: () => void
   onAddSet: () => void
   onSkipSet: () => void
+  onUncompleteSet: (index: number) => void
   onExpand: () => void
   onEnd: () => void
 }) {
@@ -119,6 +105,12 @@ export function FocusWorkoutView({
       : 0
   const reps = Number(set?.reps ?? "") || 0
   const sets = allSets ?? []
+  // The last set you logged is the one you meant to take back — undo walks
+  // backwards from the end rather than from the set you are standing on.
+  const lastLoggedIndex = sets.reduce(
+    (found, row, index) => (row.completed ? index : found),
+    -1
+  )
 
   function stepReps(delta: number) {
     if (!set) return
@@ -159,9 +151,29 @@ export function FocusWorkoutView({
         className="relative mt-6 shrink-0"
         style={{ width: DIAL, height: DIAL }}
       >
+        {/* The pane, not a plate: whatever wash sits behind the dial carries on
+            through the middle of it instead of stopping at the ring. */}
+        <span
+          className="macro-dial-glass"
+          style={{ inset: GLASS_INSET }}
+          aria-hidden="true"
+        />
+        {/* A breath of the accent behind the arc. Resting glows a little
+            harder, because that is the only time the ring is worth watching. */}
+        <span
+          aria-hidden="true"
+          className={cn(
+            "pointer-events-none absolute inset-2 rounded-full blur-2xl transition-opacity duration-500",
+            isResting ? "opacity-45" : "opacity-20"
+          )}
+          style={{
+            background:
+              "radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--accent-workout) 55%, transparent), transparent 68%)",
+          }}
+        />
         <svg
           viewBox={`0 0 ${DIAL} ${DIAL}`}
-          className="h-full w-full -rotate-90"
+          className="relative h-full w-full -rotate-90"
           aria-hidden="true"
         >
           <circle
@@ -169,8 +181,9 @@ export function FocusWorkoutView({
             cy={CENTER}
             r={RING_RADIUS}
             fill="none"
-            stroke="var(--muted)"
-            strokeWidth={13}
+            stroke="var(--foreground)"
+            strokeOpacity={0.08}
+            strokeWidth={RING_STROKE}
           />
           <circle
             cx={CENTER}
@@ -178,7 +191,7 @@ export function FocusWorkoutView({
             r={RING_RADIUS}
             fill="none"
             stroke="var(--accent-workout)"
-            strokeWidth={13}
+            strokeWidth={RING_STROKE}
             strokeLinecap="round"
             strokeDasharray={RING_CIRCUMFERENCE}
             strokeDashoffset={RING_CIRCUMFERENCE * (1 - fraction)}
@@ -187,7 +200,6 @@ export function FocusWorkoutView({
               isResting ? "duration-1000 ease-linear" : "duration-500 ease-out"
             )}
           />
-          <DialTicks fraction={fraction} />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           {isResting ? (
@@ -303,13 +315,28 @@ export function FocusWorkoutView({
                       {row.reps || "—"}
                     </span>
                   )}
-                  {row.completed && (
-                    <CheckCircle
-                      size={16}
-                      weight="fill"
-                      className="shrink-0 text-[var(--accent-workout)]"
-                      aria-label="Completed"
-                    />
+                  {row.completed ? (
+                    // The tick is the undo. Logging the wrong set should not
+                    // cost a trip through the expanded view to take back.
+                    <button
+                      type="button"
+                      onClick={() => onUncompleteSet(index)}
+                      aria-label={`Set ${index + 1} is done. Undo it`}
+                      className="motion-tactile group -mr-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
+                    >
+                      <CheckCircle
+                        size={18}
+                        weight="fill"
+                        className="text-[var(--accent-workout)] group-active:hidden"
+                      />
+                      <ArrowCounterClockwise
+                        size={16}
+                        weight="bold"
+                        className="hidden text-muted-foreground group-active:block"
+                      />
+                    </button>
+                  ) : (
+                    <span className="w-10 shrink-0" aria-hidden="true" />
                   )}
                 </li>
               )
@@ -337,15 +364,31 @@ export function FocusWorkoutView({
       {/* Fixed height: swapping between resting and lifting must not shunt the
           dial up and down the screen. */}
       <div className="flex h-12 w-full items-center justify-center gap-1">
+        {lastLoggedIndex >= 0 && (
+          <button
+            type="button"
+            onClick={() => onUncompleteSet(lastLoggedIndex)}
+            aria-label={`Undo set ${lastLoggedIndex + 1}`}
+            className="motion-tactile inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-[14px] font-medium text-muted-foreground active:text-foreground"
+          >
+            <ArrowCounterClockwise size={14} weight="bold" />
+            Undo set {lastLoggedIndex + 1}
+          </button>
+        )}
         {!isResting && set && (
           <>
+            {lastLoggedIndex >= 0 && (
+              <span className="text-muted-foreground/50" aria-hidden="true">
+                ·
+              </span>
+            )}
             <button
               type="button"
               onClick={onSkipSet}
               aria-label={`Skip set ${setNumber}`}
               className="motion-tactile min-h-11 rounded-full px-3 text-[14px] text-muted-foreground active:text-foreground"
             >
-              Skip set
+              Skip
             </button>
             <span className="text-muted-foreground/50" aria-hidden="true">
               ·
@@ -356,7 +399,7 @@ export function FocusWorkoutView({
               aria-label={`Rest after this set: ${formatRest(set.restSeconds)}. Change it`}
               className="motion-tactile min-h-11 rounded-full px-3 text-[14px] text-muted-foreground active:text-foreground"
             >
-              {formatRest(set.restSeconds)} rest after
+              {formatRest(set.restSeconds)} rest
             </button>
           </>
         )}

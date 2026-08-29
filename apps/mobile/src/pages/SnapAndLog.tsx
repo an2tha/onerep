@@ -447,6 +447,7 @@ export default function SnapAndLog() {
       const permission = await NativeCamera.requestPermissions()
       if (permission.camera !== "granted") {
         setCameraState("denied")
+        toast.error("Camera access is off. Turn it on in Settings › OneRep.")
         return
       }
       const photo = await NativeCamera.getPhoto({
@@ -496,6 +497,21 @@ export default function SnapAndLog() {
   async function handlePickFromLibrary() {
     if (mode === "snap" && !requireAiAccess(1, "snap_capture")) return
     try {
+      // The web build hands this to a file input, which needs no permission
+      // and answers `requestPermissions` with an exception. Only ask natively.
+      if (Capacitor.isNativePlatform()) {
+        const permission = await NativeCamera.requestPermissions({
+          permissions: ["photos"],
+        })
+        // iOS "limited" means the picker opens on a subset the user chose.
+        // That is still a picker, so it still works.
+        if (permission.photos !== "granted" && permission.photos !== "limited") {
+          toast.error(
+            "Photo access is off. Turn it on in Settings › OneRep › Photos."
+          )
+          return
+        }
+      }
       const photo = await NativeCamera.getPhoto({
         source: CameraSource.Photos,
         resultType: CameraResultType.Uri,

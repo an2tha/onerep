@@ -526,9 +526,12 @@ export function DayTimeline({
                 style={{ left: LINE_LEFT - 4, top: -3.5 }}
                 aria-hidden="true"
               />
+              {/* The word sits on the hairline, right of the axis, not in
+                the hour column — there it landed on top of whichever hour
+                label the minute happened to be near. */}
               <span
-                className="absolute text-right text-[11px] font-bold tracking-[0.08em] text-foreground/50 uppercase tabular-nums"
-                style={{ left: 0, width: LINE_LEFT - 16, top: -7 }}
+                className="absolute rounded-full bg-background px-1.5 text-[10px] leading-4 font-bold tracking-[0.08em] text-foreground/55 uppercase"
+                style={{ left: LINE_LEFT + 10, top: -8 }}
               >
                 Now
               </span>
@@ -741,9 +744,7 @@ export function DayTimeline({
                               weight="bold"
                               className="transition-transform duration-300"
                               style={{
-                                transform: expanded
-                                  ? "rotate(180deg)"
-                                  : "none",
+                                transform: expanded ? "rotate(180deg)" : "none",
                               }}
                             />
                           </button>

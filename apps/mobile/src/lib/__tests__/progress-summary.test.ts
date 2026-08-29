@@ -107,3 +107,76 @@ describe("buildProgressSummary", () => {
     ])
   })
 })
+
+describe("buildProgressSummary body measurements", () => {
+  const base = {
+    today: "2026-07-10",
+    caloriesTarget: 2000,
+    proteinTarget: 150,
+    foodLogs: [],
+    workoutLogs: [],
+  }
+
+  test("lists only the measurements that have a reading, in catalogue order", () => {
+    const summary = buildProgressSummary({
+      ...base,
+      bodyMeasurements: [
+        {
+          loggedAt: "2026-07-01",
+          weightKg: 80,
+          leanBodyMassKg: 62,
+          thighsCm: 58,
+        },
+        {
+          loggedAt: "2026-07-09",
+          weightKg: 79,
+          leanBodyMassKg: 62.8,
+          basalMetabolicRateKcal: 1710,
+          hipsCm: 96,
+          thighsCm: 57.5,
+        },
+      ],
+    })
+
+    expect(summary.body.measurements.map((m) => m.key)).toEqual([
+      "leanBodyMassKg",
+      "basalMetabolicRateKcal",
+      "hipsCm",
+      "thighsCm",
+    ])
+  })
+
+  test("delta is newest minus oldest, and null with a single reading", () => {
+    const summary = buildProgressSummary({
+      ...base,
+      bodyMeasurements: [
+        { loggedAt: "2026-07-09", weightKg: 79, leanBodyMassKg: 62.8 },
+        { loggedAt: "2026-07-01", weightKg: 80, leanBodyMassKg: 62 },
+        { loggedAt: "2026-07-05", weightKg: 80, boneMassKg: 3.1 },
+      ],
+    })
+
+    const lean = summary.body.measurements.find(
+      (m) => m.key === "leanBodyMassKg"
+    )
+    expect(lean?.latest).toBe(62.8)
+    expect(lean?.latestDate).toBe("2026-07-09")
+    expect(lean?.delta).toBeCloseTo(0.8)
+    expect(lean?.readings).toBe(2)
+    expect(lean?.group).toBe("composition")
+
+    const bone = summary.body.measurements.find((m) => m.key === "boneMassKg")
+    expect(bone?.delta).toBeNull()
+    expect(bone?.readings).toBe(1)
+  })
+
+  test("ignores non-finite readings", () => {
+    const summary = buildProgressSummary({
+      ...base,
+      bodyMeasurements: [
+        { loggedAt: "2026-07-09", weightKg: 79, neckCm: Number.NaN },
+      ],
+    })
+    expect(summary.body.measurements).toEqual([])
+  })
+})

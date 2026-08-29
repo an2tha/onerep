@@ -16,8 +16,9 @@ import { shiftDate } from "../../../../convex/lib/healthSeries"
  * Health has the same affordance for its readings, and Progress had nothing
  * like it: the only way to fix Tuesday was to find Tuesday in the list, open
  * the full check-in form and re-read the whole thing to change one figure.
- * This is the flat version — a day, five numbers, no disclosure, no carry
- * forward of yesterday's weight into a day you are only passing through.
+ * This is the flat version — a day, every number a check-in can hold, no
+ * disclosure, no carry forward of yesterday's weight into a day you are only
+ * passing through.
  */
 
 /** How far back the stepper reaches. Beyond a week you are inventing figures. */
@@ -27,7 +28,19 @@ const LBS_PER_KG = 2.20462
 
 type Field = {
   /** The stored field name, which is also what `clearFields` takes. */
-  key: "weightKg" | "bodyFatPct" | "waistCm" | "hipsCm" | "chestCm"
+  key:
+    | "weightKg"
+    | "bodyFatPct"
+    | "waistCm"
+    | "hipsCm"
+    | "chestCm"
+    | "armsCm"
+    | "thighsCm"
+    | "calvesCm"
+    | "neckCm"
+    | "leanBodyMassKg"
+    | "boneMassKg"
+    | "basalMetabolicRateKcal"
   label: string
   unit: string
   decimals: number
@@ -96,6 +109,54 @@ function fields(unit: WeightUnit): Field[] {
       decimals: 1,
       min: 1,
       max: 300,
+      toDisplay: identity,
+      toStored: identity,
+    },
+    ...(["armsCm", "thighsCm", "calvesCm", "neckCm"] as const).map((key) => ({
+      key,
+      label: {
+        armsCm: "Arms",
+        thighsCm: "Thighs",
+        calvesCm: "Calves",
+        neckCm: "Neck",
+      }[key],
+      unit: "cm",
+      decimals: 1,
+      min: 1,
+      max: 300,
+      toDisplay: identity,
+      toStored: identity,
+    })),
+    // The scale's own figures. They arrive through the health sync and sat
+    // here uneditable, which meant a scale that misread lean mass by ten
+    // kilos on one damp morning was in the record for good.
+    {
+      key: "leanBodyMassKg",
+      label: "Lean mass",
+      unit,
+      decimals: 1,
+      min: unit === "lbs" ? 22 : 10,
+      max: unit === "lbs" ? 660 : 300,
+      toDisplay: (stored) => (unit === "lbs" ? stored * LBS_PER_KG : stored),
+      toStored: (shown) => (unit === "lbs" ? shown / LBS_PER_KG : shown),
+    },
+    {
+      key: "boneMassKg",
+      label: "Bone mass",
+      unit,
+      decimals: 1,
+      min: unit === "lbs" ? 1 : 0.5,
+      max: unit === "lbs" ? 44 : 20,
+      toDisplay: (stored) => (unit === "lbs" ? stored * LBS_PER_KG : stored),
+      toStored: (shown) => (unit === "lbs" ? shown / LBS_PER_KG : shown),
+    },
+    {
+      key: "basalMetabolicRateKcal",
+      label: "Basal metabolic rate",
+      unit: "kcal",
+      decimals: 0,
+      min: 500,
+      max: 6000,
       toDisplay: identity,
       toStored: identity,
     },
@@ -223,8 +284,8 @@ export function CheckInReadingsSheet({
         // ISO string files the entry a day out for anyone east or west of UTC.
         loggedAt: date,
         ...changed,
-        // Named explicitly, and only the fields this sheet shows. Arms, thighs,
-        // the note and the photo are nobody's business here and stay put.
+        // Named explicitly, and only the fields this sheet shows. The note
+        // and the photo are nobody's business here and stay put.
         clearFields: cleared,
       })
       // Best-effort write-back: the save already landed in OneRep, so a

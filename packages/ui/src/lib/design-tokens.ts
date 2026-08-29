@@ -9,6 +9,8 @@ export const ONE_REP_PALETTE = {
   cordovan: "#b42335",
   zinc: "#77736d",
   chalkLine: "#b8b3aa",
+  /** The Health page's own accent, same as `--accent-health` in light. */
+  teal: "#1f7a86",
 } as const
 
 export function tint(color: string, amount = 10) {
@@ -21,6 +23,7 @@ export const APP_ACCENT_COLORS = {
   supplement: ONE_REP_PALETTE.patina,
   workout: ONE_REP_PALETTE.iron,
   progress: ONE_REP_PALETTE.violet,
+  health: ONE_REP_PALETTE.teal,
   complete: ONE_REP_PALETTE.patina,
   caution: ONE_REP_PALETTE.brass,
   danger: ONE_REP_PALETTE.cordovan,

@@ -157,8 +157,10 @@ export function ProgressRings({
                 {headline}
               </span>
             </p>
+            {/* Narrow enough to wrap inside the innermost ring: four tracks
+                leave a hole the caption cannot cross in one line. */}
             <p
-              className="mt-1 text-[11px] leading-tight text-muted-foreground"
+              className="mt-1 max-w-[4.5rem] text-center text-[11px] leading-tight text-muted-foreground"
               aria-hidden="true"
             >
               {detail}

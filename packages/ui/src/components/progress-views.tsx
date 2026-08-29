@@ -58,7 +58,18 @@ export type ProgressSummaryView = {
     latestCheckInDate: string | null
     weightTrendDays: number | null
     weightPoints: Array<{ date: string; weightKg: number }>
+    measurements: ProgressMeasurementView[]
   }
+}
+export type ProgressMeasurementView = {
+  key: string
+  label: string
+  unit: "kg" | "cm" | "kcal"
+  group: "composition" | "tape"
+  latest: number
+  latestDate: string
+  delta: number | null
+  readings: number
 }
 export type BodyMeasurementView = {
   clientId: string
@@ -99,6 +110,35 @@ function formatWeightDelta(deltaKg: number | null, unit: ProgressWeightUnit) {
   const value = unit === "lbs" ? deltaKg * 2.20462 : deltaKg
   const prefix = value > 0 ? "+" : ""
   return `${prefix}${value.toFixed(1)} ${unit}`
+}
+
+function formatMeasurement(
+  value: number,
+  unit: ProgressMeasurementView["unit"],
+  weightUnit: ProgressWeightUnit
+) {
+  if (unit === "kg") return formatProgressWeight(value, weightUnit)
+  if (unit === "kcal")
+    return `${Math.round(value).toLocaleString("en-US")} kcal`
+  return `${value.toFixed(1)} cm`
+}
+
+function formatMeasurementDelta(
+  measurement: ProgressMeasurementView,
+  weightUnit: ProgressWeightUnit
+) {
+  if (measurement.delta == null) {
+    return measurement.group === "composition"
+      ? "One reading so far"
+      : "One measurement so far"
+  }
+  const shown =
+    measurement.unit === "kg"
+      ? formatWeightDelta(measurement.delta, weightUnit)
+      : measurement.unit === "kcal"
+        ? signed(Math.round(measurement.delta), " kcal")
+        : signed(Number(measurement.delta.toFixed(1)), " cm")
+  return `${shown} across ${measurement.readings} readings`
 }
 
 export function formatProgressDate(date: string | null) {
@@ -250,7 +290,7 @@ function TrainingWeekBars({ days }: { days: ProgressDayView[] }) {
   )
 }
 
-function MetricHeading({
+export function MetricHeading({
   icon,
   title,
   tooltip,
@@ -270,7 +310,7 @@ function MetricHeading({
   )
 }
 
-function InsightRow({
+export function InsightRow({
   label,
   value,
   detail,
@@ -303,7 +343,7 @@ function InsightRow({
   )
 }
 
-function Interpretation({ children }: { children: ReactNode }) {
+export function Interpretation({ children }: { children: ReactNode }) {
   return (
     <section
       className="progress-tab-enter border-y border-border bg-muted/25 px-4 py-4"
@@ -454,6 +494,12 @@ export function BodyProgress({
   const recentMeasurements = [...measurements]
     .sort((a, b) => b.loggedAt.localeCompare(a.loggedAt))
     .slice(0, 5)
+  const composition = summary.body.measurements.filter(
+    (measurement) => measurement.group === "composition"
+  )
+  const tape = summary.body.measurements.filter(
+    (measurement) => measurement.group === "tape"
+  )
   const guidance =
     summary.body.weightPoints.length === 0
       ? "Add a baseline measurement. Progress needs at least two comparable check-ins before it can describe direction."
@@ -533,6 +579,62 @@ export function BodyProgress({
           />
         </div>
       </section>
+
+      {/* Whatever else has been recorded, and only that. A smart scale that
+          reports lean and bone mass gets a section; a tape measure gets the
+          other; someone with neither gets no empty rows telling them so. */}
+      {composition.length > 0 && (
+        <section
+          className="progress-tab-enter"
+          style={{ animationDelay: "90ms" }}
+          aria-label="Body composition"
+        >
+          <h2 className="native-section-title mb-1">Body composition</h2>
+          <div className="border-y border-border">
+            {composition.map((measurement) => (
+              <InsightRow
+                key={measurement.key}
+                label={measurement.label}
+                value={formatMeasurement(
+                  measurement.latest,
+                  measurement.unit,
+                  unit
+                )}
+                detail={formatMeasurementDelta(measurement, unit)}
+                tooltip={
+                  measurement.key === "basalMetabolicRateKcal"
+                    ? "What your body burns at rest, as your scale estimates it. A useful sanity check on a calorie target, not a number to eat to."
+                    : "Scale estimates of composition move with hydration and the time of day. Read the direction over weeks, not the figure on one morning."
+                }
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {tape.length > 0 && (
+        <section
+          className="progress-tab-enter"
+          style={{ animationDelay: "100ms" }}
+          aria-label="Tape measurements"
+        >
+          <h2 className="native-section-title mb-1">Measurements</h2>
+          <div className="border-y border-border">
+            {tape.map((measurement) => (
+              <InsightRow
+                key={measurement.key}
+                label={measurement.label}
+                value={formatMeasurement(
+                  measurement.latest,
+                  measurement.unit,
+                  unit
+                )}
+                detail={formatMeasurementDelta(measurement, unit)}
+              />
+            ))}
+          </div>
+        </section>
+      )}
 
       <Interpretation>{guidance}</Interpretation>
 

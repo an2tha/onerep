@@ -115,9 +115,19 @@ export function hapticHeavy() {
   impact("heavy")
 }
 
+/**
+ * `selectionChanged` on its own is a lie on iOS: the plugin only builds its
+ * feedback generator inside `selectionStart`, so calling the middle of the
+ * sequence against a nil generator buzzes precisely nothing and resolves as
+ * though it worked. Run the whole start/change/end sequence, fire-and-forget
+ * like the impacts above.
+ */
 export function hapticSelection() {
   if (!isNative() || !hapticsEnabled()) return
-  Haptics.selectionChanged().catch(() => {})
+  Haptics.selectionStart()
+    .then(() => Haptics.selectionChanged())
+    .then(() => Haptics.selectionEnd())
+    .catch(() => {})
 }
 
 /**

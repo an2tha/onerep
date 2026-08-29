@@ -1,4 +1,5 @@
 import * as React from "react"
+import { createPortal } from "react-dom"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   Barbell,
@@ -74,7 +75,7 @@ import {
   MUSCLE_COLORS as ONE_REP_MUSCLE_COLORS,
 } from "@repo/ui"
 import { offsetDateKey } from "@/lib/food-log"
-import { hapticMedium, hapticSelection } from "@/lib/haptics"
+import { hapticMedium, hapticSelection, hapticTap } from "@/lib/haptics"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -237,6 +238,22 @@ function ConfirmDeleteSheet({
   onCancel: () => void
 }) {
   const [deleting, setDeleting] = useState(false)
+  // A tap inside a Radix menu item selects on pointerup, which mounts this
+  // sheet before the browser has finished dispatching the click for that same
+  // finger. The click then lands on an overlay that did not exist when the
+  // gesture started, and the sheet dismisses itself in the frame it appeared —
+  // which, from the outside, looks exactly like a dead button.
+  const [armed, setArmed] = useState(false)
+  useEffect(() => {
+    const t = window.setTimeout(() => setArmed(true), 350)
+    return () => window.clearTimeout(t)
+  }, [])
+
+  function dismiss(e: React.MouseEvent<HTMLDivElement>) {
+    if (deleting || !armed) return
+    if (e.target !== e.currentTarget) return
+    onCancel()
+  }
 
   async function confirm() {
     if (deleting) return
@@ -250,10 +267,14 @@ function ConfirmDeleteSheet({
     }
   }
 
-  return (
+  // Portalled to the body because the route wrapper animates on a transform,
+  // and a transformed ancestor quietly promotes itself to the containing block
+  // for anything fixed inside it — which parks a full-screen overlay at the
+  // foot of a long page instead of over it.
+  return createPortal(
     <div
       className="sheet-overlay fixed inset-0 z-50 flex items-end justify-center bg-black/30 backdrop-blur-[2px]"
-      onClick={deleting ? undefined : onCancel}
+      onClick={dismiss}
     >
       <div
         className="sheet-panel app-sheet-panel w-full max-w-sm border-t border-border bg-background px-5 pt-5"
@@ -283,7 +304,8 @@ function ConfirmDeleteSheet({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 
@@ -2032,9 +2054,10 @@ export default function Workouts() {
                                     <DropdownMenuTrigger asChild>
                                       <button
                                         type="button"
-                                        onPointerDown={(e) =>
+                                        onPointerDown={(e) => {
                                           e.stopPropagation()
-                                        }
+                                          hapticTap()
+                                        }}
                                         className="app-icon-button h-10 w-10 shrink-0 bg-transparent text-muted-foreground/65 hover:bg-foreground/[0.045] hover:text-foreground"
                                         aria-label={`More actions for ${preset.name}`}
                                         aria-busy={duplicatingThis}

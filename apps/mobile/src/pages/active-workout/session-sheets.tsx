@@ -41,7 +41,6 @@ export function AiWorkoutSheet({
   const [text, setText] = useState("")
   const [proposal, setProposal] = useState<CoachWorkoutProposal | null>(null)
   const [error, setError] = useState("")
-  const [closing, setClosing] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const canAsk = text.trim().length >= 4 && !loading && contextReady
 
@@ -69,39 +68,27 @@ export function AiWorkoutSheet({
   }
 
   function requestClose() {
-    if (loading || closing) return
-    setClosing(true)
-    window.setTimeout(onClose, 320)
+    if (loading) return
+    onClose()
   }
 
   async function applyProposal() {
-    if (!proposal || loading || closing) return
+    if (!proposal || loading) return
     await onApply(proposal)
-    setClosing(true)
-    window.setTimeout(onClose, 320)
+    onClose()
   }
 
   return (
-    <div
-      className={cn(
-        "fixed inset-0 z-50 flex items-end justify-center bg-black/65 p-2 backdrop-blur-[8px] sm:items-center sm:p-5",
-        closing ? "sheet-backdrop-exit" : "sheet-backdrop-enter"
-      )}
-      onClick={requestClose}
+    <MobileSheet
+      onClose={requestClose}
+      ariaLabel="Ask Coach for workout help"
+      overlayClassName="bg-black/65 p-2 sm:p-5"
+      panelClassName="max-h-[min(680px,calc(100svh-1rem))] w-full max-w-[480px] overflow-y-auto rounded-[22px] border border-border/55 bg-background shadow-2xl"
+      panelStyle={{
+        paddingBottom: "max(0.75rem, env(safe-area-inset-bottom, 0.75rem))",
+      }}
+      showHandle={false}
     >
-      <div
-        className={cn(
-          "sheet-panel max-h-[min(680px,calc(100svh-1rem))] w-full max-w-[480px] overflow-y-auto rounded-[22px] border border-border/55 bg-background shadow-2xl",
-          closing ? "sheet-panel-exit" : "sheet-panel-enter"
-        )}
-        style={{
-          paddingBottom: "max(0.75rem, env(safe-area-inset-bottom, 0.75rem))",
-        }}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Ask Coach for workout help"
-        onClick={(e) => e.stopPropagation()}
-      >
         <div className="px-4 pt-4 sm:px-5 sm:pt-5">
           <div className="flex items-center gap-3">
             <h2 className="min-w-0 flex-1 truncate text-[18px] leading-tight font-semibold tracking-tight">
@@ -110,7 +97,7 @@ export function AiWorkoutSheet({
             <button
               type="button"
               onClick={requestClose}
-              disabled={loading || closing}
+              disabled={loading}
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground disabled:opacity-40"
               aria-label="Close Ask Coach"
             >
@@ -229,8 +216,7 @@ export function AiWorkoutSheet({
             </div>
           )}
         </div>
-      </div>
-    </div>
+    </MobileSheet>
   )
 }
 
@@ -670,32 +656,32 @@ export function FinishSheet({
     }
   }
 
+  function requestClose() {
+    if (finishing) return
+    onCancel()
+  }
+
   return (
-    <div
-      className="sheet-overlay fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-[8px]"
-      onClick={finishing ? undefined : onCancel}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="finish-workout-title"
-        className="sheet-panel w-full max-w-sm overflow-hidden rounded-t-3xl bg-card shadow-[0_-12px_60px_rgba(0,0,0,0.22)]"
-        style={{
-          paddingBottom: "max(2rem, env(safe-area-inset-bottom, 2rem))",
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <MobileSheet
+      onClose={requestClose}
+      closeOnBackdrop={!finishing}
+      ariaLabel="Finish workout?"
+      overlayClassName="bg-black/50"
+      panelClassName="w-full max-w-sm overflow-hidden rounded-t-3xl bg-card shadow-[0_-12px_60px_rgba(0,0,0,0.22)]"
+      panelStyle={{
+        paddingBottom: "max(2rem, env(safe-area-inset-bottom, 2rem))",
+      }}
+      top={
         <div
-          className="h-1 w-full transition-colors duration-500"
+          className="h-1 w-full shrink-0 transition-colors duration-500"
           style={{
             background: allDone
               ? "color-mix(in srgb, var(--primary) 50%, transparent)"
               : "transparent",
           }}
         />
-        <div className="flex justify-center pt-3 pb-0">
-          <div className="h-1 w-10 rounded-full bg-muted/70" />
-        </div>
+      }
+    >
         <div className="px-6 pt-5 pb-2">
           <h2
             id="finish-workout-title"
@@ -749,8 +735,7 @@ export function FinishSheet({
             Keep going
           </button>
         </div>
-      </div>
-    </div>
+    </MobileSheet>
   )
 }
 
@@ -773,24 +758,22 @@ export function AbortSheet({
     }
   }
 
+  function requestClose() {
+    if (aborting) return
+    onCancel()
+  }
+
   return (
-    <div
-      className="sheet-overlay fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-[8px]"
-      onClick={aborting ? undefined : onCancel}
+    <MobileSheet
+      onClose={requestClose}
+      closeOnBackdrop={!aborting}
+      ariaLabel="Abort workout?"
+      overlayClassName="bg-black/50"
+      panelClassName="w-full max-w-sm overflow-hidden rounded-t-3xl bg-card shadow-[0_-12px_60px_rgba(0,0,0,0.22)]"
+      panelStyle={{
+        paddingBottom: "max(2rem, env(safe-area-inset-bottom, 2rem))",
+      }}
     >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="abort-workout-title"
-        className="sheet-panel w-full max-w-sm overflow-hidden rounded-t-3xl bg-card shadow-[0_-12px_60px_rgba(0,0,0,0.22)]"
-        style={{
-          paddingBottom: "max(2rem, env(safe-area-inset-bottom, 2rem))",
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex justify-center pt-3 pb-0">
-          <div className="h-1 w-10 rounded-full bg-muted/70" />
-        </div>
         <div className="px-6 pt-5 pb-2">
           <h2
             id="abort-workout-title"
@@ -821,8 +804,7 @@ export function AbortSheet({
             Keep going
           </button>
         </div>
-      </div>
-    </div>
+    </MobileSheet>
   )
 }
 
@@ -836,23 +818,15 @@ export function RemoveExerciseSheet({
   onCancel: () => void
 }) {
   return (
-    <div
-      className="sheet-overlay fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-[8px]"
-      onClick={onCancel}
+    <MobileSheet
+      onClose={onCancel}
+      ariaLabel={`Remove ${exerciseName}?`}
+      overlayClassName="bg-black/50"
+      panelClassName="w-full max-w-sm overflow-hidden rounded-t-3xl bg-card shadow-[0_-12px_60px_rgba(0,0,0,0.22)]"
+      panelStyle={{
+        paddingBottom: "max(2rem, env(safe-area-inset-bottom, 2rem))",
+      }}
     >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="remove-exercise-title"
-        className="sheet-panel w-full max-w-sm overflow-hidden rounded-t-3xl bg-card shadow-[0_-12px_60px_rgba(0,0,0,0.22)]"
-        style={{
-          paddingBottom: "max(2rem, env(safe-area-inset-bottom, 2rem))",
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex justify-center pt-3 pb-0">
-          <div className="h-1 w-10 rounded-full bg-muted/70" />
-        </div>
         <div className="px-6 pt-5 pb-2">
           <h2
             id="remove-exercise-title"
@@ -880,7 +854,6 @@ export function RemoveExerciseSheet({
             Keep it
           </button>
         </div>
-      </div>
-    </div>
+    </MobileSheet>
   )
 }

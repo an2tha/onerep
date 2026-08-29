@@ -13,7 +13,17 @@ import {
 // "62%" spills over the ring, which is what these were doing at 54.
 const DIAL = 64
 const HOLD = 88
-const ORBIT = 58
+// Far enough out that the satellites clear the hold ring instead of sliding
+// under it — (HOLD + DIAL) / 2 is the bare minimum, and at 58 they were
+// covering their own numbers.
+const ORBIT = 78
+
+// The phone gets a row instead of a crown. Beside a greeting the crown ate
+// half the width, wrapped the name onto three lines and truncated the date;
+// under it, the three read left to right with the number each was hiding.
+// One size for all three: the hold dial needs 84 to fit its two words, and
+// two readings a size down beside it looked like an afterthought.
+const ROW_SIZE = 84
 
 // Left and right of the hold dial's lower arc. Mirrored so each reading fills
 // away from the centre instead of sweeping underneath it.
@@ -28,6 +38,7 @@ export function DashboardDials({
   onStartWorkout,
   onOpenNutrition,
   onOpenRecovery,
+  layout = "crown",
 }: {
   /** How much of today's nutrition targets are met, 0-100. */
   nutritionPercent: number | null
@@ -36,6 +47,10 @@ export function DashboardDials({
   onStartWorkout: () => void
   onOpenNutrition?: () => void
   onOpenRecovery?: () => void
+  /** `crown` tucks the readings behind the hold dial; `row` lines all three
+   * up, hold first, for screens that have width to give but not beside the
+   * greeting. */
+  layout?: "crown" | "row"
 }) {
   const width = HOLD + ORBIT + DIAL / 2
   const height = HOLD + ORBIT * 0.62
@@ -62,6 +77,40 @@ export function DashboardDials({
       onClick: onOpenRecovery,
     },
   ]
+
+  if (layout === "row") {
+    return (
+      <div className="flex items-center gap-4">
+        <HoldToStartDial
+          label="Open workout"
+          onComplete={onStartWorkout}
+          size={ROW_SIZE}
+          stroke={7}
+          color="var(--accent-training-hero)"
+        />
+        {readings.map((reading) => (
+          <button
+            key={reading.name}
+            type="button"
+            onClick={reading.onClick}
+            disabled={!reading.onClick}
+            aria-label={`${reading.name}: ${reading.value}${reading.suffix}`}
+            className="motion-tactile rounded-full"
+          >
+            <TrainingStatDial
+              name={reading.name}
+              value={reading.value}
+              target={reading.target}
+              suffix={reading.suffix}
+              color={reading.color}
+              size={ROW_SIZE}
+              stroke={7}
+            />
+          </button>
+        ))}
+      </div>
+    )
+  }
 
   return (
     <div className="relative" style={{ width, height }}>

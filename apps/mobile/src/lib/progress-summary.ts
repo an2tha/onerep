@@ -33,6 +33,67 @@ export type ProgressBodyMeasurement = {
   weightKg?: number
   bodyFatPct?: number
   waistCm?: number
+  hipsCm?: number
+  chestCm?: number
+  armsCm?: number
+  thighsCm?: number
+  calvesCm?: number
+  neckCm?: number
+  leanBodyMassKg?: number
+  boneMassKg?: number
+  basalMetabolicRateKcal?: number
+}
+
+/**
+ * The check-in fields beyond weight, body fat and waist, which have their own
+ * headline treatment. Everything a smart scale or a tape can put on a check-in
+ * used to be stored and then shown nowhere: lean mass synced in from Apple
+ * Health for months and the Body tab kept reporting the same three numbers.
+ */
+export const PROGRESS_MEASUREMENT_KEYS = [
+  "leanBodyMassKg",
+  "boneMassKg",
+  "basalMetabolicRateKcal",
+  "hipsCm",
+  "chestCm",
+  "armsCm",
+  "thighsCm",
+  "calvesCm",
+  "neckCm",
+] as const
+
+export type ProgressMeasurementKey = (typeof PROGRESS_MEASUREMENT_KEYS)[number]
+
+export type ProgressMeasurementTrend = {
+  key: ProgressMeasurementKey
+  label: string
+  /** "kg", "cm" or "kcal". Weight-like keys are converted by the view. */
+  unit: "kg" | "cm" | "kcal"
+  group: "composition" | "tape"
+  latest: number
+  latestDate: string
+  /** Newest minus oldest across every recorded reading; null with one reading. */
+  delta: number | null
+  readings: number
+}
+
+const MEASUREMENT_META: Record<
+  ProgressMeasurementKey,
+  { label: string; unit: "kg" | "cm" | "kcal"; group: "composition" | "tape" }
+> = {
+  leanBodyMassKg: { label: "Lean mass", unit: "kg", group: "composition" },
+  boneMassKg: { label: "Bone mass", unit: "kg", group: "composition" },
+  basalMetabolicRateKcal: {
+    label: "Basal metabolic rate",
+    unit: "kcal",
+    group: "composition",
+  },
+  hipsCm: { label: "Hips", unit: "cm", group: "tape" },
+  chestCm: { label: "Chest", unit: "cm", group: "tape" },
+  armsCm: { label: "Arms", unit: "cm", group: "tape" },
+  thighsCm: { label: "Thighs", unit: "cm", group: "tape" },
+  calvesCm: { label: "Calves", unit: "cm", group: "tape" },
+  neckCm: { label: "Neck", unit: "cm", group: "tape" },
 }
 
 export type ProgressDay = {
@@ -92,6 +153,13 @@ export type ProgressSummary = {
     latestCheckInDate: string | null
     weightTrendDays: number | null
     weightPoints: Array<{ date: string; weightKg: number }>
+    /**
+     * Every other measurement with at least one reading, in catalogue order.
+     * Keys nobody has recorded are left out rather than listed as "—": a row of
+     * blanks says the feature is broken, a shorter list says you never measured
+     * your calves.
+     */
+    measurements: ProgressMeasurementTrend[]
   }
 }
 
@@ -138,6 +206,35 @@ function nutritionTotals(entries: ProgressFoodEntry[]) {
     }),
     { calories: 0, protein: 0, carbs: 0, fat: 0 }
   )
+}
+
+function measurementTrends(
+  measurements: ProgressBodyMeasurement[]
+): ProgressMeasurementTrend[] {
+  const ordered = [...measurements].sort((a, b) =>
+    a.loggedAt.localeCompare(b.loggedAt)
+  )
+  const trends: ProgressMeasurementTrend[] = []
+  for (const key of PROGRESS_MEASUREMENT_KEYS) {
+    const readings = ordered.filter(
+      (measurement) =>
+        typeof measurement[key] === "number" &&
+        Number.isFinite(measurement[key])
+    )
+    const latest = readings.at(-1)
+    if (!latest) continue
+    const first = readings[0]
+    const latestValue = latest[key] as number
+    trends.push({
+      key,
+      ...MEASUREMENT_META[key],
+      latest: latestValue,
+      latestDate: latest.loggedAt.slice(0, 10),
+      delta: readings.length > 1 ? latestValue - (first[key] as number) : null,
+      readings: readings.length,
+    })
+  }
+  return trends
 }
 
 function completedSetCount(log: ProgressWorkoutLog) {
@@ -408,6 +505,7 @@ export function buildProgressSummary({
       latestCheckInDate: latestBodyMeasurement?.loggedAt.slice(0, 10) ?? null,
       weightTrendDays,
       weightPoints: weights,
+      measurements: measurementTrends(bodyMeasurements),
     },
   }
 }

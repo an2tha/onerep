@@ -243,6 +243,15 @@ function Dashboard() {
   const [scheduleRequest, setScheduleRequest] =
     useState<ScheduleEntryRequest | null>(null)
   const salutation = greeting(hourInTimeZone(now, activeTimezone))
+  const dialProps = {
+    nutritionPercent: 62,
+    recoveryScore: 78,
+    // No confirmation step and no picker: the hold *is* the confirmation,
+    // so it drops straight into an empty session.
+    onStartWorkout: () => navigate("/workout/active", { motion: "forward" }),
+    onOpenNutrition: () => navigate("/nutrition", { motion: "switch" }),
+    onOpenRecovery: () => navigate("/health", { motion: "switch" }),
+  }
   const dateLabel = dateKeyToCalendarDate(dateKey).toLocaleDateString("en-US", {
     weekday: "long",
     month: "long",
@@ -279,22 +288,19 @@ function Dashboard() {
               <GearSix size={22} />
             </button>
           }
+          // Beside the greeting only where there is room beside the greeting.
+          // On a phone the crown took half the row and the name paid for it;
+          // there the dials go under the words, as a row, in the ledger slot.
           action={
-            <DashboardDials
-              nutritionPercent={62}
-              recoveryScore={78}
-              // No confirmation step and no picker: the hold *is* the
-              // confirmation, so it drops straight into an empty session.
-              onStartWorkout={() =>
-                navigate("/workout/active", { motion: "forward" })
-              }
-              onOpenNutrition={() =>
-                navigate("/nutrition", { motion: "switch" })
-              }
-              onOpenRecovery={() => navigate("/health", { motion: "switch" })}
-            />
+            <div className="hidden lg:block">
+              <DashboardDials {...dialProps} />
+            </div>
           }
-        />
+        >
+          <div className="px-[var(--app-page-x)] lg:hidden">
+            <DashboardDials {...dialProps} layout="row" />
+          </div>
+        </DashboardHero>
       </div>
       {/* The day rail sits right under the dials: where the day already
           stands, before you scroll into anything. On the phone it's a strip

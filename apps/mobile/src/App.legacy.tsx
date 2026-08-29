@@ -442,7 +442,6 @@ export default function LegacyApp() {
   const [unpinningCoachGoal, setUnpinningCoachGoal] = useState(false)
   const [homeAddOpen, setHomeAddOpen] = useState(false)
   const [previewRecipe, setPreviewRecipe] = useState<StarterRecipe | null>(null)
-  const [recipePreviewClosing, setRecipePreviewClosing] = useState(false)
   const [savingPreviewRecipe, setSavingPreviewRecipe] = useState(false)
   const [previewRecipeSaved, setPreviewRecipeSaved] = useState(false)
   const [recipeRemix, setRecipeRemix] = useState<{
@@ -994,13 +993,9 @@ export default function LegacyApp() {
   }
 
   function closeRecipePreview() {
-    if (recipePreviewClosing || savingPreviewRecipe) return
-    setRecipePreviewClosing(true)
-    window.setTimeout(() => {
-      setPreviewRecipe(null)
-      setRecipePreviewClosing(false)
-      setPreviewRecipeSaved(false)
-    }, 320)
+    if (savingPreviewRecipe) return
+    setPreviewRecipe(null)
+    setPreviewRecipeSaved(false)
   }
 
   async function savePreviewRecipe(recipe: StarterRecipe) {
@@ -1558,7 +1553,6 @@ export default function LegacyApp() {
                           hapticSelection()
                           setPreviewRecipeSaved(false)
                           setRecipeRemix(null)
-                          setRecipePreviewClosing(false)
                           openRecipePreview(recipe)
                         }
                       }}
@@ -1897,43 +1891,32 @@ export default function LegacyApp() {
       )}
 
       {previewRecipe && (
-        <div
-          className={cn(
-            "sheet-overlay fixed inset-0 z-[100] flex items-end justify-center bg-black/55 backdrop-blur-sm md:items-center md:p-6",
-            recipePreviewClosing && "sheet-backdrop-exit"
-          )}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="dashboard-recipe-preview-title"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) closeRecipePreview()
-          }}
+        <MobileSheet
+          ariaLabel="Recipe preview"
+          onClose={closeRecipePreview}
+          overlayClassName="bg-black/55 backdrop-blur-sm"
+          panelClassName="max-h-[90svh] w-full max-w-xl overflow-y-auto rounded-t-[2rem] bg-background md:rounded-[2rem]"
+          showHandle={false}
         >
-          <div
-            className={cn(
-              "sheet-panel max-h-[90svh] w-full max-w-xl overflow-y-auto rounded-t-[2rem] bg-background md:rounded-[2rem]",
-              recipePreviewClosing && "sheet-panel-exit"
-            )}
-          >
-            <div className="relative h-56">
-              <img
-                src={previewRecipe.image}
-                alt=""
-                className="h-full w-full object-cover"
-                style={{
-                  viewTransitionName: `recipe-${previewRecipe.id}`,
-                }}
-              />
-              <button
-                type="button"
-                onClick={closeRecipePreview}
-                aria-label="Close recipe preview"
-                className="absolute top-4 right-4 grid size-10 place-items-center rounded-full bg-black/50 text-white backdrop-blur"
-              >
-                <X size={16} />
-              </button>
-            </div>
-            <div className="p-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] md:p-7">
+          <div className="relative h-56">
+            <img
+              src={previewRecipe.image}
+              alt=""
+              className="h-full w-full object-cover"
+              style={{
+                viewTransitionName: `recipe-${previewRecipe.id}`,
+              }}
+            />
+            <button
+              type="button"
+              onClick={closeRecipePreview}
+              aria-label="Close recipe preview"
+              className="absolute top-4 right-4 grid size-10 place-items-center rounded-full bg-black/50 text-white backdrop-blur"
+            >
+              <X size={16} />
+            </button>
+          </div>
+          <div className="p-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] md:p-7">
               <p className="text-[11px] font-semibold tracking-[0.1em] text-muted-foreground uppercase">
                 {previewRecipe.category} · {previewRecipe.difficulty}
               </p>
@@ -2142,8 +2125,7 @@ export default function LegacyApp() {
                 <Sparkle size={17} /> Customize with Coach
               </button>
             </div>
-          </div>
-        </div>
+        </MobileSheet>
       )}
 
       {homeAddOpen && (
@@ -2354,104 +2336,93 @@ export default function LegacyApp() {
       )}
 
       {confirmUnpinGoalId && (
-        <div
-          className="sheet-overlay fixed inset-0 z-50 flex items-end justify-center bg-black/50"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Unpin Coach goal"
-          onClick={() => {
-            if (!unpinningCoachGoal) setConfirmUnpinGoalId(null)
+        <MobileSheet
+          ariaLabel="Unpin Coach goal"
+          onClose={() => setConfirmUnpinGoalId(null)}
+          overlayClassName="bg-black/50"
+          panelClassName="w-full max-w-sm overflow-hidden rounded-t-3xl bg-card shadow-2xl"
+          panelStyle={{
+            paddingBottom: "max(2rem, env(safe-area-inset-bottom, 2rem))",
           }}
+          showHandle={false}
+          closeOnBackdrop={!unpinningCoachGoal}
         >
-          <div
-            className="sheet-panel w-full max-w-sm overflow-hidden rounded-t-3xl bg-card shadow-2xl"
-            style={{
-              paddingBottom: "max(2rem, env(safe-area-inset-bottom, 2rem))",
-            }}
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="mx-auto mt-3 mb-5 h-1 w-10 rounded-full bg-border/60" />
-            <div className="px-6">
-              <h2 className="text-[17px] font-bold tracking-tight">
-                Unpin this Coach goal?
-              </h2>
-              <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground/70">
-                It will disappear from Today, but the goal and its task progress
-                will stay available to Coach.
-              </p>
-              <div className="mt-6 flex flex-col gap-2">
-                <button
-                  type="button"
-                  disabled={unpinningCoachGoal}
-                  onClick={() => void confirmCoachGoalUnpin()}
-                  className="h-12 w-full rounded-xl bg-foreground text-[14px] font-bold text-background transition-opacity active:opacity-80 disabled:opacity-50"
-                >
-                  {unpinningCoachGoal ? "Unpinning…" : "Unpin from Today"}
-                </button>
-                <button
-                  type="button"
-                  disabled={unpinningCoachGoal}
-                  onClick={() => setConfirmUnpinGoalId(null)}
-                  className="h-12 w-full rounded-xl bg-muted text-[14px] font-bold text-foreground transition-opacity active:opacity-80 disabled:opacity-50"
-                >
-                  Keep pinned
-                </button>
-              </div>
+          <div className="mx-auto mt-3 mb-5 h-1 w-10 rounded-full bg-border/60" />
+          <div className="px-6">
+            <h2 className="text-[17px] font-bold tracking-tight">
+              Unpin this Coach goal?
+            </h2>
+            <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground/70">
+              It will disappear from Today, but the goal and its task progress
+              will stay available to Coach.
+            </p>
+            <div className="mt-6 flex flex-col gap-2">
+              <button
+                type="button"
+                disabled={unpinningCoachGoal}
+                onClick={() => void confirmCoachGoalUnpin()}
+                className="h-12 w-full rounded-xl bg-foreground text-[14px] font-bold text-background transition-opacity active:opacity-80 disabled:opacity-50"
+              >
+                {unpinningCoachGoal ? "Unpinning…" : "Unpin from Today"}
+              </button>
+              <button
+                type="button"
+                disabled={unpinningCoachGoal}
+                onClick={() => setConfirmUnpinGoalId(null)}
+                className="h-12 w-full rounded-xl bg-muted text-[14px] font-bold text-foreground transition-opacity active:opacity-80 disabled:opacity-50"
+              >
+                Keep pinned
+              </button>
             </div>
-            <div className="h-4" />
           </div>
-        </div>
+          <div className="h-4" />
+        </MobileSheet>
       )}
 
       {confirmDeleteSlot && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="Delete workout"
-          className="sheet-overlay fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-[3px]"
-          onClick={() => setConfirmDeleteSlot(null)}
+        <MobileSheet
+          ariaLabel="Delete workout"
+          onClose={() => setConfirmDeleteSlot(null)}
+          overlayClassName="bg-black/50 backdrop-blur-[3px]"
+          panelClassName="w-full max-w-sm overflow-hidden rounded-t-3xl bg-card shadow-2xl"
+          panelStyle={{
+            paddingBottom: "max(2rem, env(safe-area-inset-bottom, 2rem))",
+          }}
+          showHandle={false}
         >
-          <div
-            className="sheet-panel w-full max-w-sm overflow-hidden rounded-t-3xl bg-card shadow-2xl"
-            style={{
-              paddingBottom: "max(2rem, env(safe-area-inset-bottom, 2rem))",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mx-auto mt-3 mb-5 h-1 w-10 rounded-full bg-border/60" />
-            <div className="px-6">
-              <h2 className="text-[17px] font-bold tracking-tight">
-                Delete workout?
-              </h2>
-              <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground/70">
-                This will remove the workout from your log. This cannot be
-                undone.
-              </p>
-              <div className="mt-6 flex flex-col gap-2">
-                <button
-                  onClick={() => {
-                    void removeWorkoutBySlot({
-                      date: selectedDate,
-                      slot: confirmDeleteSlot,
-                    }).catch(() => toast.error("Could not delete workout"))
-                    setConfirmDeleteSlot(null)
-                  }}
-                  className="h-12 w-full rounded-xl text-[14px] font-bold text-white transition-opacity active:opacity-80"
-                  style={{ backgroundColor: DANGER_COLOR }}
-                >
-                  Delete
-                </button>
-                <button
-                  onClick={() => setConfirmDeleteSlot(null)}
-                  className="h-12 w-full rounded-xl bg-muted text-[14px] font-bold text-foreground transition-opacity active:opacity-80"
-                >
-                  Cancel
-                </button>
-              </div>
+          <div className="mx-auto mt-3 mb-5 h-1 w-10 rounded-full bg-border/60" />
+          <div className="px-6">
+            <h2 className="text-[17px] font-bold tracking-tight">
+              Delete workout?
+            </h2>
+            <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground/70">
+              This will remove the workout from your log. This cannot be
+              undone.
+            </p>
+            <div className="mt-6 flex flex-col gap-2">
+              <button
+                onClick={() => {
+                  void removeWorkoutBySlot({
+                    date: selectedDate,
+                    slot: confirmDeleteSlot,
+                  }).catch(() => toast.error("Could not delete workout"))
+                  setConfirmDeleteSlot(null)
+                }}
+                className="h-12 w-full rounded-xl text-[14px] font-bold text-white transition-opacity active:opacity-80"
+                style={{ backgroundColor: DANGER_COLOR }}
+              >
+                Delete
+              </button>
+              <button
+                onClick={() => setConfirmDeleteSlot(null)}
+                className="h-12 w-full rounded-xl bg-muted text-[14px] font-bold text-foreground transition-opacity active:opacity-80"
+              >
+                Cancel
+              </button>
             </div>
-            <div className="h-4" />
           </div>
-        </div>
+          <div className="h-4" />
+        </MobileSheet>
       )}
 
       {aiAccessModal}

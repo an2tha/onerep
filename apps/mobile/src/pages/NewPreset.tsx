@@ -64,7 +64,8 @@ import {
   SET_TYPE_TONES,
 } from "@repo/ui"
 import { useAiFeatureGate } from "@/lib/ai-access"
-import { AppleFitnessSetRow, useBackdropDismiss } from "@repo/ui"
+import { AppleFitnessSetRow } from "@repo/ui"
+import { MobileSheet } from "@/components/mobile-sheet"
 import {
   WeightSelectorSheet,
   type WeightSelectorChange,
@@ -1114,64 +1115,56 @@ function ExerciseModal({
   onAdd: () => void
   onClose: () => void
 }) {
-  const backdropDismiss = useBackdropDismiss(onClose)
   return (
-    <div
-      className="sheet-overlay fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-[4px]"
-      {...backdropDismiss}
+    <MobileSheet
+      onClose={onClose}
+      ariaLabel={`${exercise.name} details`}
+      overlayClassName="bg-black/50 backdrop-blur-[4px]"
+      panelClassName="rounded-t-3xl bg-card shadow-2xl"
+      panelStyle={{
+        paddingBottom: "max(2rem, env(safe-area-inset-bottom, 2rem))",
+      }}
     >
-      <div
-        className="sheet-panel w-full max-w-lg overflow-hidden rounded-t-3xl bg-card shadow-2xl"
-        style={{
-          paddingBottom: "max(2rem, env(safe-area-inset-bottom, 2rem))",
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex justify-center pt-3 pb-2">
-          <div className="h-1 w-10 rounded-full bg-border/60" />
-        </div>
+      <div className="px-5 pt-4">
+        <span className="inline-flex items-center rounded-full bg-muted/55 px-2.5 py-1 text-[13px] font-bold tracking-[0.14em] text-muted-foreground uppercase">
+          {exercise.category}
+        </span>
+        <h2 className="mt-2.5 text-[20px] leading-tight font-bold tracking-tight">
+          {exercise.name}
+        </h2>
+        <p className="mt-1 text-[13px] font-medium text-muted-foreground/70">
+          {exercise.muscle}
+        </p>
+        <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground/75">
+          {exercise.description}
+        </p>
 
-        <div className="px-5 pt-4">
-          <span className="inline-flex items-center rounded-full bg-muted/55 px-2.5 py-1 text-[13px] font-bold tracking-[0.14em] text-muted-foreground uppercase">
-            {exercise.category}
+        <div className="mt-4 flex items-center gap-2 rounded-xl bg-muted/50 px-3.5 py-3">
+          <Timer size={13} className="shrink-0 text-muted-foreground/60" />
+          <span className="text-[13px] font-medium text-muted-foreground/70">
+            Suggested volume
           </span>
-          <h2 className="mt-2.5 text-[20px] leading-tight font-bold tracking-tight">
-            {exercise.name}
-          </h2>
-          <p className="mt-1 text-[13px] font-medium text-muted-foreground/70">
-            {exercise.muscle}
-          </p>
-          <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground/75">
-            {exercise.description}
-          </p>
-
-          <div className="mt-4 flex items-center gap-2 rounded-xl bg-muted/50 px-3.5 py-3">
-            <Timer size={13} className="shrink-0 text-muted-foreground/60" />
-            <span className="text-[13px] font-medium text-muted-foreground/70">
-              Suggested volume
-            </span>
-            <span className="ml-auto text-[13px] font-bold tabular-nums">
-              {exercise.sets}
-            </span>
-          </div>
-
-          <button
-            onClick={() => {
-              onAdd()
-              onClose()
-            }}
-            className={cn(
-              "mt-3 h-12 w-full rounded-xl text-[14px] font-bold tracking-tight transition-all active:opacity-75",
-              added
-                ? "bg-muted text-muted-foreground"
-                : "bg-foreground text-background shadow-sm"
-            )}
-          >
-            {added ? "Remove from preset" : "Add to preset"}
-          </button>
+          <span className="ml-auto text-[13px] font-bold tabular-nums">
+            {exercise.sets}
+          </span>
         </div>
+
+        <button
+          onClick={() => {
+            onAdd()
+            onClose()
+          }}
+          className={cn(
+            "mt-3 h-12 w-full rounded-xl text-[14px] font-bold tracking-tight transition-all active:opacity-75",
+            added
+              ? "bg-muted text-muted-foreground"
+              : "bg-foreground text-background shadow-sm"
+          )}
+        >
+          {added ? "Remove from preset" : "Add to preset"}
+        </button>
       </div>
-    </div>
+    </MobileSheet>
   )
 }
 
@@ -2150,43 +2143,39 @@ export default function NewPreset() {
 
       {/* ── Discard confirmation ─────────────────────────── */}
       {confirming && (
-        <div
-          className="sheet-overlay fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-[3px]"
-          onClick={() => setConfirming(false)}
+        <MobileSheet
+          onClose={() => setConfirming(false)}
+          ariaLabel="Discard preset?"
+          overlayClassName="bg-black/50 backdrop-blur-[3px]"
+          panelClassName="max-w-sm rounded-t-3xl bg-card shadow-2xl"
+          panelStyle={{
+            paddingBottom: "max(2rem, env(safe-area-inset-bottom, 2rem))",
+          }}
         >
-          <div
-            className="sheet-panel w-full max-w-sm overflow-hidden rounded-t-3xl bg-card shadow-2xl"
-            style={{
-              paddingBottom: "max(2rem, env(safe-area-inset-bottom, 2rem))",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mx-auto mt-3 mb-5 h-1 w-10 rounded-full bg-border/60" />
-            <div className="px-6">
-              <h2 className="text-[17px] font-bold tracking-tight">
-                Discard preset?
-              </h2>
-              <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground/70">
-                You'll lose all exercises and sets you've added.
-              </p>
-              <div className="mt-6 flex flex-col gap-2">
-                <button
-                  onClick={() => navigate(-1)}
-                  className="h-12 w-full rounded-xl text-[14px] font-bold text-white transition-opacity active:opacity-80"
-                  style={{ backgroundColor: APP_ACCENT_COLORS.danger }}
-                >
-                  Discard
-                </button>
-                <button
-                  onClick={() => setConfirming(false)}
-                  className="h-12 w-full rounded-xl bg-muted/60 text-[14px] font-semibold text-foreground/80 transition-colors active:bg-muted"
-                >
-                  Keep editing
-                </button>
-              </div>
+          <div className="px-6">
+            <h2 className="text-[17px] font-bold tracking-tight">
+              Discard preset?
+            </h2>
+            <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground/70">
+              You'll lose all exercises and sets you've added.
+            </p>
+            <div className="mt-6 flex flex-col gap-2">
+              <button
+                onClick={() => navigate(-1)}
+                className="h-12 w-full rounded-xl text-[14px] font-bold text-white transition-opacity active:opacity-80"
+                style={{ backgroundColor: APP_ACCENT_COLORS.danger }}
+              >
+                Discard
+              </button>
+              <button
+                onClick={() => setConfirming(false)}
+                className="h-12 w-full rounded-xl bg-muted/60 text-[14px] font-semibold text-foreground/80 transition-colors active:bg-muted"
+              >
+                Keep editing
+              </button>
             </div>
           </div>
-        </div>
+        </MobileSheet>
       )}
 
       {aiAccessModal}

@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { Image as ImageIcon, Plus, Trash, X } from "@phosphor-icons/react"
 import { SwipeToStart, toast } from "@repo/ui"
+import { MobileSheet } from "@/components/mobile-sheet"
 import { cn, logDevError } from "@/lib/utils"
 import { hapticMedium, hapticSelection, hapticTap } from "@/lib/haptics"
 import {
@@ -97,20 +98,19 @@ export function FormCoachReviewSheet() {
   // recorded angles. Discarding is the X button's job, and the pose-confirm
   // sheet in this same flow behaves the same way.
   return (
-    <div className="sheet-overlay fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-[8px]">
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={`Review your ${draft.exerciseName} form`}
-        className="sheet-panel max-h-[92svh] w-full max-w-sm overflow-y-auto rounded-t-3xl bg-card shadow-[0_-12px_60px_rgba(0,0,0,0.22)]"
-        style={{
-          paddingBottom: "max(1.5rem, env(safe-area-inset-bottom, 1.5rem))",
-        }}
-      >
-        <div className="flex justify-center pt-3">
-          <div className="h-1 w-10 rounded-full bg-foreground/[0.10]" />
-        </div>
-
+    <MobileSheet
+      onClose={discard}
+      ariaLabel={`Review your ${draft.exerciseName} form`}
+      closeOnBackdrop={false}
+      showHandle
+      overlayClassName="bg-black/50 backdrop-blur-[8px]"
+      maxHeight="92svh"
+      panelClassName="max-w-sm"
+      panelStyle={{
+        paddingBottom: "max(1.5rem, env(safe-area-inset-bottom, 1.5rem))",
+      }}
+    >
+      <>
         {/* ── Angle switcher ──────────────────────────────────────────── */}
         <div className="flex items-center gap-2 px-5 pt-4 pb-3">
           <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">
@@ -279,7 +279,7 @@ export function FormCoachReviewSheet() {
             />
           )}
         </div>
-      </div>
-    </div>
+      </>
+    </MobileSheet>
   )
 }

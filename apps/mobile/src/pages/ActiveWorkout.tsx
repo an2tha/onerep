@@ -870,13 +870,28 @@ export default function ActiveWorkout() {
     nextTarget?.kind === "set" && focusState
       ? (focusState.sets[nextTarget.setIndex] ?? null)
       : null
+  // The sets below the one in your hands are a plan, not a record. Dialling a
+  // weight or a rep count in the simplified view carries down through every
+  // set still waiting, so three more sets at the new number cost one gesture
+  // instead of four. Anything already logged, and the rest timer, stay put.
   function updateFocusSet(updated: WorkoutSet) {
     if (!focusExerciseId || !focusState || nextTarget?.kind !== "set") return
+    const target = nextTarget.setIndex
+    const current = focusState.sets[target]
+    const carryWeight = Boolean(current) && current.weight !== updated.weight
+    const carryReps = Boolean(current) && current.reps !== updated.reps
     updateExData(focusExerciseId, {
       ...focusState,
-      sets: focusState.sets.map((set, index) =>
-        index === nextTarget.setIndex ? updated : set
-      ),
+      sets: focusState.sets.map((set, index) => {
+        if (index === target) return updated
+        if (index < target || set.completed) return set
+        if (!carryWeight && !carryReps) return set
+        return {
+          ...set,
+          weight: carryWeight ? updated.weight : set.weight,
+          reps: carryReps ? updated.reps : set.reps,
+        }
+      }),
     })
   }
   // What only this device knows: the session as it actually stands right now.
@@ -903,6 +918,21 @@ export default function ActiveWorkout() {
       ...focusState,
       sets: focusState.sets.filter((_, index) => index !== nextTarget.setIndex),
     })
+  }
+  // Undo, from the simplified view: the set the tick belongs to goes back to
+  // unlogged, and any rest that set kicked off dies with it.
+  function uncompleteFocusSet(index: number) {
+    if (!focusExerciseId || !focusState) return
+    const target = focusState.sets[index]
+    if (!target?.completed) return
+    hapticSelection()
+    updateExData(focusExerciseId, {
+      ...focusState,
+      sets: focusState.sets.map((set, position) =>
+        position === index ? { ...set, completed: false } : set
+      ),
+    })
+    if (rest.remaining !== null) rest.dismiss()
   }
   function addFocusSet() {
     if (!focusExerciseId || !focusState) return
@@ -2546,6 +2576,7 @@ export default function ActiveWorkout() {
             onSkipRest={rest.dismiss}
             onAddSet={addFocusSet}
             onSkipSet={skipFocusSet}
+            onUncompleteSet={uncompleteFocusSet}
             onExpand={() => {
               hapticSelection()
               setSimpleView(false)

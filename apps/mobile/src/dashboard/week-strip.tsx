@@ -128,7 +128,9 @@ export function WeekStrip({
         </button>
       </div>
 
-      <div className="flex items-start justify-center gap-3">
+      {/* Seven columns of two dots is the whole width of a small phone if
+          each gets a gutter. Tight here, roomier on the desk. */}
+      <div className="flex items-start justify-center gap-1.5 lg:gap-3">
         {days.map((day) => {
           const selected = day.dateKey === selectedKey
           return (
@@ -141,7 +143,7 @@ export function WeekStrip({
                 day.isToday ? "Today" : day.dateKey
               } — open this day`}
               onClick={() => onSelectDay(day.dateKey)}
-              className={`flex w-9 flex-col items-center gap-1.5 ${
+              className={`flex w-8 flex-col items-center gap-1.5 lg:w-9 ${
                 day.isFuture ? "opacity-35" : ""
               }`}
             >
@@ -158,7 +160,7 @@ export function WeekStrip({
                 the open day were a border-color apart, which at this size is
                 no difference at all. */}
               <span
-                className={`flex items-center gap-1 rounded-full border px-2 py-1 transition-colors ${
+                className={`flex items-center gap-0.5 rounded-full border px-1.5 py-1 transition-colors lg:gap-1 lg:px-2 ${
                   selected
                     ? "border-foreground bg-foreground"
                     : day.isToday

@@ -12,6 +12,7 @@ import {
   Barbell,
   CheckCircle,
   ForkKnife,
+  Heartbeat,
   Minus,
   Plus,
   PencilSimple,
@@ -45,6 +46,7 @@ import { TourAnchor, useTourAnchor } from "@/components/walkthrough/tour-anchor"
 import { FormCoachPinnedCards } from "@/components/form-coach-card"
 import { ExerciseLibrary } from "@/components/exercise-library"
 import { ProgressRings } from "@/components/progress-hero"
+import { HealthProgress } from "@/components/health-progress-panel"
 import { APP_ACCENT_COLORS } from "@repo/ui"
 
 import {
@@ -61,7 +63,17 @@ import {
  * movements is something you do while looking at your own numbers, not a
  * fifth place to live.
  */
-type ProgressTab = "body" | "nutrition" | "training" | "exercises"
+type ProgressTab = "body" | "nutrition" | "training" | "health" | "exercises"
+const PROGRESS_TABS: ProgressTab[] = [
+  "body",
+  "nutrition",
+  "training",
+  "health",
+  "exercises",
+]
+function isProgressTab(value: string | null): value is ProgressTab {
+  return PROGRESS_TABS.includes(value as ProgressTab)
+}
 
 function formatWeightValue(value: number) {
   return value.toFixed(1).replace(/\.0$/, "")
@@ -72,9 +84,10 @@ export default function Progress() {
   const progressHeaderRef = useTourAnchor("progress-header")
   const progressTabsRef = useTourAnchor("progress-tabs")
   const [searchParams] = useSearchParams()
-  const [metric, setMetric] = useState<ProgressTab>(() =>
-    searchParams.get("tab") === "exercises" ? "exercises" : "body"
-  )
+  const [metric, setMetric] = useState<ProgressTab>(() => {
+    const requested = searchParams.get("tab")
+    return isProgressTab(requested) ? requested : "body"
+  })
   const [entryOpen, setEntryOpen] = useState(
     () => searchParams.get("checkIn") === "1"
   )
@@ -120,6 +133,16 @@ export default function Progress() {
   const effectiveGoals = useQuery(api.users.users.getEffectiveGoals, {}) as
     EffectiveGoalsResult | null | undefined
   const preferences = useQuery(api.users.users.getPreferences, {})
+  // The phone's own readings — sleep, steps, heart — and the scores built on
+  // them. Two queries, both server-scored: `dashboard` for the week's verdict
+  // and `series` for how each signal moved against the seven days before.
+  // Either is null for someone with no health sync, which is a state the
+  // tab draws rather than an error.
+  const healthDashboard = useQuery(api.logs.healthMetrics.dashboard, { today })
+  const healthSeries = useQuery(api.logs.healthMetrics.series, {
+    today,
+    range: "W",
+  })
   const calorieTarget = effectiveGoals?.effective.calories ?? 2000
   const proteinTarget = effectiveGoals?.effective.protein ?? 150
 
@@ -154,6 +177,9 @@ export default function Progress() {
     }
     return seen.size
   }, [bodyMeasurements, summary.days])
+  // Four tracks, forty pixels apart, with the innermost at 100 so its hole
+  // still clears the caption under the headline. Health counts the days the phone
+  // had a reading for — nobody logs those, which is the point of the track.
   const heroTracks = [
     {
       id: "nutrition",
@@ -161,7 +187,7 @@ export default function Progress() {
       days: summary.nutrition.loggedDays,
       total: summary.days.length,
       color: APP_ACCENT_COLORS.food,
-      size: 188,
+      size: 220,
     },
     {
       id: "training",
@@ -169,7 +195,7 @@ export default function Progress() {
       days: summary.training.activeDays,
       total: summary.days.length,
       color: APP_ACCENT_COLORS.workout,
-      size: 146,
+      size: 180,
     },
     {
       id: "body",
@@ -177,7 +203,15 @@ export default function Progress() {
       days: bodyCheckInDays,
       total: summary.days.length,
       color: APP_ACCENT_COLORS.progress,
-      size: 104,
+      size: 140,
+    },
+    {
+      id: "health",
+      name: "Health",
+      days: healthDashboard?.measuredDays ?? 0,
+      total: healthDashboard?.windowDays ?? summary.days.length,
+      color: APP_ACCENT_COLORS.health,
+      size: 100,
     },
   ]
   // A day counts as kept if anything at all was recorded on it. The rings
@@ -191,6 +225,7 @@ export default function Progress() {
     body: "var(--accent-progress)",
     nutrition: "var(--accent-food)",
     training: "var(--accent-workout)",
+    health: "var(--accent-health)",
     exercises: "var(--accent-training-hero)",
   }
   const keptFill =
@@ -235,7 +270,9 @@ export default function Progress() {
     workoutHistory === undefined ||
     foodHistory === undefined ||
     effectiveGoals === undefined ||
-    preferences === undefined
+    preferences === undefined ||
+    healthDashboard === undefined ||
+    healthSeries === undefined
 
   const prepareEntry = useCallback(() => {
     const toDisplayWeight = (weightKg: number | null | undefined) =>
@@ -554,23 +591,24 @@ export default function Progress() {
 
         <div
           ref={progressTabsRef}
-          className="app-segmented mt-5 mb-5 grid grid-cols-4"
+          className="app-segmented mt-5 mb-5 grid grid-cols-5"
           aria-label="Progress metric"
         >
-          {(["body", "nutrition", "training", "exercises"] as const).map(
-            (item) => (
-              <button
-                key={item}
-                type="button"
-                data-active={metric === item}
-                aria-pressed={metric === item}
-                onClick={() => selectMetric(item)}
-                className="app-segmented-button capitalize"
-              >
-                {item}
-              </button>
-            )
-          )}
+          {PROGRESS_TABS.map((item) => (
+            <button
+              key={item}
+              type="button"
+              data-active={metric === item}
+              aria-pressed={metric === item}
+              onClick={() => selectMetric(item)}
+              // Five up, so the padding the four-wide control wore has to
+              // go: "Nutrition" at that size with 10px each side is a
+              // wrapped word on a small phone.
+              className="app-segmented-button px-1 capitalize"
+            >
+              {item === "exercises" ? "Library" : item}
+            </button>
+          ))}
         </div>
 
         {shownMetric === "exercises" ? (
@@ -622,6 +660,16 @@ export default function Progress() {
                 <TrainingInsightsPanel />
               </>
             )}
+            {shownMetric === "health" && (
+              <HealthProgress
+                dashboard={healthDashboard ?? null}
+                series={healthSeries ?? null}
+                onOpenHealth={() => navigate("/health", { motion: "switch" })}
+                onOpenSettings={() =>
+                  navigate("/settings", { motion: "forward" })
+                }
+              />
+            )}
 
             <GroupedList label="Related history">
               <DisclosureRow
@@ -635,6 +683,16 @@ export default function Progress() {
                 detail={`${summary.training.workouts} workout${summary.training.workouts === 1 ? "" : "s"} · ${summary.training.completedSets} set${summary.training.completedSets === 1 ? "" : "s"}`}
                 leading={<Barbell size={19} />}
                 onClick={() => navigate("/workouts", { motion: "switch" })}
+              />
+              <DisclosureRow
+                title="Health trends"
+                detail={
+                  healthDashboard?.score != null
+                    ? `Score ${healthDashboard.score} · ${healthDashboard.measuredDays} of ${healthDashboard.windowDays} days measured`
+                    : "No readings yet"
+                }
+                leading={<Heartbeat size={19} />}
+                onClick={() => navigate("/health", { motion: "switch" })}
               />
             </GroupedList>
 

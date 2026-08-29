@@ -574,6 +574,9 @@ export function QuickAddFab({
       {more && (
         <QuickAddMore closing={moreClosing} onClose={() => closeMore()} />
       )}
+      {/* Parked above the week strip, not on it. At the old height the
+          button sat on Sunday and its hint sat on the week's name; the strip
+          is the last thing on the page and gets the bottom edge to itself. */}
       <button
         ref={triggerRef}
         type="button"
@@ -612,7 +615,7 @@ export function QuickAddFab({
           if (open) dismiss()
           else setOpen(true)
         }}
-        className="coach-fab-trigger fixed right-[max(1rem,env(safe-area-inset-right,0px))] bottom-[calc(var(--app-safe-bottom-lg)+4.75rem)] z-50 inline-flex h-12 w-12 touch-none items-center justify-center rounded-full text-background select-none"
+        className="coach-fab-trigger fixed right-[max(1rem,env(safe-area-inset-right,0px))] bottom-[calc(var(--app-safe-bottom-lg)+10.25rem)] z-50 inline-flex h-12 w-12 touch-none items-center justify-center rounded-full text-background select-none"
       >
         <span aria-hidden="true" className="coach-fab-gloss" />
         {open ? (
@@ -624,7 +627,10 @@ export function QuickAddFab({
       {hinting && !open && (
         <div
           aria-hidden="true"
-          className="coach-fab-hint-tip pointer-events-none fixed right-[calc(max(1rem,env(safe-area-inset-right,0px))+3.75rem)] bottom-[calc(var(--app-safe-bottom-lg)+4.75rem)] z-50 flex h-12 items-center"
+          // Above the button rather than beside it. Beside it, the line ran
+          // the width of the screen straight across the ruler and whatever
+          // hour was under it; above, it hangs over the empty right lane.
+          className="coach-fab-hint-tip pointer-events-none fixed right-[max(1rem,env(safe-area-inset-right,0px))] bottom-[calc(var(--app-safe-bottom-lg)+13.75rem)] z-50 flex h-8 items-center"
         >
           <span className="rounded-full border border-border bg-card px-3 py-1.5 text-[13px] leading-none font-medium whitespace-nowrap shadow-[0_8px_22px_rgba(0,0,0,0.18)]">
             {HINT_TEXT}

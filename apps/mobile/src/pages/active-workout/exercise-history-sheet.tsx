@@ -4,7 +4,7 @@
  */
 
 import { useMemo } from "react"
-import { useBackdropDismiss } from "@repo/ui"
+import { MobileSheet } from "@/components/mobile-sheet"
 import { useQuery } from "convex/react"
 import { ArrowLeft, ChartLine } from "@phosphor-icons/react"
 import { api } from "../../../../../convex/_generated/api"
@@ -68,30 +68,22 @@ export function ExerciseHistorySheet({
     return `${kg}`
   }
 
-  const backdropDismiss = useBackdropDismiss(onClose)
-
   function fmtSets(sets: HistorySession["sets"]) {
     return sets.map((s) => `${fmtWeight(s.weight)}×${s.reps}`).join(", ")
   }
 
   return (
-    <div
-      className="sheet-overlay fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-[8px]"
-      {...backdropDismiss}
+    <MobileSheet
+      onClose={onClose}
+      ariaLabel="Exercise history"
+      overlayClassName="sheet-overlay bg-black/50 backdrop-blur-[8px]"
+      panelClassName="w-full max-w-sm overflow-hidden rounded-t-3xl bg-card shadow-[0_-12px_60px_rgba(0,0,0,0.22)]"
+      panelStyle={{
+        paddingBottom: "max(2rem, env(safe-area-inset-bottom, 2rem))",
+      }}
+      closeOnBackdrop
     >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label="Exercise history"
-        className="sheet-panel w-full max-w-sm overflow-hidden rounded-t-3xl bg-card shadow-[0_-12px_60px_rgba(0,0,0,0.22)]"
-        style={{
-          paddingBottom: "max(2rem, env(safe-area-inset-bottom, 2rem))",
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex justify-center pt-3">
-          <div className="h-1 w-10 rounded-full bg-foreground/[0.10]" />
-        </div>
+      <>
         <div className="flex items-center gap-3 px-5 pt-4 pb-3">
           <button
             onClick={onClose}
@@ -338,7 +330,7 @@ export function ExerciseHistorySheet({
             </div>
           </>
         )}
-      </div>
-    </div>
+      </>
+    </MobileSheet>
   )
 }

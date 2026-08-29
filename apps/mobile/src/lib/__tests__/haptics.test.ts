@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test"
 
 const impactMock = mock(async (_options: unknown) => undefined)
+const selectionStartMock = mock(async () => undefined)
 const selectionChangedMock = mock(async () => undefined)
+const selectionEndMock = mock(async () => undefined)
 
 mock.module("@capacitor/core", () => ({
   Capacitor: {
@@ -15,7 +17,9 @@ mock.module("@capacitor/core", () => ({
 mock.module("@capacitor/haptics", () => ({
   Haptics: {
     impact: impactMock,
+    selectionStart: selectionStartMock,
     selectionChanged: selectionChangedMock,
+    selectionEnd: selectionEndMock,
   },
   ImpactStyle: {
     Light: "LIGHT",
@@ -66,7 +70,9 @@ describe("haptic preferences", () => {
   beforeEach(() => {
     installStorage()
     impactMock.mockClear()
+    selectionStartMock.mockClear()
     selectionChangedMock.mockClear()
+    selectionEndMock.mockClear()
   })
 
   test("haptics default to enabled", () => {
@@ -93,7 +99,8 @@ describe("haptic preferences", () => {
     expect(impactMock.mock.calls[0]?.[0]).toEqual({ style: "LIGHT" })
     expect(impactMock.mock.calls[1]?.[0]).toEqual({ style: "MEDIUM" })
     expect(impactMock.mock.calls[2]?.[0]).toEqual({ style: "HEAVY" })
-    expect(selectionChangedMock).toHaveBeenCalledTimes(1)
+    // The rest of the sequence hangs off promises; the start is what fires now.
+    expect(selectionStartMock).toHaveBeenCalledTimes(1)
   })
 
   test("suppresses native haptics when disabled", () => {
@@ -105,7 +112,7 @@ describe("haptic preferences", () => {
     hapticSelection()
 
     expect(impactMock).not.toHaveBeenCalled()
-    expect(selectionChangedMock).not.toHaveBeenCalled()
+    expect(selectionStartMock).not.toHaveBeenCalled()
   })
 
   test("defaults to full strength and stores the chosen level", () => {
@@ -155,6 +162,6 @@ describe("haptic preferences", () => {
     hapticSelection()
 
     expect(impactMock).not.toHaveBeenCalled()
-    expect(selectionChangedMock).not.toHaveBeenCalled()
+    expect(selectionStartMock).not.toHaveBeenCalled()
   })
 })

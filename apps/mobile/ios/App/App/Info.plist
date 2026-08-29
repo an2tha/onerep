@@ -68,6 +68,10 @@
 	<string>OneRep connects to a OneRep server on your local network when you point it at one, so you can run your own instead of ours.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>OneRep uses the microphone when you dictate a message to Coach.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>OneRep saves a photo to your library only when you ask it to.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>OneRep reads the photo you pick so it can log the meal or read the barcode in it.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>OneRep uses speech recognition to turn your Coach dictation into text.</string>
 	<key>UILaunchStoryboardName</key>
