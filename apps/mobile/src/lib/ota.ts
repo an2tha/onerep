@@ -16,8 +16,9 @@
  *   next(), so the update lands when the app is next backgrounded or
  *   relaunched even if the user never sees or taps the toast.
  * - A bundle that cannot boot rolls itself back. notifyAppReady() is only
- *   called once React has actually committed frames; if it never runs, the
- *   plugin's appReadyTimeout reverts the device on the next launch.
+ *   called once React has actually committed; if it never runs, the plugin's
+ *   appReadyTimeout reverts the device on the next launch. A revert is treated
+ *   as evidence, not a verdict — see recordVersionFailure.
  *
  * All decision rules live in ./ota-manifest so they are testable in isolation.
  * This file is only the glue: platform guard, network, plugin calls, state.
@@ -52,12 +53,15 @@ const LAST_CHECK_KEY = "onerep:ota:last-check"
 const FAILURE_COUNT_KEY = "onerep:ota:failure-count"
 const BLOCKED_VERSIONS_KEY = "onerep:ota:blocked-versions"
 const REPORTED_ROLLBACK_KEY = "onerep:ota:reported-rollback"
+const VERSION_FAILURES_KEY = "onerep:ota:version-failures"
 
 const MIN_CHECK_INTERVAL_MS = 30 * 60 * 1000
 /** Backoff after consecutive failures: 30m, 1h, then 4h. */
 const FAILURE_BACKOFF_MS = [30 * 60 * 1000, 60 * 60 * 1000, 4 * 60 * 60 * 1000]
 const MANIFEST_TIMEOUT_MS = 8000
 const MAX_BLOCKED_VERSIONS = 10
+/** Rollbacks of one version tolerated before the device stops trying it. */
+const ROLLBACK_STRIKES = 2
 
 const DEFAULT_OTA_ORIGIN = "https://app.onerep.life"
 
@@ -137,6 +141,57 @@ function blockVersion(version: string) {
   const existing = readBlockedVersions().filter((entry) => entry !== version)
   const next = [version, ...existing].slice(0, MAX_BLOCKED_VERSIONS)
   safeLocalStorageSet(BLOCKED_VERSIONS_KEY, JSON.stringify(next))
+}
+
+function readVersionFailures(): Record<string, number> {
+  const raw = safeLocalStorageGet(VERSION_FAILURES_KEY)
+  if (!raw) return {}
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+      return {}
+    const entries = Object.entries(parsed as Record<string, unknown>).filter(
+      (entry): entry is [string, number] =>
+        typeof entry[1] === "number" && Number.isFinite(entry[1])
+    )
+    return Object.fromEntries(entries)
+  } catch {
+    return {}
+  }
+}
+
+/**
+ * Records that a version was rolled back, and blocks it once it has failed
+ * enough times to look like the bundle's fault rather than the moment's.
+ *
+ * A rollback is not proof of a bad bundle. The plugin arms its appReadyTimeout
+ * the instant it swaps a bundle in, including when it does so from
+ * appMovedToBackground — so a slow resume, a device that suspends mid-reload,
+ * or anything else that delays notifyAppReady() reads exactly like a crash.
+ * Blocking on the first strike turned those into a device that would never
+ * take that release again, and since every release met the same fate, a device
+ * that fell out of the update path stayed out. Two strikes still stops a
+ * genuinely broken bundle within one extra launch.
+ */
+function recordVersionFailure(version: string): void {
+  if (!version) return
+  const failures = readVersionFailures()
+  const count = (failures[version] ?? 0) + 1
+
+  if (count >= ROLLBACK_STRIKES) {
+    blockVersion(version)
+    delete failures[version]
+  } else {
+    failures[version] = count
+  }
+
+  // Only versions still on probation are worth remembering, and only as many
+  // as the block list itself would hold.
+  const trimmed = Object.entries(failures).slice(-MAX_BLOCKED_VERSIONS)
+  safeLocalStorageSet(
+    VERSION_FAILURES_KEY,
+    JSON.stringify(Object.fromEntries(trimmed))
+  )
 }
 
 function readFailureCount(): number {
@@ -396,7 +451,7 @@ export async function initializeOta(
         const version = event.bundle?.version
         if (!version) return
         console.warn(`OTA bundle ${version} failed to start; rolled back`)
-        blockVersion(version)
+        recordVersionFailure(version)
         options.onRollback?.({ version })
       })
     )
@@ -407,7 +462,7 @@ export async function initializeOta(
       const failed = await updater.getFailedUpdate()
       const version = failed?.bundle?.version
       if (version) {
-        blockVersion(version)
+        recordVersionFailure(version)
         if (safeLocalStorageGet(REPORTED_ROLLBACK_KEY) !== version) {
           safeLocalStorageSet(REPORTED_ROLLBACK_KEY, version)
           options.onRollback?.({ version })

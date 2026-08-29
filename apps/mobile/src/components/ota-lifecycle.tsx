@@ -31,11 +31,26 @@ export function OtaLifecycle() {
     // Anything that throws before this leaves notifyAppReady() uncalled, which
     // is precisely the signal the plugin's rollback timer waits for — so this
     // must never move to module scope or a timeout.
-    const outerFrame = requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        if (!disposed) void notifyOtaAppReady()
+    //
+    // Except when the document is hidden, where there is no such thing as a
+    // committed frame. A staged bundle is applied by the plugin from
+    // appMovedToBackground: it swaps the bundle, reloads the WebView, and arms
+    // its appReadyTimeout right there, all while the app is backgrounded and
+    // rAF is halted. Waiting for paint in that state waits forever, the timer
+    // wins, and a perfectly good bundle gets rolled back and blocked — which
+    // is every user who declines the toast and simply backgrounds the app.
+    // So when hidden, settle for the weaker but obtainable proof: this effect
+    // running at all means React mounted and committed without throwing.
+    let outerFrame = 0
+    if (document.visibilityState === "hidden") {
+      void notifyOtaAppReady()
+    } else {
+      outerFrame = requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (!disposed) void notifyOtaAppReady()
+        })
       })
-    })
+    }
 
     void initializeOta({
       onRollback: ({ version }) => {
@@ -81,7 +96,7 @@ export function OtaLifecycle() {
 
     return () => {
       disposed = true
-      cancelAnimationFrame(outerFrame)
+      if (outerFrame) cancelAnimationFrame(outerFrame)
       unsubscribe()
       disposeListeners?.()
       window.removeEventListener("online", checkForUpdate)

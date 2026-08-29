@@ -166,6 +166,8 @@ export function stageBundle(distDir) {
   return { stageRoot, stageDir }
 }
 
+const CLI_VERSION = "8.42.4"
+
 /**
  * Zips via the official CLI, which produces the layout the plugin expects
  * (files at the zip root, index.html among them). node:22-alpine has no `zip`
@@ -173,6 +175,12 @@ export function stageBundle(distDir) {
  *
  * The CLI resolves a package.json from its working directory, so it runs from
  * apps/mobile rather than the repo root.
+ *
+ * Pinned, and not out of tidiness. On 2026-08-28 the `latest` tag wandered up
+ * to 8.44/8.45 — versions whose dependency probe cannot see
+ * @capgo/capacitor-updater in a Bun workspace install — and every deploy died
+ * on "Cannot find @capgo/capacitor-updater in node_modules". The tag has since
+ * wandered back. We are not riding it again.
  */
 function zipBundle({ stageDir, stageRoot, repoRoot, version }) {
   const outputName = `${version}.zip`
@@ -182,7 +190,7 @@ function zipBundle({ stageDir, stageRoot, repoRoot, version }) {
     "npx",
     [
       "--yes",
-      "@capgo/cli@latest",
+      `@capgo/cli@${CLI_VERSION}`,
       "bundle",
       "zip",
       APP_ID,
