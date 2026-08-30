@@ -41,6 +41,16 @@ mock.module("@capacitor/core", () => ({
   WebPlugin: class {},
 }))
 
+// The module ships with OTA_ENABLED = false (Apple review mode). The test
+// build re-enables it via alias so the mechanics stay covered; a separate
+// suite below pins the disabled behavior itself.
+mock.module("../ota-config", () => ({ OTA_ENABLED: true }))
+
+// The module ships with OTA_ENABLED = false (Apple review mode). The test
+// build re-enables it by aliasing the flag so the mechanics stay covered; a
+// separate suite below pins the disabled behavior itself.
+mock.module("../ota-config", () => ({ OTA_ENABLED: true }))
+
 mock.module("@capgo/capacitor-updater", () => ({
   CapacitorUpdater: {
     download: downloadMock,

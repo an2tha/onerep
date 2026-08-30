@@ -22,6 +22,17 @@
  *
  * All decision rules live in ./ota-manifest so they are testable in isolation.
  * This file is only the glue: platform guard, network, plugin calls, state.
+ *
+ * ── OTA DISABLED FOR APPLE REVIEW ─────────────────────────────────────────
+ * Apple's guideline 2.7.2 disallows downloading executable code after review.
+ * The whole OTA flow is therefore switched off at module level via
+ * OTA_ENABLED. Every public entry point short-circuits to a no-op, so no
+ * manifest is fetched, no bundle is downloaded, staged or applied, and the
+ * native plugin is never invoked. To re-enable (e.g. for Android builds or
+ * after obtaining explicit App Store clearance), set OTA_ENABLED to True.
+ * The native side stays configured with autoUpdate: false and empty
+ * updateUrl/statsUrl in capacitor.config.ts as a second layer of defence.
+ * ─────────────────────────────────────────────────────────────────────────
  */
 
 import { Capacitor } from "@capacitor/core"
@@ -38,6 +49,7 @@ import {
   safeLocalStorageRemove,
   safeLocalStorageSet,
 } from "./utils"
+import { OTA_ENABLED } from "./ota-config"
 
 export type OtaState =
   | { phase: "idle" }
@@ -54,6 +66,12 @@ const FAILURE_COUNT_KEY = "onerep:ota:failure-count"
 const BLOCKED_VERSIONS_KEY = "onerep:ota:blocked-versions"
 const REPORTED_ROLLBACK_KEY = "onerep:ota:reported-rollback"
 const VERSION_FAILURES_KEY = "onerep:ota:version-failures"
+
+/**
+ * Master switch, defined in ./ota-config so tests can alias it. False = OTA
+ * completely disabled (Apple review mode). Only flip to True when the flow is
+ * explicitly cleared for use.
+ */
 
 const MIN_CHECK_INTERVAL_MS = 30 * 60 * 1000
 /** Backoff after consecutive failures: 30m, 1h, then 4h. */
@@ -243,7 +261,7 @@ async function loadCapgo(): Promise<CapgoModule["CapacitorUpdater"]> {
  * scope or from a timer.
  */
 export async function notifyOtaAppReady(): Promise<void> {
-  if (!isOtaSupported()) return
+  if (!OTA_ENABLED || !isOtaSupported()) return
   try {
     const updater = await loadCapgo()
     await updater.notifyAppReady()
@@ -287,7 +305,7 @@ async function fetchManifest(platform: OtaPlatform) {
 export async function checkForOtaUpdate(
   options: { force?: boolean } = {}
 ): Promise<OtaDecision> {
-  if (!isOtaSupported()) return { action: "skip", reason: "up-to-date" }
+  if (!OTA_ENABLED || !isOtaSupported()) return { action: "skip", reason: "up-to-date" }
 
   const platform = otaPlatform()
   if (!platform) return { action: "skip", reason: "up-to-date" }
@@ -387,7 +405,7 @@ export async function checkForOtaUpdate(
  * the JS context, so nothing after it runs.
  */
 export async function applyOtaUpdateNow(): Promise<void> {
-  if (!isOtaSupported()) return
+  if (!OTA_ENABLED || !isOtaSupported()) return
   const bundle = stagedBundle
   if (!bundle || state.phase !== "ready") return
 
@@ -414,7 +432,7 @@ export async function applyOtaUpdateNow(): Promise<void> {
 export async function initializeOta(
   options: { onRollback?: (rollback: OtaRollback) => void } = {}
 ): Promise<() => void> {
-  if (!isOtaSupported()) return () => {}
+  if (!OTA_ENABLED || !isOtaSupported()) return () => {}
 
   let disposed = false
   const handles: { remove: () => Promise<void> }[] = []
@@ -485,6 +503,7 @@ export async function initializeOta(
 /** Support/debug snapshot. Safe to call on any platform. */
 export async function otaDiagnostics(): Promise<{
   supported: boolean
+  enabled: boolean
   buildVersion: string
   current: string | null
   native: string | null
@@ -494,11 +513,12 @@ export async function otaDiagnostics(): Promise<{
 }> {
   const base = {
     supported: isOtaSupported(),
+    enabled: OTA_ENABLED,
     buildVersion: otaBuildVersion(),
     blocked: readBlockedVersions(),
     state,
   }
-  if (!isOtaSupported()) {
+  if (!OTA_ENABLED || !isOtaSupported()) {
     return { ...base, current: null, native: null, staged: null }
   }
 
