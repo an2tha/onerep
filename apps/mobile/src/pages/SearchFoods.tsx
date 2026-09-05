@@ -1,3 +1,8 @@
+import {
+  foodLogContextParams,
+  foodLogTimestamp,
+  isFoodLogDate,
+} from "@/lib/food-log-context"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useSearchParams } from "react-router"
 import { FoodAttribution } from "@repo/ui"
@@ -123,7 +128,7 @@ export default function SearchFoods() {
   // second search for a page they have never seen.
   const createCustomFood = (name: string) =>
     navigate(
-      `/foods/custom?new=1&log=1${name ? `&name=${encodeURIComponent(name)}` : ""}`,
+      `/foods/custom?new=1&log=1&${foodLogContextParams(date, searchParams.get("time"))}${name ? `&name=${encodeURIComponent(name)}` : ""}`,
       { motion: "forward" }
     )
   const [searchParams] = useSearchParams()
@@ -150,9 +155,9 @@ export default function SearchFoods() {
     limit: 60,
   }) ?? []) as Recipe[]
   const selectedDate = searchParams.get("date")
-  const date =
-    selectedDate ||
-    currentDateKey(preferences?.lastActiveTimezone || detectTimeZone())
+  const date = isFoodLogDate(selectedDate)
+    ? selectedDate
+    : currentDateKey(preferences?.lastActiveTimezone || detectTimeZone())
   const addFoodEntry = useOfflineMutation(
     api.logs.foodLogs.addEntry,
     "logs.foodLogs.addEntry"
@@ -213,7 +218,11 @@ export default function SearchFoods() {
   const recentLoggedDays = useQuery(api.logs.foodLogs.getRecent, {})
   const loggedNames = useMemo(
     () =>
-      ((recentLoggedDays ?? []) as Array<{ entries?: Array<{ name?: string }> }>)
+      (
+        (recentLoggedDays ?? []) as Array<{
+          entries?: Array<{ name?: string }>
+        }>
+      )
         .flatMap((day) => day.entries ?? [])
         .map((entry) => entry.name ?? "")
         .filter(Boolean),
@@ -282,7 +291,7 @@ export default function SearchFoods() {
             ? item.name
             : `${item.name} (${portion ? foodPortionLabel(portion) : `${grams} g`})`,
         ...macros,
-        loggedAt: new Date().toISOString(),
+        loggedAt: foodLogTimestamp(date, searchParams.get("time")),
         meal,
         source: "openfoodfacts" as const,
         foodCode: item.code,
@@ -319,7 +328,7 @@ export default function SearchFoods() {
 
   function openFoodReview(item: FoodSearchItem) {
     if (shouldOpenReviewAsPage()) {
-      const dateParam = date && date !== currentDateKey() ? `?date=${date}` : ""
+      const dateParam = `?${foodLogContextParams(date, searchParams.get("time"))}`
       navigate(`/foods/review/${encodeURIComponent(item.id)}${dateParam}`, {
         state: { item },
       })
@@ -409,6 +418,29 @@ export default function SearchFoods() {
             </div>
           </div>
 
+          <div className="flex items-center justify-between gap-3 px-[var(--app-page-x)] pb-3">
+            <p className="text-[14px] text-muted-foreground">
+              Logging for{" "}
+              {new Date(`${date}T12:00:00`).toLocaleDateString([], {
+                month: "short",
+                day: "numeric",
+              })}
+              {searchParams.get("time")
+                ? ` at ${searchParams.get("time")}`
+                : ""}
+            </p>
+            <button
+              type="button"
+              className="app-button app-button-quiet shrink-0"
+              onClick={() =>
+                navigate(
+                  `/foods/custom?${foodLogContextParams(date, searchParams.get("time"))}`
+                )
+              }
+            >
+              My foods
+            </button>
+          </div>
           <div className="mx-[var(--app-page-x)] h-px bg-border/40" />
 
           <div

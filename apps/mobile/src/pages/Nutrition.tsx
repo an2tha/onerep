@@ -1,3 +1,4 @@
+import { foodLogTimestamp, isFoodLogDate } from "@/lib/food-log-context"
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { useSearchParams } from "react-router"
 import { createPortal } from "react-dom"
@@ -2111,14 +2112,18 @@ export default function Nutrition() {
     : "total"
   const timeZone = preferences?.lastActiveTimezone || "UTC"
   const todayKey = currentDateKey(timeZone)
-  const [dateKey, setDateKey] = useState(todayKey)
-  // `todayKey` is first computed with the "UTC" fallback, before preferences
-  // load. Re-sync to the real timezone unless the user picked a date already.
-  const datePickedRef = useRef(false)
-  useEffect(() => {
-    if (datePickedRef.current) return
-    setDateKey(todayKey)
-  }, [todayKey])
+  const requestedDate = searchParams.get("date")
+  const dateKey = isFoodLogDate(requestedDate) ? requestedDate : todayKey
+  function setDateKey(date: string) {
+    setSearchParams(
+      (params) => {
+        const next = new URLSearchParams(params)
+        next.set("date", date)
+        return next
+      },
+      { replace: true }
+    )
+  }
   const isToday = dateKey === todayKey
   const dateLabel = formatDateLabel(dateKey, todayKey)
 
@@ -2457,16 +2462,6 @@ export default function Nutrition() {
   )
 
   useEffect(() => {
-    const requestedDate = searchParams.get("date")
-    if (requestedDate && /^\d{4}-\d{2}-\d{2}$/.test(requestedDate)) {
-      datePickedRef.current = true
-      setDateKey(requestedDate)
-      const next = new URLSearchParams(searchParams)
-      next.delete("date")
-      setSearchParams(next, { replace: true })
-      return
-    }
-
     if (searchParams.get("describe") === "1") {
       if (requireAiAccess(1, "describe_meal")) {
         setAddOpen(false)
@@ -2478,10 +2473,9 @@ export default function Nutrition() {
     }
 
     if (searchParams.get("history") === "1") {
-      datePickedRef.current = true
-      setDateKey(offsetDateKey(todayKey, -1))
       const next = new URLSearchParams(searchParams)
       next.delete("history")
+      next.set("date", offsetDateKey(todayKey, -1))
       setSearchParams(next, { replace: true })
     }
   }, [requireAiAccess, searchParams, setSearchParams, todayKey])
@@ -2499,7 +2493,7 @@ export default function Nutrition() {
         entry: {
           id: crypto.randomUUID(),
           amountMl,
-          loggedAt: new Date().toISOString(),
+          loggedAt: foodLogTimestamp(dateKey),
         },
       })
       if (completesGoal) setWaterGoalCelebration(true)
@@ -2610,7 +2604,7 @@ export default function Nutrition() {
       id: crypto.randomUUID(),
       name: recipe.name,
       ...totals,
-      loggedAt: new Date().toISOString(),
+      loggedAt: foodLogTimestamp(dateKey),
       meal,
       recipeId: recipe._id,
       recipeDraft: recipe._id
@@ -2674,7 +2668,7 @@ export default function Nutrition() {
       await logSupplementTaken({
         supplementId: plan.item._id as Id<"supplementItems">,
         date: dateKey,
-        loggedAt: new Date().toISOString(),
+        loggedAt: foodLogTimestamp(dateKey),
         servingMultiplier: 1,
       })
       hapticSelection()
@@ -2775,7 +2769,7 @@ export default function Nutrition() {
         ...entry,
         _id: undefined,
         id: crypto.randomUUID(),
-        loggedAt: new Date().toISOString(),
+        loggedAt: foodLogTimestamp(dateKey),
         meal: defaultMeal(),
       })
 
@@ -2953,7 +2947,7 @@ export default function Nutrition() {
           {
             label: "My foods",
             Icon: ForkKnife,
-            action: () => navigate("/foods/custom"),
+            action: () => navigate(`/foods/custom?date=${dateKey}`),
           },
           {
             label: "Meal prep",
@@ -3022,7 +3016,6 @@ export default function Nutrition() {
               value={dateKey}
               todayKey={todayKey}
               onChange={(next) => {
-                datePickedRef.current = true
                 setDateKey(next)
               }}
               open={dateSelectorOpen}

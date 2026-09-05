@@ -1,3 +1,8 @@
+import {
+  foodLogContextParams,
+  foodLogTime,
+  foodLogTimestamp,
+} from "@/lib/food-log-context"
 /**
  * The quick-action drawers.
  *
@@ -149,25 +154,14 @@ const WATER_CUSTOM_MAX = 3000
 /**
  * The moment an entry belongs to.
  *
- * `undefined` means now, which is what every door into these drawers meant
- * before the wheel grew + buttons. When the wheel hands over a minute, the
- * entry is stamped at that minute on the day being viewed — otherwise a meal
- * back-filled at eleven at night claims to have been eaten at eleven at night,
- * and the timeline it was logged from disagrees with the timeline it lands in.
+ * An explicit minute comes from the timeline. Otherwise use the current
+ * clock time, always on the day being viewed.
  */
 export function stampAt(dateKey: string, atMinutes?: number) {
-  if (atMinutes === undefined) return new Date().toISOString()
-  const [year, month, day] = dateKey.split("-").map(Number)
-  const at = new Date(
-    year,
-    (month ?? 1) - 1,
-    day ?? 1,
-    Math.floor(atMinutes / 60) % 24,
-    Math.round(atMinutes % 60),
-    0,
-    0
+  return foodLogTimestamp(
+    dateKey,
+    atMinutes === undefined ? undefined : foodLogTime(atMinutes)
   )
-  return at.toISOString()
 }
 
 function WaterDrawer({
@@ -493,7 +487,10 @@ function FoodDrawer({
           detail="Barcode scanning, portions and filters."
           onClick={() => {
             onClose()
-            navigate("/foods/search", { motion: "forward" })
+            navigate(
+              `/foods/search?${foodLogContextParams(dateKey, atMinutes === undefined ? undefined : foodLogTime(atMinutes))}`,
+              { motion: "forward" }
+            )
           }}
         />
       </div>
@@ -1147,7 +1144,11 @@ export function QuickActionDrawer({
   return (
     <MobileSheet onClose={onClose} ariaLabel={`${DRAWER_LABELS[id]} drawer`}>
       {id === "water" && (
-        <WaterDrawer dateKey={dateKey} atMinutes={atMinutes} onClose={onClose} />
+        <WaterDrawer
+          dateKey={dateKey}
+          atMinutes={atMinutes}
+          onClose={onClose}
+        />
       )}
       {id === "food" && (
         <FoodDrawer
@@ -1158,7 +1159,11 @@ export function QuickActionDrawer({
         />
       )}
       {id === "recipes" && (
-        <RecipesDrawer dateKey={dateKey} atMinutes={atMinutes} onClose={onClose} />
+        <RecipesDrawer
+          dateKey={dateKey}
+          atMinutes={atMinutes}
+          onClose={onClose}
+        />
       )}
       {id === "recipe-create" && <CreateRecipeDrawer onClose={onClose} />}
       {id === "workout" && <WorkoutDrawer onClose={onClose} />}

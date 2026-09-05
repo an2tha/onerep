@@ -1,3 +1,4 @@
+import { foodLogTimestamp, isFoodLogDate } from "@/lib/food-log-context"
 import { useEffect, useRef, useState } from "react"
 import { Warning } from "@phosphor-icons/react"
 import { useLocation, useParams, useSearchParams } from "react-router"
@@ -42,10 +43,9 @@ export default function FoodReview() {
   const preferences = useQuery(api.users.users.getPreferences, {})
   const [reviewParams] = useSearchParams()
   const requestedDate = reviewParams.get("date")
-  const date =
-    requestedDate && /^\d{4}-\d{2}-\d{2}$/.test(requestedDate)
-      ? requestedDate
-      : currentDateKey(preferences?.lastActiveTimezone || detectTimeZone())
+  const date = isFoodLogDate(requestedDate)
+    ? requestedDate
+    : currentDateKey(preferences?.lastActiveTimezone || detectTimeZone())
   const addFoodEntry = useOfflineMutation(
     api.logs.foodLogs.addEntry,
     "logs.foodLogs.addEntry"
@@ -108,7 +108,7 @@ export default function FoodReview() {
           ? food.name
           : `${food.name} (${portion ? foodPortionLabel(portion) : `${grams} g`})`,
       ...macros,
-      loggedAt: new Date().toISOString(),
+      loggedAt: foodLogTimestamp(date, reviewParams.get("time")),
       meal,
       source: "openfoodfacts" as const,
       foodCode: food.code,

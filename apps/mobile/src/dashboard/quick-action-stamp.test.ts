@@ -26,10 +26,13 @@ describe("stampAt", () => {
     expect(at.getMinutes()).toBe(5)
   })
 
-  it("means now when nothing was picked", () => {
-    const before = Date.now()
-    const at = new Date(stampAt("2026-08-27")).getTime()
-    expect(at).toBeGreaterThanOrEqual(before - 1000)
-    expect(at).toBeLessThanOrEqual(Date.now() + 1000)
+  it("keeps the viewed day even when no minute was picked", () => {
+    const now = new Date()
+    const at = new Date(stampAt("2026-08-27"))
+    expect(at.getFullYear()).toBe(2026)
+    expect(at.getMonth()).toBe(7)
+    expect(at.getDate()).toBe(27)
+    expect(at.getHours()).toBe(now.getHours())
+    expect(at.getMinutes()).toBe(now.getMinutes())
   })
 })

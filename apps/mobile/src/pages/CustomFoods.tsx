@@ -1,4 +1,10 @@
-import { useMemo, useState } from "react"
+import {
+  foodLogTime,
+  foodLogTimestamp,
+  isFoodLogDate,
+  isFoodLogTime,
+} from "@/lib/food-log-context"
+import { useMemo, useRef, useState } from "react"
 import { useSearchParams } from "react-router"
 import {
   ArrowLeft,
@@ -58,10 +64,7 @@ export default function CustomFoods() {
   const navigate = useSmoothNavigate()
   const [searchParams] = useSearchParams()
   const requestedDate = searchParams.get("date")
-  const today =
-    requestedDate && /^\d{4}-\d{2}-\d{2}$/.test(requestedDate)
-      ? requestedDate
-      : currentDateKey()
+  const date = isFoodLogDate(requestedDate) ? requestedDate : currentDateKey()
 
   const foodsQuery = useQuery(api.logs.customFoods.list, {})
   const saveFood = useOfflineMutation(
@@ -98,6 +101,8 @@ export default function CustomFoods() {
       : null
   )
   const [saving, setSaving] = useState(false)
+  const loggingRef = useRef(false)
+  const [logging, setLogging] = useState(false)
   const [logTarget, setLogTarget] = useState<CustomFood | null>(null)
 
   const foods = (foodsQuery ?? []) as CustomFood[]
@@ -176,34 +181,45 @@ export default function CustomFoods() {
 
   async function handleLog(
     food: CustomFood,
-    options: { servings: number; meal: string }
+    options: { servings: number; meal: string; date: string; time: string }
   ) {
+    if (loggingRef.current) return
+    loggingRef.current = true
+    setLogging(true)
     const id = food.id ?? food._id
     hapticSelection()
     const entry = foodLogEntryFromCustomFood(food, {
       meal: options.meal,
       servings: options.servings,
+      loggedAt: foodLogTimestamp(options.date, options.time),
     })
     try {
-      await addFoodEntry({ date: today, entry })
-      if (id) await markUsed({ id: id as Id<"customFoods"> })
+      await addFoodEntry({ date: options.date, entry })
+      if (id) void markUsed({ id: id as Id<"customFoods"> }).catch(() => {})
       // The entry carries its own id, so undo works offline too: the queue
       // takes the removal the same way it took the log.
-      toast.success(`Logged ${food.name}`, {
-        action: {
-          label: "Undo",
-          onClick: () => {
-            void removeFoodEntry({ date: today, entryId: entry.id }).catch(
-              () => {
+      toast.success(
+        `Logged ${food.name} for ${options.date} at ${options.time}`,
+        {
+          action: {
+            label: "Undo",
+            onClick: () => {
+              void removeFoodEntry({
+                date: options.date,
+                entryId: entry.id,
+              }).catch(() => {
                 toast.error("Couldn't undo that")
-              }
-            )
+              })
+            },
           },
-        },
-      })
+        }
+      )
       setLogTarget(null)
     } catch (error) {
       reportOfflineMutationError(error, "Could not log this food")
+    } finally {
+      loggingRef.current = false
+      setLogging(false)
     }
   }
 
@@ -336,7 +352,12 @@ export default function CustomFoods() {
       {logTarget && (
         <LogCustomFoodSheet
           food={logTarget}
-          onClose={() => setLogTarget(null)}
+          date={date}
+          time={searchParams.get("time")}
+          saving={logging}
+          onClose={() => {
+            if (!loggingRef.current) setLogTarget(null)
+          }}
           onLog={(options) => void handleLog(logTarget, options)}
         />
       )}
@@ -368,14 +389,29 @@ export default function CustomFoods() {
 
 function LogCustomFoodSheet({
   food,
+  date: initialDate,
+  time: initialTime,
+  saving,
   onClose,
   onLog,
 }: {
   food: CustomFood
+  date: string
+  time: string | null
+  saving: boolean
   onClose: () => void
-  onLog: (options: { servings: number; meal: string }) => void
+  onLog: (options: {
+    servings: number
+    meal: string
+    date: string
+    time: string
+  }) => void
 }) {
   const energyUnit = useEnergyUnit()
+  const [date, setDate] = useState(initialDate)
+  const [time, setTime] = useState(
+    isFoodLogTime(initialTime) ? initialTime : foodLogTime()
+  )
   const [servings, setServings] = useState("1")
   const [meal, setMeal] = useState(defaultMeal())
 
@@ -434,6 +470,31 @@ function LogCustomFoodSheet({
           </label>
         </div>
 
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          <label className="native-field min-w-0">
+            <span className="native-field-label">Date</span>
+            <input
+              type="date"
+              className="native-input min-w-0"
+              value={date}
+              required
+              disabled={saving}
+              onChange={(event) => setDate(event.target.value)}
+            />
+          </label>
+          <label className="native-field min-w-0">
+            <span className="native-field-label">Time</span>
+            <input
+              type="time"
+              className="native-input min-w-0"
+              value={time}
+              required
+              disabled={saving}
+              onChange={(event) => setTime(event.target.value)}
+            />
+          </label>
+        </div>
+
         <p className="native-field-hint mt-3 tabular-nums">
           {energyDisplay(preview.calories, energyUnit)} {energyUnit} ·{" "}
           {preview.protein} g protein · {preview.carbs} g carbs · {preview.fat}{" "}
@@ -442,10 +503,15 @@ function LogCustomFoodSheet({
 
         <PrimaryButton
           className="mt-5 w-full"
-          disabled={amount <= 0}
-          onClick={() => onLog({ servings: amount, meal })}
+          disabled={
+            saving ||
+            amount <= 0 ||
+            !isFoodLogDate(date) ||
+            !isFoodLogTime(time)
+          }
+          onClick={() => onLog({ servings: amount, meal, date, time })}
         >
-          Log to diary
+          {saving ? "Logging…" : "Log to diary"}
         </PrimaryButton>
       </div>
     </MobileSheet>

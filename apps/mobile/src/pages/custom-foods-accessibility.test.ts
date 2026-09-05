@@ -44,6 +44,8 @@ describe("Custom foods accessibility contract", () => {
   })
 
   test("nutrition links to my foods from the add sheet", () => {
-    expect(NUTRITION_SOURCE).toContain('navigate("/foods/custom")')
+    expect(NUTRITION_SOURCE).toContain(
+      "navigate(`/foods/custom?date=${dateKey}`)"
+    )
   })
 })

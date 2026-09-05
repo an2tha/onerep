@@ -15,10 +15,10 @@ android {
         applicationId "com.ananthh.onerep"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 4
+        versionCode 5
         // Semver, because CapacitorUpdater.current().native feeds the
         // minNativeVersion gate in src/lib/ota-manifest.ts. "1.0" does not parse.
-        versionName "1.1.5"
+        versionName "1.1.6"
         // CI has its own counter and no way to commit a bump, so it stamps
         // over the literals above. The literals stay literal because
         // scripts/generate-release.local.sh rewrites them with sed.
