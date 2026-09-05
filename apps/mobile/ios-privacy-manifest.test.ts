@@ -61,6 +61,33 @@ describe("every bundle carries a manifest", () => {
   }
 })
 
+describe("watch workout signing", () => {
+  const watchInfo = readFileSync(join(IOS, "OneRepWatch/Info.plist"), "utf8")
+  const watchEntitlements = readFileSync(
+    join(IOS, "OneRepWatch/OneRepWatch.entitlements"),
+    "utf8"
+  )
+  const project = readFileSync(
+    join(IOS, "App.xcodeproj/project.pbxproj"),
+    "utf8"
+  )
+
+  test("pairs workout processing with a signed HealthKit capability", () => {
+    expect(watchInfo).toContain("<string>workout-processing</string>")
+    expect(watchEntitlements).toContain(
+      "<key>com.apple.developer.healthkit</key>\n\t<true/>"
+    )
+    expect(project).toContain(
+      "A1B2C0060000000000000006 = {\n\t\t\t\t\t\tCreatedOnToolsVersion = 27.0;\n\t\t\t\t\t\tSystemCapabilities = {\n\t\t\t\t\t\t\tcom.apple.HealthKit = {"
+    )
+    expect(
+      project.match(
+        /CODE_SIGN_ENTITLEMENTS = OneRepWatch\/OneRepWatch\.entitlements;/g
+      )
+    ).toHaveLength(2)
+  })
+})
+
 describe("the app manifest describes the app", () => {
   const plist = manifest("App")
 
