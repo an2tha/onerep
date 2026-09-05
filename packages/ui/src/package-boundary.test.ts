@@ -164,6 +164,10 @@ describe("@repo/ui package boundary", () => {
       // The coach's computed lift verdicts and recovery read-out on Progress,
       // straight from a Convex query.
       "training-insights-panel.tsx",
+      // The Health track's weekly score and comparison rows arrive from
+      // Convex, while its empty state branches on native health-sync support.
+      // The visual rows themselves still come from @repo/ui.
+      "health-progress-panel.tsx",
       // Renders null; reads the account age from Convex and emits the daily
       // retention event against Capacitor's app-state listener.
       "retention-tracking.tsx",

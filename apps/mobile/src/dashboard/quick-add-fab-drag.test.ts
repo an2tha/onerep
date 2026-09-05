@@ -3,6 +3,10 @@ import {
   boundsFrom,
   clampOffset,
   parkedOffset,
+  QUICK_ADD_MENU_BOTTOM_REM,
+  QUICK_ADD_MENU_GAP_REM,
+  QUICK_ADD_TRIGGER_BOTTOM_REM,
+  QUICK_ADD_TRIGGER_SIZE_REM,
   resistOffset,
   type Bounds,
   type Home,
@@ -18,6 +22,15 @@ const PHONE: Bounds = boundsFrom({
   safe: { left: 0, right: 390, top: 0, bottom: 844 },
   sidebarRight: 0,
   tabBarTop: 776,
+})
+
+test("the action menu clears the draggable trigger", () => {
+  expect(QUICK_ADD_MENU_BOTTOM_REM).toBe(
+    QUICK_ADD_TRIGGER_BOTTOM_REM +
+      QUICK_ADD_TRIGGER_SIZE_REM +
+      QUICK_ADD_MENU_GAP_REM
+  )
+  expect(QUICK_ADD_MENU_GAP_REM).toBeGreaterThan(0)
 })
 
 describe("the box the quick-add button lives in", () => {

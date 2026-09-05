@@ -79,7 +79,7 @@ export function DayRail({
 
   return (
     <aside
-      className={`grid grid-cols-2 gap-3 lg:grid-cols-3 ${className ?? ""}`}
+      className={`grid grid-cols-2 gap-2.5 ${supplements.length > 0 ? "lg:grid-cols-3" : ""} ${className ?? ""}`}
     >
       {/* Nutrition ledger */}
       <RailCard title="Nutrition">
@@ -88,7 +88,7 @@ export function DayRail({
             {/* A day still running has calories left in it. A day that is
               over has a number it landed on, and "432 kcal left" about last
               Tuesday is an instruction nobody can follow. */}
-            <p className="flex items-baseline gap-2">
+            <p className="flex flex-wrap items-baseline gap-x-1.5 gap-y-1">
               <span className="text-[26px] leading-none font-semibold tracking-tight text-foreground tabular-nums lg:text-[32px]">
                 {isToday
                   ? caloriesRemaining >= 0
@@ -146,7 +146,7 @@ export function DayRail({
         }
       >
         <p className="flex items-baseline gap-1.5">
-          <span className="text-[24px] leading-none font-semibold text-foreground tabular-nums">
+          <span className="text-[26px] leading-none font-semibold tracking-tight text-foreground tabular-nums lg:text-[32px]">
             {(waterTotalMl / 1000).toFixed(2).replace(/0$/, "")}
           </span>
           <span className="text-[13px] text-muted-foreground">
@@ -174,7 +174,7 @@ export function DayRail({
             </span>
           }
         >
-          <ul className="flex flex-col gap-1.5">
+          <ul className="grid grid-cols-2 gap-x-4 gap-y-1 lg:grid-cols-1">
             {supplements.slice(0, 6).map((supplement) => {
               const taken = Boolean(supplement.logId)
               return (
@@ -190,7 +190,7 @@ export function DayRail({
                     }
                     disabled={busySupplementId === supplement.id}
                     onClick={() => void toggleSupplement(supplement)}
-                    className="flex w-full items-center gap-2 rounded-lg py-0.5 text-left text-[14px] disabled:opacity-45"
+                    className="flex min-h-9 w-full items-center gap-2 rounded-lg py-1 text-left text-[14px] disabled:opacity-45"
                   >
                     <span
                       className={`flex size-5 shrink-0 items-center justify-center rounded-full border transition-colors ${
@@ -233,17 +233,17 @@ function MacroBar({
 }) {
   const pct = goal ? Math.min(100, (value / goal) * 100) : 0
   return (
-    <div className="flex items-center gap-2">
-      <span className="w-10 shrink-0 text-[11px] text-muted-foreground lg:w-14 lg:text-[12px]">
+    <div className="flex items-center justify-between gap-2">
+      <span className="shrink-0 text-[12px] text-muted-foreground sm:w-14">
         {label}
       </span>
-      <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-muted">
+      <div className="hidden h-1 min-w-0 flex-1 overflow-hidden rounded-full bg-muted sm:block">
         <div
           className="h-full rounded-full bg-foreground/80 transition-[width] duration-500"
           style={{ width: `${pct}%` }}
         />
       </div>
-      <span className="w-14 shrink-0 text-right text-[11px] text-muted-foreground tabular-nums lg:w-16 lg:text-[12px]">
+      <span className="shrink-0 text-right text-[12px] whitespace-nowrap text-muted-foreground tabular-nums">
         {Math.round(value)}
         {goal ? ` / ${Math.round(goal)}g` : "g"}
       </span>
@@ -268,13 +268,13 @@ function RailCard({
         className ?? ""
       }`}
     >
-      <header className="flex items-center justify-between">
-        <h2 className="text-[12px] font-semibold tracking-wide text-muted-foreground uppercase">
+      <header className="flex min-h-7 items-center justify-between gap-2">
+        <h2 className="text-[14px] font-medium text-muted-foreground">
           {title}
         </h2>
         {action}
       </header>
-      <div className="mt-3">{children}</div>
+      <div className="mt-2">{children}</div>
     </section>
   )
 }

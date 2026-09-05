@@ -80,7 +80,7 @@ export function DashboardDials({
 
   if (layout === "row") {
     return (
-      <div className="flex items-center gap-4">
+      <div className="mx-auto flex w-full max-w-sm items-center justify-between gap-4">
         <HoldToStartDial
           label="Open workout"
           onComplete={onStartWorkout}

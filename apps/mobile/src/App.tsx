@@ -262,7 +262,7 @@ function Dashboard() {
   // without the bottom padding the week strip lives underneath it. Reserve the
   // bar's own height plus the home indicator; the desk has no bar to clear.
   return (
-    <div className="dashboard-home desktop-canvas relative flex h-svh flex-col overflow-hidden bg-background pb-[calc(env(safe-area-inset-bottom,0px)+4.25rem)] lg:pr-8 lg:pb-0 lg:pl-72">
+    <div className="dashboard-home dashboard-today desktop-canvas relative flex h-svh flex-col overflow-hidden bg-background pb-[calc(env(safe-area-inset-bottom,0px)+4.25rem)] lg:pr-8 lg:pb-0 lg:pl-72">
       <span className="dashboard-home-wash" aria-hidden="true" />
       <div
         className="relative z-10 shrink-0"
@@ -305,7 +305,7 @@ function Dashboard() {
       {/* The day rail sits right under the dials: where the day already
           stands, before you scroll into anything. On the phone it's a strip
           of cards that pans sideways; on the desk it spreads into columns. */}
-      <div className="relative z-10 shrink-0 px-4 pt-1 lg:px-10">
+      <div className="relative z-10 mx-auto w-full max-w-6xl shrink-0 px-[var(--app-page-x)] pt-1 md:px-8">
         <DayRail
           dateKey={dateKey}
           isToday={viewingToday}
@@ -392,7 +392,7 @@ function Dashboard() {
             }
             workoutDates={workoutDateSet}
             foodDates={foodDateSet}
-            className="mt-1 shrink-0 pb-3"
+            className="mx-4 mt-1 shrink-0 border-t border-border/60 pt-2 pb-3"
           />
         </div>
       </div>

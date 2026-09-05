@@ -107,12 +107,12 @@ export function WeekStrip({
           aria-label="Previous week"
           disabled={weeksAgo >= MAX_WEEKS_BACK}
           onClick={() => setWeeksAgo((value) => value + 1)}
-          className="motion-tactile flex size-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30"
+          className="motion-tactile flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30"
         >
           <CaretLeft size={13} weight="bold" />
         </button>
         <span
-          className="w-[5.5rem] text-center text-[11px] font-semibold tracking-wide text-muted-foreground tabular-nums"
+          className="w-[6.5rem] text-center text-[12px] font-medium text-muted-foreground tabular-nums"
           aria-live="polite"
         >
           {weekLabel}
@@ -122,7 +122,7 @@ export function WeekStrip({
           aria-label="Next week"
           disabled={weeksAgo === 0}
           onClick={() => setWeeksAgo((value) => Math.max(0, value - 1))}
-          className="motion-tactile flex size-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30"
+          className="motion-tactile flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30"
         >
           <CaretRight size={13} weight="bold" />
         </button>
@@ -130,7 +130,7 @@ export function WeekStrip({
 
       {/* Seven columns of two dots is the whole width of a small phone if
           each gets a gutter. Tight here, roomier on the desk. */}
-      <div className="flex items-start justify-center gap-1.5 lg:gap-3">
+      <div className="flex w-full items-start justify-between gap-1">
         {days.map((day) => {
           const selected = day.dateKey === selectedKey
           return (
@@ -143,7 +143,7 @@ export function WeekStrip({
                 day.isToday ? "Today" : day.dateKey
               } — open this day`}
               onClick={() => onSelectDay(day.dateKey)}
-              className={`flex w-8 flex-col items-center gap-1.5 lg:w-9 ${
+              className={`flex min-h-11 min-w-0 flex-1 flex-col items-center gap-1.5 ${
                 day.isFuture ? "opacity-35" : ""
               }`}
             >
@@ -151,7 +151,7 @@ export function WeekStrip({
                 className={`text-[11px] font-semibold tabular-nums ${
                   selected || day.isToday
                     ? "text-foreground"
-                    : "text-muted-foreground/70"
+                    : "text-muted-foreground"
                 }`}
               >
                 {day.label}

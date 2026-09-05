@@ -81,6 +81,17 @@ function reachFrom(x: number, y: number) {
  * business in JavaScript. */
 const POSITION_KEY = "onerep:quick-add-fab-pos"
 
+// The menu rises from the trigger's top edge. Keeping this relationship in
+// numbers makes it impossible for the last action to drift back underneath
+// the draggable button when either position changes.
+export const QUICK_ADD_TRIGGER_BOTTOM_REM = 10.25
+export const QUICK_ADD_TRIGGER_SIZE_REM = 3
+export const QUICK_ADD_MENU_GAP_REM = 0.75
+export const QUICK_ADD_MENU_BOTTOM_REM =
+  QUICK_ADD_TRIGGER_BOTTOM_REM +
+  QUICK_ADD_TRIGGER_SIZE_REM +
+  QUICK_ADD_MENU_GAP_REM
+
 /** How far a finger has to travel before this stops being a press and starts
  * being a drag. Below this, thumbs shake and holds would never survive. */
 const DRAG_SLOP = 12
@@ -584,6 +595,7 @@ export function QuickAddFab({
         style={
           {
             "--fab-dy": `${offset.dy}px`,
+            bottom: `calc(var(--app-safe-bottom-lg) + ${QUICK_ADD_TRIGGER_BOTTOM_REM}rem)`,
           } as CSSProperties
         }
         aria-label={
@@ -615,7 +627,7 @@ export function QuickAddFab({
           if (open) dismiss()
           else setOpen(true)
         }}
-        className="coach-fab-trigger fixed right-[max(1rem,env(safe-area-inset-right,0px))] bottom-[calc(var(--app-safe-bottom-lg)+10.25rem)] z-50 inline-flex h-12 w-12 touch-none items-center justify-center rounded-full text-background select-none"
+        className="coach-fab-trigger fixed right-[max(1rem,env(safe-area-inset-right,0px))] z-50 inline-flex h-12 w-12 touch-none items-center justify-center rounded-full text-background select-none"
       >
         <span aria-hidden="true" className="coach-fab-gloss" />
         {open ? (
@@ -654,9 +666,10 @@ export function QuickAddFab({
             style={
               {
                 "--fab-dy": `${offset.dy}px`,
+                bottom: `calc(var(--app-safe-bottom-lg) + ${QUICK_ADD_MENU_BOTTOM_REM}rem)`,
               } as CSSProperties
             }
-            className="coach-fab-menu fixed right-[max(1rem,env(safe-area-inset-right,0px))] bottom-[calc(var(--app-safe-bottom-lg)+8.5rem)] z-50 flex flex-col items-end gap-2"
+            className="coach-fab-menu fixed right-[max(1rem,env(safe-area-inset-right,0px))] z-50 flex flex-col items-end gap-2"
           >
             {options.map((option, index) => (
               <button

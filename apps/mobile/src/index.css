@@ -1,1 +1,17 @@
 @import "@repo/ui/styles.css";
+
+/* Keep Today's compact header and summary on one grid. */
+.dashboard-today .app-hero-wash {
+  opacity: 0.72;
+}
+
+@media (min-width: 1024px) {
+  .dashboard-today .dashboard-hero-ledger {
+    display: none;
+  }
+
+  .dashboard-today .dashboard-hero-frame {
+    gap: 0;
+    padding-bottom: 1.5rem;
+  }
+}
