@@ -18,7 +18,12 @@ import {
   applySubscriptionFacts,
   type AppleStatusFacts,
 } from "./appleState";
-import { convexSafeJson, nonEmptyString } from "./types";
+import {
+  appleProductGrantsPro,
+  convexSafeJson,
+  nonEmptyString,
+  parseAppleAppId,
+} from "./types";
 
 /**
  * StoreKit 2, from the server's side of the transaction.
@@ -49,12 +54,10 @@ function appleCredentials() {
   const signingKey = nonEmptyString(env.BILLING_APPLE_PRIVATE_KEY);
   const keyId = nonEmptyString(env.BILLING_APPLE_KEY_ID);
   const issuerId = nonEmptyString(env.BILLING_APPLE_ISSUER_ID);
-  if (!signingKey || !keyId || !issuerId) return null;
-
-  const appAppleId = Number.parseInt(
-    nonEmptyString(env.BILLING_APPLE_APP_APPLE_ID) ?? "",
-    10,
-  );
+  const appAppleId = parseAppleAppId(env.BILLING_APPLE_APP_APPLE_ID);
+  if (!signingKey || !keyId || !issuerId || appAppleId === undefined) {
+    return null;
+  }
 
   return {
     // Convex environment variables are single-line, and a PKCS#8 key is not.
@@ -65,7 +68,7 @@ function appleCredentials() {
     keyId,
     issuerId,
     bundleId: nonEmptyString(env.BILLING_APPLE_BUNDLE_ID) ?? BUNDLE_ID_FALLBACK,
-    appAppleId: Number.isFinite(appAppleId) ? appAppleId : undefined,
+    appAppleId,
   };
 }
 
@@ -107,9 +110,7 @@ function clientsFor(environment: Environment) {
     environment,
     credentials.bundleId,
     // Apple omits the app id in sandbox, and passing one there fails the check.
-    environment === Environment.PRODUCTION
-      ? credentials.appAppleId
-      : undefined,
+    environment === Environment.PRODUCTION ? credentials.appAppleId : undefined,
   );
 
   return { api, verifier };
@@ -153,7 +154,8 @@ const TRANSACTION_ID_NOT_FOUND = 4040010;
 function isNotFound(error: unknown) {
   return (
     error instanceof APIException &&
-    (error.httpStatusCode === 404 || error.apiError === TRANSACTION_ID_NOT_FOUND)
+    (error.httpStatusCode === 404 ||
+      error.apiError === TRANSACTION_ID_NOT_FOUND)
   );
 }
 
@@ -268,6 +270,12 @@ async function storeSubscription(
   const productId = nonEmptyString(transaction.productId);
   if (!originalTransactionId || !productId) {
     return { stored: false as const, reason: "incomplete-transaction" };
+  }
+  // A valid signature proves that this app received a transaction. It does
+  // not prove that the product is one we sell as OneRep Pro. Keep this
+  // boundary explicit so another subscription in the bundle cannot unlock it.
+  if (!appleProductGrantsPro(productId)) {
+    return { stored: false as const, reason: "unsupported-product" };
   }
 
   const facts = applySubscriptionFacts(
@@ -488,7 +496,9 @@ export const handleNotification = internalAction({
             environment: notification.data?.environment ?? undefined,
           },
         );
-        await finish("ignored", { platformSubscriptionId: originalTransactionId });
+        await finish("ignored", {
+          platformSubscriptionId: originalTransactionId,
+        });
         return { verified: true, ignored: true };
       }
 
@@ -503,7 +513,13 @@ export const handleNotification = internalAction({
         return { verified: true, ignored: true };
       }
 
-      await storeSubscription(ctx, userId, lookup);
+      const stored = await storeSubscription(ctx, userId, lookup);
+      if (!stored.stored) {
+        await finish("ignored", {
+          platformSubscriptionId: originalTransactionId,
+        });
+        return { verified: true, ignored: true };
+      }
       await finish("processed", {
         platformSubscriptionId: originalTransactionId,
       });

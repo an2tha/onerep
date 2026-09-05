@@ -11,13 +11,7 @@ import { v } from "convex/values";
 export const PRO_ENTITLEMENT = "OneRep Pro";
 export const MONTHLY_PACKAGE_IDENTIFIER = "monthly";
 
-/**
- * Stripe is the only platform we sell on. `apple` and `google` remain in the
- * union solely so Convex can still validate rows written before in-app purchases
- * were removed — nothing writes them any more, and `subscriptionGrantsAccess`
- * treats them as inert. Narrow this union once the purge migration in
- * `convex/migrations.ts` has run to completion in production.
- */
+/** Stripe and Apple are live; Google remains for historical rows only. */
 export const billingPlatform = v.union(
   v.literal("apple"),
   v.literal("google"),
@@ -74,6 +68,18 @@ export type SubscriptionSource =
 /** The monthly plan identifier. */
 export const MONTHLY_PRODUCT_ID = "onerep_pro_monthly";
 
+/** Products Apple may translate into the OneRep Pro entitlement. */
+export function appleProductGrantsPro(productId: string) {
+  return productId === MONTHLY_PRODUCT_ID;
+}
+
+/** Parse the numeric app Apple ID exactly; partial values must not enable IAP. */
+export function parseAppleAppId(value: unknown) {
+  if (typeof value !== "string" || !/^\d+$/.test(value)) return undefined;
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : undefined;
+}
+
 export type NormalizedSubscriptionStatus = {
   appUserId: string;
   entitlementId: string;
@@ -115,8 +121,8 @@ export type PlatformSubscriptionFacts = {
  * `canceled` means auto-renew is off but the paid period has not elapsed, so it
  * grants until `expiresAt`. `billing_retry` and `grace_period` both keep access
  * while the store retries payment — revoking there churns customers who are one
- * card update away from renewing. Only `expired`, `refunded`, and `paused`
- * revoke outright.
+ * card update away from renewing. Every granting state is still bounded by its
+ * paid or grace-period expiry; `expired`, `refunded`, and `paused` revoke at once.
  */
 export function stateGrantsAccess(
   state: BillingState,
@@ -126,7 +132,10 @@ export function stateGrantsAccess(
 ): boolean {
   switch (state) {
     case "active":
-      return true;
+      // Provider state can lag a missed webhook or failed reconciliation. A
+      // paid period must not grant indefinitely because its last label remains
+      // active after its expiry timestamp.
+      return expiresAt > now;
     case "grace_period":
       return (gracePeriodExpiresAt ?? expiresAt) > now;
     case "billing_retry":

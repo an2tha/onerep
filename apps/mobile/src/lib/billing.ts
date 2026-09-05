@@ -320,7 +320,7 @@ export function useBilling({ userId }: UseBillingOptions) {
       if (result.redeemed) {
         await finishStoreTransaction(transaction.transactionId)
       }
-      return result.redeemed
+      return result
     },
     [redeemTransaction]
   )
@@ -453,8 +453,8 @@ export function useBilling({ userId }: UseBillingOptions) {
           return null
         }
 
-        const redeemed = await redeem(outcome)
-        if (!redeemed) {
+        const redemption = await redeem(outcome)
+        if (!redemption.redeemed) {
           // The money moved and the entitlement did not. Say so plainly, and
           // leave the transaction unfinished so the next launch retries it.
           setError(
@@ -464,7 +464,7 @@ export function useBilling({ userId }: UseBillingOptions) {
         }
 
         trackUmami("checkout_completed", { store: "app_store" })
-        return serverStatus
+        return redemption.status ?? null
       } catch (cause) {
         trackUmami("checkout_start_failed", { source, store: "app_store" })
         if (mounted.current) {
@@ -477,7 +477,7 @@ export function useBilling({ userId }: UseBillingOptions) {
         if (mounted.current) setIsBusy(false)
       }
     },
-    [monthlyProductId, redeem, serverStatus, storeIdentity]
+    [monthlyProductId, redeem, storeIdentity]
   )
 
   /**
@@ -488,24 +488,29 @@ export function useBilling({ userId }: UseBillingOptions) {
    * prompts for the Apple Account password, so it only ever runs from a tap.
    */
   const restorePurchases = useCallback(async () => {
-    if (!storeKit) return { restored: 0 }
+    if (!storeKit) return { restored: 0, status: null }
     setError(null)
     setIsBusy(true)
     try {
       const transactions = await restoreStorePurchases()
       let restored = 0
+      let status: BillingSubscriptionStatus | null = null
       for (const transaction of transactions) {
-        if (await redeem(transaction)) restored += 1
+        const redemption = await redeem(transaction)
+        if (redemption.redeemed) {
+          restored += 1
+          status = redemption.status ?? status
+        }
       }
       if (restored === 0) {
         setError("No previous purchases were found on this Apple Account.")
       }
-      return { restored }
+      return { restored, status }
     } catch (cause) {
       if (mounted.current) {
         setError(billingErrorMessage(cause, "Could not restore purchases"))
       }
-      return { restored: 0 }
+      return { restored: 0, status: null }
     } finally {
       if (mounted.current) setIsBusy(false)
     }
@@ -632,18 +637,12 @@ export function useBilling({ userId }: UseBillingOptions) {
       status,
       cancelSubscription,
       openBillingManagement,
-      // Native can buy once the device allows purchases and the server has
-      // credentials to verify one with; web needs Stripe configured.
-      //
-      // Deliberately not gated on `storeProduct`: a catalogue that has not
-      // loaded yet, a product still in "Ready to Submit", or a slow
-      // `Product.products` call would all hide the only purchase button in the
-      // binary — which is the state App Review lands in, and reads as
-      // Guideline 3.1.1 steering. `purchaseNative` needs the product *id*,
-      // which comes from the server, not from StoreKit's catalogue; if the
-      // sheet cannot open, the App Store says so itself.
+      // Native can buy once the device allows purchases, the server can verify
+      // one, and StoreKit has returned the product with its localized price.
+      // A purchase surface without that price fails both users and App Review;
+      // an empty catalogue is therefore unavailable, not a usable checkout.
       canPurchase: isNative
-        ? storeReady && appleProvider
+        ? storeReady && appleProvider && storeProduct !== null
         : isWeb && subscriptionQuery?.webProvider === "stripe",
       canRestore: storeKit,
       hasActiveSubscription: hasActiveSubscription(customerInfo),

@@ -2,6 +2,7 @@ import type { Doc } from "../_generated/dataModel";
 import { env, type QueryCtx } from "../_generated/server";
 import {
   PRO_ENTITLEMENT,
+  appleProductGrantsPro,
   isoDateFromMs,
   stateGrantsAccess,
   storeLabelForPlatform,
@@ -34,6 +35,15 @@ export function subscriptionGrantsAccess(
   now: number,
 ): boolean {
   if (!GRANTING_PLATFORMS.has(subscription.platform)) return false;
+  // Signed Apple transactions are bundle-scoped; OneRep Pro is product-scoped.
+  // Keep a second guard here so even a legacy or manually inserted row cannot
+  // grant the wrong entitlement.
+  if (
+    subscription.platform === "apple" &&
+    !appleProductGrantsPro(subscription.productId)
+  ) {
+    return false;
+  }
   if (
     stateGrantsAccess(
       subscription.state,

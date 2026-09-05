@@ -32,7 +32,7 @@ describe("stateGrantsAccess", () => {
   const past = NOW - DAY;
 
   test.each<[BillingState, number, number | undefined, boolean]>([
-    ["active", past, undefined, true],
+    ["active", past, undefined, false],
     ["active", future, undefined, true],
     ["canceled", future, undefined, true],
     ["canceled", past, undefined, false],
@@ -107,6 +107,22 @@ describe("rollupForUser", () => {
     expect(status.managementUrl).toBe(
       "https://apps.apple.com/account/subscriptions",
     );
+  });
+
+  test("an Apple subscription for another product cannot grant Pro", () => {
+    const status = rollupForUser(
+      "user_1",
+      [
+        subscription({
+          platform: "apple",
+          productId: "another_subscription",
+          state: "active",
+        }) as never,
+      ],
+      NOW,
+    );
+    expect(status.isActive).toBe(false);
+    expect(status.activeSubscriptions).toEqual([]);
   });
 
   // Play billing has no code behind it any more: no credentials to verify a

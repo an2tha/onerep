@@ -8,6 +8,7 @@ class BridgeViewController: CAPBridgeViewController {
         bridge?.registerPluginInstance(WorkoutLiveActivityPlugin())
         bridge?.registerPluginInstance(NativeTabBarPlugin())
         bridge?.registerPluginInstance(OAuthSessionPlugin())
+        bridge?.registerPluginInstance(BillingPlugin())
 
         // The web app supplies its own controls. Remove Safari's large
         // previous/next/dismiss form accessory bar above the iOS keyboard.
@@ -15,4 +16,3 @@ class BridgeViewController: CAPBridgeViewController {
         bridge?.webView?.inputAssistantItem.trailingBarButtonGroups = []
     }
 }
-

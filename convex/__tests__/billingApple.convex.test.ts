@@ -12,7 +12,12 @@ import {
   appleStateFor,
   applySubscriptionFacts,
 } from "../billing/appleState";
-import { stateGrantsAccess, type BillingState } from "../billing/types";
+import {
+  appleProductGrantsPro,
+  parseAppleAppId,
+  stateGrantsAccess,
+  type BillingState,
+} from "../billing/types";
 
 /**
  * Table-driven coverage of every status the App Store Server API can report,
@@ -30,20 +35,57 @@ const DAY = 24 * 60 * 60 * 1000;
 const FUTURE = NOW + 7 * DAY;
 const PAST = NOW - 7 * DAY;
 
+describe("Apple product allowlist", () => {
+  test("only the configured OneRep Pro subscription grants Pro", () => {
+    expect(appleProductGrantsPro("onerep_pro_monthly")).toBe(true);
+    expect(appleProductGrantsPro("another_subscription")).toBe(false);
+  });
+});
+
+describe("Apple app identifier", () => {
+  test("accepts only a complete positive numeric App Store ID", () => {
+    expect(parseAppleAppId("1234567890")).toBe(1234567890);
+    expect(parseAppleAppId("123abc")).toBeUndefined();
+    expect(parseAppleAppId("0")).toBeUndefined();
+    expect(parseAppleAppId(undefined)).toBeUndefined();
+  });
+});
+
 describe("Apple subscription status", () => {
   test.each<[string, number, number | null, BillingState, boolean]>([
-    ["active, renewing", APPLE_STATUS_ACTIVE, APPLE_AUTO_RENEW_ON, "active", true],
+    [
+      "active, renewing",
+      APPLE_STATUS_ACTIVE,
+      APPLE_AUTO_RENEW_ON,
+      "active",
+      true,
+    ],
     ["active, auto-renew off", APPLE_STATUS_ACTIVE, 0, "canceled", true],
-    ["billing retry", APPLE_STATUS_BILLING_RETRY, APPLE_AUTO_RENEW_ON, "billing_retry", true],
-    ["grace period", APPLE_STATUS_GRACE_PERIOD, APPLE_AUTO_RENEW_ON, "grace_period", true],
+    [
+      "billing retry",
+      APPLE_STATUS_BILLING_RETRY,
+      APPLE_AUTO_RENEW_ON,
+      "billing_retry",
+      true,
+    ],
+    [
+      "grace period",
+      APPLE_STATUS_GRACE_PERIOD,
+      APPLE_AUTO_RENEW_ON,
+      "grace_period",
+      true,
+    ],
     ["expired", APPLE_STATUS_EXPIRED, 0, "expired", false],
     ["revoked", APPLE_STATUS_REVOKED, 0, "refunded", false],
     ["a status Apple has not invented yet", 99, 0, "expired", false],
-  ])("%s -> %s (grants: %s)", (_label, status, autoRenewStatus, expected, grants) => {
-    const state = appleStateFor({ status, autoRenewStatus });
-    expect(state).toBe(expected);
-    expect(stateGrantsAccess(state, FUTURE, NOW, FUTURE)).toBe(grants);
-  });
+  ])(
+    "%s -> %s (grants: %s)",
+    (_label, status, autoRenewStatus, expected, grants) => {
+      const state = appleStateFor({ status, autoRenewStatus });
+      expect(state).toBe(expected);
+      expect(stateGrantsAccess(state, FUTURE, NOW, FUTURE)).toBe(grants);
+    },
+  );
 
   test("a refund revokes even while the paid period is still running", () => {
     // The money went back. Honouring the remaining period would be paying for
@@ -139,7 +181,12 @@ describe("subscription facts", () => {
     });
     expect(facts.state).toBe("grace_period");
     expect(
-      stateGrantsAccess(facts.state, facts.expiresAt, NOW, facts.gracePeriodExpiresAt),
+      stateGrantsAccess(
+        facts.state,
+        facts.expiresAt,
+        NOW,
+        facts.gracePeriodExpiresAt,
+      ),
     ).toBe(true);
   });
 });

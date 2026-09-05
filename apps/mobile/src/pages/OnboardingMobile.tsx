@@ -617,13 +617,22 @@ function QuickReplies<T extends string>({
               onChoose(option.value)
             }}
           >
-            {OptionIcon && <OptionIcon size={17} weight="regular" />}
+            {OptionIcon && (
+              <OptionIcon size={22} weight="regular" aria-hidden="true" />
+            )}
             <span>
               {option.label}
               {option.hint && (
                 <span className="onboarding-chat-chip-hint">{option.hint}</span>
               )}
             </span>
+            {option.hint && (
+              <ArrowRight
+                className="onboarding-choice-arrow"
+                size={18}
+                aria-hidden="true"
+              />
+            )}
           </button>
         )
       })}
@@ -1642,10 +1651,16 @@ export function OnboardingMobile() {
     }
     if (stageId === "intro") {
       return (
-        <QuickReplies
-          options={[{ value: "go", label: "Let's go", icon: ArrowRight }]}
-          onChoose={() => advance(stageIndex)}
-        />
+        <button
+          type="button"
+          className="onboarding-primary-button onboarding-start-button"
+          onClick={() => {
+            hapticSelection()
+            advance(stageIndex)
+          }}
+        >
+          Let's go <ArrowRight size={20} aria-hidden="true" />
+        </button>
       )
     }
     if (stageId === "goal") {
@@ -2264,6 +2279,31 @@ export function OnboardingMobile() {
               ))}
             </div>
           )}
+          {!coachReplay && (
+            <ol className="onboarding-chapters" aria-label="Setup chapters">
+              {[
+                { label: "Your direction", start: 0, end: 3 },
+                { label: "Your baseline", start: 4, end: 7 },
+                { label: "Your plan", start: 8, end: 10 },
+              ].map((chapter) => (
+                <li
+                  key={chapter.label}
+                  data-active={stage >= chapter.start && stage <= chapter.end}
+                  data-done={stage > chapter.end}
+                  aria-current={
+                    stage >= chapter.start && stage <= chapter.end
+                      ? "step"
+                      : undefined
+                  }
+                >
+                  {stage > chapter.end && (
+                    <Check size={12} weight="bold" aria-hidden="true" />
+                  )}
+                  {chapter.label}
+                </li>
+              ))}
+            </ol>
+          )}
           {coachReplay && (
             <button
               type="button"
@@ -2284,6 +2324,30 @@ export function OnboardingMobile() {
           aria-label="Setup conversation"
           onClick={fastForwardTyping}
         >
+          {!coachReplay && (
+            <div className="onboarding-welcome" data-compact={stage > 0}>
+              <h1>
+                Your next chapter.
+                <br />
+                <span>One rep at a time.</span>
+              </h1>
+              {stage === 0 && (
+                <div className="onboarding-welcome-details">
+                  <p>
+                    Training, nutrition, and a coach in your corner. Let's make
+                    it yours.
+                  </p>
+                  <div
+                    className="onboarding-welcome-signature"
+                    aria-hidden="true"
+                  >
+                    <Barbell size={38} weight="regular" />
+                    <span>Built around you.</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
           {visibleStages.map((item, index) => {
             const stageIndex = coachReplay ? coachStageIndex : index
             const isCurrent = stageIndex === stage
@@ -2298,7 +2362,28 @@ export function OnboardingMobile() {
                 key={`${item.id}-${stageIndex}`}
                 className="onboarding-chat-stage"
                 data-stage={item.id}
+                data-current={isCurrent}
               >
+                {isCurrent && item.id !== "intro" && (
+                  <h2 className="onboarding-chapter-title">
+                    {
+                      (
+                        {
+                          goal: "Find your reason.",
+                          experience: "Start where you are.",
+                          coach: "Meet your corner.",
+                          sex: "Make it personal.",
+                          measurements: "Your starting point.",
+                          activity: "Find your rhythm.",
+                          safety: "Your wellbeing comes first.",
+                          import: "Bring your progress.",
+                          assistant: "Put Coach to work.",
+                          review: "Make this day one.",
+                        } as Partial<Record<StageId, string>>
+                      )[item.id]
+                    }
+                  </h2>
+                )}
                 {!hidden &&
                   shownMessages.map((message, messageIndex) => (
                     <div

@@ -12,7 +12,13 @@ import {
   rollupForUser,
   subscriptionGrantsAccess,
 } from "./entitlement";
-import { MONTHLY_PRODUCT_ID, PRO_ENTITLEMENT, nonEmptyString } from "./types";
+import {
+  MONTHLY_PRODUCT_ID,
+  PRO_ENTITLEMENT,
+  nonEmptyString,
+  parseAppleAppId,
+  type NormalizedSubscriptionStatus,
+} from "./types";
 
 /**
  * OneRep Pro is sold two ways: Stripe Checkout on the web, and StoreKit 2 in
@@ -63,7 +69,8 @@ function appleBillingAvailable() {
   return (
     nonEmptyString(env.BILLING_APPLE_ISSUER_ID) !== undefined &&
     nonEmptyString(env.BILLING_APPLE_KEY_ID) !== undefined &&
-    nonEmptyString(env.BILLING_APPLE_PRIVATE_KEY) !== undefined
+    nonEmptyString(env.BILLING_APPLE_PRIVATE_KEY) !== undefined &&
+    parseAppleAppId(env.BILLING_APPLE_APP_APPLE_ID) !== undefined
   );
 }
 
@@ -286,7 +293,11 @@ export const redeemAppleTransaction = action({
   handler: async (
     ctx,
     args,
-  ): Promise<{ redeemed: boolean; reason?: string }> => {
+  ): Promise<{
+    redeemed: boolean;
+    reason?: string;
+    status?: NormalizedSubscriptionStatus;
+  }> => {
     const user = await getAuthUser(ctx);
     await ctx.runMutation(internal.security.claim, {
       userId: user._id,
@@ -295,15 +306,29 @@ export const redeemAppleTransaction = action({
       windowMs: 15 * 60 * 1000,
     });
 
-    const result = await ctx.runAction(internal.billing.apple.redeemTransaction, {
-      userId: user._id,
-      signedTransaction: args.signedTransaction,
-    });
+    const result = await ctx.runAction(
+      internal.billing.apple.redeemTransaction,
+      {
+        userId: user._id,
+        signedTransaction: args.signedTransaction,
+      },
+    );
 
     // Property-presence narrowing rather than the `stored` discriminant:
     // `tsconfig.app.json` turns strictNullChecks off, and without it a boolean
     // literal discriminant does not narrow. See the note in `mcp/oauthServer`.
-    if (!("reason" in result)) return { redeemed: true };
+    if (!("reason" in result)) {
+      const now = Date.now();
+      const appUserId = billingAppUserId(user);
+      const subscriptions: Doc<"billingSubscriptions">[] = await ctx.runQuery(
+        internal.billing.store.listSubscriptionsForUser,
+        { userId: user._id },
+      );
+      const status = isProCompedForEveryone()
+        ? compedStatus(appUserId, now)
+        : rollupForUser(appUserId, subscriptions, now);
+      return { redeemed: true, status };
+    }
     return { redeemed: false, reason: result.reason };
   },
 });

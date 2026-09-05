@@ -22,12 +22,10 @@ const app = defineApp({
     BILLING_CHECKOUT_SUCCESS_URL: v.optional(v.string()),
     BILLING_CHECKOUT_CANCEL_URL: v.optional(v.string()),
     // App Store Server API credentials, for verifying StoreKit purchases and
-    // the notifications that follow them. All three are required together;
-    // with any of them missing the iOS app shows no purchase button rather
-    // than one that fails on tap. The private key is the .p8 contents, and
-    // Convex environment variables being single-line, an escaped "\n" form is
-    // accepted too. APP_APPLE_ID is the numeric id from App Store Connect and
-    // is only consulted for production payloads.
+    // the notifications that follow them. The key trio and numeric app Apple
+    // ID are required together; with any missing the iOS app shows no purchase
+    // button rather than one that fails on tap. The private key is the .p8
+    // contents; an escaped "\n" form is accepted for Convex's single-line env.
     BILLING_APPLE_ISSUER_ID: v.optional(v.string()),
     BILLING_APPLE_KEY_ID: v.optional(v.string()),
     BILLING_APPLE_PRIVATE_KEY: v.optional(v.string()),

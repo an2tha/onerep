@@ -1,4 +1,5 @@
 import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test"
+import { readFileSync } from "node:fs"
 
 /**
  * The plugin wrapper's job is to be inert off-platform and honest on it.
@@ -18,6 +19,19 @@ const entitlementsMock = mock(async () => ({ transactions: [] }))
 const finishMock = mock(async () => ({ finished: true }))
 const availableMock = mock(async () => ({ available: true, platform: "ios" }))
 const addListenerMock = mock(async () => ({ remove: async () => {} }))
+
+describe("native bridge", () => {
+  test("registers the local StoreKit plugin", () => {
+    const bridge = readFileSync(
+      new URL(
+        "../../../ios/App/App/BridgeViewController.swift",
+        import.meta.url
+      ),
+      "utf8"
+    )
+    expect(bridge).toContain("registerPluginInstance(BillingPlugin())")
+  })
+})
 
 /**
  * `mock.module` is process-wide and the whole mobile suite shares one process,
