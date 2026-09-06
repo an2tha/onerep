@@ -134,6 +134,7 @@ export async function deleteUserDataBatch(
     ["supplementIntakeLogs", "by_userId_and_date"],
     ["customFoods", "by_userId"],
     ["mealPresets", "by_userId"],
+    ["repeatMeals", "by_userId"],
     ["mealPrepBatches", "by_userId"],
     ["fastingSessions", "by_userId"],
     ["groceryLists", "by_userId"],

@@ -40,7 +40,7 @@ describe("authentication interface cleanup", () => {
 })
 
 describe("onboarding interface cleanup", () => {
-  test("runs setup as a scripted chat with progress", () => {
+  test("runs structured setup with progress", () => {
     for (const id of [
       "intro",
       "goal",
@@ -60,7 +60,7 @@ describe("onboarding interface cleanup", () => {
   })
 
   test("previews Coach with a real exchange, not decorative mockups", () => {
-    assert.doesNotMatch(ONBOARDING, /\/onboarding\/|OnboardingIllustration/)
+    assert.doesNotMatch(ONBOARDING, /OnboardingIllustration/)
     assert.doesNotMatch(ONBOARDING, /#[0-9a-fA-F]{3,8}|font-black|uppercase/)
     assert.doesNotMatch(ONBOARDING, /text-\[(?:9|10|11|12)(?:px|\.5px)/)
     assert.match(ONBOARDING, /function CoachPreviewExchange/)
@@ -82,7 +82,7 @@ describe("onboarding interface cleanup", () => {
   test("uses lightweight chat choreography", () => {
     assert.doesNotMatch(ONBOARDING, /framer-motion|AnimatePresence/)
     assert.doesNotMatch(ONBOARDING, /startViewTransition/)
-    assert.match(ONBOARDING, /onboarding-chat-stage/)
+    assert.match(ONBOARDING, /setup-page/)
     assert.match(CSS, /animation: onboarding-bubble-in/)
     assert.match(CSS, /@keyframes onboarding-typing-dot/)
   })

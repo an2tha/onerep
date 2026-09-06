@@ -186,7 +186,7 @@ public class NativeTabBarPlugin: CAPPlugin, CAPBridgedPlugin {
         pill.contentView.addSubview(stack)
 
         for item in pillItems {
-            let button = makeButton(for: item, pointSize: 19)
+            let button = makeButton(for: item, pointSize: 17)
             stack.addArrangedSubview(button)
             buttons.append((item, button))
         }
@@ -223,7 +223,7 @@ public class NativeTabBarPlugin: CAPPlugin, CAPBridgedPlugin {
             orb.clipsToBounds = true
             container.addSubview(orb)
 
-            let button = makeButton(for: prominent, pointSize: 22)
+            let button = makeButton(for: prominent, pointSize: 20)
             button.translatesAutoresizingMaskIntoConstraints = false
             orb.contentView.addSubview(button)
             buttons.append((prominent, button))

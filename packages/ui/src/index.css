@@ -8249,86 +8249,71 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
    hero-field rule, so both pages open identically. */
 /*
  * Home is the only screen that is not about one thing, so it is the only one
- * that does not take a single accent. Every other page borrows the colour of
- * its subject and paints one soft radial with it; this one runs all eight
- * subjects at once, in spectral order, as a fan struck from a point above the
- * greeting — food and its warm neighbours on the left, through green, jade,
- * teal and blue, to the violet of Progress on the right. The page is the whole
- * day before you have picked a part of it, and that is what it looks like.
+ * that does not take a single accent. A soft dawn mesh: one warm crown
+ * overhead that deepens as the day gets logged, jade breathing in from the
+ * left, violet from the right, and a whisper of sky low in the centre to
+ * hold them together. Four large, deeply-feathered blooms in oklab — no
+ * conic fan, no hard stops — over a faint warm veil, so the field reads as
+ * morning light rather than a rainbow.
  *
- * Interpolated in oklab, because eight hues cross-fading in sRGB go through
- * grey on the way and the seams show. Geometry, mask and drift still come from
- * the shared hero-field rule, and the warm radial over the top still answers
- * to `--hero-fill`, so the field deepens as the day gets logged.
+ * Geometry, mask and drift still come from the shared hero-field rule, and
+ * the crown still answers to `--hero-fill`.
  */
 .app-hero-wash.dashboard-home-wash {
   background:
-    radial-gradient(
-      58% 40% at 18% 6%,
+    linear-gradient(
+      180deg,
       color-mix(
-          in srgb,
+          in oklab,
+          var(--accent-food) calc(var(--hero-wash-crown) * 0.7),
+          transparent
+        )
+        0%,
+      transparent 58%
+    ),
+    radial-gradient(
+      82% 52% at 50% -10%,
+      color-mix(
+          in oklab,
           var(--accent-food)
             calc(
-              var(--hero-wash-crown) + var(--hero-fill, 0) *
+              var(--hero-wash-crown) + 8% + var(--hero-fill, 0) *
                 var(--hero-wash-gain)
             ),
           transparent
         )
         0%,
-      transparent 70%
-    ),
-    radial-gradient(
-      52% 36% at 86% 30%,
-      color-mix(
-          in srgb,
-          var(--accent-progress) var(--hero-wash-crown),
-          transparent
-        )
-        0%,
       transparent 72%
     ),
-    conic-gradient(
-      in oklab from 0deg at 50% -34%,
+    radial-gradient(
+      54% 40% at 7% 12%,
       color-mix(
-          in srgb,
-          var(--accent-progress) var(--hero-mesh-tint),
-          transparent
-        )
-        62deg,
-      color-mix(
-          in srgb,
-          var(--accent-workout) var(--hero-mesh-tint),
-          transparent
-        )
-        96deg,
-      color-mix(in srgb, var(--accent-water) var(--hero-mesh-tint), transparent)
-        130deg,
-      color-mix(
-          in srgb,
-          var(--accent-health) var(--hero-mesh-tint),
-          transparent
-        )
-        160deg,
-      color-mix(
-          in srgb,
+          in oklab,
           var(--accent-training-hero) var(--hero-mesh-tint),
           transparent
         )
-        190deg,
+        0%,
+      transparent 74%
+    ),
+    radial-gradient(
+      54% 40% at 93% 16%,
       color-mix(
-          in srgb,
-          var(--accent-supplement) var(--hero-mesh-tint),
+          in oklab,
+          var(--accent-progress) var(--hero-mesh-tint),
           transparent
         )
-        222deg,
+        0%,
+      transparent 74%
+    ),
+    radial-gradient(
+      88% 46% at 50% 44%,
       color-mix(
-          in srgb,
-          var(--status-warning) var(--hero-mesh-tint),
+          in oklab,
+          var(--accent-water) calc(var(--hero-mesh-tint) * 0.55),
           transparent
         )
-        258deg,
-      color-mix(in srgb, var(--accent-food) var(--hero-mesh-tint), transparent)
-        296deg
+        0%,
+      transparent 78%
     );
 }
 

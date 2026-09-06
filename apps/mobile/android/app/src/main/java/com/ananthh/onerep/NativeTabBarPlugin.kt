@@ -312,13 +312,13 @@ class NativeTabBarPlugin : Plugin() {
 
     /** SF Symbol names in, Android vectors out. */
     private fun iconFor(symbol: String): Int = when (symbol) {
-        "house" -> R.drawable.ic_tab_house
+        "house" , "house.fill" -> R.drawable.ic_tab_house
         "fork.knife" -> R.drawable.ic_tab_fork_knife
-        "dumbbell" -> R.drawable.ic_tab_dumbbell
-        "chart.bar" -> R.drawable.ic_tab_chart_bar
-        "heart.text.square" -> R.drawable.ic_tab_heart_text_square
-        "sparkles" -> R.drawable.ic_tab_sparkles
-        "gearshape" -> R.drawable.ic_tab_gearshape
+        "dumbbell" , "dumbbell.fill" -> R.drawable.ic_tab_dumbbell
+        "chart.bar" , "chart.bar.fill" -> R.drawable.ic_tab_chart_bar
+        "heart.text.square" , "heart.text.square.fill" -> R.drawable.ic_tab_heart_text_square
+        "sparkles" , "rocket.fill" -> R.drawable.ic_tab_sparkles
+        "gearshape" , "gearshape.fill" -> R.drawable.ic_tab_gearshape
         else -> R.drawable.ic_tab_house
     }
 

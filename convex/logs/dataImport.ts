@@ -1,3 +1,4 @@
+import { presetImportPlan } from "../lib/importPresets";
 import { v } from "convex/values";
 import { api, internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
@@ -161,7 +162,10 @@ export type ImportPreview = {
 };
 
 export const preview = action({
-  args: { uploadIds: v.array(v.id("fileUploads")) },
+  args: {
+    uploadIds: v.array(v.id("fileUploads")),
+    defaultWeightUnit: v.optional(v.union(v.literal("kg"), v.literal("lb"))),
+  },
   handler: async (ctx, args): Promise<ImportPreview> => {
     const user = await getAuthUser(ctx);
     if (!user) throw new Error("Not authenticated");
@@ -177,7 +181,13 @@ export const preview = action({
       internal.ai.byok.getKeyForUser,
       { userId: user._id },
     );
-    const useModel = hasOpenAiApiKey(userKey);
+    const knownPlans = files.map((file) =>
+      presetImportPlan(headersOf(file.records), args.defaultWeightUnit),
+    );
+    const useModel =
+      files.some(
+        (file, index) => file.records.length > 0 && !knownPlans[index],
+      ) && hasOpenAiApiKey(userKey);
     let apiKey: string | null = null;
     if (useModel) {
       const quota = await consumeAiUsageOrThrow(ctx, user._id, "data_import");
@@ -186,7 +196,7 @@ export const preview = action({
 
     const previews: ImportPreviewFile[] = [];
     const totals = { workouts: 0, measurements: 0, skippedRows: 0 };
-    for (const file of files) {
+    for (const [index, file] of files.entries()) {
       let plan: ImportPlan;
       if (file.records.length === 0) {
         plan = {
@@ -194,17 +204,27 @@ export const preview = action({
           note: "The file was empty, or not something I could parse.",
           columns: {},
         };
+      } else if (knownPlans[index]) {
+        plan = knownPlans[index]!;
       } else if (useModel) {
         try {
           plan = await planWithModel(file, apiKey);
         } catch (error) {
           console.warn("Falling back to header-based import plan", error);
-          plan = fallbackPlan(headersOf(file.records));
+          plan = fallbackPlan(headersOf(file.records), args.defaultWeightUnit);
         }
       } else {
-        plan = fallbackPlan(headersOf(file.records));
+        plan = fallbackPlan(headersOf(file.records), args.defaultWeightUnit);
       }
 
+      if (
+        args.defaultWeightUnit &&
+        plan.columns.weight &&
+        !/kg|kilogram|lb|pound/i.test(plan.columns.weight)
+      ) {
+        // Explicit row units still win when the plan is applied.
+        plan.weightUnit = args.defaultWeightUnit;
+      }
       const application = applyImportPlan(file.records, plan);
       const summary = summarizeApplication(plan, application);
       totals.workouts += summary.workouts;

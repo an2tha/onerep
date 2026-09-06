@@ -66,6 +66,7 @@ import type * as lib_healthProfiles from "../lib/healthProfiles.js";
 import type * as lib_healthScore from "../lib/healthScore.js";
 import type * as lib_healthSeries from "../lib/healthSeries.js";
 import type * as lib_history from "../lib/history.js";
+import type * as lib_importPresets from "../lib/importPresets.js";
 import type * as lib_mealTargets from "../lib/mealTargets.js";
 import type * as lib_memoryConsolidation from "../lib/memoryConsolidation.js";
 import type * as lib_nutritionPlan from "../lib/nutritionPlan.js";
@@ -205,6 +206,7 @@ declare const fullApi: ApiFromModules<{
   "lib/healthScore": typeof lib_healthScore;
   "lib/healthSeries": typeof lib_healthSeries;
   "lib/history": typeof lib_history;
+  "lib/importPresets": typeof lib_importPresets;
   "lib/mealTargets": typeof lib_mealTargets;
   "lib/memoryConsolidation": typeof lib_memoryConsolidation;
   "lib/nutritionPlan": typeof lib_nutritionPlan;

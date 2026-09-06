@@ -1,0 +1,17 @@
+{
+  "workouts": [
+    {
+      "date": "2026-09-01",
+      "title": "Full body",
+      "exercises": [
+        {
+          "name": "Barbell Squat",
+          "sets": [
+            { "type": "warmup", "weight_kg": 20, "reps": 10 },
+            { "type": "normal", "weight_kg": 60, "reps": 8, "rpe": 7 }
+          ]
+        }
+      ]
+    }
+  ]
+}

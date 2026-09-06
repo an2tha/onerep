@@ -1,7 +1,16 @@
-import { useEffect, useMemo, useRef, useState } from "react"
-import { readCachedWeightUnit } from "@/lib/use-weight-unit"
 import { useEnergyUnit } from "@/lib/use-energy-unit"
-import { energyDisplay } from "@repo/ui"
+import type { SettingsView } from "./Settings"
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react"
+import { readCachedWeightUnit } from "@/lib/use-weight-unit"
+import { energyDisplay, useTheme } from "@repo/ui"
+import {
+  SetupPreferences,
+  defaultSetupPreferences,
+  parseSetupPreferences,
+  type SetupPreferencesValue,
+} from "./onboarding/setup-preferences"
+import { cacheEnergyUnit } from "@/lib/use-energy-unit"
+import "./onboarding/setup.css"
 import { useLocation } from "react-router"
 import {
   ArrowRight,
@@ -76,6 +85,8 @@ import {
 import { MINIMUM_AGE } from "@repo/models"
 import { MedicalDisclaimer } from "@repo/ui"
 
+const SetupSettings = lazy(() => import("./Settings"))
+
 const AGE_MIN = MINIMUM_AGE
 const AGE_MAX = 100
 const HEIGHT_MIN = 100
@@ -84,7 +95,7 @@ const WEIGHT_KG_MIN = 35
 const WEIGHT_KG_MAX = 250
 const POST_SIGNUP_ONBOARDING_KEY = "onerep:post-signup-onboarding"
 const COACH_ONBOARDING_SEEN_KEY = "onerep:coach-onboarding-seen"
-const ONBOARDING_DRAFT_KEY = "onerep:onboarding-draft"
+const ONBOARDING_DRAFT_KEY = "onerep:onboarding-draft:v2"
 
 const activities = [
   ["sedentary", "Sedentary", "Mostly seated", PersonSimpleRun],
@@ -103,27 +114,6 @@ type NutritionGoal =
   | "medical"
 type SafetyMode = "standard" | "habit" | "clinician" | "recovery"
 type ExperienceLevel = "beginner" | "intermediate" | "advanced"
-type WeightTrend = "losing" | "stable" | "gaining" | "unknown"
-type OccupationActivity = "desk" | "mixed" | "on_feet" | "manual"
-type DietType =
-  | "omnivore"
-  | "vegetarian"
-  | "vegan"
-  | "pescatarian"
-  | "halal"
-  | "kosher"
-  | "other"
-type CookingSkill = "beginner" | "intermediate" | "advanced"
-type Budget = "low" | "moderate" | "flexible"
-type TrackingMode =
-  "full" | "protein_calories" | "photo_portion" | "habit" | "recovery"
-type FirstNutritionAction =
-  | "log_first_meal"
-  | "build_template"
-  | "tomorrow_plan"
-  | "import_yesterday"
-  | "skip_habit"
-
 type ConsentState = {
   dataUse: boolean
   weightData: boolean
@@ -387,9 +377,14 @@ type StageId =
   | "import"
   | "assistant"
   | "review"
+  | "preferences"
+  | "nutrition"
+  | "lifestyle"
+  | "connections"
 
 const stages = [
   { id: "intro", label: "Welcome" },
+  { id: "preferences", label: "Your app" },
   { id: "goal", label: "Goals" },
   { id: "experience", label: "Experience" },
   { id: "coach", label: "Coach" },
@@ -397,6 +392,9 @@ const stages = [
   { id: "measurements", label: "Baseline" },
   { id: "activity", label: "Activity" },
   { id: "safety", label: "Health" },
+  { id: "nutrition", label: "Nutrition" },
+  { id: "lifestyle", label: "Daily life" },
+  { id: "connections", label: "Connections & more" },
   { id: "import", label: "Your history" },
   { id: "assistant", label: "Coach setup" },
   { id: "review", label: "Review" },
@@ -477,8 +475,19 @@ function withImportMimeType(file: File): File {
 // for a render, and a revisited stage can be shown fully typed in one frame.
 const stageMessages: Record<StageId, string[]> = {
   intro: [
-    "Hi, I'm your OneRep coach.",
-    "I'll set up your training and nutrition targets in about a minute",
+    "A place for your training, food, and progress. Set it up around the way you live. You can revisit any completed section.",
+  ],
+  connections: [
+    "Connect your health sources, choose reminders, and fine-tune privacy and nutrition settings here. Each section saves its own changes; health consent is confirmed when you finish setup.",
+  ],
+  preferences: [
+    "Choose how OneRep looks, the units you use, and what you see first.",
+  ],
+  nutrition: [
+    "Choose what you want to track and how you prefer to eat. These preferences help personalize your nutrition guidance.",
+  ],
+  lifestyle: [
+    "Make your plan practical with your cooking experience, budget, meal rhythm, and hydration goal.",
   ],
   goal: ["First things first: what are you working toward?"],
   experience: [
@@ -547,50 +556,6 @@ const SETUP_DESTINATION_LABELS: Record<CoachUiAction, string> = {
   open_settings: "Settings",
 }
 
-function prefersReducedMotion() {
-  return (
-    typeof window !== "undefined" &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches
-  )
-}
-
-function TypewriterText({
-  text,
-  onDone,
-}: {
-  text: string
-  onDone: () => void
-}) {
-  const [visibleChars, setVisibleChars] = useState(0)
-  const onDoneRef = useRef(onDone)
-  onDoneRef.current = onDone
-
-  useEffect(() => {
-    setVisibleChars(0)
-    if (prefersReducedMotion()) {
-      setVisibleChars(text.length)
-      return
-    }
-    const timer = window.setInterval(() => {
-      setVisibleChars((current) => {
-        const next = current + 2
-        if (next >= text.length) {
-          window.clearInterval(timer)
-          return text.length
-        }
-        return next
-      })
-    }, 18)
-    return () => window.clearInterval(timer)
-  }, [text])
-
-  useEffect(() => {
-    if (visibleChars >= text.length) onDoneRef.current()
-  }, [text.length, visibleChars])
-
-  return <span aria-label={text}>{text.slice(0, visibleChars)}</span>
-}
-
 function QuickReplies<T extends string>({
   options,
   value,
@@ -642,7 +607,14 @@ function QuickReplies<T extends string>({
 
 export function OnboardingMobile() {
   const navigate = useSmoothNavigate()
-  const energyUnit = useEnergyUnit()
+  const { theme, setTheme } = useTheme()
+  const [setupPreferences, setSetupPreferences] =
+    useState<SetupPreferencesValue>(() =>
+      parseSetupPreferences(safeLocalStorageGet("onerep:setup-preferences"))
+    )
+  const energyUnit =
+    setupPreferences.energyUnit === "Cal" ? "cal" : setupPreferences.energyUnit
+  const saveEnergyUnit = useMutation(api.users.users.setEnergyUnit)
   const location = useLocation()
   const coachReplay =
     new URLSearchParams(location.search).get("replay") === "coach"
@@ -677,21 +649,17 @@ export function OnboardingMobile() {
   const setDashboardWidgetPinned = useMutation(api.dashboardWidgets.setPinned)
   const { context: coachContext } = useCoachContext()
 
+  const [settingsView, setSettingsView] = useState<SettingsView | null>(null)
   const [initialized, setInitialized] = useState(false)
   const [stage, setStage] = useState(() => (coachReplay ? coachStageIndex : 0))
   // Where to jump back to after editing an earlier answer, so a correction
   // costs one tap instead of a forced re-walk through every stage between.
   const [returnStage, setReturnStage] = useState<number | null>(null)
-  // Stages whose messages have finished typing once. Revisits render
-  // instantly: the theatre is for the first reading, not the fifth.
-  const seenStagesRef = useRef<Set<number>>(new Set())
   // The denominator for every step and completion number below.
   useEffect(() => {
     trackUmami("onboarding_started", { replay: coachReplay })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-  const [typing, setTyping] = useState(true)
-  const [typedCount, setTypedCount] = useState(0)
   const [draft, setDraft] = useState<OnboardingDraft>({
     age: 25,
     heightCm: 170,
@@ -715,17 +683,18 @@ export function OnboardingMobile() {
   const [experienceLevel, setExperienceLevel] =
     useState<ExperienceLevel | null>(null)
   const [safetyFlags, setSafetyFlags] = useState<string[]>(["none"])
-  const [weightTrend] = useState<WeightTrend>("stable")
-  const [occupationActivity] = useState<OccupationActivity>("mixed")
-  const [dietType] = useState<DietType>("omnivore")
-  const [allergies] = useState<string[]>(["none"])
-  const [cookingSkill] = useState<CookingSkill>("intermediate")
-  const [budget] = useState<Budget>("moderate")
-  const [mealFrequency] = useState(3)
-  const [trackingMode] = useState<TrackingMode>("full")
-  const [loggingFeatures] = useState<string[]>(["barcode", "saved_meals"])
-  const [firstNutritionAction] =
-    useState<FirstNutritionAction>("log_first_meal")
+  const {
+    weightTrend,
+    occupationActivity,
+    dietType,
+    allergies,
+    cookingSkill,
+    budget,
+    mealFrequency,
+    trackingMode,
+    loggingFeatures,
+    firstNutritionAction,
+  } = setupPreferences
   const [weightUnit, setWeightUnit] = useState<WeightUnit>(readCachedWeightUnit)
   const [waterGoalMl, setWaterGoalMl] = useState(2500)
   const [saving, setSaving] = useState(false)
@@ -759,7 +728,6 @@ export function OnboardingMobile() {
   const [importError, setImportError] = useState<string | null>(null)
   const importInputRef = useRef<HTMLInputElement | null>(null)
   const savingRef = useRef(false)
-  const chatEndRef = useRef<HTMLDivElement | null>(null)
 
   const effectiveNutritionGoal = nutritionGoal ?? "maintain"
   const calorieGoal = draft.goal
@@ -887,12 +855,27 @@ export function OnboardingMobile() {
     setWeightUnit(snapshot?.weightUnit ?? nextUnit)
     setWaterGoalMl(snapshot?.waterGoalMl ?? preferences?.waterGoalMl ?? 2500)
     if (snapshot && snapshot.stage > 0) {
-      // Resume where they were. Everything before renders already-typed; the
-      // current stage types once more so the coach re-asks the open question.
-      for (let index = 0; index < snapshot.stage; index += 1) {
-        seenStagesRef.current.add(index)
-      }
       setStage(snapshot.stage)
+    }
+    if (!safeLocalStorageGet("onerep:setup-preferences")) {
+      setSetupPreferences(
+        parseSetupPreferences(
+          JSON.stringify({
+            ...defaultSetupPreferences,
+            energyUnit: preferences?.energyUnit ?? "kcal",
+            workoutFocus:
+              preferences?.dashboardSettings?.workoutFocus ?? "strength",
+            simpleMode: preferences?.dashboardSettings?.simpleMode ?? false,
+            ...(onboardingProfile
+              ? Object.fromEntries(
+                  Object.entries(onboardingProfile).filter(
+                    ([key]) => key in defaultSetupPreferences
+                  )
+                )
+              : {}),
+          })
+        )
+      )
     }
     setInitialized(true)
   }, [coachReplay, healthProfile, initialized, onboardingProfile, preferences])
@@ -969,9 +952,6 @@ export function OnboardingMobile() {
         }
         if (snapshot.consent) setConsent(snapshot.consent)
         if (snapshot.stage > 0) {
-          for (let index = 0; index < snapshot.stage; index += 1) {
-            seenStagesRef.current.add(index)
-          }
           setStage(snapshot.stage)
         }
       }
@@ -993,34 +973,23 @@ export function OnboardingMobile() {
   }, [calorieGoal])
 
   useEffect(() => {
-    // A stage already read once, or a reader who asked for no motion, gets
-    // the words immediately. The typing pause is theatre, and theatre does
-    // not get an encore.
-    if (seenStagesRef.current.has(stage) || prefersReducedMotion()) {
-      setTyping(false)
-      setTypedCount(stageMessages[stages[stage].id].length)
-      return
-    }
-    setTyping(true)
-    setTypedCount(0)
-    const timer = window.setTimeout(() => setTyping(false), 520)
-    return () => window.clearTimeout(timer)
-  }, [stage])
+    document
+      .querySelector<HTMLElement>('[aria-current="step"]')
+      ?.scrollIntoView({ block: "nearest", inline: "center" })
+    window.scrollTo({ top: 0, behavior: "instant" })
+    document.getElementById("setup-heading")?.focus({ preventScroll: true })
+    document
+      .getElementById("setup-content")
+      ?.scrollTo({ top: 0, behavior: "instant" })
+  }, [stage, settingsView])
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({
-      behavior: prefersReducedMotion() ? "auto" : "smooth",
-      block: "end",
-    })
-  }, [
-    stage,
-    typing,
-    typedCount,
-    error,
-    preview?.targetCalories,
-    setupMessages.length,
-    setupBusy,
-  ])
+    if (initialized && !complete)
+      safeLocalStorageSet(
+        "onerep:setup-preferences",
+        JSON.stringify(setupPreferences)
+      )
+  }, [setupPreferences, initialized, complete])
 
   const todayKey = currentDateKey(detectTimeZone())
 
@@ -1085,7 +1054,6 @@ export function OnboardingMobile() {
   function advance(fromStage: number) {
     setError(null)
     hapticMedium()
-    seenStagesRef.current.add(fromStage)
     // Onboarding is where accounts are won or abandoned, and the only way to
     // see where it happens is to count each step as it is left behind.
     trackUmami("onboarding_step", {
@@ -1106,18 +1074,8 @@ export function OnboardingMobile() {
   function rewindTo(index: number) {
     hapticTap()
     setError(null)
-    seenStagesRef.current.add(stage)
     setReturnStage((current) => Math.max(current ?? stage, stage))
     setStage(index)
-  }
-
-  /** One tap anywhere in the chat ends the typewriter act for this stage. */
-  function fastForwardTyping() {
-    const messages = stageMessages[stages[stage].id]
-    if (!typing && typedCount >= messages.length) return
-    seenStagesRef.current.add(stage)
-    setTyping(false)
-    setTypedCount(messages.length)
   }
 
   async function handleImportSelection(list: FileList | null) {
@@ -1153,6 +1111,7 @@ export function OnboardingMobile() {
         )
       }
       const result = (await previewImportFiles({
+        defaultWeightUnit: weightUnit === "lbs" ? "lb" : "kg",
         uploadIds,
       })) as ImportPreviewView
       setImportPreview(result)
@@ -1532,7 +1491,7 @@ export function OnboardingMobile() {
     }
     if (savingRef.current || saving) return
 
-    // Never fail silently here — a mute return leaves "Start training" looking
+    // Never fail silently here — a mute return leaves "Open OneRep" looking
     // broken with no way back. Send them to whatever answer went missing.
     const missing = !draft.goal
       ? {
@@ -1563,30 +1522,6 @@ export function OnboardingMobile() {
     setSaving(true)
     try {
       await Promise.all([
-        saveOnboarding({
-          age: profile.age,
-          heightCm: profile.heightCm,
-          goal: draft.goal,
-          experienceLevel,
-          nutritionGoal: effectiveNutritionGoal,
-          consent,
-          safetyFlags: safetyFlags.filter((flag) => flag !== "none"),
-          safetyMode: deriveSafetyMode(
-            profile.age,
-            effectiveNutritionGoal,
-            safetyFlags
-          ),
-          weightTrend,
-          occupationActivity,
-          dietType,
-          allergies: allergies.filter((allergy) => allergy !== "none"),
-          cookingSkill,
-          budget,
-          mealFrequency,
-          trackingMode,
-          loggingFeatures,
-          firstNutritionAction,
-        }),
         saveHealthProfile({
           sex: profile.sex,
           age: profile.age,
@@ -1597,13 +1532,41 @@ export function OnboardingMobile() {
         }),
         saveWeightUnit({ unit: weightUnit }),
         saveWaterGoal({ goalMl: waterGoalMl }),
+        saveEnergyUnit({ unit: setupPreferences.energyUnit }),
         saveDashboardSettings({
-          workoutFocus: "strength",
-          simpleMode: experienceLevel === "beginner",
+          workoutFocus: setupPreferences.workoutFocus,
+          simpleMode: setupPreferences.simpleMode,
         }),
       ])
+      // Mark onboarding complete only after every preference save succeeds.
+      await saveOnboarding({
+        age: profile.age,
+        heightCm: profile.heightCm,
+        goal: draft.goal,
+        experienceLevel,
+        nutritionGoal: effectiveNutritionGoal,
+        consent,
+        safetyFlags: safetyFlags.filter((flag) => flag !== "none"),
+        safetyMode: deriveSafetyMode(
+          profile.age,
+          effectiveNutritionGoal,
+          safetyFlags
+        ),
+        weightTrend,
+        occupationActivity,
+        dietType,
+        allergies: allergies.filter((allergy) => allergy !== "none"),
+        cookingSkill,
+        budget,
+        mealFrequency,
+        trackingMode,
+        loggingFeatures,
+        firstNutritionAction,
+      })
       safeLocalStorageRemove(POST_SIGNUP_ONBOARDING_KEY)
       safeLocalStorageRemove(ONBOARDING_DRAFT_KEY)
+      safeLocalStorageRemove("onerep:setup-preferences")
+      cacheEnergyUnit(setupPreferences.energyUnit)
       safeLocalStorageSet(COACH_ONBOARDING_SEEN_KEY, "true")
       trackUmami("onboarding_completed", {
         goal: draft.goal ?? "unset",
@@ -1616,11 +1579,9 @@ export function OnboardingMobile() {
       setComplete(true)
       hapticMedium()
       await new Promise((resolve) => window.setTimeout(resolve, 720))
-      navigate(
-        setupDestination ??
-          (experienceLevel === "beginner" ? "/coach?setup=beginner" : "/coach"),
-        { replace: true }
-      )
+      navigate(setupDestination ?? setupPreferences.destination, {
+        replace: true,
+      })
     } catch (saveError) {
       trackUmami("onboarding_save_failed")
       setError(
@@ -1634,6 +1595,25 @@ export function OnboardingMobile() {
   }
 
   function renderInput(stageId: StageId, stageIndex: number) {
+    if (
+      initialized &&
+      ["preferences", "nutrition", "lifestyle"].includes(stageId)
+    ) {
+      return (
+        <SetupPreferences
+          section={stageId}
+          value={setupPreferences}
+          onChange={setSetupPreferences}
+          theme={theme}
+          setTheme={setTheme}
+          weightUnit={weightUnit}
+          setWeightUnit={setWeightUnit}
+          waterGoalMl={waterGoalMl}
+          setWaterGoalMl={setWaterGoalMl}
+          onContinue={() => advance(stageIndex)}
+        />
+      )
+    }
     // Until hydration settles, answering is unsafe: the effect above still
     // holds the right to overwrite every answer with what the server says.
     if (!initialized) {
@@ -1646,6 +1626,65 @@ export function OnboardingMobile() {
           <span />
           <span />
           <span />
+        </div>
+      )
+    }
+    if (stageId === "connections") {
+      return (
+        <div className="setup-connections">
+          {(
+            [
+              [
+                "health",
+                "Health connections",
+                "Connect Apple Health or Health Connect on supported devices; choose what to read and write.",
+              ],
+              [
+                "reminders",
+                "Reminders & Coach check-ins",
+                "Set meal, training and body reminders, Coach nudges, and quiet hours.",
+              ],
+              [
+                "privacy",
+                "Privacy & sharing",
+                "Choose analytics, personalized insights, and sharing preferences.",
+              ],
+              [
+                "nutrition",
+                "Nutrition strategy",
+                "Configure net carbs, meal targets, macro cycling, and workout adjustments.",
+              ],
+              [
+                "preferences",
+                "Language, sound & feedback",
+                "Choose app language, haptic strength, and rest timer feedback.",
+              ],
+              [
+                "agents",
+                "AI & integrations",
+                "Configure your own AI key and connected tools.",
+              ],
+            ] as const
+          ).map(([view, title, detail]) => (
+            <button
+              type="button"
+              key={view}
+              onClick={() => setSettingsView(view)}
+            >
+              <span>
+                <strong>{title}</strong>
+                <small>{detail}</small>
+              </span>
+              <ArrowRight size={18} />
+            </button>
+          ))}
+          <button
+            type="button"
+            className="onboarding-primary-button"
+            onClick={() => advance(stageIndex)}
+          >
+            Continue <ArrowRight size={18} />
+          </button>
         </div>
       )
     }
@@ -1828,6 +1867,49 @@ export function OnboardingMobile() {
         false
       return (
         <>
+          <div className="setup-import-guide">
+            <h2>Choose your export</h2>
+            <dl>
+              <div>
+                <dt>Hevy</dt>
+                <dd>CSV export or API workout JSON</dd>
+              </div>
+              <div>
+                <dt>Strong</dt>
+                <dd>CSV export or JSON rows with Strong column names</dd>
+              </div>
+              <div>
+                <dt>FitNotes</dt>
+                <dd>CSV export or equivalent JSON rows</dd>
+              </div>
+              <div>
+                <dt>Other apps</dt>
+                <dd>
+                  CSV or JSON with dates, exercises, sets, or body measurements
+                </dd>
+              </div>
+            </dl>
+            <p>
+              Built-in parsers run without AI. Other formats may use AI to
+              identify columns. Always review the preview before importing.
+            </p>
+            <label>
+              Weights without a unit
+              <select
+                value={weightUnit}
+                disabled={importBusy !== null || importPreview !== null}
+                onChange={(event) =>
+                  setWeightUnit(event.target.value as WeightUnit)
+                }
+              >
+                <option value="kg">Kilograms</option>
+                <option value="lbs">Pounds</option>
+              </select>
+            </label>
+            <a href="/imports/workout-template.json" download>
+              Download example workout JSON
+            </a>
+          </div>
           <div className="onboarding-chat-card">
             {importResult ? (
               <p className="native-row-detail">
@@ -1846,8 +1928,11 @@ export function OnboardingMobile() {
                       <span className="native-row-title break-all">
                         {file.fileName}
                       </span>
-                      <span className="native-row-detail shrink-0 text-right">
+                      <span className="native-row-detail max-w-[55%] text-right">
                         {describeImportFile(file)}
+                        {file.note && (
+                          <small className="block">{file.note}</small>
+                        )}
                       </span>
                     </div>
                   ))}
@@ -2106,6 +2191,35 @@ export function OnboardingMobile() {
     }
     return (
       <div className="onboarding-chat-review">
+        <div className="setup-review-list">
+          {stages
+            .filter(
+              (item) => !["intro", "review", "assistant"].includes(item.id)
+            )
+            .map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() =>
+                  rewindTo(stages.findIndex((step) => step.id === item.id))
+                }
+              >
+                <span>
+                  <strong>{item.label}</strong>
+                  <small>
+                    {item.id === "preferences"
+                      ? `${theme} · ${weightUnit} · ${setupPreferences.energyUnit} · ${setupPreferences.workoutFocus}`
+                      : item.id === "nutrition"
+                        ? `${dietType} · ${trackingMode.replaceAll("_", " ")}`
+                        : item.id === "lifestyle"
+                          ? `${mealFrequency} meals · ${waterGoalMl} ml water · ${budget} budget`
+                          : (stageAnswers[item.id] ?? "Review choices")}
+                  </small>
+                </span>
+                <PencilSimple size={18} aria-hidden="true" />
+              </button>
+            ))}
+        </div>
         <div className="onboarding-review-card">
           <div className="onboarding-review-hero">
             <p className="native-supporting">Calories</p>
@@ -2120,7 +2234,7 @@ export function OnboardingMobile() {
             </p>
             <p className="native-row-detail mt-2">
               {preview?.calorieStrategy ??
-                "Calculating your starting budget from our chat."}
+                "Calculating your starting budget from your profile."}
             </p>
           </div>
           {[
@@ -2211,7 +2325,7 @@ export function OnboardingMobile() {
             "Saving..."
           ) : (
             <>
-              Start training
+              Open OneRep
               <Check size={16} weight="bold" />
             </>
           )}
@@ -2220,219 +2334,179 @@ export function OnboardingMobile() {
     )
   }
 
-  const visibleStages = coachReplay
-    ? stages.filter((item) => item.id === "coach")
-    : stages.slice(0, stage + 1)
-  const coachStage =
-    stages[stage].id === "coach" || stages[stage].id === "assistant"
-
+  const activeStage = stages[stage]
+  const titles: Record<StageId, string> = {
+    intro: "Your whole routine. One place.",
+    preferences: "Make OneRep yours.",
+    goal: "What are you working toward?",
+    experience: "Start where you are.",
+    coach: "Meet your Coach.",
+    sex: "Personalize your targets.",
+    measurements: "Your starting point.",
+    activity: "Find your rhythm.",
+    safety: "Your wellbeing comes first.",
+    connections: "Connect the rest of your routine.",
+    nutrition: "Food that fits your life.",
+    lifestyle: "Build an everyday rhythm.",
+    import: "Bring your progress.",
+    assistant: "Build your first plan.",
+    review: "Ready for your first day.",
+  }
+  if (settingsView)
+    return (
+      <Suspense
+        fallback={
+          <div role="status" className="p-8">
+            Loading settings…
+          </div>
+        }
+      >
+        <SetupSettings
+          setupView={settingsView}
+          setupWearableConsent={consent.wearableIntegrations}
+          onSetupWearableConsentChange={async (next) => {
+            setConsent((current) => ({
+              ...current,
+              wearableIntegrations: next,
+            }))
+          }}
+          onClose={() => setSettingsView(null)}
+        />
+      </Suspense>
+    )
   return (
-    <main
-      className="onboarding-shell auth-light-only relative isolate min-h-svh bg-background text-foreground"
-      data-coach-stage={coachStage}
-    >
+    <main className="setup-shell bg-background text-foreground">
       {complete && (
         <div
           className="onboarding-complete"
           role="status"
           aria-live="assertive"
         >
-          <span className="onboarding-complete-mark" aria-hidden="true">
-            <Check size={30} weight="bold" />
-          </span>
+          <Check size={30} />
           <p>Your plan is ready</p>
         </div>
       )}
-      {coachStage && (
-        <div className="coach-background-layer" aria-hidden="true">
-          <div className="coach-swoosh-backdrop coach-swoosh-backdrop--mobile" />
+      <aside className="setup-sidebar">
+        <div className="setup-brand">
+          <img src="/app-icon.svg" alt="" width="32" height="32" />
+          <strong>OneRep</strong>
+          <span>Your setup</span>
         </div>
-      )}
-      <section className="onboarding-frame">
-        <header className="onboarding-header">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5">
-              <img src="/app-icon.svg" alt="" className="size-7" />
-              <span className="onboarding-brand-name">OneRep</span>
-            </div>
-            <span className="onboarding-step-count tabular-nums">
-              {coachReplay
-                ? "Coach onboarding preview"
-                : `${stages[stage].label} · ${stage + 1} of ${stages.length}`}
-            </span>
-          </div>
-          {!coachReplay && (
-            <div
-              className="onboarding-progress"
-              role="progressbar"
-              aria-label="Profile setup progress"
-              aria-valuemin={1}
-              aria-valuemax={stages.length}
-              aria-valuenow={stage + 1}
-            >
-              {stages.map((item, index) => (
-                <span
-                  key={`${item.id}-${index}`}
-                  className="onboarding-progress-segment"
-                  data-complete={index <= stage}
-                />
-              ))}
-            </div>
-          )}
-          {!coachReplay && (
-            <ol className="onboarding-chapters" aria-label="Setup chapters">
-              {[
-                { label: "Your direction", start: 0, end: 3 },
-                { label: "Your baseline", start: 4, end: 7 },
-                { label: "Your plan", start: 8, end: 10 },
-              ].map((chapter) => (
-                <li
-                  key={chapter.label}
-                  data-active={stage >= chapter.start && stage <= chapter.end}
-                  data-done={stage > chapter.end}
-                  aria-current={
-                    stage >= chapter.start && stage <= chapter.end
-                      ? "step"
-                      : undefined
-                  }
+        <nav aria-label="Setup steps">
+          <ol>
+            {stages.map((item, index) => (
+              <li key={item.id}>
+                <button
+                  type="button"
+                  aria-current={index === stage ? "step" : undefined}
+                  disabled={index > Math.max(stage, returnStage ?? 0)}
+                  onClick={() => rewindTo(index)}
                 >
-                  {stage > chapter.end && (
-                    <Check size={12} weight="bold" aria-hidden="true" />
-                  )}
-                  {chapter.label}
-                </li>
-              ))}
-            </ol>
-          )}
+                  <span className="setup-step-number">
+                    {index < stage ? (
+                      <Check size={14} aria-hidden="true" />
+                    ) : (
+                      index + 1
+                    )}
+                  </span>
+                  {item.label}
+                </button>
+              </li>
+            ))}
+          </ol>
+        </nav>
+        <p>
+          Built around you.
+          <br />
+          Change your preferences anytime in Settings.
+        </p>
+      </aside>
+      <section className="setup-main">
+        <header className="setup-topbar">
+          <button
+            type="button"
+            disabled={stage === 0 || saving}
+            onClick={() => {
+              setReturnStage(null)
+              setStage((current) => Math.max(0, current - 1))
+            }}
+          >
+            Back
+          </button>
+          <span>
+            {coachReplay
+              ? "Coach onboarding preview"
+              : `${stage + 1} of ${stages.length} · ${activeStage.label}`}
+          </span>
           {coachReplay && (
             <button
               type="button"
               onClick={() => navigate("/settings", { replace: true })}
-              className="onboarding-back-button mt-3"
             >
               Exit
             </button>
           )}
         </header>
-
-        {/* A click that lands on nothing interactive fast-forwards the
-            typewriter — impatience is a valid input. Real controls stop
-            propagation implicitly by handling the click first. */}
         <div
-          className="onboarding-chat"
-          role="log"
-          aria-label="Setup conversation"
-          onClick={fastForwardTyping}
+          className="setup-progress"
+          role="progressbar"
+          aria-label="Profile setup progress"
+          aria-valuemin={1}
+          aria-valuemax={stages.length}
+          aria-valuenow={stage + 1}
         >
-          {!coachReplay && (
-            <div className="onboarding-welcome" data-compact={stage > 0}>
-              <h1>
-                Your next chapter.
-                <br />
-                <span>One rep at a time.</span>
-              </h1>
-              {stage === 0 && (
-                <div className="onboarding-welcome-details">
-                  <p>
-                    Training, nutrition, and a coach in your corner. Let's make
-                    it yours.
-                  </p>
-                  <div
-                    className="onboarding-welcome-signature"
-                    aria-hidden="true"
-                  >
-                    <Barbell size={38} weight="regular" />
-                    <span>Built around you.</span>
-                  </div>
-                </div>
-              )}
+          <span style={{ transform: `scaleX(${(stage + 1) / stages.length})` }} />
+        </div>
+        <div id="setup-content" className="setup-content">
+          <div className="setup-page" data-stage={activeStage.id}>
+            <h1 id="setup-heading" tabIndex={-1}>
+              {titles[activeStage.id]}
+            </h1>
+            <div className="setup-description">
+              {stageMessages[activeStage.id].map((message) => (
+                <p key={message}>{message}</p>
+              ))}
             </div>
-          )}
-          {visibleStages.map((item, index) => {
-            const stageIndex = coachReplay ? coachStageIndex : index
-            const isCurrent = stageIndex === stage
-            const hidden = isCurrent && typing
-            const answer = stageAnswers[item.id]
-            const messages = stageMessages[item.id]
-            const shownMessages = isCurrent
-              ? messages.slice(0, typedCount + 1)
-              : messages
-            return (
-              <div
-                key={`${item.id}-${stageIndex}`}
-                className="onboarding-chat-stage"
-                data-stage={item.id}
-                data-current={isCurrent}
-              >
-                {isCurrent && item.id !== "intro" && (
-                  <h2 className="onboarding-chapter-title">
-                    {
-                      (
-                        {
-                          goal: "Find your reason.",
-                          experience: "Start where you are.",
-                          coach: "Meet your corner.",
-                          sex: "Make it personal.",
-                          measurements: "Your starting point.",
-                          activity: "Find your rhythm.",
-                          safety: "Your wellbeing comes first.",
-                          import: "Bring your progress.",
-                          assistant: "Put Coach to work.",
-                          review: "Make this day one.",
-                        } as Partial<Record<StageId, string>>
-                      )[item.id]
-                    }
-                  </h2>
-                )}
-                {!hidden &&
-                  shownMessages.map((message, messageIndex) => (
-                    <div
-                      key={messageIndex}
-                      className="onboarding-chat-bubble onboarding-chat-bubble-coach"
-                    >
-                      {isCurrent && messageIndex === typedCount ? (
-                        <TypewriterText
-                          text={message}
-                          onDone={() => {
-                            hapticTap()
-                            setTypedCount((current) => current + 1)
-                          }}
-                        />
-                      ) : (
-                        message
-                      )}
-                    </div>
-                  ))}
-                {isCurrent && !hidden && typedCount >= messages.length && (
-                  <div className="onboarding-chat-input">
-                    {renderInput(item.id, stageIndex)}
+            {activeStage.id === "intro" && (
+              <div className="setup-feature-list">
+                {[
+                  [
+                    "Train",
+                    "Log sets, build routines, schedule workouts, and follow your strength over time.",
+                  ],
+                  [
+                    "Eat",
+                    "Track meals with search, barcodes or photos. Save recipes, plan meals, and build grocery lists.",
+                  ],
+                  [
+                    "Recover",
+                    "Track water, body measurements, fasting, and health trends. Connect supported health sources from Settings.",
+                  ],
+                  [
+                    "Progress",
+                    "Bring your history, follow your goals, and customize your dashboard and progress trackers.",
+                  ],
+                  [
+                    "Coach",
+                    "Ask questions with your own context, create plans, and review proposed changes. AI is optional.",
+                  ],
+                ].map(([title, description]) => (
+                  <div key={title}>
+                    <h2>{title}</h2>
+                    <p>{description}</p>
                   </div>
-                )}
-                {!isCurrent && answer && !coachReplay && (
-                  <button
-                    type="button"
-                    className="onboarding-chat-bubble onboarding-chat-bubble-user"
-                    onClick={() => rewindTo(stageIndex)}
-                    aria-label={`Edit answer: ${answer}`}
-                  >
-                    <span>{answer}</span>
-                    <PencilSimple size={13} weight="bold" aria-hidden="true" />
-                  </button>
-                )}
+                ))}
               </div>
-            )
-          })}
-          {typing && (
-            <div
-              className="onboarding-chat-bubble onboarding-chat-bubble-coach onboarding-chat-typing"
-              aria-label="Coach is typing"
-            >
-              <span />
-              <span />
-              <span />
+            )}
+            {error && activeStage.id !== "review" && (
+              <p role="alert" className="text-destructive">
+                {error}
+              </p>
+            )}
+            <div className="setup-controls">
+              {renderInput(activeStage.id, stage)}
             </div>
-          )}
-          <div ref={chatEndRef} aria-hidden="true" />
+          </div>
         </div>
       </section>
     </main>

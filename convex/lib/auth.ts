@@ -199,14 +199,27 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
          */
         afterDelete: async (user) => {
           // Queries have no scheduler. Deletion only ever arrives through the
-          // HTTP action that serves the auth routes, so this is a type guard
+          // HTTP action that serves the auth routes, and an action context
+          // carries both a scheduler and runMutation, so this is a type guard
           // rather than a real branch.
           if (!("scheduler" in ctx)) return;
-          await ctx.scheduler.runAfter(
-            0,
-            internal.users.users.purgeDeletedUserData,
-            { userId: `${convexSiteUrl}|${user.id}` },
-          );
+          // Scheduled, not awaited inline: the purge self-reschedules in
+          // batches, so it outlives this request no matter how many rows the
+          // account owns. Awaiting it here would hold the response open and
+          // let a heavy account turn a completed deletion into a timeout.
+          try {
+            await ctx.scheduler.runAfter(
+              0,
+              internal.users.users.purgeDeletedUserData,
+              { userId: `${convexSiteUrl}|${user.id}` },
+            );
+          } catch (error) {
+            // The login, its OAuth links and its sessions are already gone at
+            // this point. Throwing would turn a completed deletion into a
+            // client-visible failure and strand the user on an error toast
+            // for an account that no longer exists, so log loudly instead.
+            console.error("Failed to schedule purgeDeletedUserData", error);
+          }
         },
       },
     },

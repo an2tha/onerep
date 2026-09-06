@@ -343,7 +343,10 @@ export type ImportColumns = z.infer<typeof columnsSchema>;
  * cannot tell the difference — the convention every agent in this codebase
  * follows, and the reason the feature degrades instead of disappearing.
  */
-export function fallbackPlan(headers: string[]): ImportPlan {
+export function fallbackPlan(
+  headers: string[],
+  defaultWeightUnit: "kg" | "lb" = "kg",
+): ImportPlan {
   const lower = headers.map((header) => header.toLowerCase());
   const find = (...needles: string[]) => {
     for (const needle of needles) {
@@ -357,7 +360,12 @@ export function fallbackPlan(headers: string[]): ImportPlan {
   const exerciseName = find("exercise", "movement", "lift");
   const reps = find("rep");
   const joined = lower.join(" ");
-  const weightUnit: "kg" | "lb" = /\blb|pound/.test(joined) ? "lb" : "kg";
+  const weightUnit: "kg" | "lb" =
+    /(?:^|[^a-z])(?:lbs?|pounds?)(?:[^a-z]|$)/.test(joined)
+      ? "lb"
+      : /(?:^|[^a-z])(?:kg|kilograms?)(?:[^a-z]|$)/.test(joined)
+        ? "kg"
+        : defaultWeightUnit;
 
   if (date && exerciseName && reps) {
     return {
@@ -374,6 +382,7 @@ export function fallbackPlan(headers: string[]): ImportPlan {
               (header) => header.includes("weight") && !header.includes("body"),
             )
           ],
+        weightUnit: find("weight unit", "weight_unit"),
         rpe: find("rpe"),
         setType: find("set type", "type"),
       },

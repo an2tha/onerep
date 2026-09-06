@@ -40,13 +40,13 @@ const nativeTabBar = registerPlugin<NativeTabBarPlugin>("NativeTabBar")
 
 /** Ids are the web routes, so a tap event is already a navigation target. */
 const NATIVE_TAB_ITEMS: NativeTabBarItem[] = [
-  { id: "/", symbol: "house", label: "Today" },
+  { id: "/", symbol: "house.fill", label: "Today" },
   { id: "/nutrition", symbol: "fork.knife", label: "Nutrition" },
-  { id: "/workouts", symbol: "dumbbell", label: "Training" },
-  { id: "/progress", symbol: "chart.bar", label: "Progress" },
-  { id: "/health", symbol: "heart.text.square", label: "Health" },
-  { id: "/coach", symbol: "sparkles", label: "Coach", prominent: true },
-  { id: "/settings", symbol: "gearshape", label: "Settings" },
+  { id: "/workouts", symbol: "dumbbell.fill", label: "Training" },
+  { id: "/progress", symbol: "chart.bar.fill", label: "Progress" },
+  { id: "/health", symbol: "heart.text.square.fill", label: "Health" },
+  { id: "/coach", symbol: "rocket.fill", label: "Coach", prominent: true },
+  { id: "/settings", symbol: "gearshape.fill", label: "Settings" },
 ]
 
 /**

@@ -20,46 +20,24 @@ const styles = readFileSync(
 )
 
 describe("Onboarding production contract", () => {
-  test("runs as a scripted chat covering the full setup journey", () => {
+  test("uses immediate structured setup and editable review", () => {
+    assert.match(pageSource, /aria-label="Setup steps"/)
+    assert.match(pageSource, /id="setup-heading"/)
+    assert.match(pageSource, /setup-review-list/)
+    assert.doesNotMatch(
+      pageSource,
+      /TypewriterText|fastForwardTyping|auth-light-only/
+    )
     for (const id of [
-      "intro",
-      "goal",
-      "experience",
-      "coach",
-      "sex",
-      "measurements",
-      "activity",
-      "safety",
+      "preferences",
+      "nutrition",
+      "lifestyle",
+      "connections",
       "import",
-      "assistant",
       "review",
     ]) {
-      assert.match(source, new RegExp(`id: "${id}"`))
+      assert.match(pageSource, new RegExp(`id: "${id}"`))
     }
-    assert.match(source, /role="log"/)
-    assert.match(source, /aria-label="Setup conversation"/)
-    assert.match(source, /onboarding-chat-bubble-coach/)
-    assert.match(source, /onboarding-chat-bubble-user/)
-    assert.doesNotMatch(source, /Choose what OneRep can use/)
-    assert.doesNotMatch(source, /Setup mode/)
-  })
-
-  test("shows a typing indicator and lets users edit earlier answers", () => {
-    assert.match(source, /onboarding-chat-typing/)
-    assert.match(source, /aria-label="Coach is typing"/)
-    assert.match(source, /aria-label=\{`Edit answer: \$\{answer\}`\}/)
-    assert.match(source, /function rewindTo\(index: number\)/)
-    assert.match(source, /chatEndRef\.current\?\.scrollIntoView/)
-  })
-
-  test("respects impatience: typing can be skipped and never replays", () => {
-    // One tap anywhere in the chat completes the typewriter act.
-    assert.match(pageSource, /function fastForwardTyping/)
-    assert.match(pageSource, /onClick=\{fastForwardTyping\}/)
-    // A stage read once renders instantly on every revisit.
-    assert.match(pageSource, /seenStagesRef/)
-    // Reduced motion skips the staged typing delay and the smooth scroll.
-    assert.match(pageSource, /prefersReducedMotion\(\) \? "auto" : "smooth"/)
   })
 
   test("an interrupted run resumes and an edit jumps back", () => {
@@ -80,25 +58,7 @@ describe("Onboarding production contract", () => {
     assert.match(pageSource, /\$\{stage \+ 1\} of \$\{stages\.length\}/)
   })
 
-  test("types coach messages out and respects reduced motion", () => {
-    assert.match(source, /function TypewriterText/)
-    assert.match(source, /prefers-reduced-motion: reduce/)
-    assert.match(source, /<span aria-label=\{text\}>/)
-    assert.match(source, /setTypedCount\(\(current\) => current \+ 1\)/)
-  })
-
-  test("runs in light mode and dips into the light Coach theme for Coach stages", () => {
-    assert.match(source, /auth-light-only/)
-    assert.match(source, /data-coach-stage=\{coachStage\}/)
-    assert.match(
-      styles,
-      /\.onboarding-shell\[data-coach-stage="true"\][\s\S]*--coach-flow-top: #eef0ff/
-    )
-  })
-
-  test("reuses the real Coach animated backdrop and Coach chat backend", () => {
-    assert.match(source, /coach-swoosh-backdrop coach-swoosh-backdrop--mobile/)
-    assert.match(source, /className="coach-background-layer"/)
+  test("reuses the real Coach chat backend", () => {
     assert.match(source, /api\.ai\.metricGeneration\.generateCoachChatMessage/)
     assert.match(source, /api\.ai\.coachOperations\.applyApproved/)
     assert.match(source, /const SETUP_MESSAGE_LIMIT = 5/)
@@ -128,35 +88,6 @@ describe("Onboarding production contract", () => {
     assert.match(source, /aria-valuemax/)
     assert.match(source, /role="progressbar"/)
     assert.match(source, /starting daily targets/)
-  })
-
-  test("shows the Coach backdrop only during the Coach stages", () => {
-    assert.match(source, /\{coachStage && \(/)
-    assert.match(source, /className="onboarding-progress-segment"/)
-    assert.match(source, /data-selected=\{selected\}/)
-    assert.match(styles, /animation: coach-flow-reveal/)
-    assert.match(styles, /@keyframes coach-swoosh-drift/)
-  })
-
-  test("keeps the journey responsive and motion-accessible", () => {
-    assert.match(styles, /@media \(min-width: 768px\)[\s\S]*\.onboarding-chat/)
-    assert.match(
-      styles,
-      /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.onboarding-atmosphere::before[\s\S]*animation: none !important/
-    )
-    assert.match(
-      styles,
-      /prefers-reduced-motion[\s\S]*\.onboarding-chat-typing span[\s\S]*animation: none !important/
-    )
-    assert.match(source, /function CoachPreviewExchange/)
-    // The Coach preview is a still: text and a definition list, nothing that
-    // moves or needs an alt text for an animation.
-    assert.match(source, /<figcaption className="onboarding-coach-preview-ask"/)
-    assert.doesNotMatch(source, /aria-label="Animated/)
-    assert.match(
-      styles,
-      /\.onboarding-frame[\s\S]*backdrop-filter: blur\(26px\)/
-    )
   })
 
   test("the Coach setup stage renders the full shared Coach surface", () => {

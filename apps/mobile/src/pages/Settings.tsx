@@ -206,7 +206,7 @@ type WorkoutFocus = "strength" | "cardio" | "mobility"
 type WeightUnit = "kg" | "lbs"
 type FoodSearchLanguage = "en" | "es" | "fr" | "de" | "it" | "pt"
 type AppTheme = "light" | "dark" | "system"
-type SettingsView =
+export type SettingsView =
   | "overview"
   | "appearance"
   | "account"
@@ -253,7 +253,17 @@ const SETTINGS_VIEW_TITLE_KEYS: Record<SettingsView, string> = {
  * @param onClose - Callback invoked to close the settings sheet
  * @returns The Settings React element
  */
-export default function Settings({ onClose }: { onClose: () => void }) {
+export default function Settings({
+  onClose,
+  setupView,
+  setupWearableConsent,
+  onSetupWearableConsentChange,
+}: {
+  onClose: () => void
+  setupView?: SettingsView
+  setupWearableConsent?: boolean
+  onSetupWearableConsentChange?: (value: boolean) => Promise<void>
+}) {
   const navigate = useSmoothNavigate()
   const { t } = useTranslation()
   const [uiLanguage, setUiLanguageState] = useState<UiLanguage>(
@@ -300,6 +310,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
 
   const healthSync = preferences?.healthSync
   const wearableConsent =
+    setupWearableConsent ??
     (onboarding as { consent?: { wearableIntegrations?: boolean } } | null)
       ?.consent?.wearableIntegrations === true
   const healthWorkouts = useQuery(
@@ -539,9 +550,10 @@ export default function Settings({ onClose }: { onClose: () => void }) {
   const [searchParams] = useSearchParams()
   const viewParam = searchParams.get("view")
   const activeView: SettingsView =
-    viewParam && viewParam in SETTINGS_VIEW_TITLE_KEYS
+    setupView ??
+    (viewParam && viewParam in SETTINGS_VIEW_TITLE_KEYS
       ? (viewParam as SettingsView)
-      : "overview"
+      : "overview")
   const [hapticLevel, setHapticLevel] = useState<HapticStrength>(() => {
     if (typeof window === "undefined") return "full"
     return hapticStrength()
@@ -799,13 +811,18 @@ export default function Settings({ onClose }: { onClose: () => void }) {
 
   async function handleSaveWorkout() {
     await runSectionSave(async () => {
-      await setDashboardSettings({ workoutFocus, simpleMode: simpleDashboard })
-      await setWeightUnit({ unit: weightUnit })
-      // Write through immediately: every other screen opens on this value
-      // before its own preferences query resolves.
-      cacheWeightUnit(weightUnit)
-      await setEnergyUnit({ unit: energyUnit })
-      cacheEnergyUnit(energyUnit)
+      if (!setupView) {
+        await setDashboardSettings({
+          workoutFocus,
+          simpleMode: simpleDashboard,
+        })
+        await setWeightUnit({ unit: weightUnit })
+        // Write through immediately: every other screen opens on this value
+        // before its own preferences query resolves.
+        cacheWeightUnit(weightUnit)
+        await setEnergyUnit({ unit: energyUnit })
+        cacheEnergyUnit(energyUnit)
+      }
       await setFoodSearchLanguage({ language: foodSearchLanguage })
     }, "Workout settings saved")
   }
@@ -1248,6 +1265,10 @@ export default function Settings({ onClose }: { onClose: () => void }) {
   }
 
   function showOverview() {
+    if (setupView) {
+      onClose()
+      return
+    }
     if (activeView === "overview") {
       onClose()
       return
@@ -1260,7 +1281,13 @@ export default function Settings({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="desktop-canvas min-h-svh bg-background text-foreground lg:pr-8 lg:pl-72">
+    <div
+      className={
+        setupView
+          ? "setup-settings-panel bg-background text-foreground"
+          : "desktop-canvas min-h-svh bg-background text-foreground lg:pr-8 lg:pl-72"
+      }
+    >
       <main className="mx-auto min-h-svh w-full max-w-2xl pb-[calc(var(--app-safe-bottom-lg)+5rem)] md:pb-12">
         <NavigationBar
           title={t(SETTINGS_VIEW_TITLE_KEYS[activeView])}
@@ -1751,71 +1778,77 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                   Set how OneRep presents training, measurements, and food
                   search.
                 </SettingsSectionIntro>
-                <SettingsSectionLabel title="Training" />
-                <GroupedList label="Training preferences">
-                  <SettingsRow label="Primary focus">
-                    <SegmentedControl
-                      onInteract={hapticSelection}
-                      label="Primary focus"
-                      value={workoutFocus}
-                      onChange={(value) =>
-                        setWorkoutFocus(value as WorkoutFocus)
-                      }
-                      options={[
-                        { value: "strength", label: "Strength" },
-                        { value: "cardio", label: "Cardio" },
-                        { value: "mobility", label: "Mobility" },
-                      ]}
-                    />
-                  </SettingsRow>
-                  <SettingsRow label="Weight unit">
-                    <SegmentedControl
-                      onInteract={hapticSelection}
-                      label="Weight unit"
-                      value={weightUnit}
-                      onChange={(value) => {
-                        void chooseWeightUnit(value as WeightUnit)
-                      }}
-                      options={[
-                        { value: "kg", label: "kg" },
-                        { value: "lbs", label: "lb" },
-                      ]}
-                    />
-                  </SettingsRow>
-                  <SettingsRow
-                    label="Energy unit"
-                    detail="kcal and Cal are the same number; kJ converts"
-                  >
-                    <SegmentedControl
-                      onInteract={hapticSelection}
-                      label="Energy unit"
-                      value={energyUnit}
-                      onChange={(value) => {
-                        void chooseEnergyUnit(value as EnergyUnitStored)
-                      }}
-                      options={[
-                        { value: "kcal", label: "kcal" },
-                        // Lowercase because that is what a US label reader
-                        // recognises, whatever the SI pedantry says.
-                        { value: "Cal", label: "cal" },
-                        { value: "kJ", label: "kJ" },
-                      ]}
-                    />
-                  </SettingsRow>
-                </GroupedList>
+                {!setupView && (
+                  <>
+                    <SettingsSectionLabel title="Training" />
+                    <GroupedList label="Training preferences">
+                      <SettingsRow label="Primary focus">
+                        <SegmentedControl
+                          onInteract={hapticSelection}
+                          label="Primary focus"
+                          value={workoutFocus}
+                          onChange={(value) =>
+                            setWorkoutFocus(value as WorkoutFocus)
+                          }
+                          options={[
+                            { value: "strength", label: "Strength" },
+                            { value: "cardio", label: "Cardio" },
+                            { value: "mobility", label: "Mobility" },
+                          ]}
+                        />
+                      </SettingsRow>
+                      <SettingsRow label="Weight unit">
+                        <SegmentedControl
+                          onInteract={hapticSelection}
+                          label="Weight unit"
+                          value={weightUnit}
+                          onChange={(value) => {
+                            void chooseWeightUnit(value as WeightUnit)
+                          }}
+                          options={[
+                            { value: "kg", label: "kg" },
+                            { value: "lbs", label: "lb" },
+                          ]}
+                        />
+                      </SettingsRow>
+                      <SettingsRow
+                        label="Energy unit"
+                        detail="kcal and Cal are the same number; kJ converts"
+                      >
+                        <SegmentedControl
+                          onInteract={hapticSelection}
+                          label="Energy unit"
+                          value={energyUnit}
+                          onChange={(value) => {
+                            void chooseEnergyUnit(value as EnergyUnitStored)
+                          }}
+                          options={[
+                            { value: "kcal", label: "kcal" },
+                            // Lowercase because that is what a US label reader
+                            // recognises, whatever the SI pedantry says.
+                            { value: "Cal", label: "cal" },
+                            { value: "kJ", label: "kJ" },
+                          ]}
+                        />
+                      </SettingsRow>
+                    </GroupedList>
+                  </>
+                )}
                 <SettingsSectionLabel title="App behavior" />
                 <GroupedList label="App behavior">
-                  <SettingsRow
-                    label="Simple dashboard"
-                    detail="Keep Today focused on actions and hide advanced panels"
-                  >
-                    <CompactSwitch
-                      onInteract={hapticSelection}
-                      checked={simpleDashboard}
-                      onChange={setSimpleDashboard}
+                  {!setupView && (
+                    <SettingsRow
                       label="Simple dashboard"
-                    />
-                  </SettingsRow>
+                      detail="Keep Today focused on actions and hide advanced panels"
+                    >
+                      <CompactSwitch
+                        onInteract={hapticSelection}
+                        checked={simpleDashboard}
+                        onChange={setSimpleDashboard}
+                        label="Simple dashboard"
+                      />
+                    </SettingsRow>
+                  )}
                   <SettingsRow
                     label={t("settings.language.label")}
                     detail={t("settings.language.detail")}
@@ -2353,7 +2386,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                   </GroupedList>
                 )}
 
-                {onboarding === null ? (
+                {onboarding === null && !onSetupWearableConsentChange ? (
                   <GroupedList label="Health sync">
                     <ListRow
                       title="Finish onboarding first"
@@ -2372,7 +2405,11 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                           onInteract={hapticSelection}
                           checked={wearableConsent}
                           onChange={(next) => {
-                            void setConsent({ wearableIntegrations: next })
+                            void (
+                              onSetupWearableConsentChange
+                                ? onSetupWearableConsentChange(next)
+                                : setConsent({ wearableIntegrations: next })
+                            )
                               .then(() => {
                                 if (!next) {
                                   return setHealthSync({
