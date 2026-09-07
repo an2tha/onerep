@@ -26,7 +26,10 @@
       "server": "Servidor",
       "walkthrough": "Tour da app",
       "about": "Sobre",
-      "developer": "Programador"
+      "feedback": "Feedback",
+      "featureBoard": "Ideias de funcionalidades",
+      "developer": "Programador",
+      "flavours": "Temas"
     },
     "language": {
       "label": "Idioma da app",

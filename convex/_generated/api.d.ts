@@ -44,6 +44,7 @@ import type * as crons from "../crons.js";
 import type * as customProgressMetrics from "../customProgressMetrics.js";
 import type * as dashboardWidgets from "../dashboardWidgets.js";
 import type * as exercises from "../exercises.js";
+import type * as feedback from "../feedback.js";
 import type * as food_datasource from "../food/datasource.js";
 import type * as http from "../http.js";
 import type * as lib_auth from "../lib/auth.js";
@@ -184,6 +185,7 @@ declare const fullApi: ApiFromModules<{
   customProgressMetrics: typeof customProgressMetrics;
   dashboardWidgets: typeof dashboardWidgets;
   exercises: typeof exercises;
+  feedback: typeof feedback;
   "food/datasource": typeof food_datasource;
   http: typeof http;
   "lib/auth": typeof lib_auth;

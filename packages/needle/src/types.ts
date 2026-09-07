@@ -118,19 +118,25 @@ export type NeedleRun = {
 
 /**
  * Where the weights come from — and on native, the answer is "they are already
- * here".
+ * here" — with one exception: the tuned `.cact` is a separate file that only
+ * ships inside the app bundle after `needle:tuned` copies it into `public/`.
  *
  * `libneedle.a` is two objects: 421 KB of NEON kernels, and a 13.7 MB blob that
  * is `needle2.cact` embedded verbatim as `needle_weights`. The engine object
  * references that symbol as undefined, so it reads the baked-in weights
- * directly; `needle_load` exists to *override* them with tuned ones. Downloading
- * a copy of what is already linked into the binary would be 13.7 MB of nothing.
+ * directly; `needle_load` exists to *override* them with tuned ones. The tuned
+ * file lives in `public/needle/` and is bundled by `cap sync`, so native can
+ * load it directly from the bundle via the `asset` path — no network fetch
+ * required.
  *
  * The wasm build is the opposite case. `needle.wasm` is 333 KB — kernels only,
  * no weights — so there the `.cact` is a genuine, unavoidable fetch.
  */
 export type NeedleWeights =
-  { embedded: true } | { url: string } | { bytes: Uint8Array };
+  | { embedded: true }
+  | { url: string }
+  | { asset: string; fallbackUrl?: string }
+  | { bytes: Uint8Array };
 
 /**
  * The one thing every backend has to implement.

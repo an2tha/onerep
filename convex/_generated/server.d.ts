@@ -50,6 +50,7 @@ type Env = {
   readonly FCM_CLIENT_EMAIL: string | undefined;
   readonly FCM_PRIVATE_KEY: string | undefined;
   readonly FCM_PROJECT_ID: string | undefined;
+  readonly FEEDBACK_MODERATOR_EMAILS: string | undefined;
   readonly OPENAI_MODEL: string | undefined;
   readonly OPENROUTER_API_KEY: string | undefined;
   readonly OPENROUTER_MODEL: string | undefined;

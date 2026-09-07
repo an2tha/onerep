@@ -26,7 +26,10 @@
       "server": "Serveur",
       "walkthrough": "Visite guidée",
       "about": "À propos",
-      "developer": "Développeur"
+      "feedback": "Vos retours",
+      "featureBoard": "Idées de fonctionnalités",
+      "developer": "Développeur",
+      "flavours": "Thèmes"
     },
     "language": {
       "label": "Langue de l'app",

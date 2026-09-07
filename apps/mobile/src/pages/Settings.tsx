@@ -1,11 +1,12 @@
 import React, { useCallback, useState, useEffect, useMemo, useRef } from "react"
-import { useSearchParams } from "react-router"
+import { useNavigate, useSearchParams } from "react-router"
 import {
   Compass,
   ArrowLeft,
   Barbell,
   BellSimple,
   CaretRight,
+  ChatCircleDots,
   Database,
   ForkKnife,
   GearFine,
@@ -95,8 +96,8 @@ import {
   oneRepExportFilename,
   shareOrDownloadJsonExport,
 } from "@/lib/data-export"
-import { toast } from "@repo/ui"
-import { useTheme } from "@repo/ui"
+import { toast, useTheme } from "@repo/ui"
+import { Flavours } from "@/pages/Flavours"
 import posthog from "posthog-js"
 import { trackUmami } from "@/lib/analytics"
 import { convexClient } from "@/lib/convex"
@@ -167,6 +168,7 @@ import { ApiKeysSection } from "@/components/api-keys-section"
 import { resolveConvexSiteUrl } from "@/lib/service-urls"
 import { serverOverride } from "@/lib/server-config"
 import { ServerPicker, currentServerLabel } from "@/components/server-picker"
+import { FeatureBoard, FeedbackSubmit } from "@/components/feedback-center"
 
 /** Where a script or an MCP client points. Shown so nobody guesses the host. */
 const apiSiteUrl =
@@ -221,6 +223,8 @@ export type SettingsView =
   | "server"
   | "walkthrough"
   | "about"
+  | "feedback"
+  | "feature-board"
   | "developer"
 
 const SHOW_DEV_SETTINGS = import.meta.env.DEV
@@ -241,6 +245,8 @@ const SETTINGS_VIEW_TITLE_KEYS: Record<SettingsView, string> = {
   server: "settings.titles.server",
   walkthrough: "settings.titles.walkthrough",
   about: "settings.titles.about",
+  feedback: "settings.titles.feedback",
+  "feature-board": "settings.titles.featureBoard",
   developer: "settings.titles.developer",
 }
 
@@ -265,11 +271,14 @@ export default function Settings({
   onSetupWearableConsentChange?: (value: boolean) => Promise<void>
 }) {
   const navigate = useSmoothNavigate()
+  const rawNavigate = useNavigate()
   const { t } = useTranslation()
   const [uiLanguage, setUiLanguageState] = useState<UiLanguage>(
     () => storedUiLanguage() ?? (i18n.language.slice(0, 2) as UiLanguage)
   )
   const { theme, setTheme } = useTheme()
+  const [flavoursOpen, setFlavoursOpen] = useState(false)
+  const [flavoursClosing, setFlavoursClosing] = useState(false)
   const { user } = useAppAuth()
   const billing = useBilling({
     userId: user?.id,
@@ -1260,7 +1269,11 @@ export default function Settings({
 
   function showView(view: SettingsView) {
     hapticSelection()
-    navigate(`/settings?view=${view}`, { motion: "forward" })
+    if (view === "feature-board") {
+      rawNavigate(`/settings?view=${view}`)
+    } else {
+      navigate(`/settings?view=${view}`, { motion: "forward" })
+    }
     window.scrollTo({ top: 0, behavior: "auto" })
   }
 
@@ -1271,6 +1284,11 @@ export default function Settings({
     }
     if (activeView === "overview") {
       onClose()
+      return
+    }
+    if (activeView === "feature-board") {
+      rawNavigate("/settings?view=feedback")
+      window.scrollTo({ top: 0, behavior: "auto" })
       return
     }
     hapticSelection()
@@ -1503,6 +1521,12 @@ export default function Settings({
                     onClick={() => showView("walkthrough")}
                   />
                   <DisclosureRow
+                    title="Feedback"
+                    detail="Report a bug, suggest an idea, or vote"
+                    leading={<ChatCircleDots size={20} weight="regular" />}
+                    onClick={() => showView("feedback")}
+                  />
+                  <DisclosureRow
                     title="About"
                     detail="Version, updates, and what is installed"
                     leading={<Info size={20} weight="regular" />}
@@ -1530,6 +1554,12 @@ export default function Settings({
                 <MedicalDisclaimer className="pt-3 pb-2" />
               </>
             )}
+
+            {activeView === "feedback" && (
+              <FeedbackSubmit onOpenBoard={() => showView("feature-board")} />
+            )}
+
+            {activeView === "feature-board" && <FeatureBoard />}
 
             {activeView === "server" && (
               <>
@@ -1567,6 +1597,20 @@ export default function Settings({
                   System updates automatically when your device appearance
                   changes.
                 </p>
+                <GroupedList label="Flavours" className="mt-6">
+                  <ListRow
+                    title="Flavour"
+                    detail="Personalise the look and feel"
+                    onClick={() => setFlavoursOpen(true)}
+                    trailing={
+                      <CaretRight
+                        size={18}
+                        aria-hidden
+                        className="text-muted-foreground"
+                      />
+                    }
+                  />
+                </GroupedList>
               </>
             )}
 
@@ -3213,6 +3257,18 @@ export default function Settings({
       </main>
       {aiAccessModal}
       <CheckoutResultOverlay />
+      {flavoursOpen && (
+        <Flavours
+          closing={flavoursClosing}
+          onClose={() => {
+            setFlavoursClosing(true)
+            setTimeout(() => {
+              setFlavoursOpen(false)
+              setFlavoursClosing(false)
+            }, 180)
+          }}
+        />
+      )}
     </div>
   )
 }

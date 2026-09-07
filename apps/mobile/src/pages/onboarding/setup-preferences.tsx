@@ -1,5 +1,7 @@
 import * as z from "zod"
 import { ArrowRight } from "@phosphor-icons/react"
+import type { VisualIdentity } from "@repo/ui"
+import { FlavourCarousel } from "@/components/flavour-carousel"
 
 const preferencesSchema = z.object({
   energyUnit: z.enum(["kcal", "Cal", "kJ"]).default("kcal"),
@@ -90,6 +92,9 @@ export function SetupPreferences({
   onChange,
   theme,
   setTheme,
+  identity,
+  identities,
+  setIdentity,
   weightUnit,
   setWeightUnit,
   waterGoalMl,
@@ -101,6 +106,9 @@ export function SetupPreferences({
   onChange: (value: SetupPreferencesValue) => void
   theme: "light" | "dark" | "system"
   setTheme: (value: "light" | "dark" | "system") => void
+  identity: string
+  identities: readonly VisualIdentity[]
+  setIdentity: (value: string) => void
   weightUnit: "kg" | "lbs"
   setWeightUnit: (value: "kg" | "lbs") => void
   waterGoalMl: number
@@ -143,6 +151,14 @@ export function SetupPreferences({
               ))}
             </div>
           </fieldset>
+          {identities.length > 1 && (
+            <FlavourCarousel
+              identities={identities}
+              identity={identity}
+              appearance={theme}
+              onChange={setIdentity}
+            />
+          )}
           <Choices
             label="Weight units"
             value={weightUnit}

@@ -174,8 +174,15 @@ describe("@repo/ui package boundary", () => {
       // Renders null; reads the shell and OTA bundle versions off Capacitor
       // and registers them against the account.
       "app-version-report.tsx",
+      // The feedback center: reads and writes through Convex, renders with
+      // @repo/ui primitives.
+      "feedback-center.tsx",
       // Renders null; syncs Convex data into the iOS widget extension.
       "widget-data-sync.tsx",
+      // The flavour picker: binds the shared Carousel primitive to the app's
+      // flavour registry and theme identity state. The slides it draws are
+      // app copy and per-flavour previews, not shared chrome.
+      "flavour-carousel.tsx",
     ])
     const unexpected = sourceFiles(mobileComponents)
       .map((path) => relative(mobileComponents, path))

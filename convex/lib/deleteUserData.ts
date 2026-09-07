@@ -76,6 +76,47 @@ async function deleteOwnedRecipes(
   return { deleted: 1, mayHaveMore: true };
 }
 
+async function deleteFeedbackData(
+  ctx: DeleteCtx,
+  userId: string,
+  limit: number,
+) {
+  // Remove votes this account cast first and keep the public aggregate honest.
+  const ownVote = await ctx.db
+    .query("feedbackVotes")
+    .withIndex("by_userId", (q) => q.eq("userId", userId))
+    .first();
+  if (ownVote) {
+    const item = await ctx.db.get("feedbackItems", ownVote.itemId);
+    if (item) {
+      await ctx.db.patch("feedbackItems", item._id, {
+        voteCount: Math.max(0, item.voteCount - 1),
+        updatedAt: Date.now(),
+      });
+    }
+    await ctx.db.delete("feedbackVotes", ownVote._id);
+    return { deleted: 1, mayHaveMore: true };
+  }
+
+  // Then remove votes attached to feedback the account authored before the
+  // parent row, including votes cast by other members.
+  const ownItem = await ctx.db
+    .query("feedbackItems")
+    .withIndex("by_userId", (q) => q.eq("userId", userId))
+    .first();
+  if (!ownItem) return { deleted: 0, mayHaveMore: false };
+  const votes = await ctx.db
+    .query("feedbackVotes")
+    .withIndex("by_itemId", (q) => q.eq("itemId", ownItem._id))
+    .take(limit);
+  if (votes.length > 0) {
+    for (const vote of votes) await ctx.db.delete("feedbackVotes", vote._id);
+    return { deleted: votes.length, mayHaveMore: true };
+  }
+  await ctx.db.delete("feedbackItems", ownItem._id);
+  return { deleted: 1, mayHaveMore: true };
+}
+
 /**
  * Delete a bounded batch of app-owned data for an authenticated user id.
  *
@@ -177,6 +218,11 @@ export async function deleteUserDataBatch(
   let budget = Math.max(1, Math.min(batchSize, 200));
   let deleted = 0;
   let remaining = false;
+
+  const feedback = await deleteFeedbackData(ctx, userId, Math.min(25, budget));
+  deleted += feedback.deleted;
+  budget -= feedback.deleted;
+  if (feedback.mayHaveMore) remaining = true;
 
   for (const [table, indexName, field] of tableSpecs) {
     if (budget <= 0) {

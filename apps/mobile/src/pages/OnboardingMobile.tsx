@@ -10,7 +10,6 @@ import {
   type SetupPreferencesValue,
 } from "./onboarding/setup-preferences"
 import { cacheEnergyUnit } from "@/lib/use-energy-unit"
-import "./onboarding/setup.css"
 import { useLocation } from "react-router"
 import {
   ArrowRight,
@@ -607,7 +606,14 @@ function QuickReplies<T extends string>({
 
 export function OnboardingMobile() {
   const navigate = useSmoothNavigate()
-  const { theme, setTheme } = useTheme()
+  const {
+    theme,
+    setTheme,
+    identity,
+    setIdentity,
+    identities,
+    resolvedIdentity,
+  } = useTheme()
   const [setupPreferences, setSetupPreferences] =
     useState<SetupPreferencesValue>(() =>
       parseSetupPreferences(safeLocalStorageGet("onerep:setup-preferences"))
@@ -1606,6 +1612,9 @@ export function OnboardingMobile() {
           onChange={setSetupPreferences}
           theme={theme}
           setTheme={setTheme}
+          identity={identity}
+          identities={identities}
+          setIdentity={setIdentity}
           weightUnit={weightUnit}
           setWeightUnit={setWeightUnit}
           waterGoalMl={waterGoalMl}
@@ -2208,7 +2217,13 @@ export function OnboardingMobile() {
                   <strong>{item.label}</strong>
                   <small>
                     {item.id === "preferences"
-                      ? `${theme} · ${weightUnit} · ${setupPreferences.energyUnit} · ${setupPreferences.workoutFocus}`
+                      ? [
+                          resolvedIdentity.label,
+                          theme,
+                          weightUnit,
+                          setupPreferences.energyUnit,
+                          setupPreferences.workoutFocus,
+                        ].join(" · ")
                       : item.id === "nutrition"
                         ? `${dietType} · ${trackingMode.replaceAll("_", " ")}`
                         : item.id === "lifestyle"

@@ -103,6 +103,11 @@ export async function createWasmRuntime(
           "needle: the wasm build embeds no weights — pass { url } or { bytes }",
         );
       }
+      if ("asset" in weights) {
+        throw new Error(
+          "needle: the wasm build cannot read bundled assets — pass { url }",
+        );
+      }
       const bytes =
         "bytes" in weights ? weights.bytes : await read(get, weights.url);
       const pointer = module._malloc(bytes.byteLength);

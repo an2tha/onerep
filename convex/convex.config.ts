@@ -36,6 +36,8 @@ const app = defineApp({
     RESEND_API_KEY: v.optional(v.string()),
     EMAIL_VERIFICATION_REQUIRED: v.optional(v.string()),
     AUTH_EMAIL_FROM: v.optional(v.string()),
+    /** Comma-separated accounts allowed to approve or decline feedback. */
+    FEEDBACK_MODERATOR_EMAILS: v.optional(v.string()),
     // Coach outreach. The kill switch is separate from the credentials on
     // purpose: a deployment can hold working push keys and still be forbidden
     // from speaking first, which is what every environment except production

@@ -828,7 +828,7 @@ describe("settings is reachable without a desktop sidebar", () => {
   })
 
   test("the native tab bar carries settings, and lights up on it", () => {
-    assert.match(NATIVE_BAR, /id: "\/settings", symbol: "gearshape"/)
+    assert.match(NATIVE_BAR, /id: "\/settings", symbol: "gearshape(\.fill)?"/)
     assert.match(NATIVE_BAR, /isTabActive\(pathname, "\/settings"\)/)
   })
 })

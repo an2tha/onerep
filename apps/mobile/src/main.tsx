@@ -34,7 +34,7 @@ import { CoachPushRegistration } from "@/components/coach-push-registration"
 import { MealCategorySync } from "@/components/meal-category-sync"
 import { RetentionTracking } from "@/components/retention-tracking"
 
-import "./index.css"
+import "./styles/index.css"
 import "./i18n"
 
 declare global {
@@ -106,6 +106,7 @@ import {
   toast,
   dismissTopmost,
   EnergyUnitProvider,
+  PALETTES,
 } from "@repo/ui"
 import { useEnergyUnit } from "@/lib/use-energy-unit"
 import { AppVersionReport } from "@/components/app-version-report"
@@ -1279,7 +1280,7 @@ createRoot(document.getElementById("root")!).render(
       authClient={providerAuthClient}
     >
       <PostHogProvider client={posthog}>
-        <ThemeProvider>
+        <ThemeProvider identities={PALETTES}>
           <PwaLifecycle />
           <ErrorBoundary label="the app">
             {/* Inside the boundary on purpose: a bundle whose tree crashes

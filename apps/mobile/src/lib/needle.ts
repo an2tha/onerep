@@ -19,19 +19,23 @@ import { otaOrigin } from "@/lib/ota"
  * Where `needle.js`, `needle.wasm` and `needle2.cact` are served from.
  *
  * Read on the web and, in practice, nowhere else: the native archives link the
- * `.cact` in as `needle_weights`, so an iPhone already has the model before it
- * has a network. This still answers correctly for native because a build
- * running tuned weights would fetch them, and because the answer has to be an
- * absolute origin when it does — the assets live outside the OTA bundle, and a
- * root-relative path resolves inside whichever bundle Capgo installed last, so
- * it 404s after the first update. The same rule, for the same reason, as
- * `modelBase` in `onnx-runtime.ts`.
+ * stock `.cact` in as `needle_weights`, so an iPhone already has the model
+ * before it has a network. The tuned `.cact` is a separate file — it lives in
+ * `public/needle/` and is bundled by `cap sync`, so native loads it directly
+ * from the app bundle via `asset: "needle/needle2-onerep.cact"`.
  *
- * On the web it must not be. The same origin already serves `public/needle`
- * under Vite and from the Pages deploy, and pointing the browser at production
- * instead fails in the least helpful way available: Pages answers an unknown
- * path with the SPA shell, so the fetch succeeds with a 200 and the runtime
- * reports a wasm compile error for what is really an HTML page.
+ * The assets live outside the OTA bundle (Capgo swaps the whole `dist/` on
+ * every update), so a root-relative path resolves inside whichever bundle
+ * Capgo installed last. That is fine for the first launch — the bundle always
+ * has the tuned file — but after an OTA update that directory is gone. The
+ * native plugin handles this transparently: `asset` fails silently and the
+ * plugin falls through to `url`, which is the network origin.
+ *
+ * On the web it must not be an absolute origin. The same origin already serves
+ * `public/needle` under Vite and from the Pages deploy, and pointing the
+ * browser at production instead fails in the least helpful way available: Pages
+ * answers an unknown path with the SPA shell, so the fetch succeeds with a 200
+ * and the runtime reports a wasm compile error for what is really an HTML page.
  */
 export function needleBase() {
   return Capacitor.isNativePlatform() ? `${otaOrigin()}/needle` : "/needle"
@@ -84,15 +88,23 @@ let pending: Promise<NeedleSession> | null = null
  * is the only thing standing between that and the diary, so raising the floor
  * is the lever if it starts writing things nobody asked for.
  *
- * Native reads this over the network like the web does — the linked-in weights
- * are the stock ones — which is why `needleBase()` has to be absolute there.
+ * Native loads from the app bundle via `asset` — the file is placed there by
+ * `needle:tuned` + `cap sync`. The `fallbackUrl` covers the rare case where
+ * an OTA update has removed the `needle/` directory from the active bundle;
+ * the native plugin tries the asset first and, if missing, fetches from the
+ * network.
  */
 const TUNED_WEIGHTS = "needle2-onerep.cact"
 
 export function needle(options: CreateNeedleOptions = {}) {
   pending ??= createNeedleSession({
     baseUrl: needleBase(),
-    weights: { url: `${needleBase()}/${TUNED_WEIGHTS}` },
+    weights: Capacitor.isNativePlatform()
+      ? {
+          asset: `needle/${TUNED_WEIGHTS}`,
+          fallbackUrl: `${needleBase()}/${TUNED_WEIGHTS}`,
+        }
+      : { url: `${needleBase()}/${TUNED_WEIGHTS}` },
     system: needleFacts(),
     // Escalate rather than act. The calibration holds that both the confidence
     // head and the decode probability have to agree, so the failure mode below

@@ -12,13 +12,18 @@ import type { NeedleRuntime, NeedleWeights } from "./types.ts";
 export type NeedlePluginApi = {
   isAvailable(): Promise<{ available: boolean; platform: string }>;
   /**
-   * With neither `url` nor `data`, the engine keeps the weights it was linked
-   * with and nothing is transferred. `url` and `data` are the override path,
-   * for tuned `.cact` files.
+   * With neither `url`, `data` nor `asset`, the engine keeps the weights it was
+   * linked with and nothing is transferred. `url` fetches over the network,
+   * `asset` reads a bundled file (relative to the app bundle root, e.g.
+   * `"needle/needle2-onerep.cact"`), and `data` carries base64-encoded bytes.
    */
-  load(options: { url?: string; data?: string }): Promise<{
+  load(options: {
+    url?: string;
+    data?: string;
+    asset?: string;
+  }): Promise<{
     bytes: number;
-    source: "embedded" | "url" | "data";
+    source: "embedded" | "url" | "data" | "asset" | "cached";
   }>;
   init(options: {
     system?: string;
@@ -61,13 +66,27 @@ export async function createNativeRuntime(
      * and the engine object references that symbol directly, so the weights the
      * app ships with are the weights it runs. The bridge carries nothing.
      *
-     * The two override paths are for tuned `.cact` files. `url` beats `bytes`
-     * by a distance: 13.7 MB across the bridge means base64, an 18 MB string
-     * marshalled through JSON, on a phone. Native fetches and caches it itself.
+     * `asset` is the normal override path on native: the tuned `.cact` sits in
+     * the app bundle (placed there by `needle:tuned` + `cap sync`), and the
+     * native plugin reads it directly — no network, no serialisation, no cache.
+     *
+     * `url` is the fallback for the rare case where the asset is absent from
+     * the bundle (e.g. after an OTA update removed `needle/`). Native fetches
+     * and caches it itself.
+     *
+     * `url` beats `bytes` by a distance: 13.7 MB across the bridge means
+     * base64, an 18 MB string marshalled through JSON, on a phone.
      */
     async load(weights: NeedleWeights) {
       if ("embedded" in weights) {
         await plugin.load({});
+        return;
+      }
+      if ("asset" in weights) {
+        await plugin.load({
+          asset: weights.asset,
+          ...(weights.fallbackUrl ? { url: weights.fallbackUrl } : {}),
+        });
         return;
       }
       if ("url" in weights) {

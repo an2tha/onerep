@@ -1,3 +1,6 @@
+import { cssVariable } from "./visual-identity"
+
+/** Serializable product data colors. Do not replace these with CSS values. */
 export const ONE_REP_PALETTE = {
   iron: "#5b5bd6",
   rubber: "#2f2d2a",
@@ -9,8 +12,23 @@ export const ONE_REP_PALETTE = {
   cordovan: "#b42335",
   zinc: "#77736d",
   chalkLine: "#b8b3aa",
-  /** The Health page's own accent, same as `--accent-health` in light. */
   teal: "#1f7a86",
+} as const
+
+/** Runtime-switchable equivalents for visual rendering only. */
+export const VISUAL_IDENTITY_PALETTE = {
+  iron: cssVariable("--palette-iron", "#5b5bd6"),
+  rubber: cssVariable("--palette-rubber", "#2f2d2a"),
+  tape: cssVariable("--palette-tape", "#b55324"),
+  plate: cssVariable("--palette-plate", "#1673b1"),
+  patina: cssVariable("--palette-patina", "#3f7d44"),
+  brass: cssVariable("--palette-brass", "#9a5d00"),
+  violet: cssVariable("--palette-violet", "#9b4d96"),
+  cordovan: cssVariable("--palette-cordovan", "#b42335"),
+  zinc: cssVariable("--palette-zinc", "#77736d"),
+  chalkLine: cssVariable("--palette-chalk-line", "#b8b3aa"),
+  /** The Health page's own accent, same as `--accent-health` in light. */
+  teal: cssVariable("--palette-teal", "#1f7a86"),
 } as const
 
 export function tint(color: string, amount = 10) {
@@ -18,22 +36,22 @@ export function tint(color: string, amount = 10) {
 }
 
 export const APP_ACCENT_COLORS = {
-  food: ONE_REP_PALETTE.tape,
-  water: ONE_REP_PALETTE.plate,
-  supplement: ONE_REP_PALETTE.patina,
-  workout: ONE_REP_PALETTE.iron,
-  progress: ONE_REP_PALETTE.violet,
-  health: ONE_REP_PALETTE.teal,
-  complete: ONE_REP_PALETTE.patina,
-  caution: ONE_REP_PALETTE.brass,
-  danger: ONE_REP_PALETTE.cordovan,
-  neutral: ONE_REP_PALETTE.zinc,
+  food: VISUAL_IDENTITY_PALETTE.tape,
+  water: VISUAL_IDENTITY_PALETTE.plate,
+  supplement: VISUAL_IDENTITY_PALETTE.patina,
+  workout: VISUAL_IDENTITY_PALETTE.iron,
+  progress: VISUAL_IDENTITY_PALETTE.violet,
+  health: VISUAL_IDENTITY_PALETTE.teal,
+  complete: VISUAL_IDENTITY_PALETTE.patina,
+  caution: VISUAL_IDENTITY_PALETTE.brass,
+  danger: VISUAL_IDENTITY_PALETTE.cordovan,
+  neutral: VISUAL_IDENTITY_PALETTE.zinc,
 } as const
 
 export const MACRO_COLORS = {
-  protein: ONE_REP_PALETTE.tape,
-  carbs: ONE_REP_PALETTE.plate,
-  fat: ONE_REP_PALETTE.violet,
+  protein: VISUAL_IDENTITY_PALETTE.tape,
+  carbs: VISUAL_IDENTITY_PALETTE.plate,
+  fat: VISUAL_IDENTITY_PALETTE.violet,
 } as const
 
 export const MACRO_TONES = {
@@ -44,30 +62,30 @@ export const MACRO_TONES = {
 
 export const DEFAULT_MEAL_TONES = {
   breakfast: {
-    color: ONE_REP_PALETTE.tape,
-    bg: tint(ONE_REP_PALETTE.tape, 12),
+    color: VISUAL_IDENTITY_PALETTE.tape,
+    bg: tint(VISUAL_IDENTITY_PALETTE.tape, 12),
   },
   lunch: {
-    color: ONE_REP_PALETTE.plate,
-    bg: tint(ONE_REP_PALETTE.plate, 12),
+    color: VISUAL_IDENTITY_PALETTE.plate,
+    bg: tint(VISUAL_IDENTITY_PALETTE.plate, 12),
   },
   dinner: {
-    color: ONE_REP_PALETTE.violet,
-    bg: tint(ONE_REP_PALETTE.violet, 12),
+    color: VISUAL_IDENTITY_PALETTE.violet,
+    bg: tint(VISUAL_IDENTITY_PALETTE.violet, 12),
   },
   snack: {
-    color: ONE_REP_PALETTE.brass,
-    bg: tint(ONE_REP_PALETTE.brass, 12),
+    color: VISUAL_IDENTITY_PALETTE.brass,
+    bg: tint(VISUAL_IDENTITY_PALETTE.brass, 12),
   },
 } as const
 
 export const CUSTOM_CATEGORY_TONES = [
-  { color: ONE_REP_PALETTE.cordovan, bg: tint(ONE_REP_PALETTE.cordovan, 12) },
-  { color: ONE_REP_PALETTE.tape, bg: tint(ONE_REP_PALETTE.tape, 12) },
-  { color: ONE_REP_PALETTE.plate, bg: tint(ONE_REP_PALETTE.plate, 12) },
-  { color: ONE_REP_PALETTE.violet, bg: tint(ONE_REP_PALETTE.violet, 12) },
-  { color: ONE_REP_PALETTE.patina, bg: tint(ONE_REP_PALETTE.patina, 12) },
-  { color: ONE_REP_PALETTE.brass, bg: tint(ONE_REP_PALETTE.brass, 12) },
+  { color: VISUAL_IDENTITY_PALETTE.cordovan, bg: tint(VISUAL_IDENTITY_PALETTE.cordovan, 12) },
+  { color: VISUAL_IDENTITY_PALETTE.tape, bg: tint(VISUAL_IDENTITY_PALETTE.tape, 12) },
+  { color: VISUAL_IDENTITY_PALETTE.plate, bg: tint(VISUAL_IDENTITY_PALETTE.plate, 12) },
+  { color: VISUAL_IDENTITY_PALETTE.violet, bg: tint(VISUAL_IDENTITY_PALETTE.violet, 12) },
+  { color: VISUAL_IDENTITY_PALETTE.patina, bg: tint(VISUAL_IDENTITY_PALETTE.patina, 12) },
+  { color: VISUAL_IDENTITY_PALETTE.brass, bg: tint(VISUAL_IDENTITY_PALETTE.brass, 12) },
 ] as const
 
 export const EXERCISE_CATEGORY_COLORS = {
@@ -79,91 +97,91 @@ export const EXERCISE_CATEGORY_COLORS = {
 
 export const SET_TYPE_TONES = {
   working: {
-    color: ONE_REP_PALETTE.plate,
-    bg: tint(ONE_REP_PALETTE.plate, 10),
+    color: VISUAL_IDENTITY_PALETTE.plate,
+    bg: tint(VISUAL_IDENTITY_PALETTE.plate, 10),
   },
   warmup: {
-    color: ONE_REP_PALETTE.zinc,
-    bg: tint(ONE_REP_PALETTE.zinc, 10),
+    color: VISUAL_IDENTITY_PALETTE.zinc,
+    bg: tint(VISUAL_IDENTITY_PALETTE.zinc, 10),
   },
   failure: {
-    color: ONE_REP_PALETTE.cordovan,
-    bg: tint(ONE_REP_PALETTE.cordovan, 10),
+    color: VISUAL_IDENTITY_PALETTE.cordovan,
+    bg: tint(VISUAL_IDENTITY_PALETTE.cordovan, 10),
   },
   myoreps: {
-    color: ONE_REP_PALETTE.brass,
-    bg: tint(ONE_REP_PALETTE.brass, 10),
+    color: VISUAL_IDENTITY_PALETTE.brass,
+    bg: tint(VISUAL_IDENTITY_PALETTE.brass, 10),
   },
   drop: {
-    color: ONE_REP_PALETTE.patina,
-    bg: tint(ONE_REP_PALETTE.patina, 10),
+    color: VISUAL_IDENTITY_PALETTE.patina,
+    bg: tint(VISUAL_IDENTITY_PALETTE.patina, 10),
   },
 } as const
 
 export const MUSCLE_COLORS = {
-  quadriceps: ONE_REP_PALETTE.plate,
-  glutes: ONE_REP_PALETTE.brass,
-  hamstrings: ONE_REP_PALETTE.violet,
-  chest: ONE_REP_PALETTE.cordovan,
-  back: ONE_REP_PALETTE.patina,
-  shoulders: ONE_REP_PALETTE.tape,
-  biceps: "#736a78",
-  triceps: "#687078",
-  core: ONE_REP_PALETTE.brass,
-  calves: "#667572",
+  quadriceps: VISUAL_IDENTITY_PALETTE.plate,
+  glutes: VISUAL_IDENTITY_PALETTE.brass,
+  hamstrings: VISUAL_IDENTITY_PALETTE.violet,
+  chest: VISUAL_IDENTITY_PALETTE.cordovan,
+  back: VISUAL_IDENTITY_PALETTE.patina,
+  shoulders: VISUAL_IDENTITY_PALETTE.tape,
+  biceps: cssVariable("--muscle-biceps", "#736a78"),
+  triceps: cssVariable("--muscle-triceps", "#687078"),
+  core: VISUAL_IDENTITY_PALETTE.brass,
+  calves: cssVariable("--muscle-calves", "#667572"),
 } as const
 
 export const MICRO_COLORS = {
-  fiber: ONE_REP_PALETTE.patina,
-  sugar: ONE_REP_PALETTE.brass,
-  saturatedFat: "#7d6a6c",
-  transFat: ONE_REP_PALETTE.cordovan,
-  cholesterol: ONE_REP_PALETTE.tape,
-  sodium: ONE_REP_PALETTE.plate,
-  potassium: "#6e7466",
-  calcium: "#6b7678",
-  iron: ONE_REP_PALETTE.violet,
-  magnesium: "#6a7773",
-  phosphorus: "#70727c",
-  zinc: ONE_REP_PALETTE.brass,
-  vitaminC: "#7d7465",
-  vitaminA: "#7d6f66",
-  vitaminD: "#7d7668",
-  vitaminB12: "#776c7c",
-  caffeine: ONE_REP_PALETTE.zinc,
-  alcohol: "#7c6868",
+  fiber: VISUAL_IDENTITY_PALETTE.patina,
+  sugar: VISUAL_IDENTITY_PALETTE.brass,
+  saturatedFat: cssVariable("--micro-saturated-fat", "#7d6a6c"),
+  transFat: VISUAL_IDENTITY_PALETTE.cordovan,
+  cholesterol: VISUAL_IDENTITY_PALETTE.tape,
+  sodium: VISUAL_IDENTITY_PALETTE.plate,
+  potassium: cssVariable("--micro-potassium", "#6e7466"),
+  calcium: cssVariable("--micro-calcium", "#6b7678"),
+  iron: VISUAL_IDENTITY_PALETTE.violet,
+  magnesium: cssVariable("--micro-magnesium", "#6a7773"),
+  phosphorus: cssVariable("--micro-phosphorus", "#70727c"),
+  zinc: VISUAL_IDENTITY_PALETTE.brass,
+  vitaminC: cssVariable("--micro-vitamin-c", "#7d7465"),
+  vitaminA: cssVariable("--micro-vitamin-a", "#7d6f66"),
+  vitaminD: cssVariable("--micro-vitamin-d", "#7d7668"),
+  vitaminB12: cssVariable("--micro-vitamin-b12", "#776c7c"),
+  caffeine: VISUAL_IDENTITY_PALETTE.zinc,
+  alcohol: cssVariable("--micro-alcohol", "#7c6868"),
 } as const
 
 export const SUPPLEMENT_TONES = {
   creatine: {
-    color: ONE_REP_PALETTE.patina,
-    bg: tint(ONE_REP_PALETTE.patina, 14),
+    color: VISUAL_IDENTITY_PALETTE.patina,
+    bg: tint(VISUAL_IDENTITY_PALETTE.patina, 14),
   },
   protein: {
     color: MACRO_COLORS.protein,
     bg: tint(MACRO_COLORS.protein, 14),
   },
   vitamins: {
-    color: ONE_REP_PALETTE.violet,
-    bg: tint(ONE_REP_PALETTE.violet, 14),
+    color: VISUAL_IDENTITY_PALETTE.violet,
+    bg: tint(VISUAL_IDENTITY_PALETTE.violet, 14),
   },
   caffeine: {
-    color: ONE_REP_PALETTE.brass,
-    bg: tint(ONE_REP_PALETTE.brass, 14),
+    color: VISUAL_IDENTITY_PALETTE.brass,
+    bg: tint(VISUAL_IDENTITY_PALETTE.brass, 14),
   },
 } as const
 
 export const NUTRITION_SCORE_COLORS = {
-  a: ONE_REP_PALETTE.patina,
-  b: "#707566",
-  c: ONE_REP_PALETTE.brass,
-  d: ONE_REP_PALETTE.tape,
-  e: ONE_REP_PALETTE.cordovan,
+  a: VISUAL_IDENTITY_PALETTE.patina,
+  b: cssVariable("--nutrition-score-b", "#707566"),
+  c: VISUAL_IDENTITY_PALETTE.brass,
+  d: VISUAL_IDENTITY_PALETTE.tape,
+  e: VISUAL_IDENTITY_PALETTE.cordovan,
 } as const
 
 export const NOVA_COLORS = [
-  ONE_REP_PALETTE.patina,
-  ONE_REP_PALETTE.brass,
-  ONE_REP_PALETTE.tape,
-  ONE_REP_PALETTE.cordovan,
+  VISUAL_IDENTITY_PALETTE.patina,
+  VISUAL_IDENTITY_PALETTE.brass,
+  VISUAL_IDENTITY_PALETTE.tape,
+  VISUAL_IDENTITY_PALETTE.cordovan,
 ] as const

@@ -1,3 +1,25 @@
+@import "@repo/ui/styles.css";
+
+/* ─── Dashboard tweaks ────────────────────────────────────────────────────── */
+
+/* Keep Today's compact header and summary on one grid. */
+.dashboard-today .app-hero-wash {
+  opacity: 0.72;
+}
+
+@media (min-width: 1024px) {
+  .dashboard-today .dashboard-hero-ledger {
+    display: none;
+  }
+
+  .dashboard-today .dashboard-hero-frame {
+    gap: 0;
+    padding-bottom: 1.5rem;
+  }
+}
+
+/* ─── Onboarding setup (moved from pages/onboarding/setup.css) ────────────── */
+
 .setup-shell {
   display: flex;
   min-height: 100svh;
@@ -508,4 +530,313 @@
   .onboarding-chat-chip:not([data-selected="true"])
   .onboarding-chat-chip-hint {
   color: var(--muted-foreground);
+}
+
+/* ─── Flavour carousel ───────────────────────────────────────────────────── */
+.flavour-carousel {
+  width: 100%;
+  min-width: 0;
+}
+
+.flavour-slide {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--flavour-radius, 14px);
+  background: var(--surface-panel);
+}
+
+.flavour-preview {
+  position: relative;
+  display: grid;
+  min-height: 280px;
+  grid-template-rows: auto 1fr auto auto;
+  gap: 18px;
+  overflow: hidden;
+  padding: 22px;
+  background: var(--flavour-surface, #f2f1ed);
+  color: #302f2b;
+  font-family: var(--flavour-font, inherit);
+}
+
+.flavour-preview::before {
+  position: absolute;
+  inset: -35% -15% auto auto;
+  width: 240px;
+  height: 240px;
+  border-radius: 50%;
+  background: color-mix(
+    in srgb,
+    var(--flavour-workout) 13%,
+    transparent
+  );
+  content: "";
+}
+
+.flavour-preview[data-appearance="dark"] {
+  color: #efeee8;
+}
+
+.flavour-preview-topbar,
+.flavour-preview-hero,
+.flavour-preview-grid,
+.flavour-preview-rows {
+  position: relative;
+  z-index: 1;
+}
+
+.flavour-preview-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.flavour-preview-avatar {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: calc(var(--flavour-radius, 14px) * 0.75);
+  background: var(--flavour-workout);
+  color: white;
+}
+
+.flavour-preview-line {
+  display: block;
+  height: 8px;
+  border-radius: 3px;
+  background: currentColor;
+  opacity: 0.18;
+}
+
+.flavour-preview-line-short {
+  width: 76px;
+}
+
+.flavour-preview-hero {
+  align-self: end;
+}
+
+.flavour-preview-line-title {
+  width: 48%;
+  height: 17px;
+  margin-bottom: 14px;
+  opacity: 0.82;
+}
+
+.flavour-preview-greeting {
+  display: block;
+  margin-bottom: 14px;
+  font-family: var(--flavour-heading, inherit);
+  font-size: 27px;
+  line-height: 1.1;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: currentColor;
+}
+
+.flavour-preview-line-copy {
+  width: 84%;
+  margin-bottom: 8px;
+}
+
+.flavour-preview-line-copy-short {
+  width: 62%;
+}
+
+.flavour-preview-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr;
+  gap: 9px;
+}
+
+.flavour-preview-grid > span {
+  height: 62px;
+  border-radius: var(--flavour-radius, 10px);
+  background: color-mix(
+    in srgb,
+    var(--flavour-workout) 18%,
+    transparent
+  );
+  border: 1px solid
+    color-mix(in srgb, var(--flavour-workout) 28%, transparent);
+}
+
+.flavour-preview-grid > span[data-tone="water"] {
+  background: color-mix(in srgb, var(--flavour-water) 18%, transparent);
+  border-color: color-mix(in srgb, var(--flavour-water) 28%, transparent);
+}
+
+.flavour-preview-grid > span[data-tone="food"] {
+  background: color-mix(in srgb, var(--flavour-food) 18%, transparent);
+  border-color: color-mix(in srgb, var(--flavour-food) 28%, transparent);
+}
+
+.flavour-preview-rows {
+  display: grid;
+  gap: 8px;
+}
+
+.flavour-preview-rows > span {
+  display: flex;
+  height: 18px;
+  align-items: center;
+  gap: 9px;
+}
+
+.flavour-preview-rows i {
+  width: 18px;
+  height: 7px;
+  border-radius: 2px;
+  background: var(--flavour-supplement);
+}
+
+.flavour-preview-rows i[data-tone="workout"] {
+  background: var(--flavour-workout);
+}
+
+.flavour-preview-rows b {
+  width: min(62%, 210px);
+  height: 7px;
+  border-radius: 2px;
+  background: currentColor;
+  opacity: 0.17;
+}
+
+.flavour-slide-copy {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 14px;
+  padding: 20px;
+}
+
+.flavour-slide-icon {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--flavour-workout) 16%, transparent);
+  color: var(--flavour-workout);
+}
+
+.flavour-slide-title {
+  display: flex;
+  min-height: 26px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.flavour-slide-title h3 {
+  font-size: 18px;
+  line-height: 1.25;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+}
+
+.flavour-slide-copy p {
+  max-width: 48ch;
+  margin-top: 5px;
+  color: var(--muted-foreground);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.flavour-selected {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  gap: 5px;
+  border-radius: 999px;
+  padding: 4px 9px;
+  background: var(--foreground);
+  color: var(--background);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.flavour-carousel-nav {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-top: 14px;
+}
+
+.flavour-carousel .flavour-carousel-arrow {
+  position: static;
+  flex-shrink: 0;
+  width: 42px;
+  height: 42px;
+  border-color: color-mix(in srgb, var(--foreground) 20%, transparent);
+  background: color-mix(in srgb, var(--background) 88%, transparent);
+  color: var(--foreground);
+  translate: none;
+  transform: none;
+}
+
+.flavour-carousel-dots {
+  display: flex;
+  flex: 1;
+  justify-content: center;
+  gap: 7px;
+}
+
+.flavour-carousel-dots button {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  outline: none;
+}
+
+.flavour-carousel-dots button::after {
+  display: block;
+  width: 6px;
+  height: 6px;
+  margin: auto;
+  border-radius: inherit;
+  background: var(--muted-foreground);
+  content: "";
+  opacity: 0.42;
+  transition:
+    width var(--motion-fast) var(--motion-ease-out),
+    opacity var(--motion-fast) var(--motion-ease-out);
+}
+
+.flavour-carousel-dots button[aria-pressed="true"]::after {
+  width: 18px;
+  background: var(--foreground);
+  opacity: 1;
+}
+
+.flavour-carousel-dots button:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
+}
+
+@media (max-width: 480px) {
+  .flavour-preview {
+    min-height: 240px;
+    padding: 18px;
+  }
+
+  .flavour-slide-copy {
+    grid-template-columns: 38px minmax(0, 1fr);
+    gap: 11px;
+    padding: 17px;
+  }
+
+  .flavour-slide-icon {
+    width: 38px;
+    height: 38px;
+  }
+}
+
+/* ─── Flavours overlay ────────────────────────────────────────────────────── */
+/* QuickAddMore rides on the `.quick-add-reveal` pour behind it; the flavours
+   sheet has no reveal, so it brings its own backdrop: the app's background
+   colour, thickened, plus a blur so the settings list behind it frosts over. */
+.flavours-overlay {
+  background-color: color-mix(in srgb, var(--background) 82%, transparent);
+  -webkit-backdrop-filter: blur(24px) saturate(1.25);
+  backdrop-filter: blur(24px) saturate(1.25);
 }

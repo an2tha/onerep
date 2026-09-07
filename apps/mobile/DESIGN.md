@@ -32,13 +32,13 @@ This document captures the implemented onboarding surface only. It does not repl
 
 The interface uses clear headings, neutral surfaces, bordered choices, and direct actions. Brand expression comes from Instrument Sans, the OneRep mark, spacing, and consistent control shapes. Existing Settings sections retain their shared application components when opened from setup.
 
-Implementation sources are [setup.css](src/pages/onboarding/setup.css), [OnboardingMobile.tsx](src/pages/OnboardingMobile.tsx), [setup-preferences.tsx](src/pages/onboarding/setup-preferences.tsx), and the shared [UI stylesheet](../../packages/ui/src/index.css). This is a source-derived record. Browser validation was unavailable; rendered layout, contrast, device behavior, and screenshots have not been verified.
+Implementation sources are [styles/index.css](src/styles/index.css), [OnboardingMobile.tsx](src/pages/OnboardingMobile.tsx), [setup-preferences.tsx](src/pages/onboarding/setup-preferences.tsx), and the shared [UI stylesheet](../../packages/ui/src/index.css). This is a source-derived record. Browser validation was unavailable; rendered layout, contrast, device behavior, and screenshots have not been verified.
 
 ## Colors
 
 Use shared theme properties rather than a separate onboarding palette. `--background` supplies the canvas; `--foreground` supplies headings, primary actions, and selected choices. Inverted controls use the background color for their text. `--surface-panel` distinguishes the sidebar and cards. `--muted-foreground` carries descriptions and secondary labels; `--border` supplies dividers and control outlines.
 
-Light, dark, and device-matched appearance use the shared theme provider. Preserve those bindings when extending setup. The small theme previews have their own illustrative light and dark colors defined in setup.css; those swatches are preview artwork, not replacements for application theme tokens. Errors use the shared destructive color.
+Light, dark, and device-matched appearance use the shared theme provider. Preserve those bindings when extending setup. The small theme previews have their own illustrative light and dark colors defined in styles/index.css; those swatches are preview artwork, not replacements for application theme tokens. Errors use the shared destructive color.
 
 ## Typography
 

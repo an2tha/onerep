@@ -6,6 +6,14 @@ const pageSource = readFileSync(
   new URL("./OnboardingMobile.tsx", import.meta.url),
   "utf8"
 )
+const preferencesSource = readFileSync(
+  new URL("./onboarding/setup-preferences.tsx", import.meta.url),
+  "utf8"
+)
+const flavourCarouselSource = readFileSync(
+  new URL("../components/flavour-carousel.tsx", import.meta.url),
+  "utf8"
+)
 const controlsSource = readFileSync(
   new URL(
     "../../../../packages/ui/src/components/onboarding-controls.tsx",
@@ -56,6 +64,16 @@ describe("Onboarding production contract", () => {
 
   test("the header says where you are in the journey", () => {
     assert.match(pageSource, /\$\{stage \+ 1\} of \$\{stages\.length\}/)
+  })
+
+  test("lets people choose a flavour during app setup", () => {
+    assert.match(preferencesSource, /<FlavourCarousel/)
+    assert.match(pageSource, /identity=\{identity\}/)
+    assert.match(pageSource, /resolvedIdentity\.label/)
+    assert.match(flavourCarouselSource, /<Carousel/)
+    assert.match(flavourCarouselSource, /className="flavour-preview"/)
+    assert.match(flavourCarouselSource, /profile\.description/)
+    assert.match(flavourCarouselSource, /const FLAVOUR_PROFILES/)
   })
 
   test("reuses the real Coach chat backend", () => {

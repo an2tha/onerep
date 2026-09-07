@@ -59,16 +59,24 @@ public class NeedlePlugin: CAPPlugin, CAPBridgedPlugin {
     /// `needle_load` is the override rather than the setup step. Calling this
     /// with no arguments transfers nothing and touches no disk.
     ///
-    /// The override exists for tuned `.cact` files. A URL beats base64 by a
-    /// distance: 13.7 MB across the bridge is an 18 MB JSON string. The file is
-    /// cached in Application Support, keyed by the URL's last path component,
-    /// and excluded from iCloud backup — it is a redownloadable artifact, and
-    /// 13 MB of every customer's iCloud quota is not ours to spend.
+    /// The override exists for tuned `.cact` files. The normal path is `asset`:
+    /// the tuned file is placed in the app bundle by `needle:tuned` + `cap sync`,
+    /// and `Bundle.main` resolves it — no network, no serialisation, no cache.
+    ///
+    /// `url` is the fallback for when the asset is absent (e.g. after an OTA
+    /// update removed the `needle/` directory). The file is cached in
+    /// Application Support, keyed by the URL's last path component, and excluded
+    /// from iCloud backup — it is a redownloadable artifact, and 13 MB of every
+    /// customer's iCloud quota is not ours to spend.
+    ///
+    /// `data` carries base64-encoded bytes across the bridge: 13.7 MB becomes
+    /// an 18 MB JSON string, so it is the last resort.
     @objc func load(_ call: CAPPluginCall) {
         queue.async { [weak self] in
             guard let self else { return }
-            let override = call.getString("url") ?? call.getString("data")
-            if override == nil {
+            let hasAsset = call.getString("asset") != nil
+            let hasOverride = hasAsset || call.getString("url") != nil || call.getString("data") != nil
+            if !hasOverride {
                 self.loaded = true
                 call.resolve(["bytes": 0, "source": "embedded"])
                 return
@@ -78,7 +86,19 @@ public class NeedlePlugin: CAPPlugin, CAPBridgedPlugin {
                 return
             }
             do {
-                let data = try self.weightBytes(call)
+                let data: Data
+                if hasAsset {
+                    do {
+                        data = try self.weightBytes(call)
+                    } catch NeedleError.assetNotFound {
+                        // Asset not in bundle (e.g. after OTA update) — fall
+                        // through to the network URL if one was supplied.
+                        guard call.getString("url") != nil else { throw NeedleError.assetNotFound(call.getString("asset") ?? "") }
+                        data = try self.weightBytesFromURL(call)
+                    }
+                } else {
+                    data = try self.weightBytesFromURL(call)
+                }
                 let code = data.withUnsafeBytes { buffer -> Int32 in
                     guard let base = buffer.bindMemory(to: UInt8.self).baseAddress else {
                         return -1
@@ -91,10 +111,15 @@ public class NeedlePlugin: CAPPlugin, CAPBridgedPlugin {
                 }
                 self.weights = data
                 self.loaded = true
-                call.resolve([
-                    "bytes": data.count,
-                    "source": call.getString("url") == nil ? "data" : "url",
-                ])
+                let source: String
+                if call.getString("asset") != nil {
+                    source = "asset"
+                } else if call.getString("url") != nil {
+                    source = "url"
+                } else {
+                    source = "data"
+                }
+                call.resolve(["bytes": data.count, "source": source])
             } catch {
                 call.reject("needle: could not load weights — \(error.localizedDescription)")
             }
@@ -173,6 +198,25 @@ public class NeedlePlugin: CAPPlugin, CAPBridgedPlugin {
     // MARK: - Weights
 
     private func weightBytes(_ call: CAPPluginCall) throws -> Data {
+        if let path = call.getString("asset") {
+            let parts = path.split(separator: "/", omittingEmptySubsequences: true)
+            let file = String(parts.last!)
+            let subdirectory = parts.count > 1
+                ? parts.dropLast().map(String.init).joined(separator: "/")
+                : nil
+            guard let url = Bundle.main.url(
+                forResource: file,
+                withExtension: nil,
+                subdirectory: subdirectory
+            ) else {
+                throw NeedleError.assetNotFound(path)
+            }
+            return try Data(contentsOf: url)
+        }
+        return try weightBytesFromURL(call)
+    }
+
+    private func weightBytesFromURL(_ call: CAPPluginCall) throws -> Data {
         if let encoded = call.getString("data") {
             guard let decoded = Data(base64Encoded: encoded) else {
                 throw NeedleError.badBase64
@@ -224,13 +268,18 @@ public class NeedlePlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     private enum NeedleError: LocalizedError {
+        case assetNotFound(String)
         case badBase64
         case noSource
 
         var errorDescription: String? {
             switch self {
-            case .badBase64: return "weights were not valid base64"
-            case .noSource: return "load needs either url or data"
+            case .assetNotFound(let path):
+                return "bundled asset not found: \(path)"
+            case .badBase64:
+                return "weights were not valid base64"
+            case .noSource:
+                return "load needs url, asset, or data"
             }
         }
     }

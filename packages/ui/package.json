@@ -19,7 +19,8 @@
     "./progress": "./src/progress.ts",
     "./settings": "./src/settings.ts",
     "./workout": "./src/workout.ts",
-    "./styles.css": "./src/index.css"
+    "./styles.css": "./src/index.css",
+    "./palette.css": "./src/styles/palette.css"
   },
   "dependencies": {
     "@base-ui/react": "^1.3.0",

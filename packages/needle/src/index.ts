@@ -44,14 +44,15 @@ export type CreateNeedleOptions = Omit<
   /**
    * Where `needle.js`, `needle.wasm` and `needle2.cact` are served from.
    *
-   * Read by the wasm backend only. Native links the weights in and fetches
-   * nothing, so none of these three URLs is ever resolved there.
+   * Read by the wasm backend only. Native links the stock weights in and loads
+   * the tuned `.cact` directly from the app bundle via `asset`, so none of
+   * these URLs is ever resolved there.
    *
-   * It must be absolute on native all the same, for the day somebody points
-   * `weights` at a tuned `.cact`: these assets sit outside the OTA bundle,
-   * which is swapped wholesale on every update, so a root-relative path
-   * resolves inside whichever bundle Capgo installed last and 404s.
-   * `apps/mobile/src/lib/needle.ts` is where that origin is decided.
+   * It must be absolute on native all the same, for the fallback: the tuned
+   * asset sits outside the OTA bundle, which is swapped wholesale on every
+   * update, so a root-relative path resolves inside whichever bundle Capgo
+   * installed last and 404s. `apps/mobile/src/lib/needle.ts` is where that
+   * origin is decided.
    */
   baseUrl?: string;
   assets?: { glueUrl: string; wasmUrl: string; weightsUrl: string };

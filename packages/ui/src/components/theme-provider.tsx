@@ -1,18 +1,34 @@
 import * as React from "react"
 
-type Theme = "dark" | "light" | "system"
-type ResolvedTheme = "dark" | "light"
+import {
+  DEFAULT_VISUAL_IDENTITIES,
+  ONE_REP_VISUAL_IDENTITY,
+  resolveVisualIdentityTokens,
+  type Appearance,
+  type ResolvedAppearance,
+  type VisualIdentity,
+} from "../lib/visual-identity"
+
+type Theme = Appearance
+type ResolvedTheme = ResolvedAppearance
 
 type ThemeProviderProps = {
   children: React.ReactNode
   defaultTheme?: Theme
   storageKey?: string
+  identities?: readonly VisualIdentity[]
+  defaultIdentity?: string
+  identityStorageKey?: string
   disableTransitionOnChange?: boolean
 }
 
 type ThemeProviderState = {
   theme: Theme
   setTheme: (theme: Theme) => void
+  identity: string
+  setIdentity: (identity: string) => void
+  identities: readonly VisualIdentity[]
+  resolvedIdentity: VisualIdentity
 }
 
 const COLOR_SCHEME_QUERY = "(prefers-color-scheme: dark)"
@@ -36,6 +52,13 @@ function getSystemTheme(): ResolvedTheme {
   }
 
   return "light"
+}
+
+function findIdentity(
+  identities: readonly VisualIdentity[],
+  identityId: string
+): VisualIdentity | undefined {
+  return identities.find((candidate) => candidate.id === identityId)
 }
 
 function disableTransitionsTemporarily() {
@@ -80,6 +103,9 @@ export function ThemeProvider({
   children,
   defaultTheme = "system",
   storageKey = "theme",
+  identities = DEFAULT_VISUAL_IDENTITIES,
+  defaultIdentity = identities[0]?.id ?? "onerep",
+  identityStorageKey = "visual-identity",
   disableTransitionOnChange = true,
   ...props
 }: ThemeProviderProps) {
@@ -91,6 +117,15 @@ export function ThemeProvider({
 
     return defaultTheme
   })
+  const [identity, setIdentityState] = React.useState(() => {
+    const storedIdentity = localStorage.getItem(identityStorageKey)
+    if (storedIdentity && findIdentity(identities, storedIdentity)) {
+      return storedIdentity
+    }
+
+    return defaultIdentity
+  })
+  const appliedIdentityTokens = React.useRef<Set<string>>(new Set())
 
   const setTheme = React.useCallback(
     (nextTheme: Theme) => {
@@ -100,8 +135,25 @@ export function ThemeProvider({
     [storageKey]
   )
 
+  const setIdentity = React.useCallback(
+    (nextIdentity: string) => {
+      if (!findIdentity(identities, nextIdentity)) {
+        return
+      }
+
+      localStorage.setItem(identityStorageKey, nextIdentity)
+      setIdentityState(nextIdentity)
+    },
+    [identities, identityStorageKey]
+  )
+
+  const resolvedIdentity =
+    findIdentity(identities, identity) ??
+    findIdentity(identities, defaultIdentity) ??
+    ONE_REP_VISUAL_IDENTITY
+
   const applyTheme = React.useCallback(
-    (nextTheme: Theme) => {
+    (nextTheme: Theme, nextIdentity: VisualIdentity) => {
       const root = document.documentElement
       const resolvedTheme =
         nextTheme === "system" ? getSystemTheme() : nextTheme
@@ -111,6 +163,24 @@ export function ThemeProvider({
 
       root.classList.remove("light", "dark")
       root.classList.add(resolvedTheme)
+      root.dataset.visualIdentity = nextIdentity.id
+
+      for (const token of appliedIdentityTokens.current) {
+        root.style.removeProperty(token)
+      }
+
+      const identityTokens = resolveVisualIdentityTokens(
+        nextIdentity,
+        resolvedTheme
+      )
+      const nextAppliedTokens = new Set<string>()
+      for (const [token, value] of Object.entries(identityTokens)) {
+        if (value === undefined) continue
+        root.style.setProperty(token, value)
+        nextAppliedTokens.add(token)
+      }
+
+      appliedIdentityTokens.current = nextAppliedTokens
 
       if (restoreTransitions) {
         restoreTransitions()
@@ -120,7 +190,7 @@ export function ThemeProvider({
   )
 
   React.useEffect(() => {
-    applyTheme(theme)
+    applyTheme(theme, resolvedIdentity)
 
     if (theme !== "system") {
       return undefined
@@ -128,7 +198,7 @@ export function ThemeProvider({
 
     const mediaQuery = window.matchMedia(COLOR_SCHEME_QUERY)
     const handleChange = () => {
-      applyTheme("system")
+      applyTheme("system", resolvedIdentity)
     }
 
     mediaQuery.addEventListener("change", handleChange)
@@ -136,7 +206,13 @@ export function ThemeProvider({
     return () => {
       mediaQuery.removeEventListener("change", handleChange)
     }
-  }, [theme, applyTheme])
+  }, [theme, resolvedIdentity, applyTheme])
+
+  React.useEffect(() => {
+    if (findIdentity(identities, identity)) return
+
+    setIdentityState(defaultIdentity)
+  }, [defaultIdentity, identities, identity])
 
   React.useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -203,12 +279,36 @@ export function ThemeProvider({
     }
   }, [defaultTheme, storageKey])
 
+  React.useEffect(() => {
+    const handleIdentityStorageChange = (event: StorageEvent) => {
+      if (event.storageArea !== localStorage) return
+      if (event.key !== identityStorageKey) return
+
+      const nextIdentity = event.newValue
+      if (nextIdentity && findIdentity(identities, nextIdentity)) {
+        setIdentityState(nextIdentity)
+        return
+      }
+
+      setIdentityState(defaultIdentity)
+    }
+
+    window.addEventListener("storage", handleIdentityStorageChange)
+    return () => {
+      window.removeEventListener("storage", handleIdentityStorageChange)
+    }
+  }, [defaultIdentity, identities, identityStorageKey])
+
   const value = React.useMemo(
     () => ({
       theme,
       setTheme,
+      identity,
+      setIdentity,
+      identities,
+      resolvedIdentity,
     }),
-    [theme, setTheme]
+    [theme, setTheme, identity, setIdentity, identities, resolvedIdentity]
   )
 
   return (

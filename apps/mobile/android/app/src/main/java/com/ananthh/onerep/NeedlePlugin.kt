@@ -52,16 +52,24 @@ class NeedlePlugin : Plugin() {
      * `needle_load` is the override rather than the setup step. Calling this
      * with no arguments transfers nothing and touches no disk.
      *
-     * The override exists for tuned `.cact` files. A URL beats base64 by a
-     * distance: 13.7 MB across the bridge is an 18 MB JSON string. Cached in
-     * the app's no-backup files directory, because it is a redownloadable
-     * artifact and 13 MB of somebody's Google Drive quota is not ours to spend.
+     * The override exists for tuned `.cact` files. The normal path is `asset`:
+     * the tuned file is placed in the app bundle by `needle:tuned` + `cap sync`,
+     * and `context.assets` resolves it — no network, no serialisation, no cache.
+     *
+     * `url` is the fallback for when the asset is absent (e.g. after an OTA
+     * update removed the `needle/` directory). Cached in the app's no-backup
+     * files directory, because it is a redownloadable artifact and 13 MB of
+     * somebody's Google Drive quota is not ours to spend.
+     *
+     * `data` carries base64-encoded bytes across the bridge: 13.7 MB becomes
+     * an 18 MB JSON string, so it is the last resort.
      */
     @PluginMethod
     fun load(call: PluginCall) {
         engine.execute {
-            val override = call.getString("url") ?: call.getString("data")
-            if (override == null) {
+            val hasAsset = call.getString("asset") != null
+            val hasOverride = hasAsset || call.getString("url") != null || call.getString("data") != null
+            if (!hasOverride) {
                 loaded = true
                 call.resolve(JSObject().put("bytes", 0).put("source", "embedded"))
                 return@execute
@@ -71,7 +79,24 @@ class NeedlePlugin : Plugin() {
                 return@execute
             }
             try {
-                val bytes = weightBytes(call)
+                val bytes: ByteArray = if (hasAsset) {
+                    try {
+                        weightBytesFromAsset(call)
+                    } catch (_: IllegalArgumentException) {
+                        // Asset not in bundle (e.g. after OTA update) — fall
+                        // through to the network URL if one was supplied.
+                        val url = call.getString("url")
+                            ?: throw IllegalArgumentException("bundled asset not found and no fallback URL")
+                        weightBytesFromURL(call, url)
+                    }
+                } else {
+                    val url = call.getString("url") ?: call.getString("data") ?: error("load needs url, asset, or data")
+                    if (url.startsWith("file://") || url.startsWith("/")) {
+                        File(url.removePrefix("file://")).readBytes()
+                    } else {
+                        weightBytesFromURL(call, url)
+                    }
+                }
                 val code = nativeLoad(bytes)
                 if (code < 0) {
                     call.reject("needle_load failed ($code)")
@@ -79,7 +104,11 @@ class NeedlePlugin : Plugin() {
                 }
                 loaded = true
                 overridden = true
-                val source = if (call.getString("url") == null) "data" else "url"
+                val source: String = when {
+                    call.getString("asset") != null -> "asset"
+                    call.getString("url") != null -> "url"
+                    else -> "data"
+                }
                 call.resolve(JSObject().put("bytes", bytes.size).put("source", source))
             } catch (error: Throwable) {
                 call.reject("needle: could not load weights — ${error.message}", error)
@@ -150,9 +179,13 @@ class NeedlePlugin : Plugin() {
         }
     }
 
-    private fun weightBytes(call: PluginCall): ByteArray {
+    private fun weightBytesFromAsset(call: PluginCall): ByteArray {
+        val path = call.getString("asset") ?: error("load needs asset path")
+        return context.assets.open(path).use { it.readBytes() }
+    }
+
+    private fun weightBytesFromURL(call: PluginCall, url: String): ByteArray {
         call.getString("data")?.let { return Base64.decode(it, Base64.DEFAULT) }
-        val url = call.getString("url") ?: error("load needs either url or data")
         if (url.startsWith("file://") || url.startsWith("/")) {
             return File(url.removePrefix("file://")).readBytes()
         }

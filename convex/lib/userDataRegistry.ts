@@ -85,6 +85,8 @@ export const userDataRegistry = {
   formCoachSessions: "directly_user_owned",
   formCoachReports: "dependent_on_user_content",
   formCoachPins: "dependent_on_user_content",
+  feedbackItems: "directly_user_owned",
+  feedbackVotes: "dependent_on_user_content",
   // Not user-owned by construction: a waitlist signup exists precisely because
   // there is no account to hang it off. Deleting an account cannot reach it,
   // which is why the unsubscribe path is the email address itself.

@@ -2,6 +2,7 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/instrument-sans";
+@import "./styles/palette.css";
 
 @source "./**/*.{ts,tsx}";
 @source "../../../apps/mobile/src/**/*.{ts,tsx}";
@@ -1560,82 +1561,7 @@
   }
 }
 
-.auth-light-only {
-  color-scheme: light;
-  --accent-food: #746f68;
-  --accent-food-bg: color-mix(in srgb, var(--accent-food) 8%, transparent);
-  --accent-water: #6e7472;
-  --accent-water-bg: color-mix(in srgb, var(--accent-water) 8%, transparent);
-  --accent-supplement: #6f726a;
-  --accent-supplement-bg: color-mix(
-    in srgb,
-    var(--accent-supplement) 8%,
-    transparent
-  );
-  --hero-wash-tint: 26%;
-  --hero-wash-gain: 0.12%;
-  --hero-wash-crown: 12%;
-  --hero-wash-shade: 5%;
-  /* Home's eight-hue fan only. Lower than a single-accent field: eight of them
-     overlapping add up, and this has to sit under a greeting. */
-  --hero-mesh-tint: 26%;
-  --accent-workout: #686a64;
-  --accent-training-hero: #6b7a76;
-  --accent-workout-bg: color-mix(
-    in srgb,
-    var(--accent-workout) 8%,
-    transparent
-  );
-  --accent-progress: #716f76;
-  --accent-health: #6d7476;
-  /* The wheel's two directions relative to right now. Warm for behind you —
-     retro-logging something that already happened — cool for ahead, where
-     you're scheduling something that hasn't. Muted on purpose: both sit
-     behind legible type all day. */
-  --accent-retro: #7a6a52;
-  --accent-retro-bg: color-mix(in srgb, var(--accent-retro) 10%, transparent);
-  --accent-schedule: #5a6d7e;
-  --accent-schedule-bg: color-mix(
-    in srgb,
-    var(--accent-schedule) 11%,
-    transparent
-  );
-  --accent-progress-bg: color-mix(
-    in srgb,
-    var(--accent-progress) 8%,
-    transparent
-  );
-  --status-error: #7b6464;
-  --surface-app: #f4f3ef;
-  --surface-panel: #fbfaf7;
-  --surface-raised: #ffffff;
-  --surface-elevated: #ffffff;
-  --surface-ink: #171a18;
-  --surface-canvas: #efeee9;
-  --surface-subtle: color-mix(in srgb, #171a18 4%, transparent);
-  --surface-pressed: color-mix(in srgb, #171a18 7%, transparent);
-  --divider: color-mix(in srgb, #171a18 12%, transparent);
-  --divider-strong: color-mix(in srgb, #171a18 20%, transparent);
-  --shadow-surface: 0 1px 0 color-mix(in srgb, #171a18 7%, transparent);
-  --background: var(--surface-app);
-  --foreground: #171a18;
-  --card: var(--surface-panel);
-  --card-foreground: #171a18;
-  --popover: var(--surface-panel);
-  --popover-foreground: #171a18;
-  --primary: var(--surface-ink);
-  --primary-foreground: #f8faf7;
-  --secondary: #e8e7e3;
-  --secondary-foreground: #292824;
-  --muted: #e8e7e3;
-  --muted-foreground: #6f6d68;
-  --accent: #e8e7e3;
-  --accent-foreground: #292824;
-  --destructive: var(--status-error);
-  --border: color-mix(in srgb, #171a18 14%, transparent);
-  --input: color-mix(in srgb, #171a18 18%, transparent);
-  --ring: oklch(0.705 0.015 286.067);
-}
+
 
 @keyframes motion-pop {
   0% {
@@ -2923,244 +2849,9 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   }
 }
 
-:root {
-  --motion-fast: 160ms;
-  --motion-medium: 230ms;
-  /* How long a Progress tab takes to arrive. */
-  --motion-tab-fade: 280ms;
-  --motion-slow: 360ms;
-  --motion-route: 260ms;
-  --motion-panel: 320ms;
-  --motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
-  --motion-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-  --motion-ease-in: cubic-bezier(0.4, 0, 1, 1);
-  --motion-ease-emphasized: cubic-bezier(0.2, 0.85, 0.25, 1);
-  --app-safe-top: max(1.25rem, calc(env(safe-area-inset-top, 0px) + 0.45rem));
-  /* One field height and one hero height, so Home and Nutrition open the same
-     way rather than nearly the same way. */
-  --app-hero-wash-h: min(46rem, 78svh);
-  --app-hero-min-h: 19rem;
-  --app-safe-bottom: max(
-    1.35rem,
-    calc(env(safe-area-inset-bottom, 0px) + 0.45rem)
-  );
-  --app-safe-bottom-lg: max(
-    2rem,
-    calc(env(safe-area-inset-bottom, 0px) + 0.65rem)
-  );
-  --app-page-x: clamp(1rem, 4.8vw, 1.35rem);
-  --space-1: 0.25rem;
-  --space-2: 0.5rem;
-  --space-3: 0.75rem;
-  --space-4: 1rem;
-  --space-5: 1.25rem;
-  --space-6: 1.5rem;
-  --space-7: 1.75rem;
-  --space-8: 2rem;
-  --touch-target: 3rem;
-  --touch-target-compact: 2.75rem;
-  --radius-row: 0.625rem;
-  --radius-control: 0.875rem;
-  --radius-panel: 1rem;
-  --radius-sheet: 1.25rem;
-  --app-card-radius: var(--radius-panel);
-  --surface-app: #f4f3ef;
-  --surface-panel: #fbfaf7;
-  --surface-raised: #ffffff;
-  --surface-elevated: #ffffff;
-  --surface-ink: #171a18;
-  --surface-canvas: #efeee9;
-  --surface-subtle: color-mix(in srgb, var(--foreground) 4%, transparent);
-  --surface-pressed: color-mix(in srgb, var(--foreground) 7%, transparent);
-  --divider: color-mix(in srgb, #171a18 12%, transparent);
-  --divider-strong: color-mix(in srgb, #171a18 20%, transparent);
-  --shadow-surface: 0 1px 0 color-mix(in srgb, #171a18 7%, transparent);
-  --rail-neutral: color-mix(in srgb, #6f706b 62%, transparent);
-  --accent-food: #b55324;
-  --accent-food-bg: color-mix(in srgb, var(--accent-food) 8%, transparent);
-  --accent-water: #1673b1;
-  --accent-water-bg: color-mix(in srgb, var(--accent-water) 8%, transparent);
-  --accent-supplement: #3f7d44;
-  --accent-supplement-bg: color-mix(
-    in srgb,
-    var(--accent-supplement) 8%,
-    transparent
-  );
-  /* How much accent the hero field carries. Light mode needs the larger
-     share: the accent sits darker than the surface here, where in dark mode it
-     sits lighter and reads as light rather than as ink. */
-  --hero-wash-tint: 26%;
-  --hero-wash-gain: 0.12%;
-  --hero-wash-crown: 12%;
-  --hero-wash-shade: 5%;
-  /* Home's eight-hue fan only. Lower than a single-accent field: eight of them
-     overlapping add up, and this has to sit under a greeting. */
-  --hero-mesh-tint: 26%;
-  --accent-workout: #5b5bd6;
-  /* The training hero's wash only. Indigo read as cold and administrative
-     under a field that large; jade carries the charge without raising its
-     voice — energy you could still fall asleep next to. */
-  --accent-training-hero: #1f8f7d;
-  --accent-workout-bg: color-mix(
-    in srgb,
-    var(--accent-workout) 8%,
-    transparent
-  );
-  --accent-progress: #9b4d96;
-  --accent-health: #1f7a86;
-  --accent-retro: #b58a55;
-  --accent-retro-bg: color-mix(in srgb, var(--accent-retro) 14%, transparent);
-  --accent-schedule: #5e88b8;
-  --accent-schedule-bg: color-mix(
-    in srgb,
-    var(--accent-schedule) 15%,
-    transparent
-  );
-  --accent-progress-bg: color-mix(
-    in srgb,
-    var(--accent-progress) 8%,
-    transparent
-  );
-  --status-success: #2f7d4a;
-  --status-complete: var(--status-success);
-  --status-complete-bg: color-mix(
-    in srgb,
-    var(--status-complete) 7%,
-    transparent
-  );
-  --status-warning: #9a5d00;
-  --status-caution: var(--status-warning);
-  --status-caution-bg: color-mix(
-    in srgb,
-    var(--status-caution) 8%,
-    transparent
-  );
-  --status-error: #b42335;
-  --status-danger: var(--status-error);
-  --status-danger-bg: color-mix(in srgb, var(--status-danger) 8%, transparent);
-  --macro-protein: #b55324;
-  --macro-carbs: #1673b1;
-  --macro-fat: #9b4d96;
-  --background: var(--surface-app);
-  --foreground: #171a18;
-  --card: var(--surface-panel);
-  --card-foreground: #171a18;
-  --popover: var(--surface-panel);
-  --popover-foreground: #171a18;
-  --primary: var(--surface-ink);
-  --primary-foreground: #f8faf7;
-  --secondary: #e8e7e3;
-  --secondary-foreground: #292824;
-  --muted: #e8e7e3;
-  --muted-foreground: #6f6d68;
-  --accent: #e8e7e3;
-  --accent-foreground: #292824;
-  --destructive: var(--status-error);
-  --border: color-mix(in srgb, #171a18 14%, transparent);
-  --input: color-mix(in srgb, #171a18 18%, transparent);
-  --ring: oklch(0.705 0.015 286.067);
-  --chart-1: #6e7472;
-  --chart-2: #716f76;
-  --chart-3: #7a705f;
-  --chart-4: #6f726a;
-  --chart-5: #746f68;
-  --radius: 0.5rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.141 0.005 285.823);
-  --sidebar-primary: #686a64;
-  --sidebar-primary-foreground: #fafaf8;
-  --sidebar-accent: oklch(0.967 0.001 286.375);
-  --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
-  --sidebar-border: oklch(0.92 0.004 286.32);
-  --sidebar-ring: oklch(0.705 0.015 286.067);
 
-  /* Glass.
-   *
-   * How hard the light hits the button and the hold page. In daylight the
-   * app is already bright and a full-strength specular reads as glare, so
-   * the light half of these is deliberately weak — the rim is a suggestion
-   * of an edge, not a chrome trim. The dark theme turns them all up, where
-   * a bright edge is the only thing separating glass from background. */
-  --glass-fill: 68%;
-  --glass-rim: 0.34;
-  --glass-sheen: 0.4;
-  --glass-pour: 0.16;
-  --glass-pour-soft: 0.08;
-  --glass-depth: 0.26;
-}
 
-.dark {
-  --glass-fill: 54%;
-  --glass-rim: 0.72;
-  --glass-sheen: 0.85;
-  --glass-pour: 0.34;
-  --glass-pour-soft: 0.16;
-  --glass-depth: 0.4;
-  --accent-food: #ef9a68;
-  --accent-water: #66b8ef;
-  --accent-supplement: #80c786;
-  --hero-wash-tint: 13%;
-  --hero-wash-gain: 0.08%;
-  --hero-wash-crown: 7%;
-  --hero-wash-shade: 6%;
-  --hero-mesh-tint: 24%;
-  --accent-workout: #a6a6ff;
-  --accent-training-hero: #4fc9ae;
-  --accent-progress: #d69bd1;
-  --accent-health: #6fc9d6;
-  --status-success: #78c993;
-  --status-complete: var(--status-success);
-  --status-warning: #efbd62;
-  --status-caution: var(--status-warning);
-  --status-error: #f08b98;
-  --status-danger: var(--status-error);
-  --macro-protein: #ef9a68;
-  --macro-carbs: #66b8ef;
-  --macro-fat: #d69bd1;
-  --surface-app: #0d0d0c;
-  --surface-panel: #161615;
-  --surface-raised: #1d1d1b;
-  --surface-elevated: #22221f;
-  --surface-ink: #050505;
-  --surface-canvas: #0b0b0a;
-  --surface-subtle: color-mix(in srgb, white 6%, transparent);
-  --surface-pressed: color-mix(in srgb, white 10%, transparent);
-  --divider: color-mix(in srgb, white 11%, transparent);
-  --divider-strong: color-mix(in srgb, white 18%, transparent);
-  --shadow-surface: 0 1px 0 color-mix(in srgb, white 4%, transparent);
-  --rail-neutral: color-mix(in srgb, #b9b2a8 34%, transparent);
-  --background: var(--surface-app);
-  --foreground: #f5f4ef;
-  --card: var(--surface-panel);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: var(--surface-panel);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: #a8aaa4;
-  --primary-foreground: #121312;
-  --secondary: #22221f;
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: #22221f;
-  --muted-foreground: #96958e;
-  --accent: #22221f;
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: var(--status-error);
-  --border: color-mix(in srgb, white 11%, transparent);
-  --input: color-mix(in srgb, white 15%, transparent);
-  --ring: oklch(0.552 0.016 285.938);
-  --chart-1: #a0a7a5;
-  --chart-2: #aaa6ae;
-  --chart-3: #aaa18f;
-  --chart-4: #a1a69a;
-  --chart-5: #a6a097;
-  --sidebar: oklch(0.21 0.006 285.885);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: #a8aaa4;
-  --sidebar-primary-foreground: #121312;
-  --sidebar-accent: oklch(0.274 0.006 286.033);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.552 0.016 285.938);
-}
+
 
 @layer base {
   * {
@@ -5606,6 +5297,146 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
 .settings-upgrade-copy {
   display: block;
   min-width: 0;
+}
+
+/* Feedback stays part of Settings' quiet, divided hierarchy. The type picker
+   is a two-pane control; the public board itself is a ranked list, not a grid
+   of interchangeable cards. */
+.feedback-kind-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 0.25rem;
+  border-radius: 0.8rem;
+  background: var(--muted);
+}
+
+.feedback-kind-tab {
+  display: flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  border-radius: 0.62rem;
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+  font-weight: 640;
+  transition:
+    background-color var(--motion-fast) var(--motion-ease-standard),
+    color var(--motion-fast) var(--motion-ease-standard),
+    box-shadow var(--motion-fast) var(--motion-ease-standard);
+}
+
+.feedback-kind-tab[aria-selected="true"] {
+  color: var(--foreground);
+  background: var(--surface-raised);
+  box-shadow: 0 5px 14px -12px
+    color-mix(in srgb, var(--foreground) 65%, transparent);
+}
+
+.feedback-kind-tab:focus-visible,
+.feedback-board-link:focus-visible,
+.feedback-vote-button:focus-visible,
+.feedback-small-action:focus-visible,
+.dashboard-feedback-hint:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 3px;
+}
+
+.feedback-board-link {
+  display: flex;
+  width: calc(100% - 2 * var(--app-page-x));
+  min-height: 4.25rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 1rem var(--app-page-x) 0;
+  border-block: 1px solid var(--border);
+  padding-block: 0.85rem;
+  text-align: left;
+}
+
+.feedback-vote-button {
+  display: flex;
+  width: 3.25rem;
+  min-height: 3.5rem;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  color: var(--muted-foreground);
+  font-size: 0.8rem;
+  font-weight: 680;
+  transition:
+    background-color var(--motion-fast) var(--motion-ease-standard),
+    color var(--motion-fast) var(--motion-ease-standard),
+    transform var(--motion-fast) var(--motion-ease-out);
+}
+
+.feedback-vote-button[aria-pressed="true"] {
+  border-color: var(--foreground);
+  color: var(--background);
+  background: var(--foreground);
+}
+
+.feedback-vote-button:active {
+  transform: scale(0.95);
+}
+
+.feedback-vote-button:disabled {
+  cursor: default;
+  opacity: 0.62;
+}
+
+.feedback-small-action {
+  display: inline-flex;
+  min-height: 2.25rem;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  padding-inline: 0.7rem;
+  color: var(--foreground);
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+.dashboard-feedback-hint {
+  display: flex;
+  min-height: 2rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  margin: 0.35rem auto 0;
+  border-radius: 0.5rem;
+  padding-inline: 0.55rem;
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+  font-weight: 620;
+}
+
+@media (hover: hover) {
+  .feedback-board-link:hover,
+  .feedback-small-action:hover,
+  .dashboard-feedback-hint:hover {
+    color: var(--foreground);
+  }
+}
+
+@media (min-width: 1024px) {
+  .dashboard-feedback-hint {
+    margin-top: 0;
+    margin-right: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .feedback-kind-tab,
+  .feedback-vote-button {
+    transition: none;
+  }
 }
 
 .settings-upgrade-title {

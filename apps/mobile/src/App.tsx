@@ -3,6 +3,7 @@ import { useMutation, useQuery } from "convex/react"
 import {
   Barbell,
   CookingPot,
+  ChatCircleDots,
   ForkKnife,
   GearSix,
   MagnifyingGlass,
@@ -297,8 +298,20 @@ function Dashboard() {
             </div>
           }
         >
-          <div className="px-[var(--app-page-x)] lg:hidden">
-            <DashboardDials {...dialProps} layout="row" />
+          <div className="px-[var(--app-page-x)]">
+            <div className="lg:hidden">
+              <DashboardDials {...dialProps} layout="row" />
+            </div>
+            <button
+              type="button"
+              onClick={() =>
+                navigate("/settings?view=feedback", { motion: "forward" })
+              }
+              className="dashboard-feedback-hint"
+            >
+              <ChatCircleDots size={15} aria-hidden="true" />
+              Help shape OneRep
+            </button>
           </div>
         </DashboardHero>
       </div>

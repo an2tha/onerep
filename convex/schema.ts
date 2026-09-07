@@ -1825,6 +1825,39 @@ export default defineSchema({
     createdAt: v.number(),
   }).index("by_email", ["email"]),
 
+  /** User feedback stays private until a moderator approves it. */
+  feedbackItems: defineTable({
+    userId: v.string(),
+    authorName: v.string(),
+    kind: v.union(v.literal("bug"), v.literal("feature")),
+    title: v.string(),
+    details: v.string(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("approved"),
+      v.literal("declined"),
+      v.literal("completed"),
+    ),
+    voteCount: v.number(),
+    appVersion: v.optional(v.string()),
+    platform: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_status_and_createdAt", ["status", "createdAt"])
+    .index("by_kind_and_status_and_voteCount", ["kind", "status", "voteCount"]),
+
+  /** Separate rows keep votes bounded and make one vote per user enforceable. */
+  feedbackVotes: defineTable({
+    itemId: v.id("feedbackItems"),
+    userId: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_itemId", ["itemId"])
+    .index("by_userId", ["userId"])
+    .index("by_itemId_and_userId", ["itemId", "userId"]),
+
   /** Form cards the user chose to keep on the Workouts or Progress screen. */
   formCoachPins: defineTable({
     userId: v.string(),

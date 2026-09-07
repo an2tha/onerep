@@ -6,11 +6,11 @@
  * blob it is not on Hugging Face, so there is nothing to fetch and no checksum
  * to check it against; it is committed, and this copies it next to the engine.
  *
- * Web only, deliberately. `apps/mobile/public` is what `cap sync` sweeps into
- * the app bundle, and the native archives already link a copy of the stock
- * weights in — so a native build that ran this would carry a second model it
- * never reads. Native reaches the tuned file over the OTA origin at runtime,
- * which is why `needleBase()` insists on an absolute URL there.
+ * `apps/mobile/public` is what `cap sync` sweeps into the app bundle, so
+ * native builds carry the tuned file too — the native plugin loads it directly
+ * from the bundle via `asset: "needle/needle2-onerep.cact"`. If the bundle
+ * copy is missing (e.g. after an OTA update), the plugin falls through to the
+ * network URL.
  */
 import { existsSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
