@@ -427,9 +427,10 @@ export function DayTimeline({
   }
 
   return (
-    // Settles on mount and on every day change — the parent keys this on the
-    // date, so switching days is one authored moment rather than a swap.
-    <div className="motion-content-in relative mx-auto h-full w-full max-w-sm">
+    // The parent keys this on the date so the wheel resets to the right hour.
+    // Keep the frame itself still: moving the centered anchor during that
+    // reset makes the pill look like it jumped under the user's finger.
+    <div className="day-timeline relative mx-auto h-full w-full max-w-sm">
       {/* A day with nothing in it is an empty ruler, which on today reads as
         an invitation and on a past day reads as a fault. Say which it is —
         and make the sentence the way out of it, since an empty day is
@@ -560,13 +561,7 @@ export function DayTimeline({
               }}
             >
               <div
-                className={`absolute inset-x-0 -translate-y-1/2 transition-all duration-300 ease-out ${
-                  nearestGroup
-                    ? "scale-100"
-                    : isInteracting
-                      ? "scale-[0.94]"
-                      : "scale-[0.84]"
-                }`}
+                className="absolute inset-x-0 -translate-y-1/2"
                 style={{ height: nearestGroup ? CARD_HEIGHT : BULGE_HEIGHT }}
               >
                 <div

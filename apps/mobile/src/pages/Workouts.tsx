@@ -1562,12 +1562,17 @@ export default function Workouts() {
                   {workoutLogs.length < 2 ? (
                     <HoldToStartDial
                       label={nextWorkoutAction}
-                      detail={
-                        nextWorkoutPreset
-                          ? nextWorkoutPreset.duration
-                          : undefined
-                      }
+                      primaryIcon={<Play size={36} weight="fill" />}
+                      icon={<Barbell size={18} weight="bold" />}
                       onComplete={() => navigate(nextWorkoutHref)}
+                      onShortPress={() =>
+                        toast.info(
+                          nextWorkoutPreset
+                            ? `Press and hold to start ${nextWorkoutPreset.name}.`
+                            : "Press and hold to start an open workout.",
+                          { id: "training-workout-hold-tip" }
+                        )
+                      }
                       size={168}
                       stroke={9}
                       color="var(--accent-training-hero)"

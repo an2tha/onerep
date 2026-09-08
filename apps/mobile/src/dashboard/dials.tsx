@@ -2,6 +2,7 @@ import {
   HoldToStartDial,
   TrainingStatDial,
 } from "@/components/training-hero-dials"
+import { Barbell, ForkKnife, Heartbeat, Play } from "@phosphor-icons/react"
 
 // The same crown the training hero wears, shrunk to sit beside the greeting:
 // the thing you act on holds the middle and the two readings tuck behind its
@@ -11,12 +12,12 @@ import {
 // The dials draw their text into an `inset-[16%]` box, so the diameter sets
 // the room a label gets — roughly two thirds of it. Under about 60px even
 // "62%" spills over the ring, which is what these were doing at 54.
-const DIAL = 64
-const HOLD = 88
+const DIAL = 80
+const HOLD = 112
 // Far enough out that the satellites clear the hold ring instead of sliding
 // under it — (HOLD + DIAL) / 2 is the bare minimum, and at 58 they were
 // covering their own numbers.
-const ORBIT = 78
+const ORBIT = 98
 
 // The phone gets a row instead of a crown. Beside a greeting the crown ate
 // half the width, wrapped the name onto three lines and truncated the date;
@@ -36,6 +37,7 @@ export function DashboardDials({
   nutritionPercent,
   recoveryScore,
   onStartWorkout,
+  onStartWorkoutTip,
   onOpenNutrition,
   onOpenRecovery,
   layout = "crown",
@@ -45,6 +47,7 @@ export function DashboardDials({
   /** Today's recovery score, 0-100. */
   recoveryScore: number | null
   onStartWorkout: () => void
+  onStartWorkoutTip?: () => void
   onOpenNutrition?: () => void
   onOpenRecovery?: () => void
   /** `crown` tucks the readings behind the hold dial; `row` lines all three
@@ -64,6 +67,7 @@ export function DashboardDials({
       suffix: "%",
       color: "var(--accent-food)",
       onClick: onOpenNutrition,
+      icon: <ForkKnife size={17} weight="bold" />,
     },
     {
       // "Recovery" is four characters too many for a dial this size; the
@@ -75,6 +79,7 @@ export function DashboardDials({
       suffix: "",
       color: "var(--accent-training-hero)",
       onClick: onOpenRecovery,
+      icon: <Heartbeat size={17} weight="bold" />,
     },
   ]
 
@@ -83,7 +88,10 @@ export function DashboardDials({
       <div className="mx-auto flex w-full max-w-sm items-center justify-between gap-4">
         <HoldToStartDial
           label="Open workout"
+          primaryIcon={<Play size={22} weight="fill" />}
+          icon={<Barbell size={14} weight="bold" />}
           onComplete={onStartWorkout}
+          onShortPress={onStartWorkoutTip}
           size={ROW_SIZE}
           stroke={7}
           color="var(--accent-training-hero)"
@@ -103,6 +111,7 @@ export function DashboardDials({
               target={reading.target}
               suffix={reading.suffix}
               color={reading.color}
+              icon={reading.icon}
               size={ROW_SIZE}
               stroke={7}
             />
@@ -136,8 +145,9 @@ export function DashboardDials({
               target={reading.target}
               suffix={reading.suffix}
               color={reading.color}
+              icon={reading.icon}
               size={DIAL}
-              stroke={6}
+              stroke={7}
               mirrored={satellite.mirrored}
             />
           </button>
@@ -149,9 +159,12 @@ export function DashboardDials({
       >
         <HoldToStartDial
           label="Open workout"
+          primaryIcon={<Play size={27} weight="fill" />}
+          icon={<Barbell size={15} weight="bold" />}
           onComplete={onStartWorkout}
+          onShortPress={onStartWorkoutTip}
           size={HOLD}
-          stroke={8}
+          stroke={9}
           color="var(--accent-training-hero)"
         />
       </div>

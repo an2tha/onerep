@@ -12,9 +12,10 @@
  * day it is showing — and now you can see what is already there first.
  */
 
-import { useMemo, useState } from "react"
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import {
   Barbell,
+  CalendarBlank,
   CaretLeft,
   CaretRight,
   ForkKnife,
@@ -49,6 +50,73 @@ function toDateKey(date: Date): string {
 // the dots don't reach meaningfully past this anyway.
 const MAX_WEEKS_BACK = 12
 
+/** The phone needs one date door, not a second navigation rail above the
+ * persistent app tabs. Keep the native picker, but open it from a real button
+ * so taps do not depend on an invisible input overlay. */
+export function MobileDateSelector({
+  todayKey,
+  selectedKey,
+  onSelectDay,
+}: {
+  todayKey: string
+  selectedKey: string
+  onSelectDay: (dateKey: string) => void
+}) {
+  const inputRef = useRef<HTMLInputElement>(null)
+  const label =
+    selectedKey === todayKey
+      ? "Today"
+      : new Date(`${selectedKey}T12:00:00`).toLocaleDateString("en-US", {
+          weekday: "short",
+          month: "short",
+          day: "numeric",
+        })
+
+  const openPicker = () => {
+    const input = inputRef.current
+    if (!input) return
+
+    input.focus({ preventScroll: true })
+    try {
+      if (typeof input.showPicker === "function") {
+        input.showPicker()
+        return
+      }
+    } catch {
+      // Some embedded WebViews expose showPicker but reject it. The click
+      // fallback remains inside the original user gesture.
+    }
+    input.click()
+  }
+
+  return (
+    <span className="relative flex size-11 items-center justify-center">
+      <button
+        type="button"
+        aria-label={`Choose dashboard date. ${label} selected`}
+        title={`Choose date — ${label}`}
+        onClick={openPicker}
+        className="motion-tactile flex size-11 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:bg-muted/70"
+      >
+        <CalendarBlank size={22} weight="regular" aria-hidden="true" />
+      </button>
+      <input
+        ref={inputRef}
+        type="date"
+        value={selectedKey}
+        max={todayKey}
+        tabIndex={-1}
+        aria-label="Dashboard date"
+        onChange={(event) => {
+          const next = event.currentTarget.value
+          if (next && next <= todayKey) onSelectDay(next)
+        }}
+        className="pointer-events-none absolute right-0 bottom-0 size-px opacity-0"
+      />
+    </span>
+  )
+}
+
 export function WeekStrip({
   todayKey,
   selectedKey,
@@ -66,6 +134,41 @@ export function WeekStrip({
   className?: string
 }) {
   const [weeksAgo, setWeeksAgo] = useState(0)
+  const rootRef = useRef<HTMLDivElement>(null)
+  const previousSelectedKey = useRef(selectedKey)
+  const slideAnimation = useRef<Animation | null>(null)
+
+  useLayoutEffect(() => {
+    if (previousSelectedKey.current === selectedKey) return
+    previousSelectedKey.current = selectedKey
+
+    const node = rootRef.current
+    if (!node || typeof node.animate !== "function") return
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return
+
+    let fromTransform = "translate3d(0, 1.25rem, 0)"
+    if (slideAnimation.current?.playState === "running") {
+      fromTransform = window.getComputedStyle(node).transform
+    }
+    slideAnimation.current?.cancel()
+    slideAnimation.current = node.animate(
+      [
+        { transform: fromTransform },
+        { transform: "translate3d(0, 0, 0)" },
+      ],
+      {
+        duration: 1200,
+        easing: "cubic-bezier(0.16, 1, 0.3, 1)",
+      }
+    )
+  }, [selectedKey])
+
+  useEffect(
+    () => () => {
+      slideAnimation.current?.cancel()
+    },
+    []
+  )
 
   const days = useMemo<WeekDay[]>(() => {
     const today = new Date(`${todayKey}T12:00:00`)
@@ -100,7 +203,10 @@ export function WeekStrip({
   }, [weeksAgo, days])
 
   return (
-    <div className={`flex flex-col items-center gap-1.5 ${className ?? ""}`}>
+    <div
+      ref={rootRef}
+      className={`flex flex-col items-center gap-1.5 ${className ?? ""}`}
+    >
       <div className="flex items-center gap-2">
         <button
           type="button"
@@ -186,18 +292,23 @@ export function WeekStrip({
         })}
       </div>
 
-      {selectedKey !== todayKey && (
-        // The way back. Without it the only route home is finding today in
-        // the grid, which is a puzzle three weeks out.
-        <button
-          type="button"
-          onClick={() => onSelectDay(todayKey)}
-          className="motion-tactile motion-content-in mt-0.5 flex items-center gap-1 rounded-full border border-border bg-card px-2.5 py-1 text-[11px] font-semibold text-muted-foreground transition-colors active:text-foreground"
-        >
-          Back to today
-          <CaretRight size={10} weight="bold" />
-        </button>
-      )}
+      {/* Reserve the return action's row even while today is selected. Its
+          conditional height used to resize the wheel and kick the centered
+          timeline pill up or down whenever the open day changed. */}
+      <div className="flex min-h-7 items-center justify-center">
+        {selectedKey !== todayKey && (
+          // The way back. Without it the only route home is finding today in
+          // the grid, which is a puzzle three weeks out.
+          <button
+            type="button"
+            onClick={() => onSelectDay(todayKey)}
+            className="motion-tactile motion-content-in flex items-center gap-1 rounded-full border border-border bg-card px-2.5 py-1 text-[11px] font-semibold text-muted-foreground transition-colors active:text-foreground"
+          >
+            Back to today
+            <CaretRight size={10} weight="bold" />
+          </button>
+        )}
+      </div>
     </div>
   )
 }

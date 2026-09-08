@@ -698,7 +698,10 @@ function AuthCallback() {
             alt=""
             className="h-11 w-11 rounded-full short-phone:h-9 short-phone:w-9"
           />
-          <h1 className="mt-4 text-[1.65rem] font-semibold tracking-tight short-phone:mt-3 short-phone:text-[1.45rem]">
+          <h1
+            className="mt-4 text-[1.65rem] font-semibold tracking-tight short-phone:mt-3 short-phone:text-[1.45rem]"
+            style={{ fontFamily: '"Instrument Sans Variable", sans-serif' }}
+          >
             OneRep
           </h1>
         </header>

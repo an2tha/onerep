@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 import { writeMeta } from "../../core/meta.ts";
 import type { BuildContext, BuildSummary } from "../../core/provider.ts";
-import { createIndexes, openStaged, promote } from "../../core/store.ts";
+import { closeStaged, createIndexes, openStaged, promote } from "../../core/store.ts";
 import { exerciseImages, exercises, exerciseVideos, FTS_DDL, schema } from "./schema.ts";
 
 const API_BASE = "https://wger.de/api/v2";
@@ -178,13 +178,13 @@ export async function build(context: BuildContext): Promise<BuildSummary> {
       videos,
       imported_at: new Date().toISOString(),
     });
-    staged.raw.close();
+    closeStaged(staged);
 
     promote(dataDir, "wger", stored);
     log(`promoted wger database with ${stored} exercises and ${images} images`);
     return { primary: stored, counts: { exercises: stored, images, videos } };
   } catch (error) {
-    staged.raw.close();
+    closeStaged(staged);
     throw error;
   }
 }

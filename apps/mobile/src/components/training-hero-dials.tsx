@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react"
-import type { CSSProperties } from "react"
+import type { CSSProperties, ReactNode } from "react"
 import { cn } from "@/lib/utils"
 import { hapticHeavy, hapticSelection, hapticTap } from "@/lib/haptics"
 
@@ -28,6 +28,7 @@ export function TrainingStatDial({
   size,
   stroke,
   mirrored = false,
+  icon,
   className,
 }: {
   name: string
@@ -39,6 +40,8 @@ export function TrainingStatDial({
   stroke: number
   /** Mirrors the sweep so a flanking dial fills away from the centre one. */
   mirrored?: boolean
+  /** Replaces the visible caption while the accessible name remains intact. */
+  icon?: ReactNode
   className?: string
 }) {
   const reached = target > 0 ? Math.min(1, value / target) : 0
@@ -106,12 +109,21 @@ export function TrainingStatDial({
             </span>
           )}
         </p>
-        <p
-          className="mt-0.5 text-[11px] leading-tight text-muted-foreground"
-          aria-hidden="true"
-        >
-          {name}
-        </p>
+        {icon ? (
+          <span
+            className="mt-1 flex items-center justify-center text-muted-foreground"
+            aria-hidden="true"
+          >
+            {icon}
+          </span>
+        ) : (
+          <p
+            className="mt-0.5 text-[11px] leading-tight text-muted-foreground"
+            aria-hidden="true"
+          >
+            {name}
+          </p>
+        )}
       </div>
     </div>
   )
@@ -127,17 +139,26 @@ export function HoldToStartDial({
   label,
   detail,
   onComplete,
+  onShortPress,
   size,
   stroke,
   color,
+  primaryIcon,
+  icon,
   className,
 }: {
   label: string
   detail?: string
   onComplete: () => void
+  /** Called when the control is released before its hold completes. */
+  onShortPress?: () => void
   size: number
   stroke: number
   color: string
+  /** Dominant resting cue; the whole dial remains the interactive target. */
+  primaryIcon?: ReactNode
+  /** Replaces the resting detail label without changing the button name. */
+  icon?: ReactNode
   className?: string
 }) {
   const [progress, setProgress] = useState(0)
@@ -162,6 +183,13 @@ export function HoldToStartDial({
     setHolding(false)
     setProgress(0)
   }, [stop])
+
+  const finishAttempt = useCallback(() => {
+    const wasHolding = frame.current !== null
+    const completed = done.current
+    cancel()
+    if (wasHolding && !completed) onShortPress?.()
+  }, [cancel, onShortPress])
 
   const begin = useCallback(() => {
     if (done.current || frame.current !== null) return
@@ -227,7 +255,7 @@ export function HoldToStartDial({
         event.currentTarget.setPointerCapture(event.pointerId)
         begin()
       }}
-      onPointerUp={cancel}
+      onPointerUp={finishAttempt}
       onPointerCancel={cancel}
       onKeyDown={(event) => {
         if (event.key !== " " && event.key !== "Enter") return
@@ -236,7 +264,7 @@ export function HoldToStartDial({
       }}
       onKeyUp={(event) => {
         if (event.key !== " " && event.key !== "Enter") return
-        cancel()
+        finishAttempt()
       }}
       onContextMenu={(event) => event.preventDefault()}
       aria-label={`${label}. Press and hold for two seconds to start.`}
@@ -281,18 +309,33 @@ export function HoldToStartDial({
         />
       </svg>
       <span className="absolute inset-[16%] flex flex-col items-center justify-center overflow-hidden">
-        <span
-          className="text-[1.05rem] leading-tight font-extrabold tracking-tight"
-          aria-hidden="true"
-        >
-          {holding ? remaining : "Hold"}
-        </span>
-        <span
-          className="mt-1 line-clamp-2 px-1 text-center text-[11px] leading-tight text-muted-foreground"
-          aria-hidden="true"
-        >
-          {holding ? "keep holding" : label}
-        </span>
+        {!holding && primaryIcon ? (
+          <span className="flex flex-col items-center gap-1" aria-hidden="true">
+            <span className="flex items-center justify-center text-foreground">
+              {primaryIcon}
+            </span>
+            {icon && (
+              <span className="flex items-center justify-center text-muted-foreground/75">
+                {icon}
+              </span>
+            )}
+          </span>
+        ) : (
+          <>
+            <span
+              className="text-[1.05rem] leading-tight font-extrabold tracking-tight"
+              aria-hidden="true"
+            >
+              {holding ? remaining : "Hold"}
+            </span>
+            <span
+              className="mt-1 line-clamp-2 px-1 text-center text-[11px] leading-tight text-muted-foreground"
+              aria-hidden="true"
+            >
+              {holding ? "keep holding" : label}
+            </span>
+          </>
+        )}
         {!holding && detail && (
           <span
             className="mt-0.5 text-[11px] leading-tight text-muted-foreground/80"

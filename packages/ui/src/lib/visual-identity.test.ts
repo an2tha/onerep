@@ -6,6 +6,7 @@ import {
   defineVisualIdentity,
   resolveVisualIdentityTokens,
 } from "./visual-identity"
+import { PALETTES } from "./palettes"
 import {
   MICRO_COLORS,
   MUSCLE_COLORS,
@@ -57,10 +58,21 @@ describe("visual identity tokens", () => {
 
   test("routes shared data palettes through overridable variables", () => {
     expect(ONE_REP_PALETTE.iron).toBe("#5b5bd6")
-    expect(VISUAL_IDENTITY_PALETTE.iron).toBe(
-      "var(--palette-iron, #5b5bd6)"
-    )
+    expect(VISUAL_IDENTITY_PALETTE.iron).toBe("var(--palette-iron, #5b5bd6)")
     expect(MUSCLE_COLORS.biceps).toBe("var(--muscle-biceps, #736a78)")
     expect(MICRO_COLORS.vitaminD).toBe("var(--micro-vitamin-d, #7d7668)")
+  })
+
+  test("gives every alternate flavour its own page atmosphere", () => {
+    for (const identity of PALETTES.filter((item) => item.id !== "onerep")) {
+      expect(identity.tokens?.["--identity-home-gradient"]).toContain(
+        "gradient("
+      )
+      expect(identity.tokens?.["--identity-page-gradient"]).toContain(
+        "var(--hero-accent"
+      )
+      expect(identity.tokens?.["--identity-hero-mask"]).toContain("gradient(")
+      expect(identity.tokens?.["--identity-hero-height"]).toMatch(/svh/)
+    }
   })
 })

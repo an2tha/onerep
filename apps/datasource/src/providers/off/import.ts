@@ -4,7 +4,7 @@ import { readJsonLines } from "../../core/jsonl.ts";
 import { writeMeta } from "../../core/meta.ts";
 import type { BuildContext, BuildSummary } from "../../core/provider.ts";
 import { changes } from "../../core/sql.ts";
-import { commitEvery, createIndexes, openStaged, promote, type Staged } from "../../core/store.ts";
+import { closeStaged, commitEvery, createIndexes, openStaged, promote, type Staged } from "../../core/store.ts";
 import { barcodeKey, nameKey } from "../../core/text.ts";
 import { foods, FTS_DDL, schema, type Schema } from "./schema.ts";
 import { hasNutrition, imageUrl, number, readNutrition, text } from "./normalize.ts";
@@ -60,7 +60,7 @@ export async function build(context: BuildContext): Promise<BuildSummary> {
       malformed_lines: malformed,
       imported_at: new Date().toISOString(),
     });
-    staged.raw.close();
+    closeStaged(staged);
 
     promote(dataDir, "off", stored);
     log(`promoted off database with ${stored} products (from ${seen} scanned)`);
@@ -69,7 +69,7 @@ export async function build(context: BuildContext): Promise<BuildSummary> {
       counts: { products: stored, scanned: seen, duplicates, malformed },
     };
   } catch (error) {
-    staged.raw.close();
+    closeStaged(staged);
     throw error;
   }
 }

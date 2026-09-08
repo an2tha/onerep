@@ -37,6 +37,9 @@
   </p>
 </div>
 
+> [!IMPORTANT]
+> **OneRep for iOS is available in beta.** [Join the TestFlight →](https://testflight.apple.com/join/edJwRJDP)
+
 <div align="center">
   <img src="assets/onerep-tour.gif" alt="A walkthrough of OneRep: daily dashboard with calorie and macro rings, nutrition logging, training, progress charts, and the AI Coach" width="900">
 </div>

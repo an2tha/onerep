@@ -202,6 +202,7 @@ export function FlavourCarousel({
                 >
                   <div
                     className="flavour-preview"
+                    data-flavour={visualIdentity.id}
                     data-appearance={resolvedAppearance(appearance)}
                     style={slideStyles[index]}
                     aria-hidden="true"

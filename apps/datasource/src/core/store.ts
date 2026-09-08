@@ -34,6 +34,14 @@ export type Staged<S extends Record<string, unknown>> = {
 };
 
 /**
+ * Closes a staging database and all prepared statements Drizzle created for it.
+ * Strict close is required before a Windows filesystem rename.
+ */
+export function closeStaged<S extends Record<string, unknown>>(staged: Staged<S>): void {
+  staged.raw.close(true);
+}
+
+/**
  * Opens an empty staging database and creates the provider's tables from its
  * Drizzle schema. Indexes are deliberately *not* created here — every importer
  * builds them after the bulk load, where they cost one sort instead of a btree
@@ -114,14 +122,43 @@ export function promote(dataDir: string, id: string, expectedRows: number): void
     if (result !== "ok") throw new Error(`integrity_check failed: ${result}`);
     if (expectedRows <= 0) throw new Error("refusing to promote an empty database");
   } finally {
-    db.close();
+    db.close(true);
   }
 
+  replaceDatabaseFiles(staged, live, previous);
+}
+
+type Rename = typeof renameSync;
+
+/** Restores the live pathname if the second half of a promotion fails. */
+export function replaceDatabaseFiles(
+  staged: string,
+  live: string,
+  previous: string,
+  rename: Rename = renameSync,
+): void {
+  let liveMoved = false;
   if (existsSync(live)) {
     rmSync(previous, { force: true });
-    renameSync(live, previous);
+    rename(live, previous);
+    liveMoved = true;
   }
-  renameSync(staged, live);
+
+  try {
+    rename(staged, live);
+  } catch (promotionError) {
+    if (liveMoved && !existsSync(live) && existsSync(previous)) {
+      try {
+        rename(previous, live);
+      } catch (restoreError) {
+        throw new AggregateError(
+          [promotionError, restoreError],
+          `failed to promote ${staged} and restore ${live}`,
+        );
+      }
+    }
+    throw promotionError;
+  }
 }
 
 export function rollback(dataDir: string, id: string): void {
@@ -180,7 +217,7 @@ export class LiveStore<S extends Record<string, unknown>> {
   }
 
   close(): void {
-    this.raw?.close();
+    this.raw?.close(true);
     this.raw = null;
     this.db = null;
     this.inode = null;

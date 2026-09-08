@@ -67,7 +67,10 @@ export function AuthMark() {
   return (
     <div className="flex items-center justify-center gap-2.5">
       <OneRepMark className="size-9 shrink-0" />
-      <span className="text-[1.4rem] leading-none font-[720] tracking-[-0.03em]">
+      <span
+        className="text-[1.4rem] leading-none font-[720] tracking-[-0.03em]"
+        style={{ fontFamily: '"Instrument Sans Variable", sans-serif' }}
+      >
         OneRep
       </span>
     </div>

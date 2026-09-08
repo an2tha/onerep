@@ -5,7 +5,7 @@ import { readCsvRecords } from "../../core/csv.ts";
 import { writeMeta } from "../../core/meta.ts";
 import type { BuildContext, BuildSummary } from "../../core/provider.ts";
 import { bind, changes } from "../../core/sql.ts";
-import { createIndexes, openStaged, promote, type Staged } from "../../core/store.ts";
+import { closeStaged, createIndexes, openStaged, promote, type Staged } from "../../core/store.ts";
 import { barcodeKey, nameKey } from "../../core/text.ts";
 import { aliases, foods, FTS_DDL, portions, schema, type Schema } from "./schema.ts";
 
@@ -120,13 +120,13 @@ export async function build(context: BuildContext): Promise<BuildSummary> {
       portions: portionCount,
       imported_at: new Date().toISOString(),
     });
-    staged.raw.close();
+    closeStaged(staged);
 
     promote(dataDir, "usda", kept);
     log(`promoted usda database with ${kept} foods (from ${parsed} parsed)`);
     return { primary: kept, counts: { foods: kept, parsed, portions: portionCount } };
   } catch (error) {
-    staged.raw.close();
+    closeStaged(staged);
     throw error;
   }
 }

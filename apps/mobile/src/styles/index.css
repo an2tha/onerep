@@ -7,6 +7,25 @@
   opacity: 0.72;
 }
 
+.dashboard-week-strip {
+  width: calc(100% - 3rem);
+  max-width: 22rem;
+  margin-inline: auto;
+}
+
+/* The timeline owns every remaining pixel on phones. Carry its ruler through
+   the quiet lead-in above midnight so the full space still reads as one day. */
+.dashboard-timeline-stage .day-timeline::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 4rem;
+  width: 0.125rem;
+  background: var(--border);
+  content: "";
+  pointer-events: none;
+}
+
 @media (min-width: 1024px) {
   .dashboard-today .dashboard-hero-ledger {
     display: none;
@@ -14,7 +33,51 @@
 
   .dashboard-today .dashboard-hero-frame {
     gap: 0;
-    padding-bottom: 1.5rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .dashboard-today .dashboard-hero-header {
+    padding-top: 2rem;
+  }
+
+  .dashboard-today-body {
+    width: 100%;
+    max-width: 72rem;
+    margin-inline: auto;
+    padding-inline: 3rem;
+    display: grid;
+    grid-template-columns: minmax(0, 24rem) minmax(18rem, 24rem);
+    grid-template-rows: minmax(0, 1fr) auto;
+    justify-content: space-between;
+    column-gap: 2rem;
+  }
+
+  .dashboard-day-rail {
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+    max-width: none;
+    padding: 0;
+  }
+
+  .dashboard-day-rail-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+    align-content: start;
+    gap: 0.75rem;
+  }
+
+  .dashboard-timeline-stage {
+    grid-column: 1;
+    grid-row: 1;
+    justify-content: flex-start;
+  }
+
+  .dashboard-week-strip {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: auto;
+    max-width: none;
+    margin: 0.25rem 1rem 2rem;
   }
 }
 
@@ -570,6 +633,76 @@
     transparent
   );
   content: "";
+}
+
+.flavour-preview[data-flavour="dusk"]::before {
+  background:
+    radial-gradient(
+      105% 72% at 94% -12%,
+      color-mix(in oklab, var(--flavour-food) 45%, transparent),
+      transparent 68%
+    ),
+    radial-gradient(
+      82% 76% at -8% 34%,
+      color-mix(in oklab, var(--flavour-workout) 34%, transparent),
+      transparent 72%
+    );
+}
+
+.flavour-preview[data-flavour="slate"]::before {
+  background:
+    linear-gradient(
+      128deg,
+      color-mix(in oklab, var(--flavour-water) 30%, transparent),
+      transparent 45%
+    ),
+    linear-gradient(
+      308deg,
+      color-mix(in oklab, var(--flavour-workout) 22%, transparent),
+      transparent 58%
+    );
+}
+
+.flavour-preview[data-flavour="forest"]::before {
+  background:
+    radial-gradient(
+      88% 72% at 2% -8%,
+      color-mix(in oklab, var(--flavour-supplement) 46%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      76% 70% at 102% 14%,
+      color-mix(in oklab, var(--flavour-food) 34%, transparent),
+      transparent 72%
+    );
+}
+
+.flavour-preview[data-flavour="ocean"]::before {
+  background:
+    radial-gradient(
+      118% 54% at 50% -10%,
+      color-mix(in oklab, var(--flavour-water) 50%, transparent),
+      transparent 72%
+    ),
+    radial-gradient(
+      92% 48% at 104% 38%,
+      color-mix(in oklab, var(--flavour-supplement) 34%, transparent),
+      transparent 76%
+    );
+}
+
+.flavour-preview[data-flavour="blossom"]::before {
+  background:
+    radial-gradient(
+      64% 70% at 8% -2%,
+      color-mix(in oklab, var(--flavour-workout) 48%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      66% 72% at 94% 4%,
+      color-mix(in oklab, var(--flavour-food) 42%, transparent),
+      transparent 72%
+    );
 }
 
 .flavour-preview[data-appearance="dark"] {

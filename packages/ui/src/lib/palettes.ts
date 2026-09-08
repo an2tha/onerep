@@ -34,6 +34,15 @@ export const DUSK_PALETTE: VisualIdentity = defineVisualIdentity({
     appName: "OneRep",
     appIconSrc: "/app-icon.svg",
   },
+  tokens: {
+    "--identity-home-gradient":
+      "radial-gradient(105% 72% at 94% -12%, color-mix(in oklab, var(--accent-food) 38%, transparent) 0%, transparent 68%), radial-gradient(82% 76% at -8% 34%, color-mix(in oklab, var(--accent-progress) 30%, transparent) 0%, transparent 72%), linear-gradient(145deg, color-mix(in oklab, var(--accent-training-hero) 16%, transparent) 0%, transparent 58%)",
+    "--identity-page-gradient":
+      "radial-gradient(116% 74% at 88% -8%, color-mix(in oklab, var(--hero-accent, var(--accent-food)) 38%, transparent) 0%, transparent 69%), radial-gradient(82% 68% at -8% 46%, color-mix(in oklab, var(--accent-food) 22%, transparent) 0%, transparent 72%), linear-gradient(160deg, color-mix(in oklab, var(--accent-progress) 15%, transparent) 0%, transparent 60%)",
+    "--identity-hero-mask":
+      "linear-gradient(168deg, #000 0%, #000 45%, transparent 92%)",
+    "--identity-hero-height": "min(48rem, 84svh)",
+  },
   light: {
     "--accent-food": "#a0522d",
     "--accent-food-bg": "color-mix(in srgb, #a0522d 8%, transparent)",
@@ -117,6 +126,15 @@ export const SLATE_PALETTE: VisualIdentity = defineVisualIdentity({
     appName: "OneRep",
     appIconSrc: "/app-icon.svg",
   },
+  tokens: {
+    "--identity-home-gradient":
+      "linear-gradient(128deg, color-mix(in oklab, var(--accent-water) 24%, transparent) 0%, transparent 43%), linear-gradient(308deg, color-mix(in oklab, var(--accent-progress) 17%, transparent) 0%, transparent 56%), radial-gradient(90% 42% at 50% -8%, color-mix(in oklab, var(--foreground) 9%, transparent) 0%, transparent 76%)",
+    "--identity-page-gradient":
+      "linear-gradient(132deg, color-mix(in oklab, var(--hero-accent, var(--accent-food)) 28%, transparent) 0%, transparent 46%), linear-gradient(312deg, color-mix(in oklab, var(--accent-water) 14%, transparent) 0%, transparent 58%), radial-gradient(86% 36% at 54% 0%, color-mix(in oklab, var(--foreground) 8%, transparent) 0%, transparent 78%)",
+    "--identity-hero-mask":
+      "linear-gradient(156deg, #000 0%, #000 38%, transparent 88%)",
+    "--identity-hero-height": "min(42rem, 74svh)",
+  },
   light: {
     "--accent-food": "#6b5344",
     "--accent-water": "#3a6888",
@@ -191,6 +209,15 @@ export const FOREST_PALETTE: VisualIdentity = defineVisualIdentity({
   assets: {
     appName: "OneRep",
     appIconSrc: "/app-icon.svg",
+  },
+  tokens: {
+    "--identity-home-gradient":
+      "radial-gradient(88% 72% at 2% -8%, color-mix(in oklab, var(--accent-training-hero) 38%, transparent) 0%, transparent 70%), radial-gradient(76% 70% at 102% 14%, color-mix(in oklab, var(--accent-food) 29%, transparent) 0%, transparent 72%), linear-gradient(180deg, color-mix(in oklab, var(--accent-supplement) 16%, transparent) 0%, transparent 64%)",
+    "--identity-page-gradient":
+      "radial-gradient(92% 74% at 4% -6%, color-mix(in oklab, var(--hero-accent, var(--accent-food)) 40%, transparent) 0%, transparent 70%), radial-gradient(74% 72% at 104% 28%, color-mix(in oklab, var(--accent-food) 24%, transparent) 0%, transparent 74%), linear-gradient(180deg, color-mix(in oklab, var(--accent-supplement) 17%, transparent) 0%, transparent 66%)",
+    "--identity-hero-mask":
+      "linear-gradient(180deg, #000 0%, #000 52%, transparent 96%)",
+    "--identity-hero-height": "min(50rem, 88svh)",
   },
   light: {
     "--accent-food": "#8a6d1a",
@@ -274,6 +301,15 @@ export const OCEAN_PALETTE: VisualIdentity = defineVisualIdentity({
     appName: "OneRep",
     appIconSrc: "/app-icon.svg",
   },
+  tokens: {
+    "--identity-home-gradient":
+      "radial-gradient(118% 54% at 50% -10%, color-mix(in oklab, var(--accent-water) 42%, transparent) 0%, transparent 72%), radial-gradient(92% 48% at 104% 38%, color-mix(in oklab, var(--accent-training-hero) 28%, transparent) 0%, transparent 76%), linear-gradient(180deg, color-mix(in oklab, var(--accent-progress) 16%, transparent) 0%, transparent 68%)",
+    "--identity-page-gradient":
+      "radial-gradient(124% 58% at 50% -8%, color-mix(in oklab, var(--hero-accent, var(--accent-food)) 46%, transparent) 0%, transparent 72%), radial-gradient(96% 46% at 108% 40%, color-mix(in oklab, var(--accent-water) 26%, transparent) 0%, transparent 76%), linear-gradient(180deg, color-mix(in oklab, var(--accent-training-hero) 15%, transparent) 0%, transparent 70%)",
+    "--identity-hero-mask":
+      "linear-gradient(180deg, #000 0%, #000 48%, transparent 94%)",
+    "--identity-hero-height": "min(46rem, 80svh)",
+  },
   light: {
     "--accent-food": "#c05a2e",
     "--accent-food-bg": "color-mix(in srgb, #c05a2e 8%, transparent)",
@@ -355,6 +391,15 @@ export const BLOSSOM_PALETTE: VisualIdentity = defineVisualIdentity({
   assets: {
     appName: "OneRep",
     appIconSrc: "/app-icon.svg",
+  },
+  tokens: {
+    "--identity-home-gradient":
+      "radial-gradient(64% 70% at 8% -2%, color-mix(in oklab, var(--accent-progress) 40%, transparent) 0%, transparent 70%), radial-gradient(66% 72% at 94% 4%, color-mix(in oklab, var(--accent-food) 36%, transparent) 0%, transparent 72%), radial-gradient(82% 52% at 54% 38%, color-mix(in oklab, var(--accent-water) 22%, transparent) 0%, transparent 78%)",
+    "--identity-page-gradient":
+      "radial-gradient(68% 74% at 6% -4%, color-mix(in oklab, var(--hero-accent, var(--accent-food)) 46%, transparent) 0%, transparent 70%), radial-gradient(64% 70% at 98% 10%, color-mix(in oklab, var(--accent-progress) 36%, transparent) 0%, transparent 72%), radial-gradient(82% 50% at 52% 42%, color-mix(in oklab, var(--accent-water) 20%, transparent) 0%, transparent 78%)",
+    "--identity-hero-mask":
+      "linear-gradient(180deg, #000 0%, #000 44%, transparent 92%)",
+    "--identity-hero-height": "min(49rem, 86svh)",
   },
   light: {
     "--accent-food": "#b23a5b",

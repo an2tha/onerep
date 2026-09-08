@@ -9,6 +9,7 @@ import {
   MagnifyingGlass,
   PintGlass,
   Pill,
+  Plus,
   Timer,
 } from "@phosphor-icons/react"
 
@@ -22,13 +23,13 @@ import {
   type ScheduleEntryRequest,
 } from "@/dashboard/schedule-entry-sheet"
 import { DayRail } from "@/dashboard/day-rail"
-import { WeekStrip } from "@/dashboard/week-strip"
+import { MobileDateSelector, WeekStrip } from "@/dashboard/week-strip"
 import { useNutritionHealthWriteBack } from "@/lib/nutrition-writeback"
 import {
   QuickActionDrawer,
   type QuickActionId,
 } from "@/dashboard/quick-action-drawers"
-import { DashboardHero } from "@repo/ui"
+import { DashboardHero, toast } from "@repo/ui"
 import {
   dateKeyToCalendarDate,
   daysAgoLabel,
@@ -43,14 +44,13 @@ import LegacyApp from "./App.legacy"
 // ─── The old dashboard ────────────────────────────────────────────────────────
 //
 // Everything that used to be here is still here, verbatim, one file over in
-// `App.legacy.tsx`. Flip this to `true` and the old home page comes back
-// exactly as it was; flip it back and you are on the bare canvas again. The
-// redesign happens below the hero, in the empty space where the cards were.
-
-const USE_LEGACY_DASHBOARD = false
+// `App.legacy.tsx`. The "Simple dashboard" toggle in Settings controls
+// dashboardSettings.simpleMode — when true, the legacy dashboard is shown.
 
 export default function App() {
-  if (USE_LEGACY_DASHBOARD) return <LegacyApp />
+  const preferences = useQuery(api.users.users.getPreferences, {})
+  const useLegacy = preferences?.dashboardSettings?.simpleMode ?? false
+  if (useLegacy) return <LegacyApp />
   return <Dashboard />
 }
 
@@ -250,6 +250,10 @@ function Dashboard() {
     // No confirmation step and no picker: the hold *is* the confirmation,
     // so it drops straight into an empty session.
     onStartWorkout: () => navigate("/workout/active", { motion: "forward" }),
+    onStartWorkoutTip: () =>
+      toast.info("Press and hold to start an open workout.", {
+        id: "dashboard-open-workout-hold-tip",
+      }),
     onOpenNutrition: () => navigate("/nutrition", { motion: "switch" }),
     onOpenRecovery: () => navigate("/health", { motion: "switch" }),
   }
@@ -280,14 +284,23 @@ function Dashboard() {
           // The sidebar's profile row is a desktop thing; on a phone, and in
           // the native shells especially, this is the only door into settings.
           profile={
-            <button
-              type="button"
-              onClick={() => navigate("/settings", { motion: "forward" })}
-              aria-label="Open profile and settings"
-              className="-mr-1 flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground active:bg-muted/60 active:text-foreground lg:hidden"
-            >
-              <GearSix size={22} />
-            </button>
+            <div className="-mr-1 flex items-center gap-1 lg:hidden">
+              <MobileDateSelector
+                todayKey={todayKey}
+                selectedKey={dateKey}
+                onSelectDay={(day) =>
+                  setViewedDateKey(day === todayKey ? null : day)
+                }
+              />
+              <button
+                type="button"
+                onClick={() => navigate("/settings", { motion: "forward" })}
+                aria-label="Open profile and settings"
+                className="flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground active:bg-muted/60 active:text-foreground"
+              >
+                <GearSix size={22} />
+              </button>
+            </div>
           }
           // Beside the greeting only where there is room beside the greeting.
           // On a phone the crown took half the row and the name paid for it;
@@ -315,41 +328,56 @@ function Dashboard() {
           </div>
         </DashboardHero>
       </div>
-      {/* The day rail sits right under the dials: where the day already
-          stands, before you scroll into anything. On the phone it's a strip
-          of cards that pans sideways; on the desk it spreads into columns. */}
-      <div className="relative z-10 mx-auto w-full max-w-6xl shrink-0 px-[var(--app-page-x)] pt-1 md:px-8">
-        <DayRail
-          dateKey={dateKey}
-          isToday={viewingToday}
-          calories={dayTotals.calories}
-          protein={dayTotals.protein}
-          carbs={dayTotals.carbs}
-          fat={dayTotals.fat}
-          calorieGoal={goals?.calories}
-          proteinGoal={goals?.protein}
-          carbsGoal={goals?.carbs}
-          fatGoal={goals?.fat}
-          waterTotalMl={(waterEntries ?? []).reduce(
-            (sum, entry) => sum + entry.amountMl,
-            0
-          )}
-          waterGoalMl={preferences?.waterGoalMl ?? 2500}
-          supplements={(supplementOverview?.items ?? [])
-            .filter((item) => item.active)
-            .map((item) => ({
-              id: item._id,
-              name: item.name,
-              logId: takenSupplementLogs.get(item._id),
+      {/* The phone is only the wheel and one date control. Desktop has room
+          for the day's supporting totals in a separate right-hand rail. */}
+      <div className="dashboard-today-body relative z-10 flex min-h-0 flex-1 flex-col">
+        <div className="dashboard-day-rail mx-auto hidden w-full max-w-6xl shrink-0 px-[var(--app-page-x)] pt-1 md:px-8 lg:block">
+          <DayRail
+            className="dashboard-day-rail-grid"
+            dateKey={dateKey}
+            isToday={viewingToday}
+            calories={dayTotals.calories}
+            protein={dayTotals.protein}
+            carbs={dayTotals.carbs}
+            fat={dayTotals.fat}
+            calorieGoal={goals?.calories}
+            proteinGoal={goals?.protein}
+            carbsGoal={goals?.carbs}
+            fatGoal={goals?.fat}
+            waterTotalMl={(waterEntries ?? []).reduce(
+              (sum, entry) => sum + entry.amountMl,
+              0
+            )}
+            waterGoalMl={preferences?.waterGoalMl ?? 2500}
+            supplements={(supplementOverview?.items ?? [])
+              .filter((item) => item.active)
+              .map((item) => ({
+                id: item._id,
+                name: item.name,
+                logId: takenSupplementLogs.get(item._id),
             }))}
-        />
-      </div>
-      {/* The wheel owns the rest of the screen, centered. The ruler inside it
-          is taller than the screen on purpose — scrolling it pans through the
-          hours in place, rather than carrying the hero off screen. */}
-      <div className="relative z-10 flex min-h-0 flex-1 justify-center">
-        <div className="flex min-h-0 w-full max-w-sm flex-col">
-          <div className="min-h-0 flex-1">
+          />
+          <button
+            type="button"
+            onClick={() =>
+              navigate("/coach", {
+                motion: "forward",
+                state: {
+                  coachMode: "chat",
+                  initialInput: "Create a compact dashboard widget for ",
+                },
+              })
+            }
+            className="dashboard-add-widget motion-tactile mt-4 hidden min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-border bg-card text-[14px] font-semibold text-foreground transition-colors hover:bg-muted lg:flex"
+          >
+            <Plus size={17} weight="bold" aria-hidden="true" />
+            Add widget
+          </button>
+        </div>
+        {/* The ruler is taller than the screen on purpose — scrolling it pans
+            through the hours in place rather than carrying the hero away. */}
+        <div className="dashboard-timeline-stage flex min-h-0 flex-1 justify-center">
+          <div className="min-h-0 w-full max-w-sm">
             <DayTimeline
               // Keyed on the day so switching days re-parks the wheel
               // instead of holding the hour the last day was left on.
@@ -397,17 +425,15 @@ function Dashboard() {
               }
             />
           </div>
-          <WeekStrip
-            todayKey={todayKey}
-            selectedKey={dateKey}
-            onSelectDay={(day) =>
-              setViewedDateKey(day === todayKey ? null : day)
-            }
-            workoutDates={workoutDateSet}
-            foodDates={foodDateSet}
-            className="mx-4 mt-1 shrink-0 border-t border-border/60 pt-2 pb-3"
-          />
         </div>
+        <WeekStrip
+          todayKey={todayKey}
+          selectedKey={dateKey}
+          onSelectDay={(day) => setViewedDateKey(day === todayKey ? null : day)}
+          workoutDates={workoutDateSet}
+          foodDates={foodDateSet}
+          className="dashboard-week-strip mt-1 hidden shrink-0 border-t border-border/60 pt-2 pb-3 lg:flex"
+        />
       </div>
       <QuickAddFab
         options={QUICK_ADD_OPTIONS}

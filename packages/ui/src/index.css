@@ -1561,8 +1561,6 @@
   }
 }
 
-
-
 @keyframes motion-pop {
   0% {
     opacity: 0;
@@ -2848,10 +2846,6 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
     transform: scale(1);
   }
 }
-
-
-
-
 
 @layer base {
   * {
@@ -8148,6 +8142,11 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
     );
 }
 
+:root[data-visual-identity]:not([data-visual-identity="onerep"])
+  .app-hero-wash.dashboard-home-wash {
+  background: var(--identity-home-gradient);
+}
+
 .dashboard-hero-ledger {
   width: 100%;
   max-width: 32rem;
@@ -8834,6 +8833,16 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   );
   mask-image: linear-gradient(180deg, #000 0%, #000 46%, transparent 100%);
   animation: nutrition-hero-drift 26s ease-in-out infinite alternate;
+}
+
+:root[data-visual-identity]:not([data-visual-identity="onerep"])
+  .nutrition-hero-wash,
+:root[data-visual-identity]:not([data-visual-identity="onerep"])
+  .app-hero-wash:not(.dashboard-home-wash) {
+  height: var(--identity-hero-height);
+  background: var(--identity-page-gradient);
+  -webkit-mask-image: var(--identity-hero-mask);
+  mask-image: var(--identity-hero-mask);
 }
 
 .nutrition-hero > *:not(.nutrition-hero-wash),

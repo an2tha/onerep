@@ -42,4 +42,18 @@ describe("Workouts page production contract", () => {
     expect(WORKOUTS_SOURCE).toContain("aria-busy={duplicatingThis}")
     expect(WORKOUTS_SOURCE).toContain("animate-spin")
   })
+
+  test("training uses the icon-led hold-to-start interaction", () => {
+    expect(WORKOUTS_SOURCE).toContain(
+      'primaryIcon={<Play size={36} weight="fill" />}'
+    )
+    expect(WORKOUTS_SOURCE).toContain(
+      'icon={<Barbell size={18} weight="bold" />}'
+    )
+    expect(WORKOUTS_SOURCE).toContain("onShortPress={() =>")
+    expect(WORKOUTS_SOURCE).toContain(
+      "Press and hold to start an open workout."
+    )
+    expect(WORKOUTS_SOURCE).toContain('id: "training-workout-hold-tip"')
+  })
 })

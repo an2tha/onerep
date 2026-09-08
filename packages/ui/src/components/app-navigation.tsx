@@ -89,7 +89,10 @@ export function AppNavigationChrome({
             className="mb-6 flex min-h-11 items-center gap-3 px-3 py-2 text-left active:bg-muted"
           >
             <img src={appIconSrc} alt="" className="h-8 w-8 rounded-[8px]" />
-            <p className="text-[14px] font-semibold tracking-tight">
+            <p
+              className="text-[14px] font-semibold tracking-tight"
+              style={{ fontFamily: '"Instrument Sans Variable", sans-serif' }}
+            >
               {appName}
             </p>
           </button>

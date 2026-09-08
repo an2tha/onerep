@@ -2404,7 +2404,11 @@ export function OnboardingMobile() {
       <aside className="setup-sidebar">
         <div className="setup-brand">
           <img src="/app-icon.svg" alt="" width="32" height="32" />
-          <strong>OneRep</strong>
+          <strong
+            style={{ fontFamily: '"Instrument Sans Variable", sans-serif' }}
+          >
+            OneRep
+          </strong>
           <span>Your setup</span>
         </div>
         <nav aria-label="Setup steps">
