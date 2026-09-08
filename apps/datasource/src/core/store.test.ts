@@ -77,6 +77,23 @@ test("live store finalizes Drizzle and cached raw statements", () => {
   temporaryDirectories.splice(temporaryDirectories.indexOf(dataDir), 1);
 });
 
+test("live store closes short-lived Drizzle statements before deleting its directory", () => {
+  const dataDir = temporaryDirectory();
+  const staged = openStaged(dataDir, "test", schema);
+  staged.db.insert(rows).values({ id: 1 }).run();
+  closeStaged(staged);
+  renameSync(stagedPath(dataDir, "test"), livePath(dataDir, "test"));
+
+  const store = new LiveStore(livePath(dataDir, "test"), schema, 0);
+  for (let index = 0; index < 80; index += 1) {
+    expect(store.get()?.select().from(rows).get()?.id).toBe(1);
+  }
+  store.close();
+
+  rmSync(dataDir, { recursive: true });
+  temporaryDirectories.splice(temporaryDirectories.indexOf(dataDir), 1);
+});
+
 test("restores the live database when the staged rename fails", () => {
   const dataDir = temporaryDirectory();
   const staged = stagedPath(dataDir, "test");

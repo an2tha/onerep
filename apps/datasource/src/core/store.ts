@@ -48,41 +48,40 @@ export function closeStaged<S extends Record<string, unknown>>(staged: Staged<S>
  * still reachable. Drizzle does not expose its underlying Statements, so
  * capture them at the Database boundary and finalize them explicitly.
  */
-function trackStatements(raw: Database): () => void {
-  const seen = new WeakSet<Statement>();
-  let statements: WeakRef<Statement>[] = [];
-  let statementsSinceSweep = 0;
+function trackStatements(raw: Database, maxStatements = Number.POSITIVE_INFINITY): () => void {
+  const preparedStatements = new Set<Statement>();
+  const cachedStatements = new Set<Statement>();
   const prepare = raw.prepare.bind(raw);
   const query = raw.query.bind(raw);
 
-  const track = <T extends Statement>(statement: T): T => {
-    if (!seen.has(statement)) {
-      seen.add(statement);
-      // A weak reference preserves normal GC of one-shot Drizzle queries while
-      // still letting close finalize every statement that remains reachable.
-      statements.push(new WeakRef(statement));
-      statementsSinceSweep += 1;
-      if (statementsSinceSweep >= 256) {
-        statements = statements.filter((reference) => reference.deref() !== undefined);
-        statementsSinceSweep = 0;
-      }
+  const trackPrepared = <T extends Statement>(statement: T): T => {
+    if (preparedStatements.has(statement)) return statement;
+    if (preparedStatements.size >= maxStatements) {
+      const oldest = preparedStatements.values().next().value;
+      oldest?.finalize();
+      if (oldest) preparedStatements.delete(oldest);
     }
+    preparedStatements.add(statement);
     return statement;
   };
 
   raw.prepare = ((sql: string) => {
-    return track(prepare(sql));
+    return trackPrepared(prepare(sql));
   }) as Database["prepare"];
   raw.query = ((sql: string) => {
-    return track(query(sql));
+    const statement = query(sql);
+    cachedStatements.add(statement);
+    return statement;
   }) as Database["query"];
 
   let closed = false;
   return () => {
     if (closed) return;
     closed = true;
-    for (const reference of statements) reference.deref()?.finalize();
-    statements = [];
+    for (const statement of preparedStatements) statement.finalize();
+    for (const statement of cachedStatements) statement.finalize();
+    preparedStatements.clear();
+    cachedStatements.clear();
     raw.close(true);
   };
 }
@@ -254,7 +253,11 @@ export class LiveStore<S extends Record<string, unknown>> {
 
     this.close();
     this.raw = new Database(this.path, { readonly: true });
-    this.closeRaw = trackStatements(this.raw);
+    // Drizzle prepares fresh statements for one-shot reads. Keep enough to
+    // finalize deterministically on Windows, while bounding a long-lived
+    // server's statement memory. Calls are synchronous, so an evicted oldest
+    // statement has completed before the next one is prepared.
+    this.closeRaw = trackStatements(this.raw, 256);
     this.db = drizzle(this.raw, { schema: this.schema });
     this.inode = inode;
     return this.db;
