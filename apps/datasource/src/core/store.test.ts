@@ -13,6 +13,7 @@ import { sql } from "drizzle-orm";
 import { integer, sqliteTable } from "drizzle-orm/sqlite-core";
 import {
   closeStaged,
+  LiveStore,
   livePath,
   openStaged,
   previousPath,
@@ -55,6 +56,25 @@ test("strict close releases Drizzle prepared statements before promotion", () =>
   expect(() => prepared[0]!.run({ id: 100 })).toThrow();
   renameSync(stagedPath(dataDir, "test"), livePath(dataDir, "test"));
   expect(existsSync(livePath(dataDir, "test"))).toBe(true);
+});
+
+test("live store finalizes Drizzle and cached raw statements", () => {
+  const dataDir = temporaryDirectory();
+  const staged = openStaged(dataDir, "test", schema);
+  staged.db.insert(rows).values({ id: 1 }).run();
+  closeStaged(staged);
+  renameSync(stagedPath(dataDir, "test"), livePath(dataDir, "test"));
+
+  const store = new LiveStore(livePath(dataDir, "test"), schema, 0);
+  expect(store.get()?.select().from(rows).get()?.id).toBe(1);
+  const cached = store.rawHandle()!.query("SELECT id FROM rows");
+  expect(cached.get()).toEqual({ id: 1 });
+
+  store.close();
+
+  expect(() => cached.get()).toThrow();
+  rmSync(dataDir, { recursive: true });
+  temporaryDirectories.splice(temporaryDirectories.indexOf(dataDir), 1);
 });
 
 test("restores the live database when the staged rename fails", () => {

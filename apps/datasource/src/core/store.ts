@@ -1,4 +1,4 @@
-import { Database } from "bun:sqlite";
+import { Database, type Statement } from "bun:sqlite";
 import { drizzle, type BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
 import { existsSync, renameSync, rmSync, statSync } from "node:fs";
 import { join } from "node:path";
@@ -31,6 +31,8 @@ export type Staged<S extends Record<string, unknown>> = {
   db: BunSQLiteDatabase<S>;
   /** The underlying handle, for FTS5 DDL and explicit transactions. */
   raw: Database;
+  /** Deterministically finalizes every statement before closing the handle. */
+  close: () => void;
 };
 
 /**
@@ -38,7 +40,51 @@ export type Staged<S extends Record<string, unknown>> = {
  * Strict close is required before a Windows filesystem rename.
  */
 export function closeStaged<S extends Record<string, unknown>>(staged: Staged<S>): void {
-  staged.raw.close(true);
+  staged.close();
+}
+
+/**
+ * Bun's Windows VFS may retain a file lock after close while a Statement is
+ * still reachable. Drizzle does not expose its underlying Statements, so
+ * capture them at the Database boundary and finalize them explicitly.
+ */
+function trackStatements(raw: Database): () => void {
+  const seen = new WeakSet<Statement>();
+  let statements: WeakRef<Statement>[] = [];
+  let statementsSinceSweep = 0;
+  const prepare = raw.prepare.bind(raw);
+  const query = raw.query.bind(raw);
+
+  const track = <T extends Statement>(statement: T): T => {
+    if (!seen.has(statement)) {
+      seen.add(statement);
+      // A weak reference preserves normal GC of one-shot Drizzle queries while
+      // still letting close finalize every statement that remains reachable.
+      statements.push(new WeakRef(statement));
+      statementsSinceSweep += 1;
+      if (statementsSinceSweep >= 256) {
+        statements = statements.filter((reference) => reference.deref() !== undefined);
+        statementsSinceSweep = 0;
+      }
+    }
+    return statement;
+  };
+
+  raw.prepare = ((sql: string) => {
+    return track(prepare(sql));
+  }) as Database["prepare"];
+  raw.query = ((sql: string) => {
+    return track(query(sql));
+  }) as Database["query"];
+
+  let closed = false;
+  return () => {
+    if (closed) return;
+    closed = true;
+    for (const reference of statements) reference.deref()?.finalize();
+    statements = [];
+    raw.close(true);
+  };
 }
 
 /**
@@ -56,6 +102,7 @@ export function openStaged<S extends Record<string, unknown>>(
   for (const suffix of ["", "-wal", "-shm"]) rmSync(`${path}${suffix}`, { force: true });
 
   const raw = new Database(path, { create: true, readwrite: true });
+  const close = trackStatements(raw);
   // Pragmas are stepped with `.get()` rather than `.exec()`, because the ones
   // that report a resulting value are not applied by `exec()` alone.
   //
@@ -73,7 +120,7 @@ export function openStaged<S extends Record<string, unknown>>(
 
   for (const table of schemaTables(schema)) raw.exec(createTableSql(table));
 
-  return { db: drizzle(raw, { schema }), raw };
+  return { db: drizzle(raw, { schema }), raw, close };
 }
 
 /**
@@ -116,13 +163,14 @@ export function promote(dataDir: string, id: string, expectedRows: number): void
   const previous = previousPath(dataDir, id);
 
   const db = new Database(staged, { readonly: true });
+  const close = trackStatements(db);
   try {
     const integrity = db.query("PRAGMA integrity_check").get() as Record<string, string>;
     const result = Object.values(integrity)[0];
     if (result !== "ok") throw new Error(`integrity_check failed: ${result}`);
     if (expectedRows <= 0) throw new Error("refusing to promote an empty database");
   } finally {
-    db.close(true);
+    close();
   }
 
   replaceDatabaseFiles(staged, live, previous);
@@ -181,6 +229,7 @@ export function rollback(dataDir: string, id: string): void {
 export class LiveStore<S extends Record<string, unknown>> {
   private raw: Database | null = null;
   private db: BunSQLiteDatabase<S> | null = null;
+  private closeRaw: (() => void) | null = null;
   private inode: number | null = null;
   private checkedAt = 0;
 
@@ -205,6 +254,7 @@ export class LiveStore<S extends Record<string, unknown>> {
 
     this.close();
     this.raw = new Database(this.path, { readonly: true });
+    this.closeRaw = trackStatements(this.raw);
     this.db = drizzle(this.raw, { schema: this.schema });
     this.inode = inode;
     return this.db;
@@ -217,9 +267,11 @@ export class LiveStore<S extends Record<string, unknown>> {
   }
 
   close(): void {
-    this.raw?.close(true);
+    const closeRaw = this.closeRaw;
+    this.closeRaw = null;
     this.raw = null;
     this.db = null;
     this.inode = null;
+    closeRaw?.();
   }
 }
