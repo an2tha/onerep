@@ -61,7 +61,7 @@ function EntryIcon({ kind, size }: { kind: TimelineEntryKind; size: number }) {
 // more distinct "selection changed" buzz — two different feelings for two
 // different kinds of snap.
 
-const HOUR_PX = 72
+const HOUR_PX = 216
 const DAY_HOURS = 24
 const DAY_MINUTES = DAY_HOURS * 60
 const LINE_LEFT = 64
@@ -376,7 +376,7 @@ export function DayTimeline({
       )
       const restMinutes = closeEntry
         ? parseTimeToMinutes(closeEntry.time)
-        : Math.round(settledMinutes / 60) * 60
+        : Math.round(settledMinutes / 5) * 5
       const restTop = topForMinutes(restMinutes)
 
       if (draggingId === null && Math.abs(restTop - top) > 0.5) {
