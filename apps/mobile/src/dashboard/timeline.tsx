@@ -531,8 +531,14 @@ export function DayTimeline({
                 the hour column — there it landed on top of whichever hour
                 label the minute happened to be near. */}
               <span
-                className="absolute rounded-full bg-background px-1.5 text-[10px] leading-4 font-bold tracking-[0.08em] text-foreground/55 uppercase"
-                style={{ left: LINE_LEFT + 10, top: -8 }}
+                className="absolute rounded-full px-2 py-0.5 text-[10px] leading-4 font-bold tracking-[0.08em] uppercase backdrop-blur-xl"
+                style={{
+                  left: LINE_LEFT + 10,
+                  top: -8,
+                  background: "linear-gradient(135deg, color-mix(in srgb, var(--foreground) 8%, transparent), color-mix(in srgb, var(--foreground) 3%, transparent))",
+                  color: "color-mix(in srgb, var(--foreground) 70%, transparent)",
+                  border: "1px solid color-mix(in srgb, var(--foreground) 10%, transparent)",
+                }}
               >
                 Now
               </span>
