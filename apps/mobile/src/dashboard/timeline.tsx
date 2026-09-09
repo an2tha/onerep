@@ -79,6 +79,14 @@ const ICON_BOX = 36
 // The icon surface is centred on the axis, where the row's dot was. The
 // 8 is the band's own inset from the strip.
 const ICON_LEFT = LINE_LEFT - 8 - ICON_BOX / 2
+// Children of the band are positioned in the band's own box, which sits 8px
+// inside the strip. The ruler and the rows live in content space, so anything
+// the band shows at a content-space coordinate needs that inset subtracted —
+// or it lands 8px right of the thing it replaces.
+const BAND_INSET = 8
+// The row time column, in content space: both the resting clock and the
+// card's text block pick up exactly where it sits.
+const TIME_COLUMN_LEFT = LINE_LEFT + 25
 const ENTRY_LEFT = ICON_LEFT + ICON_BOX + 15
 // The stack that drops out of a shared minute. Nothing here scrolls, so
 // these two are what the lift has to make room for.
@@ -586,7 +594,9 @@ export function DayTimeline({
                     className={`absolute text-[19px] font-semibold tabular-nums transition-colors duration-300 ${
                       isInteracting ? "text-foreground" : "text-foreground/70"
                     }`}
-                    style={{ left: LINE_LEFT + 25 }}
+                    // Same time column as the rows below (content-space
+                    // coordinate minus the band's own inset).
+                    style={{ left: TIME_COLUMN_LEFT - BAND_INSET }}
                   >
                     {minutesToTime(centerMinutes)}
                   </span>
@@ -668,7 +678,10 @@ export function DayTimeline({
                       <div
                         className="absolute inset-y-0 flex flex-col justify-center"
                         style={{
-                          left: ENTRY_LEFT,
+                          // ENTRY_LEFT is content-space; the card lives in
+                          // the band's inset box, so it must be rebased or
+                          // the text sits 8px right of the row column below.
+                          left: ENTRY_LEFT - BAND_INSET,
                           right: actionsWidth + 8,
                         }}
                       >
@@ -758,14 +771,15 @@ export function DayTimeline({
               {/* The list, once asked for: small cards of their own, dealt
                 out under the main one one after the next. Nothing scrolls
                 and nothing is cut off — the lift above made the room. */}
-              {stackGroup && (
-                <div
+              {stackGroup && (                    <div
                   data-state={stackClosing ? "closing" : "open"}
                   className="pointer-events-auto absolute inset-x-0 flex flex-col"
                   style={{
                     top: CARD_HEIGHT / 2 + 8,
                     gap: STACK_GAP,
-                    paddingLeft: ENTRY_LEFT - 8,
+                    // Same rebasing as the card text: content-space
+                    // coordinate minus the band's own 8px inset.
+                    paddingLeft: ENTRY_LEFT - BAND_INSET,
                   }}
                 >
                   {stackGroup.members.map((member, index) => (
@@ -864,7 +878,7 @@ export function DayTimeline({
                   className="absolute size-2.5 rounded-full border-2 border-background bg-muted-foreground/60 transition-opacity duration-200"
                   style={{
                     left: LINE_LEFT - 7,
-                    top: top - 7,
+                    top: top - 5,
                     opacity,
                     transform: `scale(${depth.scale})`,
                   }}
@@ -905,7 +919,12 @@ export function DayTimeline({
                   highlighted && !dragging ? "pointer-events-none" : ""
                 }`}
                 style={{
-                  top: top - 9,
+                  // The dot hangs 14px down from here (28px tall), so this
+                  // offset — not -9 — is what puts the dot's center exactly
+                  // on the minute: the same line the band centers on when
+                  // it locks onto this entry. Any other value and the
+                  // floating card visibly rides above the dot it replaced.
+                  top: top - 14,
                   // Bounded on both sides so truncation has something to
                   // push against — an absolutely positioned row otherwise
                   // shrink-wraps its content and runs off the strip.

@@ -51,6 +51,15 @@ import {
   resolveHealthMetricSelection,
 } from "../../../../convex/lib/healthMetricCatalog"
 import { AboutApp } from "@/components/about-app"
+import {
+  beginHealthSync,
+  endHealthSync,
+  friendlyHealthError,
+  recordSyncActivity,
+  setHealthSyncPhase,
+  useHealthSyncStatus,
+} from "@/lib/health-sync-status"
+import { HealthWriteBackRepair } from "@/components/health-writeback-repair"
 import { cacheWeightUnit, readCachedWeightUnit } from "@/lib/use-weight-unit"
 import {
   cacheEnergyUnit,
@@ -126,6 +135,12 @@ import {
 } from "@/lib/offline-sync-status"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { mealLabel } from "@/lib/food-log"
+import {
+  DEFAULT_MEAL_TIMES,
+  MEAL_TIME_OFF,
+  readMealTimes,
+  writeMealTimes,
+} from "@/lib/meal-times"
 import { resetWelcomeNudge } from "@/lib/welcome-nudge"
 import {
   isValidInviteEmail,
@@ -324,7 +339,17 @@ export default function Settings({
       ?.consent?.wearableIntegrations === true
   const healthWorkouts = useQuery(
     api.logs.healthWorkouts.list,
-    isHealthSyncSupportedPlatform() ? { limit: 10 } : "skip"
+    isHealthSyncSupportedPlatform() ? { limit: 20 } : "skip"
+  )
+  // "Recent imports" is a work queue, not an archive: once a session joins the
+  // training log it has nowhere further to go, so it leaves the list instead of
+  // parking forever with a dead "Added" label. The server row stays (dedupe
+  // depends on it); the UI just stops offering it. The fetch runs wider than
+  // the displayed cap because linked rows filtered out below still count
+  // against the server's limit.
+  const pendingHealthWorkouts = useMemo(
+    () => (healthWorkouts ?? []).filter((workout) => !workout.linked),
+    [healthWorkouts]
   )
   const setConsent = useOfflineMutation(
     api.users.onboarding.setConsent,
@@ -343,6 +368,7 @@ export default function Settings({
   const dismissHealthWorkout = useMutation(api.logs.healthWorkouts.dismiss)
   const [healthBusy, setHealthBusy] = useState(false)
   const [healthError, setHealthError] = useState<string | null>(null)
+  const syncStatus = useHealthSyncStatus()
 
   const healthLabel = healthProviderLabel()
   // healthSyncEnabled is canonical; appleHealthEnabled is the legacy name still
@@ -492,6 +518,12 @@ export default function Settings({
   const [waterGoal, setWaterGoalState] = useState(
     preferences?.waterGoalMl ?? 2500
   )
+  // Per-meal default log times. Local-only by design — the tag is a writing
+  // convenience, not account data; device defaults keep it that way.
+  const [mealTimes, setMealTimes] = useState<Record<string, string>>(() => ({
+    ...DEFAULT_MEAL_TIMES,
+    ...readMealTimes(),
+  }))
   const [calories, setCalories] = useState(
     effectiveGoals?.effective.calories ?? 2000
   )
@@ -855,6 +887,7 @@ export default function Settings({
         fat,
       })
       await setWaterGoal({ goalMl: waterGoal })
+      writeMealTimes(mealTimes)
     }, "Targets saved")
   }
 
@@ -1811,6 +1844,55 @@ export default function Settings({
                     />
                   </SettingsRow>
                 </GroupedList>
+
+                <SettingsSectionLabel title="Default log times" />
+                <GroupedList label="Default log times">
+                  {Object.keys(mealTimes).map((key) => {
+                    const value = mealTimes[key]
+                    const isOff = value === MEAL_TIME_OFF
+                    return (
+                      <SettingsRow
+                        key={key}
+                        label={mealLabel(key)}
+                        detail={
+                          isOff
+                            ? "Logs at the moment you tap"
+                            : `Tagging a food “${mealLabel(key)}” logs it at this time`
+                        }
+                      >
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="time"
+                            value={isOff ? "" : value}
+                            disabled={isOff}
+                            onChange={(event) => {
+                              if (!event.target.value) return
+                              setMealTimes((current) => ({
+                                ...current,
+                                [key]: event.target.value,
+                              }))
+                            }}
+                            aria-label={`${mealLabel(key)} default log time`}
+                            className="h-9 rounded-lg border border-border bg-transparent px-2 text-[14px] tabular-nums outline-none disabled:opacity-35"
+                          />
+                          <CompactSwitch
+                            onInteract={hapticSelection}
+                            checked={!isOff}
+                            onChange={(checked) => {
+                              setMealTimes((current) => ({
+                                ...current,
+                                [key]: checked
+                                  ? DEFAULT_MEAL_TIMES[key] ?? "12:00"
+                                  : MEAL_TIME_OFF,
+                              }))
+                            }}
+                            label={`${mealLabel(key)} uses a default time`}
+                          />
+                        </div>
+                      </SettingsRow>
+                    )
+                  })}
+                </GroupedList>
                 <AppTooltip
                   id={APP_TOOLTIP_IDS.settingsTargets}
                   content="Save here so Today and Nutrition use the updated targets."
@@ -2593,9 +2675,57 @@ export default function Settings({
                       )}
                     </GroupedList>
 
+                    {syncStatus.running && (
+                      <div className="px-[var(--app-page-x)]">
+                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                          <div className="h-full w-3/5 animate-pulse rounded-full bg-foreground" />
+                        </div>
+                        <p className="native-row-detail mt-2">
+                          {syncStatus.phase ?? "Syncing…"}
+                        </p>
+                      </div>
+                    )}
+                    {syncStatus.recent.length > 0 && (
+                      <div className="px-[var(--app-page-x)]">
+                        <p className="text-[13px] font-medium">Recent sync activity</p>
+                        <ul className="mt-1 space-y-0.5">
+                          {syncStatus.recent.map((activity) => (
+                            <li
+                              key={activity.at}
+                              className="text-[13px] text-muted-foreground"
+                            >
+                              {new Date(activity.at).toLocaleTimeString([], {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                              {" — "}
+                              {activity.label}
+                              {activity.count != null ? ` (${activity.count})` : null}
+                            </li>
+                          ))}
+                        </ul>
+                        {syncStatus.lastDurationMs != null && (
+                          <p className="text-[12px] text-muted-foreground">
+                            Last sync took {(syncStatus.lastDurationMs / 1000).toFixed(1)}s
+                          </p>
+                        )}
+                      </div>
+                    )}
+                    {supportsHealthSettingsDeepLink() && healthWriteEnabled && (
+                      <div className="px-[var(--app-page-x)]">
+                        <HealthWriteBackRepair />
+                        <p className="native-row-detail mt-2">
+                          Earlier builds filed each sync push as a separate record, so
+                          Health Connect can show stacked day totals. This re-writes the
+                          past week from your OneRep log.
+                        </p>
+                      </div>
+                    )}
                     {(healthError || healthSync?.lastSyncError) && (
                       <p className="native-row-detail px-[var(--app-page-x)] text-destructive">
-                        {healthError ?? healthSync?.lastSyncError}
+                        {healthError ??
+                          friendlyHealthError(healthSync?.lastSyncError) ??
+                          healthSync?.lastSyncError}
                       </p>
                     )}
 
@@ -2605,20 +2735,27 @@ export default function Settings({
                         disabled={healthBusy || !healthSyncEnabled}
                         onClick={async () => {
                           setHealthBusy(true)
+                          beginHealthSync("Checking Health Connect…")
                           setHealthError(null)
                           try {
                             const authorization =
                               await requestHealthAuthorization()
                             if (!authorization.granted) {
                               setHealthError("Permission was denied.")
+                              endHealthSync({ error: "Permission was denied." })
                               return
                             }
+                            setHealthSyncPhase("Reading workouts from Health Connect…")
                             const workouts = await getRecentHealthWorkouts({
                               daysBack: HEALTH_SYNC_DAYS_BACK,
                               limit: HEALTH_SYNC_LIMIT,
                             })
                             const provider = healthProvider()
-                            if (!provider) return
+                            if (!provider) {
+                              endHealthSync({ error: null })
+                              return
+                            }
+                            setHealthSyncPhase("Importing…")
                             const result = await importHealthWorkouts({
                               provider,
                               workouts: workouts.map((workout) =>
@@ -2633,12 +2770,20 @@ export default function Settings({
                                 ? `Imported ${result.imported} workout${result.imported === 1 ? "" : "s"}`
                                 : "Already up to date"
                             )
-                          } catch (error) {
-                            setHealthError(
-                              error instanceof Error
-                                ? error.message
-                                : "Sync failed"
+                            recordSyncActivity(
+                              result.imported > 0
+                                ? `Imported ${result.imported} workout${result.imported === 1 ? "" : "s"}`
+                                : "Workout check: already up to date",
+                              result.imported > 0 ? result.imported : undefined
                             )
+                            endHealthSync({ error: null })
+                          } catch (error) {
+                            const rawMessage =
+                              error instanceof Error ? error.message : "Sync failed"
+                            setHealthError(
+                              friendlyHealthError(rawMessage) ?? rawMessage
+                            )
+                            endHealthSync({ error: rawMessage })
                           } finally {
                             setHealthBusy(false)
                           }
@@ -2678,13 +2823,13 @@ export default function Settings({
                       detail="Add a session to your training log, or hide it"
                     />
                     <GroupedList label="Imported workouts">
-                      {(healthWorkouts ?? []).length === 0 ? (
+                      {pendingHealthWorkouts.length === 0 ? (
                         <ListRow
                           title="Nothing imported yet"
                           detail={`Completed ${healthLabel} workouts will appear here.`}
                         />
                       ) : (
-                        (healthWorkouts ?? []).map((workout) => (
+                        pendingHealthWorkouts.map((workout) => (
                           <div
                             key={String(workout._id)}
                             className="flex min-h-14 items-center justify-between gap-2 px-1 py-2.5"
@@ -2701,11 +2846,7 @@ export default function Settings({
                                   : ""}
                               </p>
                             </div>
-                            {workout.linked ? (
-                              <span className="native-row-detail shrink-0">
-                                Added
-                              </span>
-                            ) : workout.dayFull ? (
+                            {workout.dayFull ? (
                               // Both slots that day are taken — offering Add
                               // would only produce a failed mutation.
                               <span className="native-row-detail shrink-0">

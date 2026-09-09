@@ -1243,6 +1243,13 @@ class HealthConnectPlugin : Plugin() {
      * so this inserts ours next to the original. Someone who corrects a
      * smart-scale weigh-in will see two entries for that day in Health Connect,
      * theirs and the scale's. We cannot overwrite and should not imply we do.
+     *
+     * What we DO overwrite is our own previous number: every write carries a
+     * stable clientRecordId (`metric:date`) with a rising clientRecordVersion,
+     * so Health Connect upserts it in place. This matters because the food
+     * log re-pushes a day's running totals after every entry — without the
+     * id, each push files a fresh record and the store sums them, reading
+     * breakfast 1,500 + dinner 2,700 as a 4,200 kcal day.
      */
     @PluginMethod
     fun saveDailyMetric(call: PluginCall) {
@@ -1272,7 +1279,15 @@ class HealthConnectPlugin : Plugin() {
         val at = minOf(day.atTime(12, 0).atZone(zone).toInstant(), now)
         val offset = zone.rules.getOffset(at)
         val spanOffset = zone.rules.getOffset(dayStart)
-        val meta = Metadata.manualEntry()
+        // Stable identity per metric per day + a rising version: Health
+        // Connect upserts records whose clientRecordId already exists and
+        // whose clientRecordVersion is higher, so a re-push replaces the
+        // previous total instead of stacking alongside it. The wall clock is
+        // the version, per the platform guidance for unversioned data.
+        val meta = Metadata.manualEntry(
+            clientRecordId = "$metric:$date",
+            clientRecordVersion = now.toEpochMilli(),
+        )
 
         val record: Record? = when (metric) {
             "steps" -> StepsRecord(dayStart, spanOffset, dayEnd, spanOffset, value.toLong(), meta)
@@ -1388,6 +1403,22 @@ class HealthConnectPlugin : Plugin() {
                     val granted = hc.permissionController.getGrantedPermissions()
                     val permission = HealthPermission.getWritePermission(record::class)
                     if (!granted.contains(permission)) return@withContext false
+                    // Cumulative day records (steps, energy, hydration, nutrition
+                    // totals) are re-pushed as running totals, so our previous
+                    // same-day record must not survive alongside the new one —
+                    // Health Connect aggregates by summing, and the leftover
+                    // would double the day. The clientRecordId upsert above
+                    // handles our own records; this delete also catches records
+                    // written before ids existed (or after a reinstall, where
+                    // the id survives but versioning may not). Only OUR records
+                    // are matched: the SDK scopes deletions to the caller's
+                    // data origin, so a watch's steps are never touched.
+                    if (record::class in cumulativeRecordTypes) {
+                        hc.deleteRecords(
+                            record::class,
+                            TimeRangeFilter.between(dayStart, dayEnd),
+                        )
+                    }
                     hc.insertRecords(listOf(record))
                     true
                 }
@@ -1396,4 +1427,24 @@ class HealthConnectPlugin : Plugin() {
             call.resolve(JSObject().put("saved", saved))
         }
     }
+
+    /**
+     * Record types where one write stands for the whole interval/day, so a
+     * second write must replace the first rather than join it. Point samples
+     * (weight, temperature, heart rate) are exempt: a corrected weigh-in is
+     * meant to sit beside the scale's original reading, and the
+     * clientRecordId upsert keeps our own repeated corrections from
+     * multiplying.
+     */
+    private val cumulativeRecordTypes = setOf(
+        StepsRecord::class,
+        ActiveCaloriesBurnedRecord::class,
+        TotalCaloriesBurnedRecord::class,
+        DistanceRecord::class,
+        FloorsClimbedRecord::class,
+        ElevationGainedRecord::class,
+        WheelchairPushesRecord::class,
+        HydrationRecord::class,
+        NutritionRecord::class,
+    )
 }
