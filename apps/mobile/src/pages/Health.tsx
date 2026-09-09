@@ -99,7 +99,7 @@ export default function Health() {
           : undefined
       }
     >
-      {scored !== null && <span className="app-hero-wash" aria-hidden="true" />}
+      {scored !== null && <span className="app-hero-wash health-hero-wash" aria-hidden="true" />}
       <main className="app-page pb-28">
         <header className="app-header flex items-center justify-between gap-3">
           <h1 className="app-title">Health</h1>

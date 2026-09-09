@@ -1,0 +1,537 @@
+/* ─── Page hero images ───────────────────────────────────────────────────── */
+
+.health-hero-wash,
+.nutrition-hero-wash,
+.training-hero-wash,
+.progress-hero-wash {
+  /* Carry the photograph through each page's first actionable section, then
+     hand the remaining document back to the solid app surface. */
+  height: min(76rem, 115svh);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  animation: none;
+}
+
+/* Photographs vary too much for the theme's muted token to remain readable
+   by itself. Keep secondary labels close to the foreground while a
+   scheme-aware scrim controls contrast without flattening the artwork. */
+.app-hero,
+.nutrition-hero {
+  --muted-foreground: color-mix(
+    in srgb,
+    var(--foreground) 84%,
+    transparent
+  );
+}
+
+/* The shared identity rule uses the `background` shorthand, which otherwise
+   resets these longhands back to `auto` and `repeat`. That made the source
+   photo tile near the foot of taller hero fields. Keep each photographic
+   identity to one full-bleed frame, then progressively blur the lower portion
+   before the shared hero mask fades it into the page. */
+:root:is([data-visual-identity="dusk"], [data-visual-identity="forest"])
+  .app-hero-wash:is(
+    .health-hero-wash,
+    .nutrition-hero-wash,
+    .training-hero-wash,
+    .progress-hero-wash
+  ):not(.dashboard-home-wash) {
+  height: min(76rem, 115svh);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+/* The remaining identities each get a complete set of page-specific photos.
+   Keeping the URL on the wash itself lets one shared treatment own crop,
+   contrast, blur and fade without duplicating that machinery twelve times. */
+:root[data-visual-identity="slate"] .health-hero-wash {
+  --identity-hero-photo: url("/hero/slate-health-abstract-v2.webp");
+}
+
+:root[data-visual-identity="slate"] .nutrition-hero-wash {
+  --identity-hero-photo: url("/hero/slate-nutrition-abstract-v2.webp");
+}
+
+:root[data-visual-identity="slate"] .training-hero-wash {
+  --identity-hero-photo: url("/hero/slate-training-abstract-v2.webp");
+}
+
+:root[data-visual-identity="slate"] .progress-hero-wash {
+  --identity-hero-photo: url("/hero/slate-progress-abstract-v2.webp");
+}
+
+:root[data-visual-identity="ocean"] .health-hero-wash {
+  --identity-hero-photo: url("/hero/ocean-health-abstract-v2.webp");
+}
+
+:root[data-visual-identity="ocean"] .nutrition-hero-wash {
+  --identity-hero-photo: url("/hero/ocean-nutrition-abstract-v2.webp");
+}
+
+:root[data-visual-identity="ocean"] .training-hero-wash {
+  --identity-hero-photo: url("/hero/ocean-training-abstract-v2.webp");
+}
+
+:root[data-visual-identity="ocean"] .progress-hero-wash {
+  --identity-hero-photo: url("/hero/ocean-progress-abstract-v2.webp");
+}
+
+:root[data-visual-identity="blossom"] .health-hero-wash {
+  --identity-hero-photo: url("/hero/blossom-health-abstract-v2.webp");
+}
+
+:root[data-visual-identity="blossom"] .nutrition-hero-wash {
+  --identity-hero-photo: url("/hero/blossom-nutrition-abstract-v2.webp");
+}
+
+:root[data-visual-identity="blossom"] .training-hero-wash {
+  --identity-hero-photo: url("/hero/blossom-training-abstract-v2.webp");
+}
+
+:root[data-visual-identity="blossom"] .progress-hero-wash {
+  --identity-hero-photo: url("/hero/blossom-progress-abstract-v2.webp");
+}
+
+:root:is(
+    [data-visual-identity="slate"],
+    [data-visual-identity="ocean"],
+    [data-visual-identity="blossom"]
+  )
+  .app-hero-wash:is(
+    .health-hero-wash,
+    .nutrition-hero-wash,
+    .training-hero-wash,
+    .progress-hero-wash
+  ):not(.dashboard-home-wash) {
+  height: min(76rem, 115svh);
+  background-image:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--background) 22%, transparent) 0%,
+      transparent 34%,
+      color-mix(in srgb, var(--background) 72%, transparent) 76%,
+      var(--background) 100%
+    ),
+    var(--identity-hero-photo);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+:root:not([data-theme="light"]):is(
+    [data-visual-identity="slate"],
+    [data-visual-identity="ocean"],
+    [data-visual-identity="blossom"]
+  )
+  .app-hero-wash:is(
+    .health-hero-wash,
+    .nutrition-hero-wash,
+    .training-hero-wash,
+    .progress-hero-wash
+  ):not(.dashboard-home-wash) {
+  background-image:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--background) 48%, transparent) 0%,
+      color-mix(in srgb, var(--background) 20%, transparent) 28%,
+      color-mix(in srgb, var(--background) 78%, transparent) 68%,
+      var(--background) 100%
+    ),
+    var(--identity-hero-photo);
+}
+
+.app-hero-wash:is(
+    .health-hero-wash,
+    .nutrition-hero-wash,
+    .training-hero-wash,
+    .progress-hero-wash
+  ):not(.dashboard-home-wash)::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 48%;
+  background: color-mix(in srgb, var(--background) 3%, transparent);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 72%);
+  mask-image: linear-gradient(180deg, transparent 0%, #000 72%);
+}
+
+.app-hero-wash:is(
+    .health-hero-wash,
+    .nutrition-hero-wash,
+    .training-hero-wash,
+    .progress-hero-wash
+  ):not(.dashboard-home-wash)::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--background) 58%, transparent) 0%,
+    color-mix(in srgb, var(--background) 46%, transparent) 34%,
+    color-mix(in srgb, var(--background) 30%, transparent) 58%,
+    transparent 78%
+  );
+}
+
+/* ── Health ────────────────────────────────────────────────────────────── */
+
+.health-hero-wash {
+  background-image:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--background) 15%, transparent) 0%,
+      transparent 35%,
+      transparent 70%,
+      color-mix(in srgb, var(--background) 20%, transparent) 100%
+    ),
+    url("/hero/default-health-abstract.webp");
+}
+
+:root[data-theme="dark"] .health-hero-wash,
+:root:not([data-theme="light"]) .health-hero-wash {
+  background-image:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--background) 50%, transparent) 0%,
+      color-mix(in srgb, var(--background) 40%, transparent) 10%,
+      color-mix(in srgb, var(--background) 20%, transparent) 25%,
+      color-mix(in srgb, var(--background) 80%, transparent) 45%,
+      color-mix(in srgb, var(--background) 100%, transparent) 55%
+    ),
+    url("/hero/default-health-abstract.webp");
+}
+
+:root[data-visual-identity="dusk"]
+  .app-hero-wash.health-hero-wash:not(.dashboard-home-wash) {
+  background-image:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--background) 30%, transparent) 0%,
+      color-mix(in srgb, var(--background) 10%, transparent) 25%,
+      color-mix(in srgb, var(--background) 100%, transparent) 65%
+    ),
+    url("/hero/dusk-health-abstract-v2.webp");
+}
+
+:root[data-theme="dark"]
+  [data-visual-identity="dusk"]
+  .app-hero-wash.health-hero-wash:not(.dashboard-home-wash),
+:root:not([data-theme="light"])
+  [data-visual-identity="dusk"]
+  .app-hero-wash.health-hero-wash:not(.dashboard-home-wash) {
+  background-image:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--background) 55%, transparent) 0%,
+      color-mix(in srgb, var(--background) 40%, transparent) 15%,
+      color-mix(in srgb, var(--background) 25%, transparent) 30%,
+      color-mix(in srgb, var(--background) 80%, transparent) 50%,
+      color-mix(in srgb, var(--background) 100%, transparent) 60%
+    ),
+    url("/hero/dusk-health-abstract-v2.webp");
+}
+
+:root[data-visual-identity="forest"]
+  .app-hero-wash.health-hero-wash:not(.dashboard-home-wash) {
+  background-image:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--background) 15%, transparent) 0%,
+      transparent 35%,
+      transparent 70%,
+      color-mix(in srgb, var(--background) 100%, transparent) 100%
+    ),
+    url("/hero/forest-health-abstract-v2.webp");
+}
+
+:root[data-theme="dark"]
+  [data-visual-identity="forest"]
+  .app-hero-wash.health-hero-wash:not(.dashboard-home-wash),
+:root:not([data-theme="light"])
+  [data-visual-identity="forest"]
+  .app-hero-wash.health-hero-wash:not(.dashboard-home-wash) {
+  background-image:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--background) 50%, transparent) 0%,
+      color-mix(in srgb, var(--background) 40%, transparent) 10%,
+      color-mix(in srgb, var(--background) 30%, transparent) 25%,
+      color-mix(in srgb, var(--background) 80%, transparent) 45%,
+      color-mix(in srgb, var(--background) 100%, transparent) 55%
+    ),
+    url("/hero/forest-health-abstract-v2.webp");
+}
+
+/* ── Nutrition ─────────────────────────────────────────────────────────── */
+
+.nutrition-hero-wash {
+  background-size: cover;
+  background-position: center;
+  background-image:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--background) 15%, transparent) 0%,
+      transparent 35%,
+      transparent 70%,
+      color-mix(in srgb, var(--background) 20%, transparent) 100%
+    ),
+    url("/hero/default-nutrition-abstract.webp");
+}
+
+:root[data-theme="dark"] .nutrition-hero-wash,
+:root:not([data-theme="light"]) .nutrition-hero-wash {
+  background-image:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--background) 50%, transparent) 0%,
+      color-mix(in srgb, var(--background) 40%, transparent) 10%,
+      color-mix(in srgb, var(--background) 20%, transparent) 25%,
+      color-mix(in srgb, var(--background) 80%, transparent) 45%,
+      color-mix(in srgb, var(--background) 100%, transparent) 55%
+    ),
+    url("/hero/default-nutrition-abstract.webp");
+}
+
+:root[data-visual-identity="dusk"]
+  .app-hero-wash.nutrition-hero-wash:not(.dashboard-home-wash) {
+  background-image:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--background) 30%, transparent) 0%,
+      color-mix(in srgb, var(--background) 10%, transparent) 25%,
+      color-mix(in srgb, var(--background) 100%, transparent) 65%
+    ),
+    url("/hero/dusk-nutrition-abstract-v2.webp");
+}
+
+:root[data-theme="dark"]
+  [data-visual-identity="dusk"]
+  .app-hero-wash.nutrition-hero-wash:not(.dashboard-home-wash),
+:root:not([data-theme="light"])
+  [data-visual-identity="dusk"]
+  .app-hero-wash.nutrition-hero-wash:not(.dashboard-home-wash) {
+  background-image:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--background) 55%, transparent) 0%,
+      color-mix(in srgb, var(--background) 40%, transparent) 15%,
+      color-mix(in srgb, var(--background) 25%, transparent) 30%,
+      color-mix(in srgb, var(--background) 80%, transparent) 50%,
+      color-mix(in srgb, var(--background) 100%, transparent) 60%
+    ),
+    url("/hero/dusk-nutrition-abstract-v2.webp");
+}
+
+:root[data-visual-identity="forest"]
+  .app-hero-wash.nutrition-hero-wash:not(.dashboard-home-wash) {
+  background-image:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--background) 15%, transparent) 0%,
+      transparent 35%,
+      transparent 70%,
+      color-mix(in srgb, var(--background) 100%, transparent) 100%
+    ),
+    url("/hero/forest-nutrition-abstract-v2.webp");
+}
+
+:root[data-theme="dark"]
+  [data-visual-identity="forest"]
+  .app-hero-wash.nutrition-hero-wash:not(.dashboard-home-wash),
+:root:not([data-theme="light"])
+  [data-visual-identity="forest"]
+  .app-hero-wash.nutrition-hero-wash:not(.dashboard-home-wash) {
+  background-image:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--background) 50%, transparent) 0%,
+      color-mix(in srgb, var(--background) 20%, transparent) 25%,
+      transparent 40%,
+      color-mix(in srgb, var(--background) 100%, transparent) 80%
+    ),
+    url("/hero/forest-nutrition-abstract-v2.webp");
+}
+
+/* ── Training ──────────────────────────────────────────────────────────── */
+
+.training-hero-wash {
+  background-image:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--background) 15%, transparent) 0%,
+      transparent 35%,
+      transparent 70%,
+      color-mix(in srgb, var(--background) 20%, transparent) 100%
+    ),
+    url("/hero/default-training-abstract.webp");
+}
+
+:root[data-theme="dark"] .training-hero-wash,
+:root:not([data-theme="light"]) .training-hero-wash {
+  background-image:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--background) 65%, transparent) 0%,
+      color-mix(in srgb, var(--background) 50%, transparent) 10%,
+      color-mix(in srgb, var(--background) 30%, transparent) 25%,
+      color-mix(in srgb, var(--background) 80%, transparent) 45%,
+      color-mix(in srgb, var(--background) 100%, transparent) 55%
+    ),
+    url("/hero/default-training-abstract.webp");
+}
+
+:root[data-visual-identity="dusk"]
+  .app-hero-wash.training-hero-wash:not(.dashboard-home-wash) {
+  background-image:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--background) 30%, transparent) 0%,
+      color-mix(in srgb, var(--background) 10%, transparent) 25%,
+      color-mix(in srgb, var(--background) 100%, transparent) 65%
+    ),
+    url("/hero/dusk-training-abstract-v2.webp");
+}
+
+:root[data-theme="dark"]
+  [data-visual-identity="dusk"]
+  .app-hero-wash.training-hero-wash:not(.dashboard-home-wash),
+:root:not([data-theme="light"])
+  [data-visual-identity="dusk"]
+  .app-hero-wash.training-hero-wash:not(.dashboard-home-wash) {
+  background-image:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--background) 55%, transparent) 0%,
+      color-mix(in srgb, var(--background) 40%, transparent) 15%,
+      color-mix(in srgb, var(--background) 25%, transparent) 30%,
+      color-mix(in srgb, var(--background) 80%, transparent) 50%,
+      color-mix(in srgb, var(--background) 100%, transparent) 60%
+    ),
+    url("/hero/dusk-training-abstract-v2.webp");
+}
+
+:root[data-visual-identity="forest"]
+  .app-hero-wash.training-hero-wash:not(.dashboard-home-wash) {
+  background-image:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--background) 15%, transparent) 0%,
+      transparent 35%,
+      transparent 70%,
+      color-mix(in srgb, var(--background) 100%, transparent) 100%
+    ),
+    url("/hero/forest-training-abstract-v2.webp");
+}
+
+:root[data-theme="dark"]
+  [data-visual-identity="forest"]
+  .app-hero-wash.training-hero-wash:not(.dashboard-home-wash),
+:root:not([data-theme="light"])
+  [data-visual-identity="forest"]
+  .app-hero-wash.training-hero-wash:not(.dashboard-home-wash) {
+  background-image:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--background) 50%, transparent) 0%,
+      color-mix(in srgb, var(--background) 40%, transparent) 10%,
+      color-mix(in srgb, var(--background) 30%, transparent) 25%,
+      color-mix(in srgb, var(--background) 80%, transparent) 45%,
+      color-mix(in srgb, var(--background) 100%, transparent) 55%
+    ),
+    url("/hero/forest-training-abstract-v2.webp");
+}
+
+/* ── Progress ──────────────────────────────────────────────────────────── */
+
+.progress-hero-wash {
+  background-image:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--background) 15%, transparent) 0%,
+      transparent 35%,
+      transparent 70%,
+      color-mix(in srgb, var(--background) 20%, transparent) 100%
+    ),
+    url("/hero/default-progress-abstract.webp");
+}
+
+:root[data-theme="dark"] .progress-hero-wash,
+:root:not([data-theme="light"]) .progress-hero-wash {
+  background-image:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--background) 50%, transparent) 0%,
+      color-mix(in srgb, var(--background) 40%, transparent) 10%,
+      color-mix(in srgb, var(--background) 20%, transparent) 25%,
+      color-mix(in srgb, var(--background) 80%, transparent) 45%,
+      color-mix(in srgb, var(--background) 100%, transparent) 55%
+    ),
+    url("/hero/default-progress-abstract.webp");
+}
+
+:root[data-visual-identity="dusk"]
+  .app-hero-wash.progress-hero-wash:not(.dashboard-home-wash) {
+  background-image:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--background) 30%, transparent) 0%,
+      color-mix(in srgb, var(--background) 10%, transparent) 25%,
+      color-mix(in srgb, var(--background) 100%, transparent) 65%
+    ),
+    url("/hero/dusk-progress-abstract-v2.webp");
+}
+
+:root[data-theme="dark"]
+  [data-visual-identity="dusk"]
+  .app-hero-wash.progress-hero-wash:not(.dashboard-home-wash),
+:root:not([data-theme="light"])
+  [data-visual-identity="dusk"]
+  .app-hero-wash.progress-hero-wash:not(.dashboard-home-wash) {
+  background-image:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--background) 55%, transparent) 0%,
+      color-mix(in srgb, var(--background) 40%, transparent) 15%,
+      color-mix(in srgb, var(--background) 25%, transparent) 30%,
+      color-mix(in srgb, var(--background) 80%, transparent) 50%,
+      color-mix(in srgb, var(--background) 100%, transparent) 60%
+    ),
+    url("/hero/dusk-progress-abstract-v2.webp");
+}
+
+:root[data-visual-identity="forest"]
+  .app-hero-wash.progress-hero-wash:not(.dashboard-home-wash) {
+  background-image:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--background) 15%, transparent) 0%,
+      transparent 35%,
+      transparent 70%,
+      color-mix(in srgb, var(--background) 100%, transparent) 100%
+    ),
+    url("/hero/forest-progress-abstract-v2.webp");
+}
+
+:root[data-theme="dark"]
+  [data-visual-identity="forest"]
+  .app-hero-wash.progress-hero-wash:not(.dashboard-home-wash),
+:root:not([data-theme="light"])
+  [data-visual-identity="forest"]
+  .app-hero-wash.progress-hero-wash:not(.dashboard-home-wash) {
+  background-image:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--background) 50%, transparent) 0%,
+      color-mix(in srgb, var(--background) 40%, transparent) 10%,
+      color-mix(in srgb, var(--background) 30%, transparent) 25%,
+      color-mix(in srgb, var(--background) 80%, transparent) 45%,
+      color-mix(in srgb, var(--background) 100%, transparent) 55%
+    ),
+    url("/hero/forest-progress-abstract-v2.webp");
+}

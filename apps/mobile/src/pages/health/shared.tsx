@@ -712,7 +712,7 @@ export function HealthDetailShell({
       }
     >
       {heroFill != null && (
-        <span className="app-hero-wash" aria-hidden="true" />
+        <span className="app-hero-wash health-hero-wash" aria-hidden="true" />
       )}
       <main className="app-page pb-28">
         <NavigationBar

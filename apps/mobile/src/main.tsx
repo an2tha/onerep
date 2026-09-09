@@ -33,6 +33,7 @@ import { HealthSync } from "@/components/health-sync"
 import { CoachPushRegistration } from "@/components/coach-push-registration"
 import { MealCategorySync } from "@/components/meal-category-sync"
 import { RetentionTracking } from "@/components/retention-tracking"
+import { useTheme } from "@repo/ui"
 
 import "./styles/index.css"
 import "./i18n"
@@ -400,6 +401,7 @@ function NavSync() {
   const touchStartX = useRef<number | null>(null)
   const touchStartY = useRef<number | null>(null)
   const holdTimer = useRef<number | null>(null)
+  const { identity, setIdentity, identities } = useTheme()
   const edge = 28
   const threshold = 72
   const showBottomBar = shouldShowBottomBar(location.pathname)
@@ -472,6 +474,30 @@ function NavSync() {
       window.removeEventListener("pointercancel", onPointerEnd)
     }
   }, [])
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) return
+
+    function isEditableTarget(target: EventTarget | null) {
+      if (!(target instanceof HTMLElement)) return false
+      if (target.isContentEditable) return true
+      return Boolean(
+        target.closest("input, textarea, select, [contenteditable='true']")
+      )
+    }
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.repeat) return
+      if (event.key !== "e") return
+      if (isEditableTarget(event.target)) return
+      const currentIndex = identities.findIndex((i) => i.id === identity)
+      const nextIndex = (currentIndex + 1) % identities.length
+      setIdentity(identities[nextIndex].id)
+    }
+
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [identity, identities, setIdentity])
 
   useLayoutEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" })

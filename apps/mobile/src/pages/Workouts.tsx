@@ -1353,7 +1353,7 @@ export default function Workouts() {
           : undefined
       }
     >
-      {isToday && <span className="app-hero-wash" aria-hidden="true" />}
+      {isToday && <span className="app-hero-wash training-hero-wash" aria-hidden="true" />}
       <main className="app-page">
         <header className="app-header" ref={trainingHeaderRef}>
           <div className="min-w-0">

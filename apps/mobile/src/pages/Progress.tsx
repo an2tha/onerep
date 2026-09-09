@@ -519,7 +519,7 @@ export default function Progress() {
         } as CSSProperties
       }
     >
-      <span className="app-hero-wash" aria-hidden="true" />
+      <span className="app-hero-wash progress-hero-wash" aria-hidden="true" />
       <main className="app-page pb-28">
         <header className="app-header" ref={progressHeaderRef}>
           <h1 className="app-title">Progress</h1>

@@ -3004,7 +3004,12 @@ export default function Nutrition() {
           : undefined
       }
     >
-      {isToday && <span className="nutrition-hero-wash" aria-hidden="true" />}
+      {isToday && (
+        <span
+          className="app-hero-wash nutrition-hero-wash"
+          aria-hidden="true"
+        />
+      )}
       <main className="app-page">
         <header className="app-header" ref={nutritionHeaderRef}>
           <div className={cn("min-w-0")}>

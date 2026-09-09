@@ -2,6 +2,7 @@ import * as React from "react"
 import { createPortal } from "react-dom"
 import { X } from "@phosphor-icons/react"
 import { cn } from "../lib/utils"
+import { pushDismissHandler } from "../lib/dismiss-stack"
 
 /**
  * The chrome a full-screen moment wears.
@@ -65,6 +66,10 @@ export function MomentScreen({
   React.useEffect(() => {
     layerRef.current?.focus()
   }, [])
+
+  // Register on the dismiss stack so the system back gesture (Android) or
+  // swipe-back (iOS) closes the moment cleanly instead of navigating away.
+  React.useEffect(() => pushDismissHandler(() => onClose()), [onClose])
 
   if (typeof document === "undefined") return null
 

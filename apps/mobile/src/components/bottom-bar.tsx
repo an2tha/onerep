@@ -19,7 +19,7 @@ import {
   RocketLaunchIcon,
   UserCircle,
 } from "@phosphor-icons/react"
-import { AppNavigationChrome } from "@repo/ui"
+import { AppNavigationChrome, type NavigationTabView } from "@repo/ui"
 import { cn } from "@/lib/utils"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { TourAnchor, useTourAnchor } from "@/components/walkthrough/tour-anchor"
@@ -152,7 +152,7 @@ export function BottomBar({
     preferences?.experimentalFeaturesEnabled ?? false
   const tabs = getTabs(experimentalFeaturesEnabled)
 
-  const tabsForNav = tabs.map(({ path, Icon, labelKey, beta }) => {
+  const tabsForNav: NavigationTabView[] = tabs.map(({ path, Icon, labelKey, beta }) => {
     const active = isActive(pathname, path)
     return {
       id: path,
@@ -190,7 +190,7 @@ export function BottomBar({
   return (
     <AppNavigationChrome
       primaryNavRef={primaryNavRef}
-      tabs={tabs}
+      tabs={tabsForNav}
       desktopTabs={desktopTabs}
       coachActive={coachActive}
       renderDesktopSidebar={renderDesktopSidebar}

@@ -1,0 +1,80 @@
+/* ─── Dashboard tweaks ────────────────────────────────────────────────────── */
+
+/* Keep Today's compact header and summary on one grid. */
+.dashboard-today .app-hero-wash {
+  opacity: 0.72;
+}
+
+.dashboard-week-strip {
+  width: calc(100% - 3rem);
+  max-width: 22rem;
+  margin-inline: auto;
+}
+
+/* The timeline owns every remaining pixel on phones. Carry its ruler through
+   the quiet lead-in above midnight so the full space still reads as one day. */
+.dashboard-timeline-stage .day-timeline::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 4rem;
+  width: 0.125rem;
+  background: var(--border);
+  content: "";
+  pointer-events: none;
+}
+
+@media (min-width: 1024px) {
+  .dashboard-today .dashboard-hero-ledger {
+    display: none;
+  }
+
+  .dashboard-today .dashboard-hero-frame {
+    gap: 0;
+    padding-bottom: 0.5rem;
+  }
+
+  .dashboard-today .dashboard-hero-header {
+    padding-top: 2rem;
+  }
+
+  .dashboard-today-body {
+    width: 100%;
+    max-width: 72rem;
+    margin-inline: auto;
+    padding-inline: 3rem;
+    display: grid;
+    grid-template-columns: minmax(0, 24rem) minmax(18rem, 24rem);
+    grid-template-rows: minmax(0, 1fr) auto;
+    justify-content: space-between;
+    column-gap: 2rem;
+  }
+
+  .dashboard-day-rail {
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+    max-width: none;
+    padding: 0;
+  }
+
+  .dashboard-day-rail-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+    align-content: start;
+    gap: 0.75rem;
+  }
+
+  .dashboard-timeline-stage {
+    grid-column: 1;
+    grid-row: 1;
+    justify-content: flex-start;
+  }
+
+  .dashboard-week-strip {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: auto;
+    max-width: none;
+    margin: 0.25rem 1rem 2rem;
+  }
+}
