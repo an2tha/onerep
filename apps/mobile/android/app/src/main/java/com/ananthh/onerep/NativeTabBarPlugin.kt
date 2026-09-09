@@ -10,7 +10,6 @@ import android.view.Gravity
 import android.view.HapticFeedbackConstants
 import android.view.View
 import android.view.ViewGroup
-import android.view.animation.OvershootInterpolator
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -172,8 +171,10 @@ class NativeTabBarPlugin : Plugin() {
             )
         }
 
-        // Pill and orb ride in a centred row, so the pair reads as one
-        // composition rather than two floating things.
+        // Pill and orb ride in one centred row, so the pair reads as a single
+        // composition rather than two floating things. The alignment that
+        // matters is inside the pill: every icon owns an identical slot, so
+        // the selection chip always lands dead-centre on the icon it moves to.
         val row = LinearLayout(activity).apply {
             orientation = LinearLayout.HORIZONTAL
             clipChildren = false
@@ -191,11 +192,15 @@ class NativeTabBarPlugin : Plugin() {
         // right-hand end of the bar walking off the screen.
         val slotWidth = fittedItemWidth(pillItems.size, prominent != null)
 
+        // WRAP_CONTENT, not a computed width: the capsule then hugs the icon
+        // row exactly, so the row's midpoint and the capsule's midpoint are
+        // the same pixel and the chip centres on the icon, not on whatever a
+        // rounded-up width left over.
         val pill = FrameLayout(activity).apply {
             elevation = dp(8f).toFloat()
             setPadding(dp(6f), 0, dp(6f), 0)
             layoutParams = LinearLayout.LayoutParams(
-                dp(pillItems.size * slotWidth + 12f), dp(barHeight)
+                ViewGroup.LayoutParams.WRAP_CONTENT, dp(barHeight)
             )
         }
 
@@ -390,14 +395,21 @@ class NativeTabBarPlugin : Plugin() {
             return
         }
 
-        val x = (target.second.left + pill!!.paddingLeft + dp(chipInsetX)).toFloat()
+        // The chip's laid-out origin is already the pill's padded content
+        // edge (gravity START inside a padded FrameLayout), so the offset to
+        // the slot is the button's own left plus the slot inset — adding the
+        // padding here too would shove the chip ~6dp right of the icon, and
+        // the highlight would never sit centred on what it highlights.
+        val x = (target.second.left + dp(chipInsetX)).toFloat()
         highlight.alpha = 1f
         val shouldAnimate = animated && chipSeated
         chipSeated = true
         if (shouldAnimate) {
+            // No overshoot interpolator here: the chip must arrive ON the
+            // icon, not swing past it and spring back — past the target is
+            // exactly the misalignment this bar keeps getting blamed for.
             ValueAnimator.ofFloat(highlight.translationX, x).apply {
-                duration = 350
-                interpolator = OvershootInterpolator(1.1f)
+                duration = 300
                 addUpdateListener { highlight.translationX = it.animatedValue as Float }
             }.start()
         } else {
