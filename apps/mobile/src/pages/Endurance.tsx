@@ -1,8 +1,15 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react"
-import { useNavigate } from "react-router"
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react"
 import {
   Bicycle,
+  CaretRight,
   Clock,
+  Fire,
   Heartbeat,
   MapPin,
   PencilSimple,
@@ -15,12 +22,19 @@ import { useMutation, useQuery } from "convex/react"
 import { APP_ACCENT_COLORS, PrimaryButton, toast } from "@repo/ui"
 import { api } from "../../../../convex/_generated/api"
 import { MobileSheet } from "@/components/mobile-sheet"
+import { EnduranceHeartRateChart } from "@/components/endurance-heart-rate-chart"
+import { ReactiveOrbField } from "@/components/reactive-orb-field"
 import {
   HoldToStartDial,
   TrainingStatDial,
 } from "@/components/training-hero-dials"
 import { hapticSelection } from "@/lib/haptics"
 import { cn } from "@/lib/utils"
+import { useSmoothNavigate } from "@/lib/navigation"
+import {
+  getActiveEnduranceSport,
+  type EnduranceEnvironment,
+} from "@/lib/endurance-workout"
 
 type Sport = "run" | "ride" | "swim"
 type EnduranceGoal = {
@@ -128,21 +142,14 @@ function numberOrUndefined(value: string) {
 }
 
 export default function Endurance() {
+  const navigate = useSmoothNavigate()
   const activities = useQuery(api.logs.healthWorkouts.list, { limit: 50 })
   const preferences = useQuery(api.users.users.getPreferences)
   const saveGoals = useMutation(api.users.users.setEnduranceGoals)
-  const navigate = useNavigate()
   const [sport, setSport] = useState<Sport>("run")
+  const [environment, setEnvironment] =
+    useState<EnduranceEnvironment>("outdoor")
   const [goalsOpen, setGoalsOpen] = useState(false)
-
-  const experimentalFeaturesEnabled =
-    preferences?.experimentalFeaturesEnabled ?? false
-
-  useEffect(() => {
-    if (preferences !== undefined && !experimentalFeaturesEnabled) {
-      navigate("/", { replace: true })
-    }
-  }, [preferences, experimentalFeaturesEnabled, navigate])
 
   const enduranceActivities = useMemo(
     () =>
@@ -154,6 +161,16 @@ export default function Endurance() {
   )
   const sportActivities = enduranceActivities.filter(
     (activity) => activity.sport === sport
+  )
+  const [selectedActivityId, setSelectedActivityId] = useState<
+    (typeof sportActivities)[number]["_id"] | null
+  >(null)
+  const selectedActivity =
+    sportActivities.find((activity) => activity._id === selectedActivityId) ??
+    null
+  const selectedHeartRateSeries = useQuery(
+    api.logs.healthWorkouts.getHeartRateSeries,
+    selectedActivityId ? { workoutId: selectedActivityId } : "skip"
   )
   const weekStart = startOfWeek(new Date())
   const weekActivities = sportActivities.filter(
@@ -183,6 +200,7 @@ export default function Endurance() {
   ].filter((value) => value !== undefined).length
   const lastSessionDays = daysSince(sportActivities[0]?.startedAt)
   const SportIcon = SPORT_META[sport].Icon
+  const activeSport = getActiveEnduranceSport()
   const todayLabel = new Date().toLocaleDateString(undefined, {
     weekday: "short",
   })
@@ -226,7 +244,7 @@ export default function Endurance() {
 
   return (
     <div
-      className="app-hero desktop-canvas min-h-svh bg-background lg:pr-8 lg:pl-72"
+      className="app-hero endurance-hero desktop-canvas min-h-svh bg-background lg:pr-8 lg:pl-72"
       style={
         {
           "--hero-fill": goals?.sessions
@@ -236,15 +254,10 @@ export default function Endurance() {
         } as CSSProperties
       }
     >
-      <span className="app-hero-wash" aria-hidden="true" />
+      <ReactiveOrbField className="endurance-hero-wash" />
       <main className="app-page pb-28">
         <header className="app-header flex items-center justify-between gap-3">
-          <h1 className="app-title flex items-center gap-2">
-            Endurance
-            <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
-              Beta
-            </span>
-          </h1>
+          <h1 className="app-title">Endurance</h1>
           <button
             type="button"
             onClick={() => setGoalsOpen(true)}
@@ -286,6 +299,38 @@ export default function Endurance() {
             })}
           </div>
 
+          {!activeSport && (
+            <div
+              className="mx-auto mt-3 flex items-center rounded-[10px] bg-muted/55 p-1"
+              aria-label="Workout setting"
+            >
+              {(["outdoor", "indoor"] as EnduranceEnvironment[]).map(
+                (option) => {
+                  const selected = environment === option
+                  return (
+                    <button
+                      key={option}
+                      type="button"
+                      aria-pressed={selected}
+                      onClick={() => {
+                        hapticSelection()
+                        setEnvironment(option)
+                      }}
+                      className={cn(
+                        "motion-tactile min-h-8 rounded-[8px] px-4 text-[12px] font-semibold transition-colors",
+                        selected
+                          ? "bg-background text-foreground shadow-[0_4px_14px_rgba(0,0,0,0.12)]"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      {option === "outdoor" ? "Outdoor" : "Indoor"}
+                    </button>
+                  )
+                }
+              )}
+            </div>
+          )}
+
           <p className="mt-4 text-[13px] font-medium text-muted-foreground">
             Today · {todayLabel}
           </p>
@@ -296,7 +341,11 @@ export default function Endurance() {
             Ready to {SPORT_META[sport].verb}
           </h2>
           <p className="mt-1.5 text-[13px] text-muted-foreground">
-            Hold to start GPS recording.
+            {activeSport
+              ? "Hold to resume your workout."
+              : environment === "outdoor"
+                ? "Hold to start GPS tracking."
+                : "Hold to start an indoor workout."}
           </p>
 
           <div
@@ -333,17 +382,22 @@ export default function Endurance() {
               style={{ left: 140 - 84, top: 0 }}
             >
               <HoldToStartDial
-                label={`Start ${SPORT_META[sport].label.toLowerCase()}`}
+                label={
+                  activeSport
+                    ? `Resume ${SPORT_META[activeSport].label.toLowerCase()}`
+                    : `Start ${SPORT_META[sport].label.toLowerCase()}`
+                }
                 primaryIcon={<Play size={36} weight="fill" />}
                 icon={<SportIcon size={18} weight="bold" />}
                 onComplete={() =>
-                  toast.info("GPS recording is being prepared for this workout.", {
-                    id: "endurance-gps-recorder-status",
-                  })
+                  navigate(
+                    `/endurance/active?sport=${sport}&environment=${environment}`,
+                    { motion: "forward" }
+                  )
                 }
                 onShortPress={() =>
                   toast.info(
-                    `Press and hold to start ${SPORT_META[sport].label.toLowerCase()}.`,
+                    `Press and hold to ${activeSport ? "resume your active workout" : `start ${SPORT_META[sport].label.toLowerCase()}`}.`,
                     { id: "endurance-workout-hold-tip" }
                   )
                 }
@@ -403,17 +457,24 @@ export default function Endurance() {
           ) : (
             <ul className="mt-2 divide-y divide-border border-y border-border">
               {sportActivities.map((activity) => (
-                <li
-                  key={activity._id}
-                  className="flex min-h-[4.75rem] items-center gap-3 py-3"
-                >
-                  <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted/60">
-                    <SportIcon size={19} />
-                  </span>
-                  <div className="min-w-0 flex-1">
+                <li key={activity._id}>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedActivityId(activity._id)}
+                    className="motion-tactile flex min-h-[4.75rem] w-full items-center gap-3 py-3 text-left"
+                    aria-label={`Open ${activity.routeName || activity.activityName || SPORT_META[sport].activityLabel} details`}
+                  >
+                    <SportIcon
+                      size={20}
+                      weight="bold"
+                      className="shrink-0 text-muted-foreground"
+                    />
+                    <div className="min-w-0 flex-1">
                     <div className="flex items-baseline justify-between gap-3">
                       <p className="truncate text-[15px] font-semibold">
-                        {activity.activityName || SPORT_META[sport].activityLabel}
+                        {activity.routeName ||
+                          activity.activityName ||
+                          SPORT_META[sport].activityLabel}
                       </p>
                       <time className="shrink-0 text-[12px] text-muted-foreground">
                         {formatDate(activity.startedAt)}
@@ -421,7 +482,8 @@ export default function Endurance() {
                     </div>
                     <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-muted-foreground">
                       <span className="inline-flex items-center gap-1">
-                        <Clock size={13} /> {formatDuration(activity.durationSeconds)}
+                          <Clock size={13} />{" "}
+                          {formatDuration(activity.durationSeconds)}
                       </span>
                       {activity.totalDistanceMeters != null && (
                         <span className="inline-flex items-center gap-1 tabular-nums">
@@ -436,7 +498,13 @@ export default function Endurance() {
                         </span>
                       )}
                     </div>
-                  </div>
+                    </div>
+                    <CaretRight
+                      size={15}
+                      weight="bold"
+                      className="shrink-0 text-muted-foreground/65"
+                    />
+                  </button>
                 </li>
               ))}
             </ul>
@@ -455,6 +523,119 @@ export default function Endurance() {
           onClose={() => setGoalsOpen(false)}
         />
       )}
+
+      {selectedActivity && (
+        <MobileSheet
+          ariaLabel="Endurance workout details"
+          onClose={() => setSelectedActivityId(null)}
+          overlayClassName="bg-black/45"
+          panelClassName="mx-auto w-full max-w-md"
+        >
+          <div className="px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+            <p className="text-[12px] font-semibold text-muted-foreground">
+              {formatDate(selectedActivity.startedAt)} ·{" "}
+              {selectedActivity.sourceName ?? "OneRep"}
+            </p>
+            <h2 className="mt-1 text-[24px] font-extrabold tracking-tight">
+              {selectedActivity.routeName ||
+                selectedActivity.activityName ||
+                SPORT_META[selectedActivity.sport].activityLabel}
+            </h2>
+
+            <div className="mt-5 grid grid-cols-2 border-y border-border">
+              <WorkoutMetric
+                label="Time"
+                value={formatDuration(selectedActivity.durationSeconds)}
+              />
+              <WorkoutMetric
+                label="Distance"
+                value={
+                  selectedActivity.totalDistanceMeters == null
+                    ? "—"
+                    : formatDistance(
+                        selectedActivity.totalDistanceMeters,
+                        selectedActivity.sport
+                      )
+                }
+              />
+              <WorkoutMetric
+                label="Average heart rate"
+                value={
+                  selectedActivity.avgHeartRateBpm == null
+                    ? "—"
+                    : `${Math.round(selectedActivity.avgHeartRateBpm)} bpm`
+                }
+                icon={<Heartbeat size={15} weight="bold" />}
+              />
+              <WorkoutMetric
+                label="Active calories"
+                value={
+                  selectedActivity.activeEnergyKcal == null
+                    ? "—"
+                    : `${Math.round(selectedActivity.activeEnergyKcal)} kcal`
+                }
+                icon={<Fire size={15} weight="fill" />}
+              />
+            </div>
+
+            <div className="mt-6">
+              <div className="mb-3 flex items-end justify-between gap-4">
+                <div>
+                  <p className="text-[12px] font-semibold text-muted-foreground">
+                    Heart rate
+                  </p>
+                  <p className="mt-1 text-[20px] font-bold tabular-nums">
+                    {selectedActivity.avgHeartRateBpm == null
+                      ? "No reading"
+                      : `${Math.round(selectedActivity.avgHeartRateBpm)} bpm average`}
+                  </p>
+                </div>
+                {selectedActivity.maxHeartRateBpm != null && (
+                  <p className="text-[12px] font-semibold text-muted-foreground tabular-nums">
+                    {Math.round(selectedActivity.maxHeartRateBpm)} bpm max
+                  </p>
+                )}
+              </div>
+              <EnduranceHeartRateChart
+                samples={selectedHeartRateSeries ?? []}
+                elapsedSeconds={selectedActivity.durationSeconds}
+                emptyTitle={
+                  selectedHeartRateSeries === undefined
+                    ? "Loading heart rate"
+                    : "No heart rate trace"
+                }
+                emptyBody={
+                  selectedHeartRateSeries === undefined
+                    ? "Retrieving the recorded samples."
+                    : "This workout includes summary metrics only. Detailed samples were not provided by the source."
+                }
+              />
+            </div>
+          </div>
+        </MobileSheet>
+      )}
+    </div>
+  )
+}
+
+function WorkoutMetric({
+  label,
+  value,
+  icon,
+}: {
+  label: string
+  value: string
+  icon?: ReactNode
+}) {
+  return (
+    <div className="border-b border-border py-4 odd:pr-4 even:border-l even:pl-5 [&:nth-last-child(-n+2)]:border-b-0">
+      <p className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
+        {icon}
+        {label}
+      </p>
+      <p className="mt-1 text-[17px] font-bold tracking-tight tabular-nums">
+        {value}
+      </p>
     </div>
   )
 }

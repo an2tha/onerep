@@ -47,6 +47,7 @@ export const TASK_ROUTE_PREFIXES = [
   "/workouts/new",
   "/workouts/edit/",
   "/workout/active",
+  "/endurance/active",
   "/camera",
   "/foods/search",
   "/foods/review/",

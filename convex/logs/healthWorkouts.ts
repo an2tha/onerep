@@ -249,6 +249,160 @@ export const importHealthWorkouts = mutation({
   },
 });
 
+const enduranceSportValidator = v.union(
+  v.literal("run"),
+  v.literal("ride"),
+  v.literal("swim"),
+);
+
+const heartRateSampleValidator = v.object({
+  elapsedSeconds: v.number(),
+  bpm: v.number(),
+});
+
+/** Saves a foreground indoor or outdoor session recorded inside OneRep. */
+export const recordEnduranceWorkout = mutation({
+  args: {
+    externalId: v.string(),
+    sport: enduranceSportValidator,
+    environment: v.optional(
+      v.union(v.literal("outdoor"), v.literal("indoor")),
+    ),
+    date: v.string(),
+    startedAt: v.number(),
+    endedAt: v.number(),
+    durationSeconds: v.number(),
+    totalDistanceMeters: v.number(),
+    hasRoute: v.boolean(),
+    routeName: v.optional(v.string()),
+    avgHeartRateBpm: v.optional(v.number()),
+    maxHeartRateBpm: v.optional(v.number()),
+    activeEnergyKcal: v.optional(v.number()),
+    heartRateSamples: v.optional(v.array(heartRateSampleValidator)),
+  },
+  handler: async (ctx, args) => {
+    const user = await getAuthUser(ctx);
+    if (!user) throw new Error("Not authenticated");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(args.date)) {
+      throw new Error("Invalid workout date");
+    }
+    if (
+      args.externalId.length < 1 ||
+      args.externalId.length > 128 ||
+      !Number.isFinite(args.startedAt) ||
+      !Number.isFinite(args.endedAt) ||
+      args.endedAt < args.startedAt ||
+      !Number.isFinite(args.durationSeconds) ||
+      args.durationSeconds < 0 ||
+      !Number.isFinite(args.totalDistanceMeters) ||
+      args.totalDistanceMeters < 0 ||
+      (args.avgHeartRateBpm !== undefined &&
+        (!Number.isFinite(args.avgHeartRateBpm) ||
+          args.avgHeartRateBpm < 30 ||
+          args.avgHeartRateBpm > 240)) ||
+      (args.maxHeartRateBpm !== undefined &&
+        (!Number.isFinite(args.maxHeartRateBpm) ||
+          args.maxHeartRateBpm < 30 ||
+          args.maxHeartRateBpm > 240)) ||
+      (args.activeEnergyKcal !== undefined &&
+        (!Number.isFinite(args.activeEnergyKcal) || args.activeEnergyKcal < 0)) ||
+      (args.heartRateSamples?.length ?? 0) > 900 ||
+      args.heartRateSamples?.some(
+        (sample) =>
+          !Number.isFinite(sample.elapsedSeconds) ||
+          sample.elapsedSeconds < 0 ||
+          !Number.isFinite(sample.bpm) ||
+          sample.bpm < 30 ||
+          sample.bpm > 240,
+      )
+    ) {
+      throw new Error("Invalid workout summary");
+    }
+
+    const activity = {
+      run: { type: "running", name: "Run" },
+      ride: { type: "cycling", name: "Ride" },
+      swim: { type: "swimming", name: "Swim" },
+    }[args.sport];
+    const now = Date.now();
+    const fields = {
+      activityType: activity.type,
+      activityName: activity.name,
+      date: args.date,
+      startedAt: args.startedAt,
+      endedAt: args.endedAt,
+      durationSeconds: Math.round(args.durationSeconds),
+      totalDistanceMeters: args.totalDistanceMeters,
+      avgHeartRateBpm: args.avgHeartRateBpm,
+      maxHeartRateBpm: args.maxHeartRateBpm,
+      activeEnergyKcal: args.activeEnergyKcal,
+      sourceName:
+        args.environment === "indoor" ? "OneRep Indoor" : "OneRep GPS",
+      hasRoute: args.hasRoute,
+      routeName: args.routeName?.trim().slice(0, 120) || undefined,
+      updatedAt: now,
+    };
+    const existing = await ctx.db
+      .query("healthWorkouts")
+      .withIndex("by_userId_and_externalId", (q) =>
+        q
+          .eq("userId", user._id)
+          .eq("provider", "api")
+          .eq("externalId", args.externalId),
+      )
+      .unique();
+
+    let workoutId;
+    if (existing) {
+      await ctx.db.patch(existing._id, fields);
+      workoutId = existing._id;
+    } else {
+      workoutId = await ctx.db.insert("healthWorkouts", {
+        userId: user._id,
+        provider: "api",
+        externalId: args.externalId,
+        ...fields,
+        importedAt: now,
+      });
+    }
+
+    if (args.heartRateSamples && args.heartRateSamples.length > 0) {
+      const existingSeries = await ctx.db
+        .query("healthWorkoutHeartRateSeries")
+        .withIndex("by_workoutId", (q) => q.eq("workoutId", workoutId))
+        .unique();
+      const series = {
+        userId: user._id,
+        workoutId,
+        samples: args.heartRateSamples,
+        updatedAt: now,
+      };
+      if (existingSeries) {
+        await ctx.db.replace(existingSeries._id, series);
+      } else {
+        await ctx.db.insert("healthWorkoutHeartRateSeries", series);
+      }
+    }
+
+    return workoutId;
+  },
+});
+
+export const getHeartRateSeries = query({
+  args: { workoutId: v.id("healthWorkouts") },
+  handler: async (ctx, args) => {
+    const user = await safeGetAuthUser(ctx);
+    if (!user) return null;
+    const workout = await ctx.db.get(args.workoutId);
+    if (!workout || workout.userId !== user._id) return null;
+    const series = await ctx.db
+      .query("healthWorkoutHeartRateSeries")
+      .withIndex("by_workoutId", (q) => q.eq("workoutId", args.workoutId))
+      .unique();
+    return series?.samples ?? [];
+  },
+});
+
 export const list = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
@@ -281,6 +435,7 @@ export const list = query({
         maxHeartRateBpm: row.maxHeartRateBpm,
         activeEnergyKcal: row.activeEnergyKcal,
         sourceName: row.sourceName,
+        routeName: row.routeName,
         linked: row.linkedSessionId !== undefined,
         linkable: isLinkableActivity(row.activityType),
         // Recorded lifting with nothing to promote — the retro logger's cue.

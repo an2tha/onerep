@@ -65,6 +65,21 @@ describe("bottom bar accessibility contract", () => {
     }
 
     expect(SOURCE).toContain("label: t(labelKey)")
+    expect(SOURCE).not.toContain("experimentalFeaturesEnabled")
+    expect(SOURCE).not.toContain("\u00B7 Beta")
+  })
+
+  test("endurance is available in native navigation without a feature gate", () => {
+    const nativeTabs = readFileSync(
+      new URL("../lib/native-tab-bar.ts", import.meta.url),
+      "utf8"
+    )
+
+    expect(nativeTabs).toContain(
+      '{ id: "/endurance", symbol: "bicycle", label: "Endurance" }'
+    )
+    expect(nativeTabs).not.toContain("experimentalFeaturesEnabled")
+    expect(nativeTabs).not.toContain("getNativeTabItems")
   })
 
   test("the slide order matches the order the tabs are drawn in", () => {

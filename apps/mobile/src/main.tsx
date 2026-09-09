@@ -66,6 +66,7 @@ import VerifyEmailRequired from "./pages/VerifyEmailRequired.tsx"
 import OAuthConsent from "./pages/OAuthConsent.tsx"
 import Workouts from "./pages/Workouts.tsx"
 import Endurance from "./pages/Endurance.tsx"
+import ActiveEnduranceWorkout from "./pages/ActiveEnduranceWorkout.tsx"
 import NewPreset from "./pages/NewPreset.tsx"
 import ActiveWorkout from "./pages/ActiveWorkout.tsx"
 import QuickLogPreset from "./pages/QuickLogPreset.tsx"
@@ -824,6 +825,16 @@ const router = createBrowserRouter([
           <AuthGuard>
             <ErrorBoundary label="Endurance">
               <Endurance />
+            </ErrorBoundary>
+          </AuthGuard>
+        ),
+      },
+      {
+        path: "/endurance/active",
+        element: (
+          <AuthGuard>
+            <ErrorBoundary label="Active Endurance Workout">
+              <ActiveEnduranceWorkout />
             </ErrorBoundary>
           </AuthGuard>
         ),

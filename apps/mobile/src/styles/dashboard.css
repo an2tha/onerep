@@ -1,8 +1,8 @@
 /* ─── Dashboard tweaks ────────────────────────────────────────────────────── */
 
-/* Keep Today's compact header and summary on one grid. */
-.dashboard-today .app-hero-wash {
-  opacity: 0.72;
+.dashboard-home {
+  isolation: isolate;
+  --muted-foreground: color-mix(in srgb, var(--foreground) 78%, transparent);
 }
 
 .dashboard-week-strip {

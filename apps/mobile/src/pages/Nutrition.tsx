@@ -32,6 +32,7 @@ import { MobileSheet } from "@/components/mobile-sheet"
 import { CoachSheet } from "@/components/coach-sheet"
 import { FastingSheet } from "@/components/fasting-sheet"
 import { useBottomBarAction } from "@/components/bottom-bar"
+import { ReactiveOrbField } from "@/components/reactive-orb-field"
 import { TourAnchor, useTourAnchor } from "@/components/walkthrough/tour-anchor"
 import { DateSelectorButton } from "@repo/ui"
 import { useSmoothNavigate } from "@/lib/navigation"
@@ -3005,10 +3006,7 @@ export default function Nutrition() {
       }
     >
       {isToday && (
-        <span
-          className="app-hero-wash nutrition-hero-wash"
-          aria-hidden="true"
-        />
+          <ReactiveOrbField className="nutrition-hero-wash" />
       )}
       <main className="app-page">
         <header className="app-header" ref={nutritionHeaderRef}>

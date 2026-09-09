@@ -696,7 +696,7 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     /**
-     Writes a finished OneRep strength session into HealthKit.
+     Writes a finished OneRep session into HealthKit.
 
      Opt-in: `src/lib/health-provider.ts` only calls this when the user has
      enabled it in Settings. Resolves `saved: false` rather than rejecting when
@@ -730,15 +730,70 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
             return
         }
 
+        let sport = call.getString("sport") ?? "strength"
+        let title = call.getString("title") ?? "OneRep workout"
         let configuration = HKWorkoutConfiguration()
-        configuration.activityType = .traditionalStrengthTraining
-        configuration.locationType = .indoor
+        switch sport {
+        case "run": configuration.activityType = .running
+        case "ride": configuration.activityType = .cycling
+        case "swim": configuration.activityType = .swimming
+        default: configuration.activityType = .traditionalStrengthTraining
+        }
+        configuration.locationType = call.getString("environment") == "outdoor"
+            ? .outdoor
+            : .indoor
 
         let builder = HKWorkoutBuilder(
             healthStore: healthStore,
             configuration: configuration,
             device: .local()
         )
+
+        builder.addMetadata([HKMetadataKeyWorkoutBrandName: title]) { _, _ in }
+
+        var samples: [HKSample] = []
+        if let calories = call.getDouble("activeEnergyKcal"), calories > 0,
+           let type = HKObjectType.quantityType(forIdentifier: .activeEnergyBurned),
+           self.healthStore.authorizationStatus(for: type) == .sharingAuthorized {
+            samples.append(HKQuantitySample(
+                type: type,
+                quantity: HKQuantity(unit: .kilocalorie(), doubleValue: calories),
+                start: start,
+                end: end
+            ))
+        }
+        if let distance = call.getDouble("distanceMeters"), distance > 0 {
+            let identifier: HKQuantityTypeIdentifier = sport == "ride"
+                ? .distanceCycling
+                : sport == "swim" ? .distanceSwimming : .distanceWalkingRunning
+            if let type = HKObjectType.quantityType(forIdentifier: identifier),
+               self.healthStore.authorizationStatus(for: type) == .sharingAuthorized {
+                samples.append(HKQuantitySample(
+                    type: type,
+                    quantity: HKQuantity(unit: .meter(), doubleValue: distance),
+                    start: start,
+                    end: end
+                ))
+            }
+        }
+        if let type = HKObjectType.quantityType(forIdentifier: .heartRate),
+           self.healthStore.authorizationStatus(for: type) == .sharingAuthorized {
+            let unit = HKUnit.count().unitDivided(by: .minute())
+            let raw = call.getArray("heartRateSamples") as? [JSObject] ?? []
+            samples.append(contentsOf: raw.compactMap { sample in
+                guard let milliseconds = sample["timestamp"] as? Double,
+                      let bpm = sample["bpm"] as? Double,
+                      bpm >= 30, bpm <= 240 else { return nil }
+                let date = Date(timeIntervalSince1970: milliseconds / 1000)
+                guard date >= start, date <= end else { return nil }
+                return HKQuantitySample(
+                    type: type,
+                    quantity: HKQuantity(unit: unit, doubleValue: bpm),
+                    start: date,
+                    end: date
+                )
+            })
+        }
 
         builder.beginCollection(withStart: start) { started, error in
             guard started else {
@@ -752,7 +807,8 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
                 return
             }
 
-            builder.endCollection(withEnd: end) { ended, endError in
+            let finishCollection = {
+                builder.endCollection(withEnd: end) { ended, endError in
                 guard ended else {
                     DispatchQueue.main.async {
                         call.reject(
@@ -772,6 +828,24 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
                         }
                         call.resolve(["saved": workout != nil])
                     }
+                }
+            }
+            }
+            if samples.isEmpty {
+                finishCollection()
+            } else {
+                builder.add(samples) { added, addError in
+                    guard added else {
+                        DispatchQueue.main.async {
+                            call.reject(
+                                addError?.localizedDescription ?? "Unable to attach workout samples",
+                                nil,
+                                addError
+                            )
+                        }
+                        return
+                    }
+                    finishCollection()
                 }
             }
         }

@@ -1,0 +1,451 @@
+/* Dynamic full-page atmosphere, adapted from the supplied 4:3 orb study. */
+:root .reactive-orb-field.app-hero-wash {
+  --orb-field: rgb(177 201 226);
+  --orb-yellow: 255 194 63;
+  --orb-orange: 255 115 53;
+  --orb-rose: 204 125 150;
+  --orb-peach: 226 164 128;
+  --orb-field-glow: rgb(var(--orb-yellow) / 0.16);
+  --orb-theme-scale-x: 1;
+  --orb-theme-scale-y: 1;
+  --orb-theme-rotation: 0deg;
+  --orb-wave-top: 42%;
+  --orb-wave-tilt: -1deg;
+  position: absolute;
+  z-index: 0;
+  top: 0;
+  right: 0;
+  left: 0;
+  display: block;
+  bottom: 0;
+  height: 100%;
+  min-height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+  background-image:
+    radial-gradient(
+      circle at var(--orb-field-glow-x, 78%) var(--orb-field-glow-y, 22%),
+      var(--orb-field-glow),
+      transparent 34%
+    ),
+    radial-gradient(
+      circle at 50% 52%,
+      rgb(var(--orb-rose) / 0.15),
+      rgb(var(--orb-rose) / 0) 52%
+    );
+  background-color: var(--orb-field);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: auto;
+  -webkit-mask-image: none;
+  mask-image: none;
+  animation: none;
+  opacity: 1;
+  isolation: isolate;
+}
+
+.endurance-hero {
+  --muted-foreground: color-mix(in srgb, var(--foreground) 84%, transparent);
+}
+
+:root[data-visual-identity="dusk"] .reactive-orb-field {
+  --orb-field: color-mix(in srgb, #6f7897 58%, var(--background));
+  --orb-yellow: 241 171 91;
+  --orb-orange: 219 104 83;
+  --orb-rose: 165 113 161;
+  --orb-peach: 202 139 124;
+  --orb-field-glow: rgb(var(--orb-orange) / 0.2);
+  --orb-theme-scale-x: 1.06;
+  --orb-theme-scale-y: 0.96;
+  --orb-theme-rotation: -4deg;
+}
+
+:root[data-visual-identity="forest"] .reactive-orb-field {
+  --orb-field: color-mix(in srgb, #9ab59f 58%, var(--background));
+  --orb-yellow: 230 183 82;
+  --orb-orange: 194 119 64;
+  --orb-rose: 151 111 112;
+  --orb-peach: 204 157 112;
+  --orb-field-glow: rgb(var(--orb-yellow) / 0.14);
+  --orb-theme-scale-x: 0.96;
+  --orb-theme-scale-y: 1.06;
+  --orb-theme-rotation: 3deg;
+}
+
+:root[data-visual-identity="slate"] .reactive-orb-field {
+  --orb-field: color-mix(in srgb, #aeb8c2 62%, var(--background));
+  --orb-yellow: 210 169 96;
+  --orb-orange: 178 112 72;
+  --orb-rose: 136 113 133;
+  --orb-peach: 181 148 125;
+  --orb-field-glow: rgb(var(--orb-peach) / 0.12);
+  --orb-theme-scale-x: 1.03;
+  --orb-theme-scale-y: 0.98;
+  --orb-theme-rotation: -2deg;
+}
+
+:root[data-visual-identity="ocean"] .reactive-orb-field {
+  --orb-field: color-mix(in srgb, #71bdd0 64%, var(--background));
+  --orb-yellow: 239 193 103;
+  --orb-orange: 223 125 79;
+  --orb-rose: 129 116 165;
+  --orb-peach: 207 155 131;
+  --orb-field-glow: rgb(var(--orb-yellow) / 0.12);
+  --orb-theme-scale-x: 1.08;
+  --orb-theme-scale-y: 0.94;
+  --orb-theme-rotation: 4deg;
+}
+
+:root[data-visual-identity="blossom"] .reactive-orb-field {
+  --orb-field: color-mix(in srgb, #e0b9c4 62%, var(--background));
+  --orb-yellow: 243 186 91;
+  --orb-orange: 227 119 84;
+  --orb-rose: 205 104 139;
+  --orb-peach: 231 157 137;
+  --orb-field-glow: rgb(var(--orb-rose) / 0.18);
+  --orb-theme-scale-x: 0.98;
+  --orb-theme-scale-y: 1.04;
+  --orb-theme-rotation: -3deg;
+}
+
+:root .reactive-orb-field.app-hero-wash::before {
+  content: none;
+}
+
+:root .reactive-orb-field.app-hero-wash::after {
+  position: absolute;
+  z-index: 2;
+  top: var(--orb-wave-top);
+  right: -4%;
+  bottom: -2rem;
+  left: -4%;
+  content: "";
+  pointer-events: none;
+  border-radius: 48% 52% 0 0 / clamp(3rem, 7vw, 7rem) clamp(2rem, 5vw, 5rem) 0 0;
+  background: color-mix(in srgb, var(--background) 40%, transparent);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, rgb(0 0 0 / 0.3) 8rem, black 14rem);
+  mask-image: linear-gradient(to bottom, transparent 0, rgb(0 0 0 / 0.3) 8rem, black 14rem);
+  backdrop-filter: blur(48px) saturate(0.75);
+  transform: rotate(var(--orb-wave-tilt));
+  transform-origin: top center;
+}
+
+.reactive-orb-field__orb {
+  --orb-x: 0px;
+  --orb-y: 0px;
+  --orb-scale: 1;
+  --orb-rotation: 0deg;
+  --orb-page-scale-x: 1;
+  --orb-page-scale-y: 1;
+  --orb-page-rotation: 0deg;
+  position: absolute;
+  z-index: 1;
+  top: 46%;
+  left: 50%;
+  width: clamp(17rem, 42vmin, 38rem);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%) translate3d(var(--orb-x), var(--orb-y), 0)
+    scale(var(--orb-scale)) rotate(var(--orb-rotation))
+    rotate(var(--orb-page-rotation)) scaleX(var(--orb-page-scale-x))
+    scaleY(var(--orb-page-scale-y));
+  transform-origin: center;
+  will-change: transform;
+}
+
+.reactive-orb-field__theme-shaper {
+  position: absolute;
+  inset: 0;
+  transform: rotate(var(--orb-theme-rotation)) scaleX(var(--orb-theme-scale-x))
+    scaleY(var(--orb-theme-scale-y));
+  transform-origin: center;
+}
+
+.reactive-orb-field__deformer {
+  --orb-impact-angle: 0deg;
+  --orb-squash-x: 1;
+  --orb-squash-y: 1;
+  position: absolute;
+  inset: 0;
+  transform: rotate(var(--orb-impact-angle)) scaleX(var(--orb-squash-x))
+    scaleY(var(--orb-squash-y)) rotate(calc(-1 * var(--orb-impact-angle)));
+  transform-origin: center;
+  will-change: transform;
+}
+
+.reactive-orb-field__piece {
+  --orb-piece-x: 0px;
+  --orb-piece-y: 0px;
+  --orb-piece-scale-x: 1;
+  --orb-piece-scale-y: 1;
+  --orb-piece-rotation: 0deg;
+  position: absolute;
+  border-radius: 50%;
+  transform: translate(-50%, -50%)
+    translate3d(var(--orb-piece-x), var(--orb-piece-y), 0)
+    rotate(var(--orb-piece-rotation)) scaleX(var(--orb-piece-scale-x))
+    scaleY(var(--orb-piece-scale-y));
+  transform-origin: center;
+  filter: blur(clamp(22px, 2.8vmin, 46px));
+  will-change: transform;
+}
+
+.reactive-orb-field__core {
+  top: 51%;
+  left: 50%;
+  width: 104%;
+  aspect-ratio: 1;
+  background:
+    radial-gradient(
+      circle at 40% 50%,
+      rgb(var(--orb-yellow) / 0.91) 0 18%,
+      rgb(var(--orb-yellow) / 0.58) 35%,
+      rgb(var(--orb-yellow) / 0) 62%
+    ),
+    radial-gradient(
+      circle at 63% 53%,
+      rgb(var(--orb-orange) / 0.91) 0 22%,
+      rgb(var(--orb-orange) / 0.56) 39%,
+      rgb(var(--orb-orange) / 0) 66%
+    ),
+    radial-gradient(
+      circle at 62% 31%,
+      rgb(var(--orb-rose) / 0.47) 0 16%,
+      rgb(var(--orb-rose) / 0.22) 36%,
+      rgb(var(--orb-rose) / 0) 61%
+    ),
+    radial-gradient(
+      circle at 50% 70%,
+      rgb(var(--orb-peach) / 0.39) 0 24%,
+      rgb(var(--orb-peach) / 0.2) 44%,
+      rgb(var(--orb-peach) / 0) 69%
+    ),
+    radial-gradient(
+      circle,
+      rgb(181 166 170 / 0.36) 0 52%,
+      rgb(181 166 170 / 0.16) 68%,
+      rgb(181 166 170 / 0) 79%
+    );
+  filter: blur(clamp(14px, 1.8vmin, 30px)) saturate(1.08);
+}
+
+.reactive-orb-field__halo {
+  top: 52%;
+  left: 50%;
+  width: 91%;
+  aspect-ratio: 1;
+  background: rgb(181 167 166 / 0.18);
+  filter: blur(clamp(32px, 4vmin, 68px));
+}
+
+.reactive-orb-field__rose {
+  top: 31%;
+  left: 62%;
+  width: 44%;
+  aspect-ratio: 1;
+  background: rgb(var(--orb-rose) / 0.42);
+}
+
+.reactive-orb-field__yellow {
+  top: 47%;
+  left: 39%;
+  width: 50%;
+  aspect-ratio: 1;
+  background: rgb(var(--orb-yellow) / 0.42);
+}
+
+.reactive-orb-field__orange {
+  top: 53%;
+  left: 61%;
+  width: 51%;
+  aspect-ratio: 1;
+  background: rgb(var(--orb-orange) / 0.42);
+}
+
+.reactive-orb-field__peach {
+  top: 70%;
+  left: 52%;
+  width: 50%;
+  aspect-ratio: 1;
+  background: rgb(var(--orb-peach) / 0.18);
+}
+
+.reactive-orb-field__satellite {
+  width: var(--orb-satellite-size, 17%);
+  aspect-ratio: 1;
+  opacity: 0;
+  background: radial-gradient(
+    circle at 45% 42%,
+    rgb(var(--orb-satellite-color, var(--orb-yellow)) / 0.72) 0 18%,
+    rgb(var(--orb-satellite-color, var(--orb-yellow)) / 0.3) 42%,
+    rgb(var(--orb-satellite-color, var(--orb-yellow)) / 0) 72%
+  );
+  filter: blur(clamp(16px, 2.2vmin, 36px));
+}
+
+.reactive-orb-field__satellite-a {
+  top: var(--orb-satellite-a-y, 22%);
+  left: var(--orb-satellite-a-x, 8%);
+  opacity: var(--orb-satellite-opacity, 0);
+}
+
+.reactive-orb-field__satellite-b {
+  top: var(--orb-satellite-b-y, 78%);
+  left: var(--orb-satellite-b-x, 94%);
+  --orb-satellite-color: var(--orb-rose);
+  --orb-satellite-size: 13%;
+  opacity: var(--orb-satellite-b-opacity, 0);
+}
+
+.reactive-orb-field__satellite-c {
+  top: var(--orb-satellite-c-y, 92%);
+  left: var(--orb-satellite-c-x, 24%);
+  --orb-satellite-color: var(--orb-orange);
+  --orb-satellite-size: 10%;
+  opacity: var(--orb-satellite-c-opacity, 0);
+}
+
+.reactive-orb-field__veil {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--background) 42%, transparent) 0%,
+    color-mix(in srgb, var(--background) 18%, transparent) 30%,
+    color-mix(in srgb, var(--background) 54%, transparent) 62%,
+    color-mix(in srgb, var(--background) 92%, transparent) 100%
+  );
+}
+
+.dashboard-home > .reactive-orb-field.dashboard-home-wash {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+}
+
+.dashboard-home > .reactive-orb-field .reactive-orb-field__orb {
+  top: 36%;
+  left: 58%;
+  width: clamp(18rem, 42vmin, 40rem);
+  --orb-page-scale-x: 1.04;
+  --orb-page-scale-y: 0.98;
+  --orb-page-rotation: -2deg;
+}
+
+.health-hero-wash {
+  --orb-wave-top: 43%;
+  --orb-wave-tilt: 1deg;
+  --orb-field-glow-x: 18%;
+  --orb-field-glow-y: 58%;
+  --orb-satellite-opacity: 0.34;
+  --orb-satellite-b-opacity: 0.18;
+  --orb-satellite-a-x: 4%;
+  --orb-satellite-a-y: 72%;
+  --orb-satellite-b-x: 98%;
+  --orb-satellite-b-y: 34%;
+}
+
+.health-hero-wash .reactive-orb-field__orb {
+  top: 35%;
+  left: 50%;
+  width: clamp(16rem, 34vmin, 31rem);
+  --orb-page-scale-x: 0.98;
+  --orb-page-scale-y: 1.04;
+}
+
+.nutrition-hero-wash {
+  --orb-wave-top: 47%;
+  --orb-wave-tilt: -1deg;
+  --orb-field-glow-x: 84%;
+  --orb-field-glow-y: 42%;
+  --orb-satellite-opacity: 0.24;
+  --orb-satellite-b-opacity: 0.12;
+  --orb-satellite-a-x: -2%;
+  --orb-satellite-a-y: 34%;
+  --orb-satellite-b-x: 100%;
+  --orb-satellite-b-y: 66%;
+}
+
+.nutrition-hero-wash .reactive-orb-field__orb {
+  top: 31%;
+  left: 48%;
+  width: clamp(18rem, 42vmin, 39rem);
+  --orb-page-scale-x: 1.06;
+  --orb-page-scale-y: 0.96;
+  --orb-page-rotation: 2deg;
+}
+
+.training-hero-wash {
+  --orb-wave-top: 45%;
+  --orb-wave-tilt: 1deg;
+  --orb-field-glow-x: 24%;
+  --orb-field-glow-y: 18%;
+  --orb-satellite-opacity: 0.18;
+  --orb-satellite-a-x: 93%;
+  --orb-satellite-a-y: 80%;
+}
+
+.training-hero-wash .reactive-orb-field__orb {
+  top: 36%;
+  left: 53%;
+  width: clamp(17rem, 36vmin, 34rem);
+  --orb-page-scale-x: 0.97;
+  --orb-page-scale-y: 1.05;
+  --orb-page-rotation: -3deg;
+}
+
+.progress-hero-wash {
+  --orb-wave-top: 44%;
+  --orb-wave-tilt: -1deg;
+  --orb-field-glow-x: 76%;
+  --orb-field-glow-y: 16%;
+  --orb-satellite-opacity: 0.28;
+  --orb-satellite-b-opacity: 0.14;
+  --orb-satellite-a-x: 8%;
+  --orb-satellite-a-y: 38%;
+  --orb-satellite-b-x: 94%;
+  --orb-satellite-b-y: 82%;
+  --orb-satellite-c-x: 18%;
+  --orb-satellite-c-y: 94%;
+}
+
+.progress-hero-wash .reactive-orb-field__orb {
+  top: 34%;
+  left: 47%;
+  width: clamp(18rem, 39vmin, 36rem);
+  --orb-page-scale-x: 1.05;
+  --orb-page-scale-y: 0.97;
+  --orb-page-rotation: -4deg;
+}
+
+
+
+.endurance-hero-wash .reactive-orb-field__orb {
+  top: 32%;
+  left: 51%;
+  width: clamp(18rem, 41vmin, 38rem);
+  --orb-page-scale-x: 1.07;
+  --orb-page-scale-y: 0.95;
+  --orb-page-rotation: 3deg;
+}
+
+@media (max-width: 767px) {
+  .reactive-orb-field__orb {
+    width: clamp(16rem, 72vw, 28rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reactive-orb-field__orb {
+    transform: translate(-50%, -50%);
+    will-change: auto;
+  }
+
+  .reactive-orb-field__deformer,
+  .reactive-orb-field__theme-shaper,
+  .reactive-orb-field__piece {
+    transform: none;
+    will-change: auto;
+  }
+}

@@ -48,6 +48,57 @@ async function grantConsent(t: ReturnType<typeof convexTest>, granted = true) {
 }
 
 describe("healthWorkouts", () => {
+  test("records a OneRep GPS endurance workout idempotently", async () => {
+    const t = convexTest(schema, modules);
+    const user = t.withIdentity({ tokenIdentifier: "test|gps-workout" });
+    const workout = {
+      externalId: "gps-session-1",
+      sport: "run" as const,
+      date: "2026-09-09",
+      startedAt: Date.parse("2026-09-09T07:00:00.000Z"),
+      endedAt: Date.parse("2026-09-09T07:32:10.000Z"),
+      durationSeconds: 1930,
+      totalDistanceMeters: 5210,
+      hasRoute: true,
+      routeName: "Morning five",
+      avgHeartRateBpm: 148,
+      maxHeartRateBpm: 176,
+      activeEnergyKcal: 482,
+      heartRateSamples: [
+        { elapsedSeconds: 10, bpm: 118 },
+        { elapsedSeconds: 20, bpm: 126 },
+      ],
+    };
+
+    await user.mutation(
+      api.logs.healthWorkouts.recordEnduranceWorkout,
+      workout,
+    );
+    await user.mutation(api.logs.healthWorkouts.recordEnduranceWorkout, {
+      ...workout,
+      totalDistanceMeters: 5225,
+    });
+
+    const rows = await user.query(api.logs.healthWorkouts.list, {});
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      provider: "api",
+      activityType: "running",
+      activityName: "Run",
+      totalDistanceMeters: 5225,
+      sourceName: "OneRep GPS",
+      routeName: "Morning five",
+      avgHeartRateBpm: 148,
+      maxHeartRateBpm: 176,
+      activeEnergyKcal: 482,
+    });
+    await expect(
+      user.query(api.logs.healthWorkouts.getHeartRateSeries, {
+        workoutId: rows[0]._id,
+      }),
+    ).resolves.toEqual(workout.heartRateSamples);
+  });
+
   test("import rejects an unauthenticated caller", async () => {
     const t = convexTest(schema, modules);
     await expect(

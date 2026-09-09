@@ -17,17 +17,23 @@ final class WorkoutSessionManager: NSObject, ObservableObject {
     @Published private(set) var isRunning = false
     @Published private(set) var isPaused = false
     @Published private(set) var heartRate = 0
+    @Published private(set) var averageHeartRate = 0
+    @Published private(set) var maxHeartRate = 0
     @Published private(set) var activeCalories = 0
     @Published private(set) var elapsed: TimeInterval = 0
+    @Published private(set) var externalSessionId: String?
 
     private let store = HKHealthStore()
     private var session: HKWorkoutSession?
     private var builder: HKLiveWorkoutBuilder?
     private var ticker: Timer?
+    private var lastMetricsSentAt = Date.distantPast
+    private var heartRateSamples: [[String: Any]] = []
 
     /// Called with a summary when a workout ends, so the view can hand it to
     /// the phone. The manager itself knows nothing about WatchConnectivity.
     var onFinish: (([String: Any]) -> Void)?
+    var onMetrics: (([String: Any]) -> Void)?
 
     var isAvailable: Bool { HKHealthStore.isHealthDataAvailable() }
 
@@ -47,12 +53,16 @@ final class WorkoutSessionManager: NSObject, ObservableObject {
         }
     }
 
-    func start(activity: HKWorkoutActivityType = .traditionalStrengthTraining) {
+    func start(
+        activity: HKWorkoutActivityType = .traditionalStrengthTraining,
+        location: HKWorkoutSessionLocationType = .indoor,
+        externalSessionId: String? = nil
+    ) {
         guard isAvailable, session == nil else { return }
 
         let configuration = HKWorkoutConfiguration()
         configuration.activityType = activity
-        configuration.locationType = .indoor
+        configuration.locationType = location
 
         do {
             let session = try HKWorkoutSession(
@@ -64,6 +74,12 @@ final class WorkoutSessionManager: NSObject, ObservableObject {
             )
             session.delegate = self
             builder.delegate = self
+            if let externalSessionId {
+                builder.addMetadata(
+                    [HKMetadataKeyExternalUUID: externalSessionId],
+                    completion: { _, _ in }
+                )
+            }
 
             let start = Date()
             session.startActivity(with: start)
@@ -71,6 +87,7 @@ final class WorkoutSessionManager: NSObject, ObservableObject {
 
             self.session = session
             self.builder = builder
+            self.externalSessionId = externalSessionId
             isRunning = true
             isPaused = false
             startTicking()
@@ -103,7 +120,11 @@ final class WorkoutSessionManager: NSObject, ObservableObject {
                     self.onFinish?([
                         "durationSeconds": Int(workout?.duration ?? self.elapsed),
                         "activeCalories": self.activeCalories,
-                        "averageHeartRate": self.heartRate,
+                        "averageHeartRate": self.averageHeartRate,
+                        "maxHeartRate": self.maxHeartRate,
+                        "sessionId": self.externalSessionId ?? "",
+                        "healthWorkoutId": workout?.uuid.uuidString ?? "",
+                        "heartRateSamples": self.heartRateSamples,
                         "endedAt": finish.timeIntervalSince1970,
                     ])
                     self.reset()
@@ -119,7 +140,12 @@ final class WorkoutSessionManager: NSObject, ObservableObject {
         isPaused = false
         elapsed = 0
         heartRate = 0
+        averageHeartRate = 0
+        maxHeartRate = 0
         activeCalories = 0
+        externalSessionId = nil
+        lastMetricsSentAt = .distantPast
+        heartRateSamples = []
     }
 
     /// Only drives the display. The value shown comes from the builder, which
@@ -130,6 +156,7 @@ final class WorkoutSessionManager: NSObject, ObservableObject {
             Task { @MainActor in
                 guard let self, let builder = self.builder else { return }
                 self.elapsed = builder.elapsedTime
+                self.publishMetricsIfNeeded()
             }
         }
     }
@@ -137,6 +164,22 @@ final class WorkoutSessionManager: NSObject, ObservableObject {
     private func stopTicking() {
         ticker?.invalidate()
         ticker = nil
+    }
+
+    private func publishMetricsIfNeeded(force: Bool = false) {
+        guard let externalSessionId else { return }
+        let now = Date()
+        guard force || now.timeIntervalSince(lastMetricsSentAt) >= 4 else { return }
+        lastMetricsSentAt = now
+        onMetrics?([
+            "sessionId": externalSessionId,
+            "heartRateBpm": heartRate,
+            "averageHeartRateBpm": averageHeartRate,
+            "maxHeartRateBpm": maxHeartRate,
+            "activeCalories": activeCalories,
+            "elapsedSeconds": Int(elapsed),
+            "timestamp": now.timeIntervalSince1970 * 1000,
+        ])
     }
 }
 
@@ -180,7 +223,29 @@ extension WorkoutSessionManager: HKLiveWorkoutBuilderDelegate {
             if quantityType == HKQuantityType(.heartRate) {
                 let unit = HKUnit.count().unitDivided(by: .minute())
                 let value = statistics.mostRecentQuantity()?.doubleValue(for: unit)
-                Task { @MainActor in self.heartRate = Int(value ?? 0) }
+                let average = statistics.averageQuantity()?.doubleValue(for: unit)
+                let maximum = statistics.maximumQuantity()?.doubleValue(for: unit)
+                Task { @MainActor in
+                    self.heartRate = Int(value ?? 0)
+                    self.averageHeartRate = Int(average ?? 0)
+                    self.maxHeartRate = Int(maximum ?? 0)
+                        if let value, value >= 30, value <= 240 {
+                            let elapsed = Int(builder.elapsedTime.rounded())
+                            let lastElapsed = self.heartRateSamples.last?["elapsedSeconds"] as? Int
+                            if lastElapsed.map({ elapsed > $0 }) ?? true {
+                            self.heartRateSamples.append([
+                                "elapsedSeconds": elapsed,
+                                "bpm": Int(value.rounded()),
+                            ])
+                            if self.heartRateSamples.count > 900 {
+                                self.heartRateSamples.removeFirst(
+                                    self.heartRateSamples.count - 900
+                                )
+                            }
+                        }
+                    }
+                    self.publishMetricsIfNeeded()
+                }
             } else if quantityType == HKQuantityType(.activeEnergyBurned) {
                 let value = statistics.sumQuantity()?.doubleValue(for: .kilocalorie())
                 Task { @MainActor in self.activeCalories = Int(value ?? 0) }

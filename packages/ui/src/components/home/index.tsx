@@ -181,7 +181,6 @@ export function DashboardHero({
         { "--hero-fill": Math.max(0, Math.min(100, fill)) } as CSSProperties
       }
     >
-      <span className="dashboard-home-wash app-hero-wash" aria-hidden="true" />
       <div className="dashboard-hero-frame relative flex flex-col">
         <header className="dashboard-hero-header flex items-start justify-between gap-3 px-[var(--app-page-x)] md:px-8">
           <div className="min-w-0">

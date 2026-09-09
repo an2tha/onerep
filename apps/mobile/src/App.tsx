@@ -38,6 +38,7 @@ import {
 } from "@/dashboard/helpers"
 import { DayTimeline, type TimelineEntry } from "@/dashboard/timeline"
 import { DashboardDials } from "@/dashboard/dials"
+import { ReactiveOrbField } from "@/components/reactive-orb-field"
 
 import LegacyApp from "./App.legacy"
 
@@ -268,7 +269,7 @@ function Dashboard() {
   // bar's own height plus the home indicator; the desk has no bar to clear.
   return (
     <div className="dashboard-home dashboard-today desktop-canvas relative flex h-svh flex-col overflow-hidden bg-background pb-[calc(env(safe-area-inset-bottom,0px)+4.25rem)] lg:pr-8 lg:pb-0 lg:pl-72">
-      <span className="dashboard-home-wash" aria-hidden="true" />
+      <ReactiveOrbField className="dashboard-home-wash" />
       <div
         className="relative z-10 shrink-0"
         style={{ "--app-hero-min-h": "0rem" } as CSSProperties}

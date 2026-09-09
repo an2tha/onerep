@@ -1,6 +1,29 @@
 import Foundation
 import WatchConnectivity
 
+struct EnduranceWatchCommand: Equatable {
+    let command: String
+    let sessionId: String
+    let sport: String
+    let environment: String
+    let startedAt: Double
+
+    init?(dictionary: [String: Any]) {
+        guard
+            let command = dictionary["command"] as? String,
+            let sessionId = dictionary["sessionId"] as? String,
+            let sport = dictionary["sport"] as? String,
+            let environment = dictionary["environment"] as? String,
+            let startedAt = dictionary["startedAt"] as? Double
+        else { return nil }
+        self.command = command
+        self.sessionId = sessionId
+        self.sport = sport
+        self.environment = environment
+        self.startedAt = startedAt
+    }
+}
+
 /// The watch's half of the link to the phone.
 ///
 /// Reads come in through `applicationContext`, which is the right channel for
@@ -13,6 +36,7 @@ import WatchConnectivity
 /// on a wrist out of Bluetooth range still arrives — later, but it arrives.
 final class WatchConnectivityStore: NSObject, ObservableObject {
     @Published private(set) var snapshot = TodaySnapshot()
+    @Published private(set) var activeEndurance: EnduranceWatchCommand?
     /// Set while a tap is in flight so the UI can show it was received.
     @Published private(set) var pendingAction: String?
 
@@ -40,7 +64,12 @@ final class WatchConnectivityStore: NSObject, ObservableObject {
             return
         }
         let next = TodaySnapshot(dictionary: context)
-        DispatchQueue.main.async { self.snapshot = next }
+        let endurance = (context["activeEndurance"] as? [String: Any])
+            .flatMap(EnduranceWatchCommand.init(dictionary:))
+        DispatchQueue.main.async {
+            self.snapshot = next
+            self.activeEndurance = endurance
+        }
         if let data = try? JSONEncoder().encode(next) {
             UserDefaults.standard.set(data, forKey: Self.cacheKey)
         }
@@ -67,6 +96,40 @@ final class WatchConnectivityStore: NSObject, ObservableObject {
         var payload = summary
         payload["action"] = "logWorkout"
         send(payload, label: "workout")
+    }
+
+    /// Live samples are intentionally not queued: replaying stale heart-rate
+    /// ticks after reconnection would corrupt the graph. The final summary is
+    /// queued separately and therefore remains reliable.
+    func sendEnduranceMetrics(_ summary: [String: Any]) {
+        guard let session, session.activationState == .activated,
+              session.isReachable else { return }
+        var payload = summary
+        payload["action"] = "enduranceMetrics"
+        session.sendMessage(payload, replyHandler: nil, errorHandler: nil)
+    }
+
+    func sendEnduranceControl(sessionId: String, command: String) {
+        send(
+            [
+                "action": "enduranceControl",
+                "sessionId": sessionId,
+                "command": command,
+            ],
+            label: "enduranceControl"
+        )
+    }
+
+    func finishEndurance(_ summary: [String: Any]) {
+        var payload = summary
+        payload["action"] = "enduranceFinished"
+        send(payload, label: "enduranceFinish")
+    }
+
+    private func applyEnduranceMessage(_ message: [String: Any]) {
+        guard message["kind"] as? String == "enduranceCommand" else { return }
+        let command = EnduranceWatchCommand(dictionary: message)
+        DispatchQueue.main.async { self.activeEndurance = command }
     }
 
     private func send(_ payload: [String: Any], label: String) {
@@ -106,5 +169,22 @@ extension WatchConnectivityStore: WCSessionDelegate {
         didReceiveApplicationContext applicationContext: [String: Any]
     ) {
         apply(applicationContext)
+    }
+
+
+    func session(
+        _ session: WCSession,
+        didReceiveMessage message: [String: Any],
+        replyHandler: @escaping ([String: Any]) -> Void
+    ) {
+        applyEnduranceMessage(message)
+        replyHandler(["received": true])
+    }
+
+    func session(
+        _ session: WCSession,
+        didReceiveMessage message: [String: Any]
+    ) {
+        applyEnduranceMessage(message)
     }
 }

@@ -33,6 +33,7 @@ export const userDataRegistry = {
   presets: "directly_user_owned",
   schedules: "directly_user_owned",
   workoutLogs: "directly_user_owned",
+  healthWorkoutHeartRateSeries: "dependent_on_user_content",
   healthWorkouts: "directly_user_owned",
   healthMetrics: "directly_user_owned",
   foodLogs: "directly_user_owned",

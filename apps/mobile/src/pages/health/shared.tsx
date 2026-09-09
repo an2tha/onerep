@@ -18,6 +18,7 @@ import { useQuery } from "convex/react"
 import { api } from "../../../../../convex/_generated/api"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { hapticSelection } from "@/lib/haptics"
+import { ReactiveOrbField } from "@/components/reactive-orb-field"
 import { offsetDateKey } from "@/lib/food-log"
 import { cn } from "@/lib/utils"
 
@@ -712,7 +713,7 @@ export function HealthDetailShell({
       }
     >
       {heroFill != null && (
-        <span className="app-hero-wash health-hero-wash" aria-hidden="true" />
+        <ReactiveOrbField className="health-hero-wash" />
       )}
       <main className="app-page pb-28">
         <NavigationBar

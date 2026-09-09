@@ -20,6 +20,7 @@ public class WatchSyncPlugin: CAPPlugin, CAPBridgedPlugin {
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "isSupported", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "updateContext", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "commandEndurance", returnType: CAPPluginReturnPromise),
     ]
 
     private var session: WCSession? {
@@ -41,6 +42,7 @@ public class WatchSyncPlugin: CAPPlugin, CAPBridgedPlugin {
             "supported": true,
             "paired": session.isPaired,
             "installed": session.isWatchAppInstalled,
+            "reachable": session.isReachable,
         ])
     }
 
@@ -52,7 +54,9 @@ public class WatchSyncPlugin: CAPPlugin, CAPBridgedPlugin {
             return
         }
 
-        var context: [String: Any] = [:]
+        // Preserve an active workout command while dashboard nutrition updates
+        // arrive. `updateApplicationContext` replaces the whole dictionary.
+        var context = session.applicationContext
         for key in [
             "calories", "calorieGoal", "caloriesLeft", "protein", "proteinGoal",
             "carbs", "carbsGoal", "fat", "fatGoal", "waterMl", "waterGoalMl",
@@ -71,6 +75,44 @@ public class WatchSyncPlugin: CAPPlugin, CAPBridgedPlugin {
         } catch {
             call.resolve(["delivered": false])
         }
+    }
+
+    /// Sends controls immediately when the watch is awake and also stores the
+    /// newest state durably for a watch app opened moments later.
+    @objc func commandEndurance(_ call: CAPPluginCall) {
+        guard let session, session.activationState == .activated,
+              let command = call.getString("command"),
+              let sessionId = call.getString("sessionId"),
+              let sport = call.getString("sport"),
+              let environment = call.getString("environment"),
+              let startedAt = call.getDouble("startedAt")
+        else {
+            call.resolve(["delivered": false, "reachable": false])
+            return
+        }
+
+        var payload: [String: Any] = [
+            "kind": "enduranceCommand",
+            "command": command,
+            "sessionId": sessionId,
+            "sport": sport,
+            "environment": environment,
+            "startedAt": startedAt,
+            "updatedAt": Date().timeIntervalSince1970,
+        ]
+
+        var context = session.applicationContext
+        if command == "end" {
+            context.removeValue(forKey: "activeEndurance")
+        } else {
+            context["activeEndurance"] = payload
+        }
+
+        let stored = (try? session.updateApplicationContext(context)) != nil
+        if session.isReachable {
+            session.sendMessage(payload, replyHandler: nil, errorHandler: nil)
+        }
+        call.resolve(["delivered": stored || session.isReachable, "reachable": session.isReachable])
     }
 
     /// Hands an inbound action to the web app, which owns the mutation.

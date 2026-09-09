@@ -53,6 +53,17 @@ type HealthWorkoutQuery = {
   daysBack?: number
 }
 
+export type HealthWorkoutSave = {
+  startedAt: number
+  endedAt: number
+  title: string
+  sport?: "run" | "ride" | "swim" | "strength"
+  environment?: "outdoor" | "indoor"
+  distanceMeters?: number
+  activeEnergyKcal?: number
+  heartRateSamples?: Array<{ timestamp: number; bpm: number }>
+}
+
 /**
  * One local day of ambient signals.
  *
@@ -100,11 +111,7 @@ type HealthPlugin = {
     metrics?: string[]
     daysBack?: number
   }): Promise<{ days: HealthDailyMetrics[] }>
-  saveWorkout(options: {
-    startedAt: number
-    endedAt: number
-    title: string
-  }): Promise<{ saved: boolean }>
+  saveWorkout(options: HealthWorkoutSave): Promise<{ saved: boolean }>
   saveDailyMetric?(options: {
     metric: string
     date: string
@@ -214,11 +221,9 @@ export async function getHealthDailyMetrics(
  * Resolves `{ saved: false }` rather than throwing when write permission was
  * never granted, because a declined health write must not fail a workout save.
  */
-export async function saveWorkoutToHealth(options: {
-  startedAt: number
-  endedAt: number
-  title: string
-}): Promise<{ saved: boolean }> {
+export async function saveWorkoutToHealth(
+  options: HealthWorkoutSave
+): Promise<{ saved: boolean }> {
   const active = plugin()
   if (!active) return { saved: false }
   try {

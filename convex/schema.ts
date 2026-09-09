@@ -666,6 +666,24 @@ export default defineSchema({
     .index("by_userId_and_date", ["userId", "date"]),
 
   /**
+   * Bounded, downsampled heart-rate trace for a workout. Kept separate from
+   * the stable workout row so live-series payloads never amplify list reads.
+   */
+  healthWorkoutHeartRateSeries: defineTable({
+    userId: v.string(),
+    workoutId: v.id("healthWorkouts"),
+    samples: v.array(
+      v.object({
+        elapsedSeconds: v.number(),
+        bpm: v.number(),
+      }),
+    ),
+    updatedAt: v.number(),
+  })
+    .index("by_workoutId", ["workoutId"])
+    .index("by_userId", ["userId"]),
+
+  /**
    * Daily recovery signals read out of the platform health store.
    *
    * One row per user per local day, upserted — the phone re-reads the same day

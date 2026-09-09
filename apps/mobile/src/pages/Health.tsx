@@ -18,6 +18,7 @@ import { MobileSheet } from "@/components/mobile-sheet"
 import { HealthReadingsSheet } from "@/components/health-readings-sheet"
 import { CustomMetricLogSheet } from "@/components/custom-metric-log-sheet"
 import { TrackSomethingNew } from "@/components/track-something-new"
+import { ReactiveOrbField } from "@/components/reactive-orb-field"
 import {
   customMetricCaption,
   useCustomMetricsByDial,
@@ -99,7 +100,7 @@ export default function Health() {
           : undefined
       }
     >
-      {scored !== null && <span className="app-hero-wash health-hero-wash" aria-hidden="true" />}
+      {scored !== null && <ReactiveOrbField className="health-hero-wash" />}
       <main className="app-page pb-28">
         <header className="app-header flex items-center justify-between gap-3">
           <h1 className="app-title">Health</h1>

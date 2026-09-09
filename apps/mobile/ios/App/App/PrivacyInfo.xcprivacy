@@ -172,9 +172,9 @@
 		</dict>
 
 		<!--
-			Country and region, derived from the request IP by the analytics
-			server. No location API is called and no coordinate is stored;
-			this is declared because "approximate country" is still a place.
+			Country and region, derived from the request IP by analytics.
+			Active-workout GPS routes stay on device and are not sent to OneRep;
+			this covers the approximate analytics region only.
 		-->
 		<dict>
 			<key>NSPrivacyCollectedDataType</key>

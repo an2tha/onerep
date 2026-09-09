@@ -24,6 +24,7 @@ import { FormCoachPinnedCards } from "@/components/form-coach-card"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { updateOneRepWidgets } from "@/lib/home-widgets"
 import { MobileSheet } from "@/components/mobile-sheet"
+import { ReactiveOrbField } from "@/components/reactive-orb-field"
 import { LogPastWorkoutSheet } from "@/components/log-past-workout-sheet"
 import { SwipeToStart, toast } from "@repo/ui"
 import {
@@ -1353,7 +1354,7 @@ export default function Workouts() {
           : undefined
       }
     >
-      {isToday && <span className="app-hero-wash training-hero-wash" aria-hidden="true" />}
+      {isToday && <ReactiveOrbField className="training-hero-wash" />}
       <main className="app-page">
         <header className="app-header" ref={trainingHeaderRef}>
           <div className="min-w-0">

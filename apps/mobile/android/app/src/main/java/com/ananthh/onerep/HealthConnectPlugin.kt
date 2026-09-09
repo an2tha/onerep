@@ -1157,6 +1157,26 @@ class HealthConnectPlugin : Plugin() {
         }
 
         val title = call.getString("title") ?: "OneRep workout"
+        val sport = call.getString("sport") ?: "strength"
+        val environment = call.getString("environment") ?: "indoor"
+        val exerciseType = when (sport) {
+            "run" -> if (environment == "indoor") {
+                ExerciseSessionRecord.EXERCISE_TYPE_RUNNING_TREADMILL
+            } else {
+                ExerciseSessionRecord.EXERCISE_TYPE_RUNNING
+            }
+            "ride" -> if (environment == "indoor") {
+                ExerciseSessionRecord.EXERCISE_TYPE_BIKING_STATIONARY
+            } else {
+                ExerciseSessionRecord.EXERCISE_TYPE_BIKING
+            }
+            "swim" -> if (environment == "indoor") {
+                ExerciseSessionRecord.EXERCISE_TYPE_SWIMMING_POOL
+            } else {
+                ExerciseSessionRecord.EXERCISE_TYPE_SWIMMING_OPEN_WATER
+            }
+            else -> ExerciseSessionRecord.EXERCISE_TYPE_STRENGTH_TRAINING
+        }
         val start = Instant.ofEpochMilli(startedAt.toLong())
         val end = Instant.ofEpochMilli(endedAt.toLong())
         val zone = ZoneId.systemDefault().rules
@@ -1167,20 +1187,38 @@ class HealthConnectPlugin : Plugin() {
                     val granted = hc.permissionController.getGrantedPermissions()
                     if (!granted.containsAll(workoutWritePermissions)) return@withContext false
 
-                    hc.insertRecords(
-                        listOf(
-                            ExerciseSessionRecord(
-                                startTime = start,
-                                startZoneOffset = zone.getOffset(start),
-                                endTime = end,
-                                endZoneOffset = zone.getOffset(end),
-                                exerciseType =
-                                    ExerciseSessionRecord.EXERCISE_TYPE_STRENGTH_TRAINING,
-                                title = title,
-                                metadata = Metadata.manualEntry(),
-                            ),
+                    val records = mutableListOf<Record>(
+                        ExerciseSessionRecord(
+                            startTime = start,
+                            startZoneOffset = zone.getOffset(start),
+                            endTime = end,
+                            endZoneOffset = zone.getOffset(end),
+                            exerciseType = exerciseType,
+                            title = title,
+                            metadata = Metadata.manualEntry(),
                         ),
                     )
+                    call.getDouble("distanceMeters")
+                        ?.takeIf { it > 0 && granted.contains(
+                            HealthPermission.getWritePermission(DistanceRecord::class),
+                        ) }
+                        ?.let { distance ->
+                            records += DistanceRecord(
+                                start, zone.getOffset(start), end, zone.getOffset(end),
+                                Length.meters(distance), Metadata.manualEntry(),
+                            )
+                        }
+                    call.getDouble("activeEnergyKcal")
+                        ?.takeIf { it > 0 && granted.contains(
+                            HealthPermission.getWritePermission(ActiveCaloriesBurnedRecord::class),
+                        ) }
+                        ?.let { calories ->
+                            records += ActiveCaloriesBurnedRecord(
+                                start, zone.getOffset(start), end, zone.getOffset(end),
+                                Energy.kilocalories(calories), Metadata.manualEntry(),
+                            )
+                        }
+                    hc.insertRecords(records)
                     true
                 }
             }.onSuccess { saved ->

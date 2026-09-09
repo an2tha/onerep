@@ -36,6 +36,7 @@ import { cn, safeLocalStorageGet, safeLocalStorageSet } from "@/lib/utils"
 import { WELCOME_NUDGE_SEEN_KEY } from "@/lib/welcome-nudge"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { useBottomBarAction } from "@/components/bottom-bar"
+import { ReactiveOrbField } from "@/components/reactive-orb-field"
 import {
   DailyLedgerHero,
   DashboardHero,
@@ -1273,7 +1274,7 @@ export default function LegacyApp() {
       {/* Picks up where the curve leaves off: the page below the photograph
           carries a little of its warmth down through the first cards instead
           of starting as a flat slab. */}
-      <span className="dashboard-home-wash" aria-hidden="true" />
+      <ReactiveOrbField className="dashboard-home-wash" />
       {quickWaterBurst.active && (
         <span
           key={quickWaterBurst.key}

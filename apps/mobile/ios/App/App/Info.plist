@@ -66,6 +66,8 @@
 	<string>OneRep can save the strength sessions you finish here to Apple Health, so your training shows up alongside the rest of your activity.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>OneRep connects to a OneRep server on your local network when you point it at one, so you can run your own instead of ours.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>OneRep uses your location during an active endurance workout to measure distance and draw your route.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>OneRep uses the microphone when you dictate a message to Coach.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>

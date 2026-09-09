@@ -518,6 +518,57 @@
     url("/hero/forest-progress-abstract-v2.webp");
 }
 
+/* ── Endurance ────────────────────────────────────────────────────────── */
+.endurance-hero {
+  --muted-foreground: color-mix(in srgb, var(--foreground) 84%, transparent);
+}
+
+.app-hero-wash.endurance-hero-wash {
+  --endurance-hero-image: url("/hero/onerep-endurance-abstract-v1.webp");
+  height: min(76rem, 115svh);
+  background-image:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--background) 38%, transparent) 0%,
+      color-mix(in srgb, var(--background) 24%, transparent) 24%,
+      color-mix(in srgb, var(--background) 52%, transparent) 52%,
+      color-mix(in srgb, var(--background) 88%, transparent) 78%,
+      var(--background) 100%
+    ),
+    var(--endurance-hero-image);
+  background-position: center, var(--endurance-hero-position, 50% 44%);
+  background-repeat: no-repeat;
+  background-size: cover;
+  -webkit-mask-image: none;
+  mask-image: none;
+  animation: none;
+}
+
+:root[data-visual-identity="dusk"] .endurance-hero-wash {
+  --endurance-hero-image: url("/hero/dusk-endurance-abstract-v1.webp");
+  --endurance-hero-position: 54% 44%;
+}
+
+:root[data-visual-identity="forest"] .endurance-hero-wash {
+  --endurance-hero-image: url("/hero/forest-endurance-abstract-v1.webp");
+  --endurance-hero-position: 50% 46%;
+}
+
+:root[data-visual-identity="slate"] .endurance-hero-wash {
+  --endurance-hero-image: url("/hero/slate-endurance-abstract-v1.webp");
+  --endurance-hero-position: 50% 42%;
+}
+
+:root[data-visual-identity="ocean"] .endurance-hero-wash {
+  --endurance-hero-image: url("/hero/ocean-endurance-abstract-v1.webp");
+  --endurance-hero-position: 50% 40%;
+}
+
+:root[data-visual-identity="blossom"] .endurance-hero-wash {
+  --endurance-hero-image: url("/hero/blossom-endurance-abstract-v1.webp");
+  --endurance-hero-position: 50% 44%;
+}
+
 :root[data-theme="dark"]
   [data-visual-identity="forest"]
   .app-hero-wash.progress-hero-wash:not(.dashboard-home-wash),

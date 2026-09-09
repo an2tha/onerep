@@ -38,6 +38,7 @@ import {
 import { MobileSheet } from "@/components/mobile-sheet"
 import { CheckInReadingsSheet } from "@/components/check-in-readings-sheet"
 import { CheckInHistory } from "@/components/check-in-history"
+import { ReactiveOrbField } from "@/components/reactive-orb-field"
 import { TrainingInsightsPanel } from "@/components/training-insights-panel"
 import { hapticMedium, hapticSelection } from "@/lib/haptics"
 import { toast } from "@repo/ui"
@@ -519,7 +520,7 @@ export default function Progress() {
         } as CSSProperties
       }
     >
-      <span className="app-hero-wash progress-hero-wash" aria-hidden="true" />
+      <ReactiveOrbField className="progress-hero-wash" />
       <main className="app-page pb-28">
         <header className="app-header" ref={progressHeaderRef}>
           <h1 className="app-title">Progress</h1>

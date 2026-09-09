@@ -34,6 +34,27 @@ export type WatchAvailability = {
   supported: boolean
   paired: boolean
   installed: boolean
+  reachable?: boolean
+}
+
+export type EnduranceWatchCommand = {
+  command: "start" | "pause" | "resume" | "end"
+  sessionId: string
+  sport: "run" | "ride" | "swim"
+  environment: "outdoor" | "indoor"
+  startedAt: number
+}
+
+export type EnduranceWatchMetrics = {
+  sessionId: string
+  heartRateBpm?: number
+  averageHeartRateBpm?: number
+  maxHeartRateBpm?: number
+  activeCalories?: number
+  elapsedSeconds?: number
+  timestamp?: number
+  healthWorkoutId?: string
+  heartRateSamples?: Array<{ elapsedSeconds: number; bpm: number }>
 }
 
 export type WatchAction =
@@ -45,12 +66,24 @@ export type WatchAction =
         activeCalories?: number
         averageHeartRate?: number
         endedAt?: number
+    }
+  }
+  | { action: "enduranceMetrics"; payload: EnduranceWatchMetrics }
+  | {
+      action: "enduranceControl"
+      payload: {
+        sessionId: string
+        command: "pause" | "resume" | "end"
       }
     }
+  | { action: "enduranceFinished"; payload: EnduranceWatchMetrics }
 
 type WatchSyncPlugin = {
   isSupported(): Promise<WatchAvailability>
   updateContext(state: WatchTodayState): Promise<{ delivered: boolean }>
+  commandEndurance(
+    command: EnduranceWatchCommand
+  ): Promise<{ delivered: boolean; reachable: boolean }>
   addListener(
     event: "watchAction",
     handler: (action: WatchAction) => void
@@ -74,6 +107,20 @@ export async function watchAvailability(): Promise<WatchAvailability> {
     return { supported: false, paired: false, installed: false }
   }
   return plugin.isSupported()
+}
+
+/**
+ * Keeps the latest command in WatchConnectivity application context so a watch
+ * opened after the phone starts still joins the session. Reachable watches also
+ * receive it immediately as a message.
+ */
+export async function commandEnduranceWatch(command: EnduranceWatchCommand) {
+  if (unavailable()) return { delivered: false, reachable: false }
+  try {
+    return await plugin.commandEndurance(command)
+  } catch {
+    return { delivered: false, reachable: false }
+  }
 }
 
 /**

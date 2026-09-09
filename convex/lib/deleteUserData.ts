@@ -155,7 +155,8 @@ export async function deleteUserDataBatch(
     ["diaryCommentReads", "by_userId_and_ownerUserId", "userId"],
     ["diaryShares", "by_inviteeUserId_and_status", "inviteeUserId"],
     ["diaryShares", "by_ownerUserId", "ownerUserId"],
-    // Health, nutrition, training, Coach, and onboarding state.
+  // Health, nutrition, training, Coach, and onboarding state.
+    ["healthWorkoutHeartRateSeries", "by_userId"],
     ["healthWorkouts", "by_userId_and_externalId"],
     ["healthMetrics", "by_userId"],
     ["healthProfiles", "by_userId"],

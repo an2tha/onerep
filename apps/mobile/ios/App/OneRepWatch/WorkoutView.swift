@@ -25,7 +25,17 @@ struct WorkoutView: View {
         }
         .navigationTitle("Workout")
         .onAppear {
-            manager.onFinish = { summary in store.logWorkout(summary) }
+            manager.onMetrics = { summary in store.sendEnduranceMetrics(summary) }
+            manager.onFinish = { summary in
+                if let sessionId = summary["sessionId"] as? String, !sessionId.isEmpty {
+                    store.finishEndurance(summary)
+                } else {
+                    store.logWorkout(summary)
+                }
+            }
+        }
+        .onReceive(store.$activeEndurance.compactMap { $0 }) { command in
+            apply(command)
         }
     }
 
@@ -66,10 +76,10 @@ struct WorkoutView: View {
             HStack(spacing: 14) {
                 Metric(
                     value: manager.heartRate == 0 ? "--" : "\(manager.heartRate)",
-                    unit: "BPM", symbol: "heart.fill", tint: .red
+                    unit: "bpm", symbol: "heart.fill", tint: .red
                 )
                 Metric(
-                    value: "\(manager.activeCalories)", unit: "KCAL",
+                    value: "\(manager.activeCalories)", unit: "kcal",
                     symbol: "flame.fill", tint: .orange
                 )
             }
@@ -77,6 +87,12 @@ struct WorkoutView: View {
             HStack(spacing: 8) {
                 Button {
                     WKInterfaceDevice.current().play(.click)
+                    if let sessionId = manager.externalSessionId {
+                        store.sendEnduranceControl(
+                            sessionId: sessionId,
+                            command: manager.isPaused ? "resume" : "pause"
+                        )
+                    }
                     manager.togglePause()
                 } label: {
                     Image(systemName: manager.isPaused ? "play.fill" : "pause.fill")
@@ -133,5 +149,40 @@ struct WorkoutView: View {
         return hours > 0
             ? String(format: "%d:%02d:%02d", hours, minutes, seconds)
             : String(format: "%d:%02d", minutes, seconds)
+    }
+
+    private func apply(_ command: EnduranceWatchCommand) {
+        if command.command == "end" {
+            if manager.externalSessionId == command.sessionId { manager.end() }
+            return
+        }
+
+        if manager.externalSessionId == command.sessionId {
+            if command.command == "pause" && !manager.isPaused {
+                manager.togglePause()
+            } else if command.command == "resume" && manager.isPaused {
+                manager.togglePause()
+            }
+            return
+        }
+
+        guard !manager.isRunning else { return }
+        Task {
+            guard await manager.requestAuthorization() else { return }
+            manager.start(
+                activity: activity(for: command.sport),
+                location: command.environment == "outdoor" ? .outdoor : .indoor,
+                externalSessionId: command.sessionId
+            )
+            if command.command == "pause" { manager.togglePause() }
+        }
+    }
+
+    private func activity(for sport: String) -> HKWorkoutActivityType {
+        switch sport {
+        case "ride": return .cycling
+        case "swim": return .swimming
+        default: return .running
+        }
     }
 }
