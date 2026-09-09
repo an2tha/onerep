@@ -29,6 +29,7 @@ const PERSISTENCE_ERROR_MESSAGE =
 const MUTATION_REGISTRY = {
   "logs.foodLogs.setDay": api.logs.foodLogs.setDay,
   "logs.foodLogs.addEntry": api.logs.foodLogs.addEntry,
+  "logs.foodLogs.updateEntry": api.logs.foodLogs.updateEntry,
   "logs.foodLogs.removeEntry": api.logs.foodLogs.removeEntry,
   "logs.water.setDay": api.logs.water.setDay,
   "logs.water.addEntry": api.logs.water.addEntry,

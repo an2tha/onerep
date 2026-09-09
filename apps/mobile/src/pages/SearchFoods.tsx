@@ -1,12 +1,14 @@
 import {
   foodLogContextParams,
   foodLogTimestamp,
+  foodLogTimestampForMeal,
   isFoodLogDate,
 } from "@/lib/food-log-context"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useSearchParams } from "react-router"
 import { FoodAttribution } from "@repo/ui"
 import {
+  ArrowClockwise,
   ArrowLeft,
   CaretRight,
   Check,
@@ -30,6 +32,7 @@ import {
   defaultMeal,
   foodPortionLabel,
   stripUndefined,
+  type FoodLogEntry,
   type FoodPortion,
   type LogMicros,
 } from "@/lib/food-log"
@@ -43,6 +46,17 @@ import {
   writeRecentFoodSearches,
 } from "@/lib/food-search-recents"
 import { promoteLoggedFoods } from "@/lib/food-search-ranking"
+import { buildQuickRepeatFoods, type QuickRepeatFood } from "@/lib/food-quick-repeat"
+import {
+  customFoodDraftFromDatabaseFood,
+  customFoodNutrientsFromDraft,
+  filterCustomFoods,
+  foodLogEntryFromCustomFood,
+  type CustomFood,
+  type CustomFoodDraft,
+} from "@/lib/custom-foods"
+import { CustomFoodEditorSheet } from "@/components/custom-food-editor-sheet"
+import { toast } from "@repo/ui"
 import { reportOfflineMutationError } from "@/lib/offline-mutation-errors"
 import { hapticSelection } from "@/lib/haptics"
 import { cn } from "@/lib/utils"
@@ -162,6 +176,48 @@ export default function SearchFoods() {
     api.logs.foodLogs.addEntry,
     "logs.foodLogs.addEntry"
   )
+  const removeFoodEntry = useOfflineMutation(
+    api.logs.foodLogs.removeEntry,
+    "logs.foodLogs.removeEntry"
+  )
+  const saveCustomFood = useOfflineMutation(
+    api.logs.customFoods.save,
+    "logs.customFoods.save"
+  )
+  const customFoodsQuery = useQuery(api.logs.customFoods.list, {})
+  // Correcting a database food: the editor draft, pre-filled from what the
+  // database claims. Saving it stores a private custom food — the user's
+  // numbers, on their account (queued locally when offline) — and future
+  // searches rank it over the database row it came from.
+  const [correctionDraft, setCorrectionDraft] = useState<CustomFoodDraft | null>(
+    null
+  )
+  const [savingCorrection, setSavingCorrection] = useState(false)
+
+  async function saveCorrection() {
+    if (!correctionDraft || savingCorrection) return
+    setSavingCorrection(true)
+    try {
+      await saveCustomFood({
+        name: correctionDraft.name.trim(),
+        brand: correctionDraft.brand.trim() || undefined,
+        servingLabel: correctionDraft.servingLabel.trim(),
+        servingGrams: correctionDraft.servingGrams.trim()
+          ? Number(correctionDraft.servingGrams)
+          : undefined,
+        barcode: correctionDraft.barcode.trim() || undefined,
+        notes: correctionDraft.notes.trim() || undefined,
+        favorite: correctionDraft.favorite,
+        nutrientsPerServing: customFoodNutrientsFromDraft(correctionDraft),
+      })
+      setCorrectionDraft(null)
+      toast.success("Corrected values saved to your foods")
+    } catch (error) {
+      reportOfflineMutationError(error)
+    } finally {
+      setSavingCorrection(false)
+    }
+  }
 
   const [searchResults, setSearchResults] = useState<FoodSearchItem[]>([])
 
@@ -216,6 +272,41 @@ export default function SearchFoods() {
   // Everything the diary has seen lately, by name. The search catalogue has
   // no idea what this person eats; this is the only place that does.
   const recentLoggedDays = useQuery(api.logs.foodLogs.getRecent, {})
+  // The foods this person actually logs, most-frequent first. Logging your
+  // daily oatmeal should not require a network round trip to Open Food Facts;
+  // these rows log straight from history, offline-safe, one tap.
+  const quickRepeats = useMemo(
+    () =>
+      buildQuickRepeatFoods(
+        ((recentLoggedDays ?? []) as Array<{
+          date: string
+          entries: FoodLogEntry[]
+        }>).filter((day) => day.date !== date),
+        6
+      ),
+    [date, recentLoggedDays]
+  )
+  const customFoods = (customFoodsQuery ?? []) as CustomFood[]
+  const matchedCustomFoods = useMemo(() => {
+    if (!completedQuery) return []
+    return filterCustomFoods(customFoods, completedQuery).slice(0, 4)
+  }, [completedQuery, customFoods])
+  // History answers before the database does: typing anything you have ever
+  // logged surfaces your own entry (same food, same portion) as a one-tap
+  // repeat, so the everyday path never waits on the network.
+  const matchedLoggedFoods = useMemo(() => {
+    const needle = completedQuery.trim().toLowerCase()
+    if (!needle) return []
+    return buildQuickRepeatFoods(
+      (recentLoggedDays ?? []) as Array<{
+        date: string
+        entries: FoodLogEntry[]
+      }>,
+      80
+    ).filter((food) => food.entry.name.toLowerCase().includes(needle))
+  }, [completedQuery, recentLoggedDays])
+  const showQuickRepeats =
+    searchState === "idle" && quickRepeats.length > 0
   const loggedNames = useMemo(
     () =>
       (
@@ -291,7 +382,7 @@ export default function SearchFoods() {
             ? item.name
             : `${item.name} (${portion ? foodPortionLabel(portion) : `${grams} g`})`,
         ...macros,
-        loggedAt: foodLogTimestamp(date, searchParams.get("time")),
+        loggedAt: foodLogTimestampForMeal(date, meal, searchParams.get("time")),
         meal,
         source: "openfoodfacts" as const,
         foodCode: item.code,
@@ -319,12 +410,99 @@ export default function SearchFoods() {
     }
   }
 
+  /** One tap on a recent food: same food, same portion, new id and stamp. */
+  async function handleLogAgain(food: QuickRepeatFood) {
+    if (addingFoodRef.current) return
+    const previous = food.entry
+    addingFoodRef.current = food.key
+    setAddingFoodId(food.key)
+    try {
+      const entry = stripUndefined({
+        ...previous,
+        _id: undefined,
+        id: Math.random().toString(36).slice(2),
+        meal: previous.meal || defaultMeal(),
+        loggedAt: foodLogTimestampForMeal(
+          date,
+          previous.meal || defaultMeal(),
+          searchParams.get("time")
+        ),
+      })
+      await addFoodEntry({ date, entry })
+      captureFeatureUsage(posthog, "food_logged", {
+        item_count: 1,
+        source: "search_repeat",
+      })
+      setAdded({ itemId: food.key })
+      hapticSelection()
+      toast.success(`${previous.name} logged`, {
+        action: {
+          label: "Undo",
+          onClick: () => {
+            void removeFoodEntry({ date, entryId: entry.id }).catch(() =>
+              toast.error("Couldn't undo that")
+            )
+          },
+        },
+      })
+      setTimeout(() => setAdded(null), 1800)
+    } catch (error) {
+      reportOfflineMutationError(error)
+    } finally {
+      addingFoodRef.current = null
+      setAddingFoodId(null)
+    }
+  }
+
+  /** One tap on one of the user's own foods, straight from search results. */
+  async function handleLogCustomFood(food: CustomFood) {
+    if (addingFoodRef.current) return
+    const key = `custom:${food.id ?? food._id ?? food.name}`
+    addingFoodRef.current = key
+    setAddingFoodId(key)
+    try {
+      const entry = foodLogEntryFromCustomFood(food, {
+        meal: defaultMeal(),
+        servings: 1,
+        loggedAt: foodLogTimestampForMeal(
+          date,
+          defaultMeal(),
+          searchParams.get("time")
+        ),
+      })
+      await addFoodEntry({ date, entry })
+      captureFeatureUsage(posthog, "food_logged", {
+        item_count: 1,
+        source: "search_custom",
+      })
+      setAdded({ itemId: key })
+      hapticSelection()
+      toast.success(`${food.name} logged`, {
+        action: {
+          label: "Undo",
+          onClick: () => {
+            void removeFoodEntry({ date, entryId: entry.id }).catch(() =>
+              toast.error("Couldn't undo that")
+            )
+          },
+        },
+      })
+      setTimeout(() => setAdded(null), 1800)
+    } catch (error) {
+      reportOfflineMutationError(error)
+    } finally {
+      addingFoodRef.current = null
+      setAddingFoodId(null)
+    }
+  }
+
   const showEmpty =
     searchState === "done" &&
     results.length === 0 &&
     recipeResults.length === 0 &&
     completedQuery !== ""
-  const showResults = results.length > 0 || recipeResults.length > 0
+  const showResults =
+    results.length > 0 || recipeResults.length > 0 || matchedCustomFoods.length > 0
 
   function openFoodReview(item: FoodSearchItem) {
     if (shouldOpenReviewAsPage()) {
@@ -459,6 +637,79 @@ export default function SearchFoods() {
                   </p>
                 </div>
 
+                {showQuickRepeats && (
+                  <div>
+                    <p className="mb-2 px-1 text-[12px] font-semibold tracking-wide text-muted-foreground uppercase">
+                      Log again
+                    </p>
+                    <div className="overflow-hidden rounded-2xl border border-border">
+                      {quickRepeats.map((food, index) => {
+                        const isAdded = added?.itemId === food.key
+                        const isAdding = addingFoodId === food.key
+                        const card = {
+                          calories: food.entry.calories,
+                          protein: food.entry.protein,
+                          carbs: food.entry.carbs,
+                          fat: food.entry.fat,
+                        }
+                        return (
+                          <div
+                            key={food.key}
+                            className={cn(
+                              "flex min-h-14 items-center gap-2 px-3",
+                              index > 0 && "border-t border-border"
+                            )}
+                          >
+                            <button
+                              type="button"
+                              onClick={() => void handleLogAgain(food)}
+                              disabled={addingFoodId !== null || isAdded}
+                              aria-busy={isAdding}
+                              className="flex min-h-14 min-w-0 flex-1 items-center gap-3 py-2 text-left"
+                            >
+                              <ArrowClockwise
+                                size={16}
+                                weight="bold"
+                                className="shrink-0 text-muted-foreground"
+                              />
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate text-[14px] font-semibold">
+                                  {food.entry.name}
+                                </span>
+                                <span className="mt-0.5 block text-[11px] text-muted-foreground tabular-nums">
+                                  {energyDisplay(card.calories, energyUnit)}{" "}
+                                  {energyUnit}
+                                  {food.count > 1
+                                    ? ` · logged ${food.count}× recently`
+                                    : ""}
+                                </span>
+                              </span>
+                              <span
+                                className={cn(
+                                  "shrink-0 text-[13px] font-semibold",
+                                  isAdded && "motion-success-pop"
+                                )}
+                              >
+                                {isAdded ? (
+                                  <Check
+                                    size={16}
+                                    weight="bold"
+                                    className="text-[var(--status-success)]"
+                                  />
+                                ) : isAdding ? (
+                                  <span className="h-3.5 w-3.5 animate-spin rounded-full border border-muted-foreground/20 border-t-muted-foreground/60" />
+                                ) : (
+                                  "Log"
+                                )}
+                              </span>
+                            </button>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 {recentSearches.length > 0 && (
                   <SearchSuggestionGroup
                     title="Recent"
@@ -529,6 +780,12 @@ export default function SearchFoods() {
                     </h1>
                     <p className="mt-0.5 text-[12px] text-muted-foreground">
                       {results.length} food{results.length === 1 ? "" : "s"}
+                      {matchedCustomFoods.length > 0
+                        ? ` · ${matchedCustomFoods.length} of yours`
+                        : ""}
+                      {matchedLoggedFoods.length > 0
+                        ? ` · ${matchedLoggedFoods.length} from your history`
+                        : ""}
                       {recipeResults.length > 0
                         ? ` · ${recipeResults.length} recipe${recipeResults.length === 1 ? "" : "s"}`
                         : ""}{" "}
@@ -543,7 +800,154 @@ export default function SearchFoods() {
                     Not here? Add it
                   </button>
                 </div>
+                {matchedLoggedFoods.length > 0 && (
+                  <div className="mb-2.5">
+                    <p className="mb-1 px-1 text-[12px] font-semibold tracking-wide text-muted-foreground uppercase">
+                      From your history
+                    </p>
+                    <div className="overflow-hidden rounded-2xl border border-border">
+                      {matchedLoggedFoods.map((food, index) => {
+                        const isAdded = added?.itemId === food.key
+                        const isAdding = addingFoodId === food.key
+                        const card = {
+                          calories: food.entry.calories,
+                          protein: food.entry.protein,
+                          carbs: food.entry.carbs,
+                          fat: food.entry.fat,
+                        }
+                        return (
+                          <div
+                            key={food.key}
+                            className={cn(
+                              "flex min-h-14 items-center gap-2 px-3",
+                              index > 0 && "border-t border-border"
+                            )}
+                          >
+                            <button
+                              type="button"
+                              onClick={() => void handleLogAgain(food)}
+                              disabled={addingFoodId !== null || isAdded}
+                              aria-busy={isAdding}
+                              aria-label={
+                                isAdded
+                                  ? `${food.entry.name} added`
+                                  : `Log ${food.entry.name} again`
+                              }
+                              className="flex min-h-14 min-w-0 flex-1 items-center gap-3 py-2 text-left"
+                            >
+                              <ArrowClockwise
+                                size={16}
+                                weight="bold"
+                                className="shrink-0 text-muted-foreground"
+                              />
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate text-[14px] font-semibold">
+                                  {food.entry.name}
+                                </span>
+                                <span className="mt-0.5 block text-[11px] text-muted-foreground tabular-nums">
+                                  {energyDisplay(card.calories, energyUnit)}{" "}
+                                  {energyUnit}
+                                  {food.count > 1
+                                    ? ` · logged ${food.count}×`
+                                    : ""}
+                                </span>
+                              </span>
+                              <span
+                                className={cn(
+                                  "shrink-0 text-[13px] font-semibold",
+                                  isAdded && "motion-success-pop"
+                                )}
+                              >
+                                {isAdded ? (
+                                  <Check
+                                    size={16}
+                                    weight="bold"
+                                    className="text-[var(--status-success)]"
+                                  />
+                                ) : isAdding ? (
+                                  <span className="text-[12px] text-muted-foreground">
+                                    Logging…
+                                  </span>
+                                ) : (
+                                  <span className="text-muted-foreground">
+                                    Log
+                                  </span>
+                                )}
+                              </span>
+                            </button>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
                 <div className="grid gap-2.5 md:auto-rows-[5.5rem] md:grid-cols-2 md:gap-3">
+                  {matchedCustomFoods.map((food) => {
+                    const key = `custom:${food.id ?? food._id ?? food.name}`
+                    const isAdded = added?.itemId === key
+                    const isAdding = addingFoodId === key
+                    const perServing = food.nutrientsPerServing
+                    return (
+                      <div
+                        key={key}
+                        className="flex min-h-[5.5rem] w-full items-center gap-2 overflow-hidden rounded-2xl border border-border bg-card p-2 text-left transition-colors hover:bg-muted/20"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => void handleLogCustomFood(food)}
+                          disabled={isAdded || addingFoodId !== null}
+                          aria-busy={isAdding}
+                          aria-label={
+                            isAdded ? `${food.name} added` : `Log ${food.name}`
+                          }
+                          className="motion-list-row flex min-h-[4.5rem] min-w-0 flex-1 items-center gap-3 text-left"
+                        >
+                          <span className="grid size-14 shrink-0 place-items-center rounded-xl bg-muted/60 text-muted-foreground">
+                            <ForkKnife size={19} />
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-[14px] leading-snug font-semibold">
+                              {food.name}
+                            </span>
+                            <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
+                              My food{food.brand ? ` · ${food.brand}` : ""} ·{" "}
+                              {food.servingLabel}
+                            </span>
+                            <span className="mt-1.5 flex flex-wrap items-center gap-x-2 text-[11px] text-muted-foreground tabular-nums">
+                              <strong className="font-semibold text-foreground">
+                                {energyDisplay(
+                                  perServing.calories,
+                                  energyUnit
+                                )}{" "}
+                                {energyUnit}
+                              </strong>
+                              <span>P {Math.round(perServing.protein)}g</span>
+                              <span>C {Math.round(perServing.carbs)}g</span>
+                              <span>F {Math.round(perServing.fat)}g</span>
+                            </span>
+                          </span>
+                          <span
+                            className={cn(
+                              "grid size-10 shrink-0 place-items-center rounded-full bg-muted text-foreground",
+                              isAdded && "motion-success-pop"
+                            )}
+                          >
+                            {isAdded ? (
+                              <Check
+                                size={16}
+                                weight="bold"
+                                className="text-[var(--status-success)]"
+                              />
+                            ) : isAdding ? (
+                              <span className="h-3.5 w-3.5 animate-spin rounded-full border border-muted-foreground/20 border-t-muted-foreground/60" />
+                            ) : (
+                              <Plus size={16} weight="bold" />
+                            )}
+                          </span>
+                        </button>
+                      </div>
+                    )
+                  })}
                   {mixedResults.map((result) => {
                     if (result.kind === "recipe") {
                       return (
@@ -654,7 +1058,32 @@ export default function SearchFoods() {
               portion
             ).catch(reportOfflineMutationError)
           }}
+          onCorrectValues={(detail) =>
+            setCorrectionDraft(
+              customFoodDraftFromDatabaseFood({
+                code: detailItem.code,
+                name: detailItem.name,
+                brand: detailItem.brand,
+                // Pre-fill from the serving the sheet actually shows, not a
+                // raw per-100g basis the user never saw.
+                servingLabel: detail?.servingLabel || detailItem.serving,
+                servingGrams: detail?.servingGrams,
+                ...foodCardMacros(detailItem),
+              })
+            )
+          }
           onClose={() => setDetailItem(null)}
+        />
+      )}
+
+      {correctionDraft && (
+        <CustomFoodEditorSheet
+          draft={correctionDraft}
+          saving={savingCorrection}
+          title="Correct these values"
+          onChange={setCorrectionDraft}
+          onClose={() => setCorrectionDraft(null)}
+          onSave={() => void saveCorrection()}
         />
       )}
     </>

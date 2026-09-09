@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import {
   caloriesFromMacros,
+  customFoodDraftFromDatabaseFood,
   customFoodDraftFromFood,
   customFoodNutrientsFromDraft,
   emptyCustomFoodDraft,
@@ -184,5 +185,44 @@ describe("editing and searching", () => {
     expect(filterCustomFoods([shake, other], "HOUSE")).toEqual([shake])
     expect(filterCustomFoods([shake, other], "oat")).toEqual([other])
     expect(filterCustomFoods([shake, other], "  ")).toHaveLength(2)
+  })
+})
+
+describe("customFoodDraftFromDatabaseFood", () => {
+  test("pre-fills the draft from the database values and keeps the barcode", () => {
+    const draft = customFoodDraftFromDatabaseFood({
+      code: "3017620422003",
+      name: "Some Spread",
+      brand: "A Brand",
+      servingLabel: "1 bar",
+      servingGrams: 40,
+      calories: 190.4,
+      protein: 20.12,
+      carbs: 12.36,
+      fat: 9.02,
+    })
+    expect(draft.id).toBeUndefined()
+    expect(draft.name).toBe("Some Spread")
+    expect(draft.brand).toBe("A Brand")
+    expect(draft.barcode).toBe("3017620422003")
+    expect(draft.servingLabel).toBe("1 bar")
+    expect(draft.servingGrams).toBe("40")
+    expect(draft.nutrients.calories).toBe("190")
+    expect(draft.nutrients.protein).toBe("20.1")
+    expect(draft.nutrients.carbs).toBe("12.4")
+    expect(draft.nutrients.fat).toBe("9")
+  })
+
+  test("a missing serving label gets a per-100g fallback instead of failing validation", () => {
+    const draft = customFoodDraftFromDatabaseFood({
+      name: "Mystery Item",
+      calories: 100,
+      protein: 1,
+      carbs: 2,
+      fat: 3,
+    })
+    expect(draft.servingLabel).toBe("100 g")
+    expect(draft.barcode).toBe("")
+    expect(validateCustomFoodDraft(draft).valid).toBe(true)
   })
 })

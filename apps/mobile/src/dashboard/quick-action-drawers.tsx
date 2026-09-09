@@ -2,6 +2,7 @@ import {
   foodLogContextParams,
   foodLogTime,
   foodLogTimestamp,
+  foodLogTimestampForMeal,
 } from "@/lib/food-log-context"
 /**
  * The quick-action drawers.
@@ -33,6 +34,7 @@ import {
   Play,
   Pill,
   Timer,
+  Trash,
 } from "@phosphor-icons/react"
 import { MobileSheet, toast, tint, useReplayKey } from "@repo/ui"
 
@@ -176,9 +178,11 @@ function WaterDrawer({
   const navigate = useSmoothNavigate()
   const preferences = useQuery(api.users.users.getPreferences)
   const rawEntries = useQuery(api.logs.water.getDay, { date: dateKey })
-  const setWaterDay = useOfflineMutation(
-    api.logs.water.setDay,
-    "logs.water.setDay"
+  // Targeted add/remove, not a whole-day setDay rewrite — a rewrite drops any
+  // glass logged from a widget or the Nutrition page between read and write.
+  const addWaterEntry = useOfflineMutation(
+    api.logs.water.addEntry,
+    "logs.water.addEntry"
   )
   // Targeted, so taking one glass back never rewrites the day around it.
   const removeWaterEntry = useOfflineMutation(
@@ -208,7 +212,7 @@ function WaterDrawer({
       amountMl: clamped,
       loggedAt: stampAt(dateKey, atMinutes),
     }
-    void setWaterDay({ date: dateKey, entries: [...entries, entry] })
+    void addWaterEntry({ date: dateKey, entry })
     toast.success(`${fmtWater(clamped)} of water logged`, {
       action: {
         label: "Undo",
@@ -226,6 +230,14 @@ function WaterDrawer({
     if (!Number.isFinite(parsed) || parsed <= 0) return
     add(parsed)
     setCustom("")
+  }
+
+  function removeEntry(id: string) {
+    // Targeted removeEntry, not a setDay rewrite — same reason the food
+    // drawer switched: a day-rewrite races any glass added in between.
+    void removeWaterEntry({ date: dateKey, id }).catch(() => {
+      toast.error("Couldn't remove that")
+    })
   }
 
   const fillOverText = percent >= 76
@@ -329,6 +341,38 @@ function WaterDrawer({
         </button>
       </label>
 
+      {/* The day's entries, each one removable right here. Undo toasts are
+          transient; a wrong glass should not survive the toast. */}
+      {entries.length > 0 && (
+        <div className="divide-y divide-border overflow-hidden rounded-2xl border border-border">
+          {entries
+            .slice()
+            .sort((a, b) => b.loggedAt.localeCompare(a.loggedAt))
+            .map((entry) => (
+              <div
+                key={entry.id}
+                className="flex min-h-11 items-center justify-between gap-2 px-3.5 py-2"
+              >
+                <p className="native-row-detail tabular-nums">
+                  {fmtWater(entry.amountMl)} ·{" "}
+                  {new Date(entry.loggedAt).toLocaleTimeString([], {
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => removeEntry(entry.id)}
+                  className="flex size-9 items-center justify-center rounded-lg text-muted-foreground active:bg-muted active:text-destructive"
+                  aria-label={`Remove ${fmtWater(entry.amountMl)} water entry`}
+                >
+                  <Trash size={15} weight="bold" />
+                </button>
+              </div>
+            ))}
+        </div>
+      )}
+
       <DrawerRow
         icon={<CalendarBlank size={16} weight="bold" />}
         title="See the whole week"
@@ -414,14 +458,22 @@ function FoodDrawer({
     const entries = choice.entries().map((entry) => ({
       ...entry,
       id: createClientId(),
-      loggedAt: stampAt(dateKey, atMinutes),
       meal: entry.meal ?? defaultMeal(),
+      // The timeline's explicit minute wins; otherwise the meal tag supplies
+      // the default time ("breakfast" lands at the breakfast hour).
+      loggedAt:
+        atMinutes !== undefined
+          ? stampAt(dateKey, atMinutes)
+          : foodLogTimestampForMeal(dateKey, entry.meal ?? defaultMeal()),
     }))
     setBusy(true)
     try {
-      for (const entry of entries) {
-        await addFood({ date: dateKey, entry })
-      }
+      // Entries carry unique client ids and the server dedupes by id, so the
+      // batch can go out together instead of serialised: a 4-item preset logs
+      // in one round trip, not four.
+      await Promise.all(
+        entries.map((entry) => addFood({ date: dateKey, entry }))
+      )
       hapticMedium()
       toast.success(`${choice.name} logged`, {
         action: {
@@ -510,15 +562,27 @@ function FoodEntryEditor({
   onClose: () => void
 }) {
   const updateFood = useMutation(api.logs.foodLogs.updateEntry)
+  const addFood = useMutation(api.logs.foodLogs.addEntry)
+  const removeFood = useMutation(api.logs.foodLogs.removeEntry)
   const [meal, setMeal] = useState(entry.meal)
   const [serving, setServing] = useState(entry.servingLabel ?? "")
+  // The entry's own clock, editable: the timeline holds the day, this moves
+  // the minute within it.
+  const entryAt = new Date(entry.loggedAt)
+  const [loggedAtTime, setLoggedAtTime] = useState(() =>
+    foodLogTime(entryAt.getHours() * 60 + entryAt.getMinutes())
+  )
   const [busy, setBusy] = useState(false)
 
   async function save() {
     if (busy) return
     setBusy(true)
     try {
-      const patch: FoodLogEntry = { ...entry, meal: meal || defaultMeal() }
+      const patch: FoodLogEntry = {
+        ...entry,
+        meal: meal || defaultMeal(),
+        loggedAt: foodLogTimestamp(dateKey, loggedAtTime),
+      }
       patch.servingLabel = serving ? serving : undefined
       delete patch._id
       await updateFood({ date: dateKey, entry: patch })
@@ -528,6 +592,41 @@ function FoodEntryEditor({
     } catch (error) {
       logDevWarn("Failed to edit food entry from drawer", error)
       toast.error("Couldn't save that.")
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  /** Duplicate the entry as a fresh log — the timeline's "copy" action. */
+  async function copyAsNew() {
+    if (busy) return
+    setBusy(true)
+    try {
+      const copiedMeal = meal || defaultMeal()
+      const copy = stripUndefined({
+        ...entry,
+        _id: undefined,
+        id: createClientId(),
+        meal: copiedMeal,
+        loggedAt: foodLogTimestampForMeal(dateKey, copiedMeal),
+        servingLabel: serving ? serving : undefined,
+      }) as FoodLogEntry
+      await addFood({ date: dateKey, entry: copy })
+      hapticMedium()
+      toast.success(`${entry.name} logged as a new entry`, {
+        action: {
+          label: "Undo",
+          onClick: () => {
+            void removeFood({ date: dateKey, entryId: copy.id }).catch(() => {
+              toast.error("Couldn't undo that")
+            })
+          },
+        },
+      })
+      onClose()
+    } catch (error) {
+      logDevWarn("Failed to copy food entry from drawer", error)
+      toast.error("Couldn't copy that.")
     } finally {
       setBusy(false)
     }
@@ -563,6 +662,19 @@ function FoodEntryEditor({
 
       <div className="app-surface overflow-hidden px-4 py-3">
         <label className="block text-[12px] font-medium text-muted-foreground">
+          Logged at
+        </label>
+        <input
+          type="time"
+          value={loggedAtTime}
+          onChange={(event) => setLoggedAtTime(event.target.value)}
+          aria-label="Logged at time"
+          className="mt-2 w-full bg-transparent text-[15px] tabular-nums outline-none"
+        />
+      </div>
+
+      <div className="app-surface overflow-hidden px-4 py-3">
+        <label className="block text-[12px] font-medium text-muted-foreground">
           Serving
         </label>
         <input
@@ -574,14 +686,24 @@ function FoodEntryEditor({
         />
       </div>
 
-      <button
-        type="button"
-        onClick={save}
-        disabled={busy}
-        className="motion-tactile flex-1 rounded-xl bg-foreground py-3 font-bold text-background"
-      >
-        {busy ? "Saving…" : "Save"}
-      </button>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={save}
+          disabled={busy}
+          className="motion-tactile flex-1 rounded-xl bg-foreground py-3 font-bold text-background"
+        >
+          {busy ? "Saving…" : "Save"}
+        </button>
+        <button
+          type="button"
+          onClick={() => void copyAsNew()}
+          disabled={busy}
+          className="motion-tactile rounded-xl border border-border px-4 py-3 text-[14px] font-semibold text-foreground"
+        >
+          Copy as new
+        </button>
+      </div>
     </div>
   )
 }
@@ -618,12 +740,16 @@ function RecipesDrawer({
   async function logRecipe(recipe: NonNullable<typeof recipes>[number]) {
     if (busy) return
     const totals = recipeTotals(recipe.ingredients, recipe.servings ?? 1)
+    const meal = defaultMeal()
     const entry = stripUndefined({
       id: createClientId(),
       name: recipe.name,
       ...totals,
-      loggedAt: stampAt(dateKey, atMinutes),
-      meal: defaultMeal(),
+      loggedAt:
+        atMinutes !== undefined
+          ? stampAt(dateKey, atMinutes)
+          : foodLogTimestampForMeal(dateKey, meal),
+      meal,
       recipeId: recipe._id,
     }) as FoodLogEntry
     setBusy(true)

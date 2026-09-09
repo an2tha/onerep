@@ -2,6 +2,7 @@ import type { FoodResult } from "@repo/models"
 import {
   defaultFoodPortion,
   foodPortionLabel,
+  isNamedFoodServing,
   parseFoodPortionLabel,
   stripUndefined,
   type FoodLogEntry,
@@ -378,6 +379,41 @@ export function formatSnapGrams(grams: number) {
   return String(safe)
     .replace(/\.0+$/, "")
     .replace(/(\.\d*?)0+$/, "$1")
+}
+
+/**
+ * One-tap portions for a scanned item: the product's own serving (in its own
+ * words when it has one worth counting) and the household units people
+ * actually measure with — oz, cup, tbsp — not just grams. Grams remain the
+ * typed fallback; these just remove the typing.
+ */
+export function snapPortionPresets(
+  item: Pick<FoodResult, "name" | "serving">,
+  servingGrams: number
+): Array<{ label: string; grams: number }> {
+  const presets: Array<{ label: string; grams: number }> = []
+  const seen = new Set<number>()
+  const push = (label: string, grams: number) => {
+    const clamped = clampSnapGrams(grams)
+    if (seen.has(clamped)) return
+    seen.add(clamped)
+    presets.push({ label, grams: clamped })
+  }
+
+  const servingPortion = defaultFoodPortion(
+    item.serving,
+    item.name,
+    servingGrams
+  )
+  if (isNamedFoodServing(item.serving, servingPortion)) {
+    push(item.serving, servingPortion.grams)
+  } else {
+    push("1 serving", servingGrams)
+  }
+  for (const label of ["1 oz", "1 cup", "1 tbsp"] as const) {
+    push(label, defaultFoodPortion(label, item.name).grams)
+  }
+  return presets
 }
 
 export function snapPortionLabel(grams: number) {

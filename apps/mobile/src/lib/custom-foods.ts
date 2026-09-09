@@ -274,3 +274,48 @@ export function filterCustomFoods(foods: CustomFood[], query: string) {
     `${food.name} ${food.brand ?? ""}`.toLowerCase().includes(needle)
   )
 }
+
+/**
+ * Pre-fills the editor draft from a food that came from the shared database,
+ * so "correct these values" starts from what the database claims and the
+ * user fixes only what is wrong. The copy carries the barcode for
+ * provenance; an empty serving label is given one rather than failing
+ * validation for a field the user never meant to change.
+ */
+export function customFoodDraftFromDatabaseFood(food: {
+  code?: string
+  name: string
+  brand?: string
+  servingLabel?: string
+  servingGrams?: number | null
+  calories: number
+  protein: number
+  carbs: number
+  fat: number
+}): CustomFoodDraft {
+  const base = emptyCustomFoodDraft()
+  return {
+    ...base,
+    name: food.name,
+    brand: food.brand ?? "",
+    barcode: food.code ?? "",
+    servingLabel: food.servingLabel || "100 g",
+    servingGrams:
+      food.servingGrams !== undefined &&
+      food.servingGrams !== null &&
+      Number.isFinite(food.servingGrams)
+        ? String(Math.round(food.servingGrams))
+        : "",
+    nutrients: {
+      ...base.nutrients,
+      calories: String(Math.round(food.calories)),
+      protein: String(round2(food.protein)),
+      carbs: String(round2(food.carbs)),
+      fat: String(round2(food.fat)),
+    },
+  }
+}
+
+function round2(value: number) {
+  return Math.round(value * 10) / 10
+}
