@@ -35,6 +35,11 @@ import {
   type MealType,
   DEFAULT_MEAL_CATEGORIES,
 } from "@/lib/food-log"
+import {
+  foodLogTimestamp,
+  foodLogTimestampForMeal,
+  isFoodLogTime,
+} from "@/lib/food-log-context"
 import { api } from "../../../../convex/_generated/api"
 import { convexClient } from "@/lib/convex"
 import { usePostHog } from "@posthog/react"
@@ -57,6 +62,7 @@ import {
   mapSnapDetectionsToReviewItems,
   scaleFoodForGrams,
   snapDetectionsFromAiResult,
+  snapPortionPresets,
   toConvexSafe,
   type SnapAiResult,
   type SnapFoodMatch,
@@ -107,17 +113,33 @@ export default function SnapAndLog() {
 
   // Honour a date the diary was viewing when the camera opened, so a snap or
   // barcode logged against a past day lands on that day rather than today.
+  // The time rides along the same way: the add sheet let the user pick when
+  // this entry belongs, and the camera must not silently re-stamp it with
+  // whatever the clock says by the time the photo is taken.
   const requestedDate = params.get("date")
   const date =
     requestedDate && /^\d{4}-\d{2}-\d{2}$/.test(requestedDate)
       ? requestedDate
       : currentDateKey()
+  const requestedTime = params.get("time")
+  const logTime = isFoodLogTime(requestedTime) ? requestedTime : undefined
+  // An explicit ?time= from the diary wins; otherwise the meal tag supplies
+  // the default time ("breakfast" logs at the breakfast hour).
+  const logStamp = () =>
+    foodLogTimestampForMeal(date, meal, logTime)
   const preferences = useQuery(api.users.users.getPreferences, {})
   const foodSearchLanguage = preferences?.foodSearchLanguage ?? "en"
-  const foodLogs = useQuery(api.logs.foodLogs.getDay, { date })
-  const setDay = useOfflineMutation(
-    api.logs.foodLogs.setDay,
-    "logs.foodLogs.setDay"
+  // Entries are added one mutation each instead of read-modify-writing the
+  // whole day: the scanner can be three entries ahead by the time the first
+  // response lands, and a whole-day write built from a stale read drops the
+  // ones logged in between.
+  const addFoodEntry = useOfflineMutation(
+    api.logs.foodLogs.addEntry,
+    "logs.foodLogs.addEntry"
+  )
+  const removeFoodEntry = useOfflineMutation(
+    api.logs.foodLogs.removeEntry,
+    "logs.foodLogs.removeEntry"
   )
 
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -604,7 +626,7 @@ export default function SnapAndLog() {
       protein: macros.protein,
       carbs: macros.carbs,
       fat: macros.fat,
-      loggedAt: new Date().toISOString(),
+      loggedAt: logStamp(),
       meal,
       source: "openfoodfacts" as const,
       foodCode: item.code,
@@ -616,8 +638,7 @@ export default function SnapAndLog() {
     })
 
     try {
-      const existingEntries = foodLogs ?? []
-      await setDay({ date, entries: [...existingEntries, entry] })
+      await addFoodEntry({ date, entry })
 
       captureFeatureUsage(posthog, "food_logged_from_camera", {
         item_count: 1,
@@ -626,14 +647,14 @@ export default function SnapAndLog() {
       // The camera stays open after a barcode log, so without an explicit
       // confirmation people scan again "to make sure" and double-log.
       void hapticMedium()
-      // Undo restores the day as it was a moment ago rather than deleting by
-      // id: the camera stays open, and a scan-happy hand can be three entries
-      // ahead by the time somebody notices the wrong product.
+      // Undo removes the entry by its id rather than rewriting the day back
+      // to a snapshot: with one mutation per entry, a snapshot would erase
+      // anything logged after the one being undone.
       toast.success(item.name ? `${item.name} logged` : "Food logged", {
         action: {
           label: "Undo",
           onClick: () => {
-            void setDay({ date, entries: existingEntries }).catch(() =>
+            void removeFoodEntry({ date, entryId: entry.id }).catch(() =>
               toast.error("Couldn't undo that")
             )
           },
@@ -655,7 +676,7 @@ export default function SnapAndLog() {
     if (snapLogging || loggingTargetRef.current) return
 
     const entries = snapReviewItems
-      .map((item) => buildSnapFoodLogEntry(item, meal))
+      .map((item) => buildSnapFoodLogEntry(item, meal, { loggedAt: logStamp() }))
       .filter((entry): entry is FoodLogEntry => entry !== null)
 
     if (entries.length === 0) {
@@ -666,8 +687,12 @@ export default function SnapAndLog() {
     loggingTargetRef.current = "snap-review"
     setSnapLogging(true)
     try {
-      const existingEntries = foodLogs ?? []
-      await setDay({ date, entries: [...existingEntries, ...entries] })
+      // One mutation per detected food, fired together: no whole-day
+      // read-modify-write, so a barcode add that lands mid-review can never
+      // be dropped, and a failed item does not roll back the others.
+      await Promise.all(
+        entries.map((entry) => addFoodEntry({ date, entry }))
+      )
 
       captureFeatureUsage(posthog, "food_logged_from_camera", {
         item_count: entries.length,
@@ -682,9 +707,11 @@ export default function SnapAndLog() {
           action: {
             label: "Undo",
             onClick: () => {
-              void setDay({ date, entries: existingEntries }).catch(() =>
-                toast.error("Couldn't undo that")
-              )
+              void Promise.all(
+                entries.map((entry) =>
+                  removeFoodEntry({ date, entryId: entry.id })
+                )
+              ).catch(() => toast.error("Couldn't undo that"))
             },
           },
         }
@@ -995,8 +1022,8 @@ export default function SnapAndLog() {
         </div>
       )}
 
-      {/* ── Bottom controls (snap mode only) ─────────────────────────── */}
-      {(mode === "snap" || useNativeCapture) && snapPhase !== "uploading" && (
+      {/* ── Bottom controls (both modes; each button gates itself) ────── */}
+      {snapPhase !== "uploading" && (
         <div
           className="absolute right-0 bottom-0 left-0 flex items-center justify-between px-10"
           style={{
@@ -1409,6 +1436,11 @@ function SnapReviewRow({
       <div className="mt-2">
         <SnapQuantityControl
           grams={item.grams}
+          presets={
+            item.food
+              ? snapPortionPresets(item.food, foodCardMacros(item.food).grams)
+              : []
+          }
           disabled={!food}
           onChange={(grams) =>
             onChange((current) => ({
@@ -1470,10 +1502,13 @@ function SnapReviewRow({
 
 function SnapQuantityControl({
   grams,
+  presets,
   disabled,
   onChange,
 }: {
   grams: number
+  /** One-tap portions: the product's own serving plus common household units. */
+  presets: Array<{ label: string; grams: number }>
   disabled: boolean
   onChange: (grams: number) => void
 }) {
@@ -1498,6 +1533,7 @@ function SnapQuantityControl({
   }
 
   return (
+    <div>
     <div className="grid grid-cols-[2.75rem_minmax(0,6rem)_2.75rem] items-center gap-2">
       <button
         type="button"
@@ -1544,6 +1580,40 @@ function SnapQuantityControl({
       >
         <Plus size={12} weight="bold" />
       </button>
+    </div>
+
+    {presets.length > 1 && (
+      <div className="mt-2 flex gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {presets.map((preset) => {
+          const active = Math.abs(preset.grams - grams) < 0.1
+          return (
+            <button
+              key={preset.label}
+              type="button"
+              disabled={disabled}
+              onClick={() => onChange(preset.grams)}
+              aria-pressed={active}
+              className="flex h-8 shrink-0 items-center rounded-full border px-2.5 text-[12px] font-semibold transition-colors disabled:opacity-40"
+              style={
+                active
+                  ? {
+                      borderColor: "rgba(255,255,255,0.9)",
+                      backgroundColor: "rgba(255,255,255,0.92)",
+                      color: "#111",
+                    }
+                  : {
+                      borderColor: "rgba(255,255,255,0.25)",
+                      backgroundColor: "rgba(255,255,255,0.08)",
+                      color: "rgba(255,255,255,0.85)",
+                    }
+              }
+            >
+              {preset.label}
+            </button>
+          )
+        })}
+      </div>
+    )}
     </div>
   )
 }
@@ -1634,6 +1704,7 @@ function BarcodeResultRow({
       <div className="mt-2">
         <SnapQuantityControl
           grams={grams}
+          presets={snapPortionPresets(item, card.grams)}
           disabled={disabled}
           onChange={setGrams}
         />

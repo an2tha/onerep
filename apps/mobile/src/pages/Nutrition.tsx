@@ -1,5 +1,12 @@
-import { foodLogTimestamp, isFoodLogDate } from "@/lib/food-log-context"
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
+import {
+  foodLogContextParams,
+  foodLogTimestamp,
+  foodLogTimestampForMeal,
+  foodLogTime,
+  isFoodLogDate,
+  isFoodLogTime,
+} from "@/lib/food-log-context"
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { useSearchParams } from "react-router"
 import { createPortal } from "react-dom"
 import {
@@ -1362,6 +1369,14 @@ function FoodEntrySheet({
   const energyUnit = useEnergyUnit()
   const [name, setName] = useState(entry.name)
   const [meal, setMeal] = useState<string>(entry.meal)
+  // The logged day stays fixed; only the clock moves. Built from the entry's
+  // own timestamp in local time, so a 23:30 entry stays on its day.
+  const entryAt = new Date(entry.loggedAt)
+  const [loggedAtTime, setLoggedAtTime] = useState(() =>
+    foodLogTime(
+      entryAt.getHours() * 60 + entryAt.getMinutes()
+    )
+  )
   const [macros, setMacros] = useState({
     calories: String(Math.round(entry.calories)),
     protein: String(Math.round(entry.protein)),
@@ -1374,9 +1389,21 @@ function FoodEntrySheet({
     return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0
   }
   const trimmedName = name.trim()
+  const nextLoggedAt = (() => {
+    const at = new Date(entry.loggedAt)
+    const [hours, minutes] = loggedAtTime.split(":").map(Number)
+    return new Date(
+      at.getFullYear(),
+      at.getMonth(),
+      at.getDate(),
+      hours,
+      minutes
+    ).toISOString()
+  })()
   const changed =
     trimmedName !== entry.name ||
     meal !== entry.meal ||
+    nextLoggedAt !== entry.loggedAt ||
     number(macros.calories) !== Math.round(entry.calories) ||
     number(macros.protein) !== Math.round(entry.protein) ||
     number(macros.carbs) !== Math.round(entry.carbs) ||
@@ -1437,18 +1464,30 @@ function FoodEntrySheet({
         className="h-11 w-full rounded-xl border border-border bg-transparent px-3 text-[15px] outline-none focus:border-foreground/40"
       />
 
-      <select
-        value={meal}
-        onChange={(event) => setMeal(event.target.value)}
-        aria-label="Meal"
-        className="mt-2 h-11 w-full rounded-xl border border-border bg-transparent px-3 text-[14px] font-medium outline-none"
-      >
-        {DEFAULT_MEAL_CATEGORIES.map((category) => (
-          <option key={category.id} value={category.id}>
-            {category.label}
-          </option>
-        ))}
-      </select>
+      <div className="mt-2 grid grid-cols-2 gap-2">
+        <select
+          value={meal}
+          onChange={(event) => setMeal(event.target.value)}
+          aria-label="Meal"
+          className="h-11 w-full rounded-xl border border-border bg-transparent px-3 text-[14px] font-medium outline-none"
+        >
+          {DEFAULT_MEAL_CATEGORIES.map((category) => (
+            <option key={category.id} value={category.id}>
+              {category.label}
+            </option>
+          ))}
+        </select>
+        <label className="flex h-11 items-center gap-2 rounded-xl border border-border bg-transparent px-3">
+          <Clock size={14} weight="bold" className="shrink-0 text-muted-foreground" />
+          <input
+            type="time"
+            value={loggedAtTime}
+            onChange={(event) => setLoggedAtTime(event.target.value)}
+            aria-label="Logged at time"
+            className="min-w-0 flex-1 bg-transparent text-[14px] font-medium tabular-nums outline-none"
+          />
+        </label>
+      </div>
 
       <div className="mt-3 grid grid-cols-4 gap-2">
         {(
@@ -1514,6 +1553,7 @@ function FoodEntrySheet({
             ...entry,
             name: trimmedName,
             meal: meal as MealType,
+            loggedAt: nextLoggedAt,
             calories: number(macros.calories),
             protein: number(macros.protein),
             carbs: number(macros.carbs),
@@ -2062,6 +2102,13 @@ export default function Nutrition() {
   const nutritionHeaderRef = useTourAnchor("nutrition-header")
   const [searchParams, setSearchParams] = useSearchParams()
   const [addOpen, setAddOpen] = useState(false)
+  // The diary's entries used to stamp themselves with whatever the clock said
+  // when the entry landed. Someone who logs a 7 pm dinner at 9 pm got a 9 pm
+  // diary, and every number that rolls up by time of day was quietly wrong.
+  // The add sheet now carries its own time field, defaulting to now, and
+  // every door out of it hands that time to the next screen.
+  const [logTime, setLogTime] = useState(() => foodLogTime())
+  const resetLogTime = useCallback(() => setLogTime(foodLogTime()), [])
   const [microsOpen, setMicrosOpen] = useState(false)
   const [fastingOpen, setFastingOpen] = useState(false)
   const [showAllFood, setShowAllFood] = useState(false)
@@ -2103,7 +2150,10 @@ export default function Nutrition() {
   const [entryDetail, setEntryDetail] = useState<string | null>(null)
   const [savingEntry, setSavingEntry] = useState(false)
   const { requireAiAccess, aiAccessModal } = useAiFeatureGate()
-  useBottomBarAction(() => setAddOpen(true))
+  useBottomBarAction(() => {
+    resetLogTime()
+    setAddOpen(true)
+  })
 
   const preferences = useQuery(api.users.users.getPreferences, {})
   // Derived from the preferences we already subscribe to, rather than
@@ -2150,6 +2200,10 @@ export default function Nutrition() {
     api.logs.foodLogs.removeEntry,
     "logs.foodLogs.removeEntry"
   )
+  const updateFoodEntryById = useOfflineMutation(
+    api.logs.foodLogs.updateEntry,
+    "logs.foodLogs.updateEntry"
+  )
   const setFoodDay = useOfflineMutation(
     api.logs.foodLogs.setDay,
     "logs.foodLogs.setDay"
@@ -2158,9 +2212,9 @@ export default function Nutrition() {
     api.logs.water.addEntry,
     "logs.water.addEntry"
   )
-  const setWaterDay = useOfflineMutation(
-    api.logs.water.setDay,
-    "logs.water.setDay"
+  const removeWaterEntryById = useOfflineMutation(
+    api.logs.water.removeEntry,
+    "logs.water.removeEntry"
   )
   const setWaterGoal = useOfflineMutation(
     api.users.users.setWaterGoal,
@@ -2554,7 +2608,9 @@ export default function Nutrition() {
   function openSnapCamera() {
     if (!requireAiAccess(1, "snap_camera")) return
     setAddOpen(false)
-    navigate(`/camera?date=${dateKey}`)
+    navigate(
+      `/camera?date=${dateKey}&time=${logTime}`
+    )
   }
 
   // The same sheet the live workout opens, over the diary instead of over a
@@ -2605,7 +2661,7 @@ export default function Nutrition() {
       id: crypto.randomUUID(),
       name: recipe.name,
       ...totals,
-      loggedAt: foodLogTimestamp(dateKey),
+      loggedAt: foodLogTimestampForMeal(dateKey, meal, logTime),
       meal,
       recipeId: recipe._id,
       recipeDraft: recipe._id
@@ -2691,11 +2747,12 @@ export default function Nutrition() {
   async function saveFoodEntry(updated: FoodLogEntry) {
     setSavingEntry(true)
     try {
-      await setFoodDay({
+      // Targeted updateEntry, not a setDay rewrite — an edit must not drop
+      // entries logged elsewhere between this page's read and its write.
+      // _id is stripped: the validator rejects server-only fields.
+      await updateFoodEntryById({
         date: dateKey,
-        entries: entries.map((entry) =>
-          entry.id === updated.id ? stripUndefined(updated) : entry
-        ),
+        entry: stripUndefined({ ...updated, _id: undefined }),
       })
       hapticTap()
       setEntryDetail(null)
@@ -2709,10 +2766,9 @@ export default function Nutrition() {
   }
 
   function removeWaterEntry(entryId: string) {
-    void setWaterDay({
-      date: dateKey,
-      entries: waterEntries.filter((entry) => entry.id !== entryId),
-    })
+    // Targeted removeEntry, not a setDay rewrite — a rewrite drops any glass
+    // logged elsewhere between this page's read and its write.
+    void removeWaterEntryById({ date: dateKey, id: entryId })
   }
 
   function removeSupplementEntry(logId: Id<"supplementIntakeLogs">) {
@@ -2747,6 +2803,7 @@ export default function Nutrition() {
     try {
       const presetEntries = foodLogEntriesFromMealPreset(suggestion.preset, {
         meal: suggestion.meal,
+        loggedAt: foodLogTimestampForMeal(dateKey, suggestion.meal, logTime),
       })
       await setFoodDay({
         date: dateKey,
@@ -2759,7 +2816,7 @@ export default function Nutrition() {
   }
 
   function openFoodSearch() {
-    navigate(`/foods/search?date=${dateKey}`)
+    navigate(`/foods/search?${foodLogContextParams(dateKey, logTime)}`)
   }
 
   async function repeatFood(entry: FoodLogEntry, key: string) {
@@ -2770,8 +2827,8 @@ export default function Nutrition() {
         ...entry,
         _id: undefined,
         id: crypto.randomUUID(),
-        loggedAt: foodLogTimestamp(dateKey),
         meal: defaultMeal(),
+        loggedAt: foodLogTimestampForMeal(dateKey, defaultMeal(), logTime),
       })
 
       await setFoodDay({
@@ -3041,7 +3098,10 @@ export default function Nutrition() {
                 >
                   <button
                     type="button"
-                    onClick={() => setAddOpen(true)}
+                    onClick={() => {
+                      resetLogTime()
+                      setAddOpen(true)
+                    }}
                     className="native-toolbar-button"
                     aria-label="Add nutrition entry"
                   >
@@ -3051,7 +3111,10 @@ export default function Nutrition() {
                 </TourAnchor>
                 <button
                   type="button"
-                  onClick={() => setAddOpen(true)}
+                  onClick={() => {
+                    resetLogTime()
+                    setAddOpen(true)
+                  }}
                   className="native-toolbar-button hidden hover:bg-card md:inline-flex"
                   aria-label="Add nutrition entry"
                 >
@@ -3080,7 +3143,10 @@ export default function Nutrition() {
               </div>
               <button
                 type="button"
-                onClick={() => setAddOpen(true)}
+                onClick={() => {
+                  resetLogTime()
+                  setAddOpen(true)
+                }}
                 className="app-header-icon-action"
                 aria-label="Add nutrition entry"
               >
@@ -3978,6 +4044,28 @@ export default function Nutrition() {
                 <X size={17} weight="bold" />
               </button>
             </div>
+            <div
+              className="mb-4 flex items-center gap-3 rounded-xl border border-border bg-background px-3 py-2"
+            >
+              <Clock size={16} weight="bold" className="shrink-0 text-muted-foreground" />
+              <label
+                htmlFor="nutrition-log-time"
+                className="text-[13px] font-medium text-muted-foreground"
+              >
+                Logged at
+              </label>
+              <input
+                id="nutrition-log-time"
+                type="time"
+                value={logTime}
+                onChange={(event) => {
+                  if (isFoodLogTime(event.target.value))
+                    setLogTime(event.target.value)
+                }}
+                aria-label="Time this entry belongs at"
+                className="ml-auto h-9 rounded-lg border border-border bg-transparent px-2 text-[14px] font-semibold tabular-nums outline-none"
+              />
+            </div>
             {quickRepeatFoods.length > 0 && (
               <section className="mb-5" aria-label="Recent foods">
                 <h3 className="native-section-title mb-2">Recent foods</h3>
@@ -4045,7 +4133,9 @@ export default function Nutrition() {
                   Icon: Barcode,
                   supportsHistory: true,
                   action: () =>
-                    navigate(`/camera?mode=barcode&date=${dateKey}`),
+                    navigate(
+                      `/camera?mode=barcode&date=${dateKey}&time=${logTime}`
+                    ),
                 },
                 {
                   label: "Snap meal",
@@ -4069,7 +4159,9 @@ export default function Nutrition() {
                   Icon: PencilSimple,
                   supportsHistory: true,
                   action: () =>
-                    navigate(`/foods/custom?new=1&log=1&date=${dateKey}`),
+                    navigate(
+                      `/foods/custom?new=1&log=1&${foodLogContextParams(dateKey, logTime)}`
+                    ),
                 },
               ]
                 .filter((item) => isToday || item.supportsHistory)

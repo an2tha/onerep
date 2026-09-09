@@ -21,6 +21,7 @@ import { energyDisplay } from "@repo/ui"
 import { hapticMedium, hapticSelection } from "@/lib/haptics"
 import { createClientId, logDevWarn } from "@/lib/utils"
 import { recipeTotals } from "@/lib/coach-chat"
+import { foodLogTimestampForMeal } from "@/lib/food-log-context"
 import {
   defaultMeal,
   foodLogEntriesFromMealPreset,
@@ -216,7 +217,7 @@ export function QuickFoodStep({
             id: createClientId(),
             name: recipe.name,
             ...totals,
-            loggedAt: new Date().toISOString(),
+            loggedAt: foodLogTimestampForMeal(todayKey, defaultMeal()),
             meal: defaultMeal(),
             recipeId: recipe._id,
           }) as FoodLogEntry,
@@ -241,15 +242,19 @@ export function QuickFoodStep({
     const entries = choice.entries().map((entry) => ({
       ...entry,
       id: createClientId(),
-      loggedAt: new Date().toISOString(),
       meal: entry.meal ?? defaultMeal(),
+      // The meal tag supplies the default time ("breakfast" logs at the
+      // breakfast hour) rather than the moment of the tap.
+      loggedAt: foodLogTimestampForMeal(todayKey, entry.meal ?? defaultMeal()),
     }))
 
     setBusy(true)
     try {
-      for (const entry of entries) {
-        await addFood({ date: todayKey, entry })
-      }
+      // Unique client ids make the batch safe to fire together; serialising
+      // it only adds a round trip per food to a panel whose job is speed.
+      await Promise.all(
+        entries.map((entry) => addFood({ date: todayKey, entry }))
+      )
       hapticMedium()
       setLogged((count) => count + 1)
       toast.success(`${choice.name} logged`, {
@@ -288,6 +293,9 @@ export function QuickFoodStep({
       meal,
       detail,
       portion,
+      // The sheet's meal tag supplies the default time, same as every
+      // other logging surface.
+      loggedAt: foodLogTimestampForMeal(todayKey, meal),
     })
 
     setBusy(true)

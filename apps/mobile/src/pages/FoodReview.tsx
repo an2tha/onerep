@@ -1,4 +1,4 @@
-import { foodLogTimestamp, isFoodLogDate } from "@/lib/food-log-context"
+import { foodLogTimestampForMeal, isFoodLogDate } from "@/lib/food-log-context"
 import { useEffect, useRef, useState } from "react"
 import { Warning } from "@phosphor-icons/react"
 import { useLocation, useParams, useSearchParams } from "react-router"
@@ -108,7 +108,7 @@ export default function FoodReview() {
           ? food.name
           : `${food.name} (${portion ? foodPortionLabel(portion) : `${grams} g`})`,
       ...macros,
-      loggedAt: foodLogTimestamp(date, reviewParams.get("time")),
+      loggedAt: foodLogTimestampForMeal(date, meal, reviewParams.get("time")),
       meal,
       source: "openfoodfacts" as const,
       foodCode: food.code,

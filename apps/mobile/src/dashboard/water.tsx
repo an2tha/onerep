@@ -29,9 +29,15 @@ export function WaterWidget({ dateKey }: { dateKey: string }) {
   const goalMl = preferences?.waterGoalMl ?? 2500
 
   const rawEntries = useQuery(api.logs.water.getDay, { date: dateKey })
-  const setWaterDay = useOfflineMutation(
-    api.logs.water.setDay,
-    "logs.water.setDay"
+  // Targeted add/remove, not a setDay rewrite of the whole day — a rewrite
+  // races any glass logged from the drawer or a widget between read and write.
+  const addWaterEntry = useOfflineMutation(
+    api.logs.water.addEntry,
+    "logs.water.addEntry"
+  )
+  const removeWaterEntry = useOfflineMutation(
+    api.logs.water.removeEntry,
+    "logs.water.removeEntry"
   )
 
   const entries = (rawEntries ?? []) as WaterEntry[]
@@ -47,7 +53,7 @@ export function WaterWidget({ dateKey }: { dateKey: string }) {
       amountMl,
       loggedAt: new Date().toISOString(),
     }
-    void setWaterDay({ date: dateKey, entries: [...entries, entry] })
+    void addWaterEntry({ date: dateKey, entry })
   }
 
   function addGlass() {
@@ -64,10 +70,10 @@ export function WaterWidget({ dateKey }: { dateKey: string }) {
 
   function removeLastEntry() {
     if (entries.length === 0) return
-    const sorted = [...entries].sort((a, b) =>
+    const newest = [...entries].sort((a, b) =>
       b.loggedAt.localeCompare(a.loggedAt)
-    )
-    void setWaterDay({ date: dateKey, entries: sorted.slice(1) })
+    )[0]
+    void removeWaterEntry({ date: dateKey, id: newest.id })
   }
 
   return (
@@ -151,9 +157,13 @@ export function WaterSmall({
   const [hoveredGlass, setHoveredGlass] = useState<number | null>(null)
   const rawEntries = useQuery(api.logs.water.getDay, { date: dateKey })
   const entries = (rawEntries ?? []) as WaterEntry[]
-  const setWaterDay = useOfflineMutation(
-    api.logs.water.setDay,
-    "logs.water.setDay"
+  const addWaterEntry = useOfflineMutation(
+    api.logs.water.addEntry,
+    "logs.water.addEntry"
+  )
+  const removeWaterEntry = useOfflineMutation(
+    api.logs.water.removeEntry,
+    "logs.water.removeEntry"
   )
   const totalMl = entries.reduce((s, e) => s + e.amountMl, 0)
   const filledCount = filledWaterGlassCount(totalMl, goalMl)
@@ -169,7 +179,7 @@ export function WaterSmall({
       amountMl,
       loggedAt: new Date().toISOString(),
     }
-    void setWaterDay({ date: dateKey, entries: [...entries, entry] })
+    void addWaterEntry({ date: dateKey, entry })
   }
 
   function fillToGlass(index: number) {
@@ -178,10 +188,10 @@ export function WaterSmall({
 
   function removeLastGlass() {
     if (entries.length === 0) return
-    const sorted = [...entries].sort((a, b) =>
+    const newest = [...entries].sort((a, b) =>
       b.loggedAt.localeCompare(a.loggedAt)
-    )
-    void setWaterDay({ date: dateKey, entries: sorted.slice(1) })
+    )[0]
+    void removeWaterEntry({ date: dateKey, id: newest.id })
   }
 
   return (
