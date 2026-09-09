@@ -61,7 +61,14 @@ export function useBottomBarAction(action?: BottomBarAction) {
   }, [enabled, setBottomBarAction])
 }
 
-const BASE_TABS = [
+type TabDef = {
+  path: string
+  Icon: typeof House
+  labelKey: string
+  beta?: boolean
+}
+
+const BASE_TABS: TabDef[] = [
   { path: "/", Icon: House, labelKey: "nav.today" },
   { path: "/nutrition", Icon: ForkKnife, labelKey: "nav.nutrition" },
   { path: "/workouts", Icon: Barbell, labelKey: "nav.training" },
@@ -69,7 +76,7 @@ const BASE_TABS = [
   { path: "/progress", Icon: ChartLine, labelKey: "nav.progress" },
   { path: "/health", Icon: HeartbeatIcon, labelKey: "nav.health" },
   { path: "/coach", Icon: RocketLaunchIcon, labelKey: "nav.coach" },
-] as const
+]
 
 function getTabs(experimentalFeaturesEnabled: boolean) {
   return BASE_TABS.filter(
