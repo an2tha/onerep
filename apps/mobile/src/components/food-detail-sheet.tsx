@@ -4,6 +4,7 @@ import {
   CaretDown,
   Check,
   Minus,
+  PencilSimple,
   Plus,
   X,
 } from "@phosphor-icons/react"
@@ -566,6 +567,10 @@ type Props = {
     portion: FoodPortion
   ) => string
   addedLabel?: (mealLabel: string, portion: FoodPortion) => string
+  /** Database foods only: opens the correction editor pre-filled with what
+   *  the sheet is displaying (same serving basis), saving the user a
+   *  corrected private copy. */
+  onCorrectValues?: (detail: FoodDetail | null) => void
 }
 
 /**
@@ -591,6 +596,7 @@ export function FoodDetailSheet({
   presentation = "sheet",
   actionLabel,
   addedLabel,
+  onCorrectValues,
 }: Props) {
   const [detail, setDetail] = useState<Detail>(() => initialFoodDetail(item))
   const [loading, setLoading] = useState(() => !initialFoodDetail(item))
@@ -839,6 +845,16 @@ export function FoodDetailSheet({
                 +{formatNumber(calories, 0)}
               </span>
             </button>
+            {onCorrectValues && (
+              <button
+                type="button"
+                onClick={() => onCorrectValues(detail)}
+                className="mt-2 flex min-h-9 w-full items-center justify-center gap-1.5 text-[12px] font-semibold text-muted-foreground"
+              >
+                <PencilSimple size={13} weight="bold" aria-hidden />
+                Values look wrong? Correct them
+              </button>
+            )}
           </div>
         )
       }

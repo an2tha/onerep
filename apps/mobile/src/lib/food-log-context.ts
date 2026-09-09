@@ -1,4 +1,6 @@
 /** Calendar context must survive every route in a backdated food log. */
+import { mealDefaultTime } from "@/lib/meal-times"
+
 export function isFoodLogDate(value: string | null): value is string {
   if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
   const date = new Date(`${value}T12:00:00Z`)
@@ -37,4 +39,22 @@ export function foodLogTimestamp(
     : foodLogTime(undefined, now)
   const at = new Date(`${date}T${clock}:00`)
   return at.toISOString()
+}
+
+/**
+ * Like `foodLogTimestamp`, but when no explicit time is given the *meal tag*
+ * supplies the default (see `meal-times.ts`) — tagging an entry "breakfast"
+ * lands it at the user's breakfast time instead of the moment of logging.
+ * An explicit time always wins, and `null` falls back to the clock as before.
+ */
+export function foodLogTimestampForMeal(
+  date: string,
+  meal: string,
+  time?: string | null,
+  now = new Date()
+) {
+  if (isFoodLogTime(time ?? null)) {
+    return foodLogTimestamp(date, time, now)
+  }
+  return foodLogTimestamp(date, mealDefaultTime(meal), now)
 }

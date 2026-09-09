@@ -4,6 +4,7 @@ import {
   mapSnapDetectionsToReviewItems,
   parseSnapQuantityGrams,
   snapDetectionsFromAiResult,
+  snapPortionPresets,
   toConvexSafe,
   type FoodSearchFn,
 } from "../food-snap-review"
@@ -206,5 +207,38 @@ describe("snap review helpers", () => {
       nutriments: { proteins_100g: 10 },
       tags: ["food", "snap"],
     })
+  })
+})
+
+describe("snapPortionPresets", () => {
+  test("offers the product's own serving in its own words, plus household units", () => {
+    const presets = snapPortionPresets(
+      { name: "Granola bar", serving: "1 bar (40 g)" },
+      40
+    )
+    expect(presets[0]).toEqual({ label: "1 bar (40 g)", grams: 40 })
+    const labels = presets.map((preset) => preset.label)
+    expect(labels).toContain("1 oz")
+    expect(labels).toContain("1 cup")
+    expect(labels).toContain("1 tbsp")
+  })
+
+  test("keeps the product's own serving words even when they are not parseable units", () => {
+    // "one pack" carries no parsable unit, so grams come from the product's
+    // serving size — but the chip still speaks the label's language, the same
+    // way the food detail sheet does.
+    const presets = snapPortionPresets(
+      { name: "Mystery snack", serving: "one pack" },
+      50
+    )
+    expect(presets[0]).toEqual({ label: "one pack", grams: 50 })
+  })
+
+  test("drops duplicate gram amounts instead of showing the same value twice", () => {
+    // 1 tbsp ≈ 15 g, and a 15 g serving would collide with it.
+    const presets = snapPortionPresets({ name: "Butter", serving: "15 g" }, 15)
+    const grams = presets.map((preset) => preset.grams)
+    expect(new Set(grams).size).toBe(grams.length)
+    expect(presets[0].label).toBe("1 serving")
   })
 })
