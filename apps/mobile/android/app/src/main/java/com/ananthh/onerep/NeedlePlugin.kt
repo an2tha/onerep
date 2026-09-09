@@ -111,7 +111,9 @@ class NeedlePlugin : Plugin() {
                 }
                 call.resolve(JSObject().put("bytes", bytes.size).put("source", source))
             } catch (error: Throwable) {
-                call.reject("needle: could not load weights — ${error.message}", error)
+                // reject's overloads take Exception, not Throwable; passing a
+                // Kotlin Error here fails to compile through the call.
+                call.reject("needle: could not load weights — ${error.message}", error as? Exception)
             }
         }
     }
