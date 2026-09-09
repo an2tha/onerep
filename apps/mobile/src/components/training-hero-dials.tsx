@@ -33,7 +33,7 @@ export function TrainingStatDial({
 }: {
   name: string
   value: number
-  target: number
+  target?: number
   suffix?: string
   color: string
   size: number
@@ -44,7 +44,10 @@ export function TrainingStatDial({
   icon?: ReactNode
   className?: string
 }) {
-  const reached = target > 0 ? Math.min(1, value / target) : 0
+  const reached = target && target > 0 ? Math.min(1, value / target) : 0
+  const accessibleValue = target
+    ? `${value} of ${target}${suffix}`
+    : `${value}${suffix}, no target set`
   return (
     <div
       className={cn(
@@ -55,7 +58,7 @@ export function TrainingStatDial({
       )}
       style={{ width: size, height: size }}
       role="img"
-      aria-label={`${name}: ${value} of ${target}${suffix}`}
+      aria-label={`${name}: ${accessibleValue}`}
     >
       <span
         className="macro-dial-glass"

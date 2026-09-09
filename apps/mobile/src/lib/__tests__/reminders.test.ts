@@ -27,6 +27,7 @@ const {
   formatReminderLabel,
   formatReminderTime,
   mergeReminderSettings,
+  scheduleCoachCheckInNotification,
   syncPushReminders,
 } = await import("../reminders")
 
@@ -183,5 +184,44 @@ describe("reminder settings", () => {
       >
     )[0][0]
     expect(payload.notifications[0].channelId).toBeUndefined()
+  })
+
+  test("schedules a Coach-created daily check-in with its own stable notification", async () => {
+    await expect(
+      scheduleCoachCheckInNotification({
+        checkInId: "check-in-creatine",
+        title: "Creatine check-in",
+        prompt: "Take 5 g with a full glass of water.",
+        hour: 15,
+        minute: 0,
+      })
+    ).resolves.toBe("scheduled")
+
+    expect(cancelMock).toHaveBeenCalledTimes(1)
+    const payload = (
+      scheduleMock.mock.calls as unknown as Array<
+        [
+          {
+            notifications: Array<{
+              title: string
+              body: string
+              schedule: unknown
+              extra: unknown
+            }>
+          },
+        ]
+      >
+    )[0][0].notifications[0]
+    expect(payload.title).toBe("Creatine check-in")
+    expect(payload.body).toBe("Take 5 g with a full glass of water.")
+    expect(payload.schedule).toEqual({
+      on: { hour: 15, minute: 0 },
+      repeats: true,
+      allowWhileIdle: true,
+    })
+    expect(payload.extra).toEqual({
+      route: "/coach",
+      scheduledCheckInId: "check-in-creatine",
+    })
   })
 })

@@ -212,6 +212,61 @@ export const setDashboardSettings = mutation({
   },
 });
 
+const enduranceSportValidator = v.union(
+  v.literal("run"),
+  v.literal("ride"),
+  v.literal("swim"),
+);
+
+export const setEnduranceGoals = mutation({
+  args: {
+    sport: enduranceSportValidator,
+    distanceMeters: v.optional(v.number()),
+    durationMinutes: v.optional(v.number()),
+    sessions: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const user = await requireUser(ctx);
+    const existing = await ctx.db
+      .query("userPreferences")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .unique();
+
+    const positiveOrUndefined = (value: number | undefined) =>
+      value !== undefined && Number.isFinite(value) && value > 0
+        ? value
+        : undefined;
+    const distanceMeters = positiveOrUndefined(args.distanceMeters);
+    const durationMinutes = positiveOrUndefined(args.durationMinutes);
+    const sessions = positiveOrUndefined(args.sessions);
+    const goal = {
+      ...(distanceMeters !== undefined ? { distanceMeters } : {}),
+      ...(durationMinutes !== undefined ? { durationMinutes } : {}),
+      ...(sessions !== undefined ? { sessions } : {}),
+    };
+    const enduranceGoals = {
+      ...existing?.enduranceGoals,
+      [args.sport]: goal,
+    };
+
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        enduranceGoals,
+        updatedAt: Date.now(),
+      });
+    } else {
+      await ctx.db.insert("userPreferences", {
+        userId: user._id,
+        lastActiveTimezone: "UTC",
+        enduranceGoals,
+        updatedAt: Date.now(),
+      });
+    }
+
+    return goal;
+  },
+});
+
 export const setDashboardTrendMetric = mutation({
   args: {
     // Every measurable field on `bodyMeasurements`. Hips, calves, and neck were
@@ -642,6 +697,34 @@ export const setLiveWorkoutStatus = mutation({
         userId: user._id,
         lastActiveTimezone: "UTC",
         liveWorkoutStatusEnabled: args.enabled,
+        updatedAt: Date.now(),
+      });
+    }
+  },
+});
+
+/**
+ * Opt-in toggle for experimental and beta features.
+ */
+export const setExperimentalFeatures = mutation({
+  args: { enabled: v.boolean() },
+  handler: async (ctx, args) => {
+    const user = await requireUser(ctx);
+    const existing = await ctx.db
+      .query("userPreferences")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .unique();
+
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        experimentalFeaturesEnabled: args.enabled,
+        updatedAt: Date.now(),
+      });
+    } else {
+      await ctx.db.insert("userPreferences", {
+        userId: user._id,
+        lastActiveTimezone: "UTC",
+        experimentalFeaturesEnabled: args.enabled,
         updatedAt: Date.now(),
       });
     }
@@ -1139,11 +1222,15 @@ export const purgeDeletedUserData = internalMutation({
     }
 
     if (remaining) {
-      await ctx.scheduler.runAfter(0, internal.users.users.purgeDeletedUserData, {
-        userId: args.userId,
-        deletedSoFar,
-        passes,
-      });
+      await ctx.scheduler.runAfter(
+        0,
+        internal.users.users.purgeDeletedUserData,
+        {
+          userId: args.userId,
+          deletedSoFar,
+          passes,
+        },
+      );
     }
 
     return { deleted: deletedSoFar, done: !remaining, passes };

@@ -167,6 +167,16 @@ export type CoachOperation = CoachOperationMeta &
         note?: string;
       }
     | {
+        type: "create_scheduled_check_in";
+        checkInId?: string;
+        title: string;
+        prompt: string;
+        cadence: "daily";
+        hour: number;
+        minute: number;
+        timezone: string;
+      }
+    | {
         type: "save_weekly_plan";
         weekStart: string;
         title: string;
@@ -331,6 +341,15 @@ export function normalizeCoachOperations(value: unknown): CoachOperation[] {
         return typeof row.key === "string";
       case "save_check_in":
         return typeof row.date === "string";
+      case "create_scheduled_check_in":
+        return (
+          typeof row.title === "string" &&
+          typeof row.prompt === "string" &&
+          row.cadence === "daily" &&
+          typeof row.hour === "number" &&
+          typeof row.minute === "number" &&
+          typeof row.timezone === "string"
+        );
       case "save_weekly_plan":
         return typeof row.weekStart === "string" && Array.isArray(row.days);
       case "save_goal":
@@ -431,6 +450,20 @@ export function validateCoachOperations(
         (operation.halfLifeHours < 1 || operation.halfLifeHours > 12)
       )
         errors.push(`${operation.title} has an invalid half-life.`);
+    }
+    if (operation.type === "create_scheduled_check_in") {
+      if (!operation.title.trim()) errors.push("The check-in needs a title.");
+      if (!operation.prompt.trim()) errors.push("The check-in needs a prompt.");
+      if (
+        !Number.isInteger(operation.hour) ||
+        operation.hour < 0 ||
+        operation.hour > 23 ||
+        !Number.isInteger(operation.minute) ||
+        operation.minute < 0 ||
+        operation.minute > 59
+      ) {
+        errors.push(`${operation.title || "Check-in"} has an invalid time.`);
+      }
     }
     if (operation.type === "create_workout_preset") {
       const names = operation.exercises.map((item) =>

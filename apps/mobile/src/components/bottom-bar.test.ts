@@ -52,6 +52,7 @@ describe("bottom bar accessibility contract", () => {
       ["/", "nav.today", "Today"],
       ["/nutrition", "nav.nutrition", "Nutrition"],
       ["/workouts", "nav.training", "Training"],
+      ["/endurance", "nav.endurance", "Endurance"],
       ["/progress", "nav.progress", "Progress"],
       ["/coach", "nav.coach", "Coach"],
     ] as const
@@ -81,7 +82,7 @@ describe("bottom bar accessibility contract", () => {
     }
 
     const drawn = quotedStrings(
-      tabs.match(/const TABS = \[([\s\S]*?)\] as const/)?.[1] ?? ""
+      tabs.match(/const BASE_TABS = \[([\s\S]*?)\] as const/)?.[1] ?? ""
     ).filter((value) => value.startsWith("/"))
     const slideOrder = quotedStrings(
       navigation.match(/PRIMARY_TAB_ORDER = \[([\s\S]*?)\]/)?.[1] ?? ""

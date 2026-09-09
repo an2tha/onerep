@@ -20,6 +20,61 @@ export type ReminderSettings = {
   supplement: ReminderConfig
 }
 
+export type ScheduledCoachCheckIn = {
+  checkInId: string
+  title: string
+  prompt: string
+  hour: number
+  minute: number
+}
+
+export type NotificationSyncStatus = "scheduled" | "unsupported" | "denied"
+
+function scheduledCoachCheckInNotificationId(checkInId: string) {
+  let hash = 0
+  for (let index = 0; index < checkInId.length; index += 1) {
+    hash = Math.imul(31, hash) + checkInId.charCodeAt(index)
+  }
+  return 120_000 + (Math.abs(hash) % 2_000_000_000)
+}
+
+export async function scheduleCoachCheckInNotification(
+  checkIn: ScheduledCoachCheckIn
+): Promise<NotificationSyncStatus> {
+  if (Capacitor.getPlatform() === "web") return "unsupported"
+  await ensureNotificationChannels()
+  const permission = await LocalNotifications.requestPermissions()
+  if (permission.display !== "granted") return "denied"
+  const id = scheduledCoachCheckInNotificationId(checkIn.checkInId)
+  await LocalNotifications.cancel({ notifications: [{ id }] })
+  await LocalNotifications.schedule({
+    notifications: [
+      {
+        id,
+        title: checkIn.title,
+        body: checkIn.prompt,
+        schedule: {
+          on: { hour: checkIn.hour, minute: checkIn.minute },
+          repeats: true,
+          allowWhileIdle: true,
+        },
+        channelId: supportsNotificationChannels()
+          ? NOTIFICATION_CHANNELS.reminders
+          : undefined,
+        extra: { route: "/coach", scheduledCheckInId: checkIn.checkInId },
+      },
+    ],
+  })
+  return "scheduled"
+}
+
+export async function cancelCoachCheckInNotification(checkInId: string) {
+  if (Capacitor.getPlatform() === "web") return
+  await LocalNotifications.cancel({
+    notifications: [{ id: scheduledCoachCheckInNotificationId(checkInId) }],
+  })
+}
+
 export const DEFAULT_REMINDERS: ReminderSettings = {
   water: { enabled: false, hour: 10, minute: 0 },
   meal: { enabled: false, hour: 12, minute: 30 },

@@ -41,6 +41,9 @@ describe("coachState Convex functions", () => {
       [],
     );
     await expect(
+      t.query(api.ai.coachState.listScheduledCheckIns, {}),
+    ).resolves.toEqual([]);
+    await expect(
       t.query(api.ai.coachState.getWeeklyPlan, {
         weekStart: week.weekStart,
       }),
@@ -63,6 +66,16 @@ describe("coachState Convex functions", () => {
         soreness: 2,
         sleepQuality: 4,
         mood: 4,
+      }),
+    ).rejects.toThrow("Unauthenticated");
+    await expect(
+      t.mutation(api.ai.coachState.saveScheduledCheckIn, {
+        title: "Creatine",
+        prompt: "Take 5 g of creatine with water.",
+        cadence: "daily",
+        hour: 15,
+        minute: 0,
+        timezone: "Europe/Berlin",
       }),
     ).rejects.toThrow("Unauthenticated");
     await expect(
@@ -303,6 +316,62 @@ describe("coachState Convex functions", () => {
         mood: 3,
       }),
     ).rejects.toThrow("Check-in date must use YYYY-MM-DD");
+  });
+
+  test("creates, edits, and undoes a scheduled Coach check-in", async () => {
+    const t = convexTest(schema, modules);
+    const user = t.withIdentity({ tokenIdentifier: "test|scheduled-check-in" });
+    const created = await user.mutation(
+      api.ai.coachState.saveScheduledCheckIn,
+      {
+        title: "Creatine",
+        prompt: "Take 5 g of creatine with a full glass of water.",
+        cadence: "daily",
+        hour: 15,
+        minute: 0,
+        timezone: "Europe/Berlin",
+      },
+    );
+    await expect(
+      user.query(api.ai.coachState.listScheduledCheckIns, {}),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        _id: created.checkInId,
+        title: "Creatine",
+        cadence: "daily",
+        hour: 15,
+        minute: 0,
+        enabled: true,
+      }),
+    ]);
+
+    const updated = await user.mutation(
+      api.ai.coachState.saveScheduledCheckIn,
+      {
+        id: created.checkInId,
+        title: "Creatine",
+        prompt: "Take creatine after lunch.",
+        cadence: "daily",
+        hour: 14,
+        minute: 30,
+        timezone: "Europe/Berlin",
+      },
+    );
+    await user.mutation(api.ai.coachState.undoAction, {
+      id: updated.actionId,
+    });
+    const restored = await user.query(
+      api.ai.coachState.listScheduledCheckIns,
+      {},
+    );
+    expect(restored[0]).toMatchObject({ hour: 15, minute: 0 });
+
+    await user.mutation(api.ai.coachState.undoAction, {
+      id: created.actionId,
+    });
+    await expect(
+      user.query(api.ai.coachState.listScheduledCheckIns, {}),
+    ).resolves.toEqual([]);
   });
 
   test("records isolated action history and prevents cross-user undo", async () => {

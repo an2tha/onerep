@@ -57,6 +57,7 @@ export const userDataRegistry = {
   mcpRefreshTokens: "directly_user_owned",
   coachMemories: "directly_user_owned",
   coachCheckIns: "directly_user_owned",
+  coachScheduledCheckIns: "directly_user_owned",
   coachActionEvents: "directly_user_owned",
   coachOperationRuns: "directly_user_owned",
   coachWeeklyPlans: "directly_user_owned",

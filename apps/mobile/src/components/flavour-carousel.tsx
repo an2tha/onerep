@@ -2,10 +2,14 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import type { CSSProperties } from "react"
 import {
   Barbell,
+  ChartLineUp,
   Check,
   FlowerLotus,
+  ForkKnife,
   Hexagon,
   MoonStars,
+  Pill,
+  Sparkle,
   TreeEvergreen,
   Waves,
   type Icon,
@@ -26,44 +30,69 @@ type Appearance = "light" | "dark" | "system"
 type FlavourProfile = {
   description: string
   icon: Icon
+  preview: PreviewScene
 }
+
+type PreviewScene =
+  | "today"
+  | "training"
+  | "progress"
+  | "supplements"
+  | "nutrition"
+  | "coach"
 
 const FLAVOUR_PROFILES: Record<string, FlavourProfile> = {
   onerep: {
     description:
       "The original balance of violet, blue, green, and warm training accents.",
     icon: Barbell,
+    preview: "today",
   },
   dusk: {
     description:
       "Warm earth tones meet evening violet for a calmer training space.",
     icon: MoonStars,
+    preview: "training",
   },
   slate: {
     description:
       "A restrained mix of cool blues and quiet, low-saturation mineral tones.",
     icon: Hexagon,
+    preview: "progress",
   },
   forest: {
     description:
       "Grounded greens, moss, and amber bring a restorative outdoor feel.",
     icon: TreeEvergreen,
+    preview: "supplements",
   },
   ocean: {
     description:
       "Clear blues and sea-glass teal give every screen a crisp, energetic rhythm.",
     icon: Waves,
+    preview: "nutrition",
   },
   blossom: {
     description:
       "Rose, lavender, and fresh green make the interface expressive and bright.",
     icon: FlowerLotus,
+    preview: "coach",
   },
 }
 
 const FALLBACK_PROFILE: FlavourProfile = {
   description: "A distinct visual character for your OneRep experience.",
   icon: Barbell,
+  preview: "today",
+}
+
+const PREVIEW_META: Record<PreviewScene, { label: string; icon: Icon }> = {
+  today: { label: "Today", icon: Barbell },
+  training: { label: "Training", icon: Barbell },
+  progress: { label: "Progress", icon: ChartLineUp },
+  supplements: { label: "Supplements", icon: Pill },
+  nutrition: { label: "Nutrition", icon: ForkKnife },
+  coach: { label: "Coach", icon: Sparkle },
 }
 
 const ONE_REP_PREVIEW_TOKENS = {
@@ -116,6 +145,247 @@ function previewStyle(
     "--flavour-heading":
       tokens["--font-heading"] ?? tokens["--font-sans"] ?? "inherit",
   }
+}
+
+function PreviewSceneContent({ scene }: { scene: PreviewScene }) {
+  if (scene === "today") {
+    return (
+      <>
+        <div className="flavour-mini-heading">
+          <strong>Today</strong>
+          <span>9 September</span>
+        </div>
+        <div className="flavour-mini-week">
+          {["M", "T", "W", "T", "F", "S", "S"].map((day, index) => (
+            <span key={`${day}-${index}`} data-active={index === 2}>
+              {day}
+              <i />
+            </span>
+          ))}
+        </div>
+        <div className="flavour-mini-dials">
+          <span data-tone="workout">
+            <b>3</b>
+            <i>sets</i>
+          </span>
+          <span data-tone="water">
+            <b>1.6</b>
+            <i>litres</i>
+          </span>
+          <span data-tone="food">
+            <b>118</b>
+            <i>protein</i>
+          </span>
+        </div>
+        <div className="flavour-mini-timeline">
+          <span>
+            <time>08:30</time>
+            <i data-tone="food" />
+            <b>Breakfast</b>
+          </span>
+          <span>
+            <time>12:00</time>
+            <i data-tone="workout" />
+            <b>Upper body</b>
+          </span>
+        </div>
+      </>
+    )
+  }
+
+  if (scene === "training") {
+    return (
+      <>
+        <div className="flavour-mini-heading">
+          <strong>Training</strong>
+          <span>This week</span>
+        </div>
+        <div className="flavour-mini-bars" aria-hidden="true">
+          {[34, 72, 46, 88, 58, 24, 12].map((height, index) => (
+            <span key={index}>
+              <i style={{ height: `${height}%` }} />
+            </span>
+          ))}
+        </div>
+        <div className="flavour-mini-section-title">
+          <strong>Today’s workout</strong>
+          <span>5 exercises</span>
+        </div>
+        <div className="flavour-mini-set-list">
+          <span>
+            <b>Back squat</b>
+            <i>3 × 8</i>
+            <em />
+          </span>
+          <span>
+            <b>Romanian deadlift</b>
+            <i>3 × 10</i>
+            <em />
+          </span>
+        </div>
+      </>
+    )
+  }
+
+  if (scene === "nutrition") {
+    return (
+      <>
+        <div className="flavour-mini-heading">
+          <strong>Nutrition</strong>
+          <span>Today</span>
+        </div>
+        <div className="flavour-mini-energy">
+          <span className="flavour-mini-energy-ring">
+            <b>1,640</b>
+            <i>kcal</i>
+          </span>
+          <span>
+            <strong>560 left</strong>
+            <i>of 2,200 kcal</i>
+          </span>
+        </div>
+        <div className="flavour-mini-goals">
+          <span data-tone="workout">
+            <b>Protein</b>
+            <i />
+            <em>118g</em>
+          </span>
+          <span data-tone="water">
+            <b>Carbs</b>
+            <i />
+            <em>184g</em>
+          </span>
+          <span data-tone="food">
+            <b>Fat</b>
+            <i />
+            <em>62g</em>
+          </span>
+        </div>
+      </>
+    )
+  }
+
+  if (scene === "progress") {
+    return (
+      <>
+        <div className="flavour-mini-heading">
+          <strong>Progress</strong>
+          <span>12 weeks</span>
+        </div>
+        <div className="flavour-mini-measure">
+          <span>
+            <strong>78.4</strong>
+            <i>kg</i>
+          </span>
+          <b>−0.6 kg this month</b>
+        </div>
+        <svg
+          className="flavour-mini-chart"
+          viewBox="0 0 420 82"
+          preserveAspectRatio="none"
+        >
+          <path
+            className="flavour-mini-chart-grid"
+            d="M0 16H420M0 41H420M0 66H420"
+          />
+          <path
+            className="flavour-mini-chart-line"
+            d="M2 18 C48 16 56 35 102 31 S160 54 207 45 S272 63 314 55 S365 71 418 61"
+          />
+        </svg>
+        <div className="flavour-mini-stat-row">
+          <span>
+            <b>12</b>
+            <i>workouts</i>
+          </span>
+          <span>
+            <b>84%</b>
+            <i>consistency</i>
+          </span>
+          <span>
+            <b>+7</b>
+            <i>best sets</i>
+          </span>
+        </div>
+      </>
+    )
+  }
+
+  if (scene === "supplements") {
+    return (
+      <>
+        <div className="flavour-mini-heading">
+          <strong>Supplements</strong>
+          <span>Today</span>
+        </div>
+        <div className="flavour-mini-adherence">
+          <span>
+            <strong>3 of 4</strong>
+            <i>taken today</i>
+          </span>
+          <b>75%</b>
+        </div>
+        <div className="flavour-mini-checklist">
+          {[
+            ["Vitamin D", true],
+            ["Creatine", true],
+            ["Magnesium", false],
+          ].map(([label, checked]) => (
+              <span key={String(label)} data-checked={checked}>
+                <i>{checked ? <Check size={9} weight="bold" /> : null}</i>
+                <b>{label}</b>
+                <em>{checked ? "Taken" : "Evening"}</em>
+              </span>
+            ))}
+        </div>
+      </>
+    )
+  }
+
+  return (
+    <>
+      <div className="flavour-mini-heading">
+        <strong>Good morning.</strong>
+        <span>Coach</span>
+      </div>
+      <div className="flavour-mini-coach">
+        <span className="flavour-mini-coach-mark">
+          <Sparkle size={15} weight="fill" />
+        </span>
+        <p>You’re close to your protein target. Want a simple dinner idea?</p>
+      </div>
+      <div className="flavour-mini-replies">
+        <span>Show me an idea</span>
+        <span>Check my day</span>
+      </div>
+      <div className="flavour-mini-composer">
+        <span>Ask OneRep</span>
+        <Sparkle size={12} weight="fill" />
+      </div>
+    </>
+  )
+}
+
+function FlavourPreview({ profile }: { profile: FlavourProfile }) {
+  const meta = PREVIEW_META[profile.preview]
+  const PageIcon = meta.icon
+
+  return (
+    <>
+      <div className="flavour-preview-chrome">
+        <span className="flavour-preview-brand">
+          <span>
+            <PageIcon size={12} weight="bold" />
+          </span>
+          OneRep
+        </span>
+        <span className="flavour-preview-page">{meta.label}</span>
+      </div>
+      <div className="flavour-preview-scene" data-scene={profile.preview}>
+        <PreviewSceneContent scene={profile.preview} />
+      </div>
+    </>
+  )
 }
 
 export function FlavourCarousel({
@@ -207,34 +477,7 @@ export function FlavourCarousel({
                     style={slideStyles[index]}
                     aria-hidden="true"
                   >
-                    <div className="flavour-preview-topbar">
-                      <span className="flavour-preview-avatar">
-                        <FlavourIcon size={18} weight="fill" />
-                      </span>
-                      <span className="flavour-preview-line flavour-preview-line-short" />
-                    </div>
-                    <div className="flavour-preview-hero">
-                      <span className="flavour-preview-greeting">
-                        Good morning
-                      </span>
-                      <span className="flavour-preview-line flavour-preview-line-copy" />
-                      <span className="flavour-preview-line flavour-preview-line-copy-short" />
-                    </div>
-                    <div className="flavour-preview-grid">
-                      <span data-tone="workout" />
-                      <span data-tone="water" />
-                      <span data-tone="food" />
-                    </div>
-                    <div className="flavour-preview-rows">
-                      <span>
-                        <i data-tone="supplement" />
-                        <b />
-                      </span>
-                      <span>
-                        <i data-tone="workout" />
-                        <b />
-                      </span>
-                    </div>
+                    <FlavourPreview profile={profile} />
                   </div>
 
                   <div className="flavour-slide-copy">

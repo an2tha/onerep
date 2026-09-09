@@ -326,6 +326,16 @@ type CoachOperation = CoachOperationMeta &
         note?: string;
       }
     | {
+        type: "create_scheduled_check_in";
+        checkInId?: string;
+        title: string;
+        prompt: string;
+        cadence: "daily";
+        hour: number;
+        minute: number;
+        timezone: string;
+      }
+    | {
         type: "save_weekly_plan";
         weekStart: string;
         title: string;
@@ -1467,6 +1477,26 @@ function normalizeCoachOperations(value: unknown): CoachOperation[] {
           ...(clampText(row.note, 280)
             ? { note: clampText(row.note, 280) }
             : {}),
+        };
+      }
+
+      if (type === "create_scheduled_check_in") {
+        const title = clampText(row.title, 64);
+        const prompt = clampText(row.prompt, 240);
+        const timezone = clampText(row.timezone, 80);
+        if (!title || !prompt || !timezone) return null;
+        return {
+          ...meta,
+          type,
+          ...(clampText(row.checkInId, 100)
+            ? { checkInId: clampText(row.checkInId, 100) }
+            : {}),
+          title,
+          prompt,
+          cadence: "daily",
+          hour: Math.round(clampNumber(row.hour, 0, 23, 9)),
+          minute: Math.round(clampNumber(row.minute, 0, 59, 0)),
+          timezone,
         };
       }
 
@@ -2682,6 +2712,20 @@ async function generateCoachChatWithOpenAi({
             sleepQuality: 3,
             mood: 3,
             note: "optional user-provided note",
+          },
+          {
+            type: "create_scheduled_check_in",
+            confirmation: "auto | confirm",
+            summary: "recurring check-in being created or updated",
+            assumptions: [],
+            warnings: [],
+            checkInId: "optional exact existing scheduled check-in id",
+            title: "short check-in title",
+            prompt: "what Coach should ask or remind the user to do",
+            cadence: "daily",
+            hour: 15,
+            minute: 0,
+            timezone: "IANA timezone from workspace",
           },
           {
             type: "save_weekly_plan",

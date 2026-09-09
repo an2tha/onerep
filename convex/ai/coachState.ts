@@ -17,6 +17,7 @@ import {
 const MAX_HISTORY = 40;
 const MAX_MEMORIES = 50;
 const MAX_CHECK_INS = 30;
+const MAX_SCHEDULED_CHECK_INS = 30;
 function clampLimit(value: number | undefined, fallback: number, max: number) {
   if (!Number.isFinite(value ?? 0)) return fallback;
   return Math.max(1, Math.min(max, Math.floor(value ?? fallback)));
@@ -335,6 +336,100 @@ export const saveCheckIn = mutation({
         kind: "restore_check_in",
         date,
         checkInKind: kind,
+        previous,
+      },
+    });
+    return { checkInId, actionId };
+  },
+});
+
+export const listScheduledCheckIns = query({
+  args: { limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const user = await safeGetAuthUser(ctx);
+    if (!user) return [];
+    return await ctx.db
+      .query("coachScheduledCheckIns")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .order("desc")
+      .take(clampLimit(args.limit, 10, MAX_SCHEDULED_CHECK_INS));
+  },
+});
+
+export const saveScheduledCheckIn = mutation({
+  args: {
+    id: v.optional(v.id("coachScheduledCheckIns")),
+    title: v.string(),
+    prompt: v.string(),
+    cadence: v.literal("daily"),
+    hour: v.number(),
+    minute: v.number(),
+    timezone: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const user = await getAuthUser(ctx);
+    const title = clampText(args.title, 64);
+    const prompt = clampText(args.prompt, 240);
+    const timezone = clampText(args.timezone, 80);
+    if (!title || !prompt)
+      throw new Error("Check-in title and prompt are required");
+    if (
+      !Number.isInteger(args.hour) ||
+      args.hour < 0 ||
+      args.hour > 23 ||
+      !Number.isInteger(args.minute) ||
+      args.minute < 0 ||
+      args.minute > 59
+    ) {
+      throw new Error("Check-in time is invalid");
+    }
+    if (!timezone) throw new Error("Check-in timezone is required");
+
+    const existing = args.id ? await ctx.db.get(args.id) : null;
+    if (args.id && (!existing || existing.userId !== user._id)) {
+      throw new Error("Scheduled check-in not found or access denied");
+    }
+    const previous = existing
+      ? {
+          title: existing.title,
+          prompt: existing.prompt,
+          cadence: existing.cadence,
+          hour: existing.hour,
+          minute: existing.minute,
+          timezone: existing.timezone,
+          enabled: existing.enabled,
+        }
+      : null;
+    const body = {
+      title,
+      prompt,
+      cadence: args.cadence,
+      hour: args.hour,
+      minute: args.minute,
+      timezone,
+      enabled: true,
+      updatedAt: Date.now(),
+    };
+    let checkInId;
+    if (existing) {
+      await ctx.db.patch(existing._id, body);
+      checkInId = existing._id;
+    } else {
+      checkInId = await ctx.db.insert("coachScheduledCheckIns", {
+        userId: user._id,
+        ...body,
+        createdAt: Date.now(),
+      });
+    }
+    const actionId = await insertActionEvent(ctx, {
+      userId: user._id,
+      kind: existing ? "edit_scheduled_check_in" : "create_scheduled_check_in",
+      summary: `${existing ? "Updated" : "Created"} ${title} check-in`,
+      targetType: "scheduled_check_in",
+      targetId: String(checkInId),
+      undoPayload: {
+        kind: "restore_scheduled_check_in",
+        id: String(checkInId),
         previous,
       },
     });
@@ -993,6 +1088,30 @@ async function undoPayload(ctx: MutationCtx, userId: string, payload: unknown) {
           createdAt: Date.now(),
         });
       }
+    }
+    return;
+  }
+
+  if (
+    payload.kind === "restore_scheduled_check_in" &&
+    typeof payload.id === "string"
+  ) {
+    const id = ctx.db.normalizeId("coachScheduledCheckIns", payload.id);
+    const checkIn = id ? await ctx.db.get(id) : null;
+    if (!checkIn || checkIn.userId !== userId) return;
+    if (payload.previous === null) {
+      await ctx.db.delete(checkIn._id);
+    } else if (isRecord(payload.previous)) {
+      await ctx.db.patch(checkIn._id, {
+        title: String(payload.previous.title ?? checkIn.title),
+        prompt: String(payload.previous.prompt ?? checkIn.prompt),
+        cadence: "daily",
+        hour: Number(payload.previous.hour ?? checkIn.hour),
+        minute: Number(payload.previous.minute ?? checkIn.minute),
+        timezone: String(payload.previous.timezone ?? checkIn.timezone),
+        enabled: payload.previous.enabled !== false,
+        updatedAt: Date.now(),
+      });
     }
     return;
   }

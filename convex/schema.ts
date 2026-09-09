@@ -32,6 +32,31 @@ export default defineSchema({
         simpleMode: v.optional(v.boolean()),
       }),
     ),
+    enduranceGoals: v.optional(
+      v.object({
+        run: v.optional(
+          v.object({
+            distanceMeters: v.optional(v.number()),
+            durationMinutes: v.optional(v.number()),
+            sessions: v.optional(v.number()),
+          }),
+        ),
+        ride: v.optional(
+          v.object({
+            distanceMeters: v.optional(v.number()),
+            durationMinutes: v.optional(v.number()),
+            sessions: v.optional(v.number()),
+          }),
+        ),
+        swim: v.optional(
+          v.object({
+            distanceMeters: v.optional(v.number()),
+            durationMinutes: v.optional(v.number()),
+            sessions: v.optional(v.number()),
+          }),
+        ),
+      }),
+    ),
     widgetLayout: v.optional(
       v.array(
         v.object({
@@ -190,6 +215,11 @@ export default defineSchema({
      * setting because a Live Activity is far less intrusive than a persistent
      * Android notification.
      */
+    /**
+     * Opt-in toggle for experimental and beta features. When off, beta features
+     * are hidden from the UI. Enabled features are shown with a "Beta" badge.
+     */
+    experimentalFeaturesEnabled: v.optional(v.boolean()),
     liveWorkoutStatusEnabled: v.optional(v.boolean()),
     /**
      * Whether Coach may speak first, and when.
@@ -1264,6 +1294,18 @@ export default defineSchema({
     .index("by_userId", ["userId"])
     .index("by_userId_and_date", ["userId", "date"])
     .index("by_userId_and_date_and_kind", ["userId", "date", "kind"]),
+  coachScheduledCheckIns: defineTable({
+    userId: v.string(),
+    title: v.string(),
+    prompt: v.string(),
+    cadence: v.literal("daily"),
+    hour: v.number(),
+    minute: v.number(),
+    timezone: v.string(),
+    enabled: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_userId", ["userId"]),
 
   coachActionEvents: defineTable({
     userId: v.string(),

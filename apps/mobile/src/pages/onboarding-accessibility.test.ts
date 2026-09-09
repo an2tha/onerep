@@ -74,6 +74,11 @@ describe("Onboarding production contract", () => {
     assert.match(flavourCarouselSource, /className="flavour-preview"/)
     assert.match(flavourCarouselSource, /profile\.description/)
     assert.match(flavourCarouselSource, /const FLAVOUR_PROFILES/)
+    assert.match(flavourCarouselSource, /preview: "today"/)
+    assert.match(flavourCarouselSource, /preview: "training"/)
+    assert.match(flavourCarouselSource, /preview: "nutrition"/)
+    assert.match(flavourCarouselSource, /preview: "progress"/)
+    assert.match(flavourCarouselSource, /PreviewSceneContent/)
   })
 
   test("reuses the real Coach chat backend", () => {

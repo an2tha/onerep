@@ -36,6 +36,7 @@ export const PRIMARY_TAB_ORDER = [
   "/",
   "/nutrition",
   "/workouts",
+  "/endurance",
   "/progress",
   "/health",
   "/coach",
@@ -70,6 +71,7 @@ export function shouldShowBottomBar(pathname: string) {
     pathname === "/nutrition" ||
     pathname === "/recipes" ||
     pathname === "/workouts" ||
+    pathname === "/endurance" ||
     pathname === "/progress" ||
     pathname === "/health" ||
     // The health detail pages are browsing destinations, not tasks — the

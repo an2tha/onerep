@@ -118,6 +118,7 @@ export async function buildCoachWorkspace(
     foodDays,
     memories,
     checkIns,
+    scheduledCheckIns,
     goals,
     workouts,
     programmingLogs,
@@ -173,6 +174,11 @@ export async function buildCoachWorkspace(
       .withIndex("by_userId", (q) => q.eq("userId", args.userId))
       .order("desc")
       .take(14),
+    ctx.db
+      .query("coachScheduledCheckIns")
+      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .order("desc")
+      .take(20),
     ctx.db
       .query("coachGoals")
       .withIndex("by_userId_and_status", (q) =>
@@ -443,6 +449,7 @@ export async function buildCoachWorkspace(
 
   const base = {
     today: args.today,
+    timezone: preferences?.lastActiveTimezone ?? "UTC",
     nutritionTargets,
     personalized,
     presets: presets.map((preset) => ({
@@ -501,6 +508,16 @@ export async function buildCoachWorkspace(
     )
       .slice(0, MAX_CONTEXT_MEMORIES)
       .map(({ key, category, value }) => ({ key, category, value })),
+    scheduledCheckIns: scheduledCheckIns.map((checkIn) => ({
+      id: String(checkIn._id),
+      title: checkIn.title,
+      prompt: checkIn.prompt,
+      cadence: checkIn.cadence,
+      hour: checkIn.hour,
+      minute: checkIn.minute,
+      timezone: checkIn.timezone,
+      enabled: checkIn.enabled,
+    })),
     goals: goalsWithTasks,
     progressMetrics: progressMetricsView,
     dashboardWidgets: dashboardWidgets.map((widget) => ({

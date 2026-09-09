@@ -10,6 +10,7 @@ import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react"
 import {
   ArrowRight,
   Barbell,
+  BellRinging,
   ChartLineUp,
   CheckCircle,
   Circle,
@@ -45,6 +46,7 @@ import { SUPPLEMENT_SCHEDULES } from "@/lib/supplements"
 import { prepareCoachImage } from "@/lib/coach-media"
 import { uploadOwnedFile } from "@/lib/owned-upload"
 import { hapticMedium, hapticSelection, hapticTap } from "@/lib/haptics"
+import { cancelCoachCheckInNotification } from "@/lib/reminders"
 import {
   normalizeCoachOperations as normalizeSharedCoachOperations,
   validateCoachOperations as validateSharedCoachOperations,
@@ -204,6 +206,16 @@ export type CoachOperation = CoachOperationMeta &
         note?: string
       }
     | {
+        type: "create_scheduled_check_in"
+        checkInId?: string
+        title: string
+        prompt: string
+        cadence: "daily"
+        hour: number
+        minute: number
+        timezone: string
+      }
+    | {
         type: "save_weekly_plan"
         weekStart: string
         title: string
@@ -359,6 +371,12 @@ export type CoachOperationResult =
       pinned: boolean
       actionId?: string
     } & Extract<CoachOperation, { type: "save_dashboard_widget" }>)
+  | ({
+      type: "create_scheduled_check_in"
+      checkInId: string
+      actionId?: string
+      notificationStatus?: "scheduled" | "unsupported" | "denied" | "error"
+    } & Extract<CoachOperation, { type: "create_scheduled_check_in" }>)
   | {
       type:
         | "remember"
@@ -970,6 +988,73 @@ export function CoachOperationResults({
   return (
     <div className="coach-generated-content mt-4 space-y-3">
       {results.map((result, index) => {
+        if (result.type === "create_scheduled_check_in") {
+          const time = new Date(
+            2000,
+            0,
+            1,
+            result.hour,
+            result.minute
+          ).toLocaleTimeString(undefined, {
+            hour: "numeric",
+            minute: "2-digit",
+          })
+          return (
+            <article
+              key={`${result.type}-${result.checkInId}`}
+              className="overflow-hidden rounded-2xl border border-border/60 bg-card"
+            >
+              <div className="flex items-start gap-3 px-4 py-4">
+                <BellRinging
+                  size={19}
+                  weight="fill"
+                  className="mt-0.5 shrink-0 text-foreground/70"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-medium text-muted-foreground">
+                    Check-in created
+                  </p>
+                  <h3 className="mt-1 text-[15px] leading-tight font-bold">
+                    {result.title}
+                  </h3>
+                  <p className="mt-1.5 text-[12px] leading-relaxed text-foreground/65">
+                    {result.prompt}
+                  </p>
+                </div>
+              </div>
+              <div className="flex min-h-11 items-center gap-3 border-t border-border/45 px-4 py-2.5">
+                <span className="text-[11px] font-medium text-muted-foreground tabular-nums">
+                  Daily at {time}
+                </span>
+                {result.notificationStatus === "denied" ? (
+                  <span className="ml-auto text-[9px] font-medium text-amber-700 dark:text-amber-300">
+                    Notifications off
+                  </span>
+                ) : result.notificationStatus === "error" ? (
+                  <span className="ml-auto text-[9px] font-medium text-amber-700 dark:text-amber-300">
+                    Alert setup failed
+                  </span>
+                ) : result.notificationStatus === "unsupported" ? (
+                  <span className="ml-auto text-[9px] text-muted-foreground">
+                    Alerts on mobile
+                  </span>
+                ) : null}
+                {result.actionId ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void cancelCoachCheckInNotification(result.checkInId)
+                      onUndo(result.actionId!)
+                    }}
+                    className="ml-auto inline-flex min-h-8 items-center gap-1 px-2 text-[9px] font-medium text-muted-foreground"
+                  >
+                    <ClockCounterClockwise size={12} /> Undo
+                  </button>
+                ) : null}
+              </div>
+            </article>
+          )
+        }
         if (result.type === "save_goal") {
           const pinned = result.pinned || pinnedGoalIds.has(result.goalId)
           return (
@@ -1436,6 +1521,67 @@ export function CoachProposal({
   onDismiss: () => void
 }) {
   if (!operations?.length) return null
+  const scheduledCheckIn =
+    operations.length === 1 &&
+    operations[0].type === "create_scheduled_check_in"
+      ? operations[0]
+      : null
+  if (scheduledCheckIn) {
+    const time = new Date(
+      2000,
+      0,
+      1,
+      scheduledCheckIn.hour,
+      scheduledCheckIn.minute
+    ).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })
+    return (
+      <section className="coach-generated-content mt-5 overflow-hidden rounded-2xl border border-border/60 bg-card">
+        <div className="flex items-start gap-3 px-4 py-4">
+          <BellRinging
+            size={19}
+            weight="bold"
+            className="mt-0.5 shrink-0 text-muted-foreground"
+          />
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-medium text-muted-foreground">
+              {scheduledCheckIn.checkInId
+                ? "Updating check-in"
+                : "Creating check-in"}
+            </p>
+            <h3 className="mt-1 text-[15px] leading-tight font-bold">
+              {scheduledCheckIn.title}
+            </h3>
+            <p className="mt-1.5 text-[12px] leading-relaxed text-foreground/65">
+              {scheduledCheckIn.prompt}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center justify-between gap-3 border-t border-border/45 px-4 py-3">
+          <span className="text-[11px] font-medium text-muted-foreground tabular-nums">
+            Daily at {time}
+          </span>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={onDismiss}
+              disabled={applying}
+              className="min-h-9 px-3 text-[10px] font-medium text-muted-foreground disabled:opacity-40"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={onApply}
+              disabled={applying}
+              className="min-h-9 rounded-xl bg-foreground px-3 text-[10px] font-bold text-background disabled:opacity-40"
+            >
+              {applying ? "Saving…" : "Create check-in"}
+            </button>
+          </div>
+        </div>
+      </section>
+    )
+  }
   // A Sunday of batch cooking arrives as several recipes at once, and they are
   // approved together — so the preview shows every one of them in full rather
   // than four lines of summary the user has to take on trust.

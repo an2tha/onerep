@@ -356,6 +356,8 @@ export default function Settings({
     healthSync?.metrics
   )
   const liveWorkoutStatusEnabled = preferences?.liveWorkoutStatusEnabled ?? true
+  const experimentalFeaturesEnabled =
+    preferences?.experimentalFeaturesEnabled ?? false
   const [healthAvailability, setHealthAvailability] =
     useState<HealthAvailability | null>(null)
   useEffect(() => {
@@ -426,6 +428,9 @@ export default function Settings({
     "users.users.setWorkoutAdjustment"
   )
   const setLiveWorkoutStatus = useMutation(api.users.users.setLiveWorkoutStatus)
+  const setExperimentalFeatures = useMutation(
+    api.users.users.setExperimentalFeatures
+  )
   const setCoachOutreach = useMutation(api.users.users.setCoachOutreach)
   const unregisterPushToken = useMutation(api.push.tokens.unregister)
   const blockedAuthors = useQuery(api.logs.recipes.listBlockedAuthors, {}) ?? []
@@ -535,6 +540,8 @@ export default function Settings({
   })
   const [personalizedInsightsEnabled, setPersonalizedInsightsEnabled] =
     useState(true)
+  const [experimentalFeaturesState, setExperimentalFeaturesState] =
+    useState(false)
   const [offlineQueueTotal, setOfflineQueueTotal] = useState(0)
   const [offlineQueueError, setOfflineQueueError] = useState<string | null>(
     null
@@ -671,6 +678,9 @@ export default function Settings({
       setPersonalizedInsightsEnabled(
         preferences.privacySettings.personalizedInsightsEnabled
       )
+    }
+    if (preferences?.experimentalFeaturesEnabled !== undefined) {
+      setExperimentalFeaturesState(preferences.experimentalFeaturesEnabled)
     }
   }, [preferences])
 
@@ -1978,6 +1988,20 @@ export default function Settings({
                         setRestVibrationEnabled(enabled)
                       }}
                       label="Rest completion vibration"
+                    />
+                  </SettingsRow>
+                  <SettingsRow
+                    label="Experimental features"
+                    detail="Try beta features before they ship"
+                  >
+                    <CompactSwitch
+                      onInteract={hapticSelection}
+                      checked={experimentalFeaturesState}
+                      onChange={(enabled) => {
+                        setExperimentalFeaturesState(enabled)
+                        void setExperimentalFeatures({ enabled })
+                      }}
+                      label="Experimental features"
                     />
                   </SettingsRow>
                 </GroupedList>

@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Tab bar glyph for NativeTabBarPlugin. Drawn on a 24dp grid, stroked so it
+     sits next to the rest of the app's line iconography; tinted at runtime. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="#FF000000">
+    <!-- Rear wheel -->
+    <path
+        android:pathData="M5.5,17.5m-3.5,0a3.5,3.5 0,1 1,7 0a3.5,3.5 0,1 1,-7 0"
+        android:strokeWidth="1.7"
+        android:strokeColor="#FF000000"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"/>
+    <!-- Front wheel -->
+    <path
+        android:pathData="M18.5,17.5m-3.5,0a3.5,3.5 0,1 1,7 0a3.5,3.5 0,1 1,-7 0"
+        android:strokeWidth="1.7"
+        android:strokeColor="#FF000000"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"/>
+    <!-- Rear stay + seat tube -->
+    <path
+        android:pathData="M5.5,17.5L9,11L12,11"
+        android:strokeWidth="1.7"
+        android:strokeColor="#FF000000"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"/>
+    <!-- Seat post -->
+    <path
+        android:pathData="M9,11L8,7.5"
+        android:strokeWidth="1.7"
+        android:strokeColor="#FF000000"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"/>
+    <!-- Top tube + down tube -->
+    <path
+        android:pathData="M12,11L15.5,11L18.5,17.5"
+        android:strokeWidth="1.7"
+        android:strokeColor="#FF000000"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"/>
+    <!-- Down tube to bottom bracket -->
+    <path
+        android:pathData="M9,11L12,17.5"
+        android:strokeWidth="1.7"
+        android:strokeColor="#FF000000"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"/>
+    <!-- Handlebar -->
+    <path
+        android:pathData="M15.5,11L16.5,8L18,8.5"
+        android:strokeWidth="1.7"
+        android:strokeColor="#FF000000"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"/>
+</vector>

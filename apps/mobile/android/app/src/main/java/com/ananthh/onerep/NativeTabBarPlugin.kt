@@ -315,6 +315,7 @@ class NativeTabBarPlugin : Plugin() {
         "house" , "house.fill" -> R.drawable.ic_tab_house
         "fork.knife" -> R.drawable.ic_tab_fork_knife
         "dumbbell" , "dumbbell.fill" -> R.drawable.ic_tab_dumbbell
+        "bicycle" -> R.drawable.ic_tab_bicycle
         "chart.bar" , "chart.bar.fill" -> R.drawable.ic_tab_chart_bar
         "heart.text.square" , "heart.text.square.fill" -> R.drawable.ic_tab_heart_text_square
         "sparkles" , "rocket.fill" -> R.drawable.ic_tab_sparkles

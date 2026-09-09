@@ -615,7 +615,29 @@ export const applyApproved = action({
               ...(operation.note ? { note: operation.note } : {}),
             })),
           });
-        else if (operation.type === "save_weekly_plan")
+        else if (operation.type === "create_scheduled_check_in") {
+          const saved = await ctx.runMutation(
+            api.ai.coachState.saveScheduledCheckIn,
+            {
+              ...(operation.checkInId
+                ? {
+                    id: operation.checkInId as Id<"coachScheduledCheckIns">,
+                  }
+                : {}),
+              title: operation.title,
+              prompt: operation.prompt,
+              cadence: operation.cadence,
+              hour: operation.hour,
+              minute: operation.minute,
+              timezone: operation.timezone,
+            },
+          );
+          results.push({
+            ...operation,
+            checkInId: String(saved.checkInId),
+            actionId: String(saved.actionId),
+          });
+        } else if (operation.type === "save_weekly_plan")
           results.push({
             type: operation.type,
             label: operation.title,

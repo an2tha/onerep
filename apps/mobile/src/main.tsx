@@ -64,6 +64,7 @@ import ResetPassword from "./pages/ResetPassword.tsx"
 import VerifyEmailRequired from "./pages/VerifyEmailRequired.tsx"
 import OAuthConsent from "./pages/OAuthConsent.tsx"
 import Workouts from "./pages/Workouts.tsx"
+import Endurance from "./pages/Endurance.tsx"
 import NewPreset from "./pages/NewPreset.tsx"
 import ActiveWorkout from "./pages/ActiveWorkout.tsx"
 import QuickLogPreset from "./pages/QuickLogPreset.tsx"
@@ -215,7 +216,13 @@ function PwaLifecycle() {
 }
 
 type RouteTransitionKind =
-  "tab" | "push" | "back" | "task" | "task-back" | "replace"
+  | "tab"
+  | "push"
+  | "back"
+  | "task"
+  | "task-back"
+  | "replace"
+  | "replace-slow"
 
 function classifyRouteTransition(
   fromPathname: string,
@@ -226,8 +233,12 @@ function classifyRouteTransition(
   if (motion === "back" && isTaskRoute(fromPathname)) {
     return { kind: "task-back", direction: "up" }
   }
+  if (motion === "back" && fromPathname === "/settings") {
+    return { kind: "replace-slow", direction: "up" }
+  }
   if (motion === "back") return { kind: "back", direction: "right" }
   if (isTaskRoute(toPathname)) return { kind: "task", direction: "up" }
+  if (toPathname === "/settings") return { kind: "replace-slow", direction: "up" }
 
   const fromTab = PRIMARY_TAB_ORDER.indexOf(fromPathname)
   const toTab = PRIMARY_TAB_ORDER.indexOf(toPathname)
@@ -778,6 +789,16 @@ const router = createBrowserRouter([
         element: (
           <AuthGuard>
             <Workouts />
+          </AuthGuard>
+        ),
+      },
+      {
+        path: "/endurance",
+        element: (
+          <AuthGuard>
+            <ErrorBoundary label="Endurance">
+              <Endurance />
+            </ErrorBoundary>
           </AuthGuard>
         ),
       },

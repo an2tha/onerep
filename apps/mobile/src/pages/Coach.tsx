@@ -93,6 +93,7 @@ import {
   hapticTap,
 } from "@/lib/haptics"
 import { useCoachDictation } from "@/lib/use-coach-dictation"
+import { scheduleCoachCheckInNotification } from "@/lib/reminders"
 import {
   COACH_MAX_MESSAGE_CHARS,
   normalizeCoachOperations as normalizeSharedCoachOperations,
@@ -1045,10 +1046,23 @@ export default function Coach({
       hash ^= signature.charCodeAt(index)
       hash = Math.imul(hash, 16777619)
     }
-    return (await applyCoachOperations({
+    const results = (await applyCoachOperations({
       requestId: `coach-${(hash >>> 0).toString(36)}`,
       operations,
     })) as CoachOperationResult[]
+    return await Promise.all(
+      results.map(async (result): Promise<CoachOperationResult> => {
+        if (result.type !== "create_scheduled_check_in") return result
+        const notificationStatus = await scheduleCoachCheckInNotification({
+          checkInId: result.checkInId,
+          title: result.title,
+          prompt: result.prompt,
+          hour: result.hour,
+          minute: result.minute,
+        }).catch(() => "error" as const)
+        return { ...result, notificationStatus }
+      })
+    )
     /* The old client executor remains below for one release as rollback-only
        code, but is unreachable. All authoritative writes now run in Convex.
     const expandedOperations = expandWorkoutPlanOperations(operations)

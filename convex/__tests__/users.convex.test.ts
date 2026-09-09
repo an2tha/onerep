@@ -472,6 +472,37 @@ describe("users Convex functions", () => {
     });
   });
 
+  test("persists independent weekly endurance goals by sport", async () => {
+    const t = convexTest(schema, modules);
+
+    await t.withIdentity({ name: "endurance-goals-user" }, async () => {
+      await t.mutation(api.users.users.setEnduranceGoals, {
+        sport: "run",
+        distanceMeters: 20_000,
+        durationMinutes: 150,
+        sessions: 3,
+      });
+      await t.mutation(api.users.users.setEnduranceGoals, {
+        sport: "swim",
+        distanceMeters: 3_000,
+        sessions: 2,
+      });
+
+      await expect(
+        t.query(api.users.users.getPreferences, {}),
+      ).resolves.toMatchObject({
+        enduranceGoals: {
+          run: {
+            distanceMeters: 20_000,
+            durationMinutes: 150,
+            sessions: 3,
+          },
+          swim: { distanceMeters: 3_000, sessions: 2 },
+        },
+      });
+    });
+  });
+
   test("setDashboardTrendMetric preserves workoutFocus and simpleMode", async () => {
     const t = convexTest(schema, modules);
 

@@ -92,6 +92,12 @@ const unauthenticatedWriteCases: PublicWriteCase[] = [
     args: { workoutFocus: "strength" },
   },
   {
+    name: "users.users.setEnduranceGoals",
+    kind: "mutation",
+    fn: api.users.users.setEnduranceGoals,
+    args: { sport: "run", distanceMeters: 20_000 },
+  },
+  {
     name: "users.users.setWeightUnit",
     kind: "mutation",
     fn: api.users.users.setWeightUnit,
