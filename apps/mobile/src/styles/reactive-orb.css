@@ -44,6 +44,17 @@
   isolation: isolate;
 }
 
+/* Hero washes sit behind the page's first section, not the whole document.
+   Without this the field stretches to the full page height, so the
+   percentage-placed orb, wave, and veil sink as the page grows — on Progress
+   the orb ended up behind Body insights instead of the week rings. Keep the
+   field to hero height (the dashboard wash keeps its full-bleed rule below). */
+:root .reactive-orb-field.app-hero-wash:not(.dashboard-home-wash) {
+  bottom: auto;
+  height: var(--app-hero-wash-h, min(38rem, 68svh));
+  min-height: 0;
+}
+
 .endurance-hero {
   --muted-foreground: color-mix(in srgb, var(--foreground) 84%, transparent);
 }
@@ -122,10 +133,21 @@
   content: "";
   pointer-events: none;
   border-radius: 48% 52% 0 0 / clamp(3rem, 7vw, 7rem) clamp(2rem, 5vw, 5rem) 0 0;
-  background: color-mix(in srgb, var(--background) 40%, transparent);
+  /* Static melt into the page. This used to be a translucent fill over a
+     backdrop-filter blur, but sampling the backdrop re-composites this whole
+     full-width region on every orb animation frame, and the compositor
+     occasionally tore a 1px row (a viewport-fixed dark hairline, visible live
+     and in screenshots). A static gradient paints once, so there is nothing
+     left to tear. */
+  background: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--background) 0%, transparent) 0,
+    color-mix(in srgb, var(--background) 62%, transparent) 8rem,
+    color-mix(in srgb, var(--background) 94%, transparent) 14rem,
+    color-mix(in srgb, var(--background) 94%, transparent) 100%
+  );
   -webkit-mask-image: linear-gradient(to bottom, transparent 0, rgb(0 0 0 / 0.3) 8rem, black 14rem);
   mask-image: linear-gradient(to bottom, transparent 0, rgb(0 0 0 / 0.3) 8rem, black 14rem);
-  backdrop-filter: blur(48px) saturate(0.75);
   transform: rotate(var(--orb-wave-tilt));
   transform-origin: top center;
 }
