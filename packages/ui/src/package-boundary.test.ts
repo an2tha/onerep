@@ -183,6 +183,14 @@ describe("@repo/ui package boundary", () => {
       // flavour registry and theme identity state. The slides it draws are
       // app copy and per-flavour previews, not shared chrome.
       "flavour-carousel.tsx",
+      // Imperative spring-physics animation driven by device motion,
+      // orientation, and pointer events — platform sensors a package cannot
+      // reach.
+      "reactive-orb-field.tsx",
+      // Renders a heart-rate SVG from app-side endurance samples; the data
+      // arrives through Convex queries and the elapsed helper lives in the
+      // app's workout-logging lib.
+      "endurance-heart-rate-chart.tsx",
     ])
     const unexpected = sourceFiles(mobileComponents)
       .map((path) => relative(mobileComponents, path))
