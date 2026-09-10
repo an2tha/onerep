@@ -117,6 +117,10 @@ type HealthPlugin = {
     date: string
     value: number
   }): Promise<{ saved: boolean }>
+  deleteDailyRecords?(options: {
+    date: string
+    metrics: string[]
+  }): Promise<{ deleted: boolean }>
   openHealthSettings?(): Promise<void>
   openProviderListing?(): Promise<void>
 }
@@ -256,6 +260,27 @@ export async function saveHealthDailyMetric(options: {
     return await active.saveDailyMetric(options)
   } catch {
     return { saved: false }
+  }
+}
+
+/**
+ * One-time per-day cleanup for pre-fix Health Connect stacks.
+ *
+ * Android only: four nutrition metrics share NutritionRecord, so a broad
+ * delete inside saveDailyMetric would wipe batch siblings. The repair calls
+ * this once per day before pushing, washing records filed without
+ * clientRecordIds. No-op on web / iOS / older natives.
+ */
+export async function deleteHealthDailyRecords(options: {
+  date: string
+  metrics: string[]
+}): Promise<{ deleted: boolean }> {
+  const active = plugin()
+  if (!active?.deleteDailyRecords) return { deleted: false }
+  try {
+    return await active.deleteDailyRecords(options)
+  } catch {
+    return { deleted: false }
   }
 }
 

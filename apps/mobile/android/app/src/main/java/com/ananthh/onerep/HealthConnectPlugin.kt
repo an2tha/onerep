@@ -1403,8 +1403,8 @@ class HealthConnectPlugin : Plugin() {
                     val granted = hc.permissionController.getGrantedPermissions()
                     val permission = HealthPermission.getWritePermission(record::class)
                     if (!granted.contains(permission)) return@withContext false
-                    // Cumulative day records (steps, energy, hydration, nutrition
-                    // totals) are re-pushed as running totals, so our previous
+                    // Cumulative day records (steps, energy, hydration totals)
+                    // are re-pushed as running totals, so our previous
                     // same-day record must not survive alongside the new one —
                     // Health Connect aggregates by summing, and the leftover
                     // would double the day. The clientRecordId upsert above
@@ -1413,7 +1413,20 @@ class HealthConnectPlugin : Plugin() {
                     // the id survives but versioning may not). Only OUR records
                     // are matched: the SDK scopes deletions to the caller's
                     // data origin, so a watch's steps are never touched.
-                    if (record::class in cumulativeRecordTypes) {
+                    //
+                    // NutritionRecord is deliberately excluded here: four
+                    // metrics (energy, protein, carbs, fat) share that one
+                    // class, and a per-write broad delete would wipe the
+                    // sibling metrics written moments earlier in the same
+                    // batch — the repair pushes energy then protein, and the
+                    // protein delete would eat the energy record just
+                    // inserted, leaving only the last metric standing. The
+                    // per-metric clientRecordId upsert already dedupes future
+                    // nutrition writes; pre-fix stacks are washed once per day
+                    // by deleteDailyRecords below, not per metric.
+                    if (record::class in cumulativeRecordTypes &&
+                        record::class != NutritionRecord::class
+                    ) {
                         hc.deleteRecords(
                             record::class,
                             TimeRangeFilter.between(dayStart, dayEnd),
@@ -1425,6 +1438,85 @@ class HealthConnectPlugin : Plugin() {
             }.getOrDefault(false)
 
             call.resolve(JSObject().put("saved", saved))
+        }
+    }
+
+    /**
+     * One-time per-day cleanup for record classes shared by several metrics.
+     *
+     * The repair flow pushes four NutritionRecords per day (energy, protein,
+     * carbs, fat). A broad delete inside saveDailyMetric would erase siblings
+     * in the same batch, so the repair calls this ONCE per day before pushing
+     * — washing pre-fix stacks (records filed without clientRecordIds, which
+     * the upsert can never match) while leaving the batch intact. Scoped to
+     * the caller's own data origin by the SDK, like the per-write delete.
+     *
+     * `metrics` takes the same metric names as saveDailyMetric
+     * ("dietaryEnergyKcal", "hydrationMl", ...) so callers never map classes
+     * themselves; classes are deduplicated so four nutrition metrics cause a
+     * single NutritionRecord delete, not four.
+     */
+    @PluginMethod
+    fun deleteDailyRecords(call: PluginCall) {
+        val hc = client
+        val date = call.getString("date")
+        val day = date?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+        if (hc == null || day == null) {
+            call.resolve(JSObject().put("deleted", false))
+            return
+        }
+        val metricsArray = call.getArray("metrics")
+        val metrics = mutableListOf<String>()
+        if (metricsArray != null) {
+            for (i in 0 until metricsArray.length()) {
+                metricsArray.optString(i, null)?.let { metrics.add(it) }
+            }
+        }
+        if (metrics.isEmpty()) {
+            call.resolve(JSObject().put("deleted", false))
+            return
+        }
+
+        val zone = ZoneId.systemDefault()
+        val dayStart = day.atStartOfDay(zone).toInstant()
+        val dayEnd = minOf(day.plusDays(1).atStartOfDay(zone).toInstant(), Instant.now())
+
+        fun classForMetric(metric: String): KClass<out Record>? = when (metric) {
+            "steps" -> StepsRecord::class
+            "activeEnergyKcal" -> ActiveCaloriesBurnedRecord::class
+            "totalEnergyKcal" -> TotalCaloriesBurnedRecord::class
+            "distanceWalkingRunningM" -> DistanceRecord::class
+            "floorsClimbed" -> FloorsClimbedRecord::class
+            "elevationGainedM" -> ElevationGainedRecord::class
+            "wheelchairPushes" -> WheelchairPushesRecord::class
+            "hydrationMl" -> HydrationRecord::class
+            "dietaryEnergyKcal", "dietaryProteinG", "dietaryCarbsG", "dietaryFatG" ->
+                NutritionRecord::class
+            else -> null
+        }
+
+        val classes = metrics.mapNotNull { classForMetric(it) }.toSet()
+        if (classes.isEmpty()) {
+            call.resolve(JSObject().put("deleted", false))
+            return
+        }
+
+        scope.launch {
+            val deleted = runCatching {
+                withContext(Dispatchers.IO) {
+                    for (klass in classes) {
+                        val permission = HealthPermission.getWritePermission(klass)
+                        val granted = hc.permissionController.getGrantedPermissions()
+                        if (!granted.contains(permission)) return@withContext false
+                        hc.deleteRecords(
+                            klass,
+                            TimeRangeFilter.between(dayStart, dayEnd),
+                        )
+                    }
+                    true
+                }
+            }.getOrDefault(false)
+            call.resolve(JSObject().put("deleted", deleted))
         }
     }
 
