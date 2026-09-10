@@ -6,9 +6,9 @@
  */
 
 import {
-  currentMeasurementSystem,
   formatWater,
 } from "@/lib/measurement-system"
+import { currentWaterUnit } from "@/lib/use-water-unit"
 import { todayIso } from "@/lib/workout-sync"
 import { ABORTED_WORKOUT_SLOT_KEY } from "./constants"
 import type { ActiveWorkoutCandidate, RoutineDay } from "./constants"
@@ -26,7 +26,7 @@ export function fmtKcal(n: number) {
 }
 
 export function fmtWater(ml: number): string {
-  return formatWater(ml, currentMeasurementSystem())
+  return formatWater(ml, currentWaterUnit())
 }
 
 export function dateKeyToCalendarDate(dateKey: string) {

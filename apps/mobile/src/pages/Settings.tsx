@@ -63,6 +63,11 @@ import {
 import { HealthWriteBackRepair } from "@/components/health-writeback-repair"
 import { cacheWeightUnit, readCachedWeightUnit } from "@/lib/use-weight-unit"
 import {
+  cacheWaterUnit,
+  readCachedWaterUnit,
+  type WaterUnit,
+} from "@/lib/use-water-unit"
+import {
   applyMeasurementSystem,
   flOzToMl,
   mlToFlOz,
@@ -428,6 +433,10 @@ export default function Settings({
     api.users.users.setEnergyUnit,
     "users.users.setEnergyUnit"
   )
+  const setWaterUnit = useOfflineMutation(
+    api.users.users.setWaterUnit,
+    "users.users.setWaterUnit"
+  )
   const setShowCalorieNumbers = useOfflineMutation(
     api.users.users.setShowCalorieNumbers,
     "users.users.setShowCalorieNumbers"
@@ -523,6 +532,12 @@ export default function Settings({
   const [energyUnit, setEnergyUnitState] = useState<EnergyUnitStored>(
     (preferences?.energyUnit as EnergyUnitStored) ||
       readCachedEnergyUnitStored()
+  )
+  // Water speaks its own unit: ml or fl oz, independent of the measurement
+  // system. Seeded from the device cache (which the system switch keeps in
+  // step); the account's explicit choice wins once preferences land.
+  const [waterUnit, setWaterUnitState] = useState<WaterUnit>(
+    readCachedWaterUnit()
   )
   // The metric/imperial master switch. Follows the individual units too:
   // hand-picking lb or cal flips the system, so the switch never disagrees
@@ -765,6 +780,12 @@ export default function Settings({
     if (preferences?.energyUnit) {
       setEnergyUnitState(preferences.energyUnit as EnergyUnitStored)
     }
+    if (
+      preferences?.waterUnit === "ml" ||
+      preferences?.waterUnit === "fl oz"
+    ) {
+      setWaterUnitState(preferences.waterUnit)
+    }
     if (preferences?.foodSearchLanguage) {
       setFoodSearchLanguageState(
         preferences.foodSearchLanguage as FoodSearchLanguage
@@ -893,6 +914,19 @@ export default function Settings({
       await setEnergyUnit({ unit })
     } catch {
       toast.error("Could not save your energy unit")
+    }
+  }
+
+  async function chooseWaterUnit(unit: WaterUnit) {
+    setWaterUnitState(unit)
+    cacheWaterUnit(unit)
+    // No system-label sync here on purpose: water is the one unit a user
+    // may reasonably pick against their system (a kg household thinking in
+    // 8-oz glasses), so it must not drag the master switch either way.
+    try {
+      await setWaterUnit({ unit })
+    } catch {
+      toast.error("Could not save your water unit")
     }
   }
 
@@ -1896,21 +1930,21 @@ export default function Settings({
                     <NumberStepper
                       onInteract={hapticTap}
                       value={
-                        measurementSystem === "imperial"
+                        waterUnit === "fl oz"
                           ? Math.round(mlToFlOz(waterGoal))
                           : waterGoal
                       }
                       onChange={(next) =>
                         setWaterGoalState(
-                          measurementSystem === "imperial"
+                          waterUnit === "fl oz"
                             ? Math.round(flOzToMl(next))
                             : next
                         )
                       }
-                      suffix={measurementSystem === "imperial" ? "oz" : "ml"}
-                      min={measurementSystem === "imperial" ? 17 : 500}
-                      max={measurementSystem === "imperial" ? 170 : 5000}
-                      step={measurementSystem === "imperial" ? 8 : 250}
+                      suffix={waterUnit === "fl oz" ? "oz" : "ml"}
+                      min={waterUnit === "fl oz" ? 17 : 500}
+                      max={waterUnit === "fl oz" ? 170 : 5000}
+                      step={waterUnit === "fl oz" ? 8 : 250}
                       label="Water"
                     />
                   </SettingsRow>
@@ -2058,6 +2092,23 @@ export default function Settings({
                             // recognises, whatever the SI pedantry says.
                             { value: "Cal", label: "cal" },
                             { value: "kJ", label: "kJ" },
+                          ]}
+                        />
+                      </SettingsRow>
+                      <SettingsRow
+                        label="Water unit"
+                        detail="Independent of the measurement system — pick what your bottle reads"
+                      >
+                        <SegmentedControl
+                          onInteract={hapticSelection}
+                          label="Water unit"
+                          value={waterUnit}
+                          onChange={(value) => {
+                            void chooseWaterUnit(value as WaterUnit)
+                          }}
+                          options={[
+                            { value: "ml", label: "ml" },
+                            { value: "fl oz", label: "fl oz" },
                           ]}
                         />
                       </SettingsRow>

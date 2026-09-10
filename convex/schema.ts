@@ -74,6 +74,13 @@ export default defineSchema({
      */
     energyUnit: v.optional(v.string()),
     /**
+     * How water is shown: "ml" | "fl oz". Deliberately its own choice rather
+     * than an implication of the measurement system — hydration habits don't
+     * always match the units someone weighs themselves in. Stored values
+     * stay ml; only the render/input layer converts.
+     */
+    waterUnit: v.optional(v.string()),
+    /**
      * What the user last actually ran. Recorded on launch so a bug report can
      * be checked against the build that produced it — "did the OTA reach
      * them?" was previously unanswerable without asking.
