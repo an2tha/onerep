@@ -137,6 +137,11 @@ export function clearSyncActivities() {
   update({ recent: [] })
 }
 
+/** Atomically patches persisted sync status from outside the module. */
+export function updateHealthSyncStatus(patch: Partial<HealthSyncStatus>) {
+  update(patch)
+}
+
 /**
  * Translates sync failures into sentences. The server keeps the raw string
  * for diagnosis; this is what a person sees. Unknown failures degrade to a

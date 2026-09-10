@@ -591,14 +591,22 @@ export default function SnapAndLog() {
     canvas.height = video.videoHeight
     canvas.getContext("2d")?.drawImage(video, 0, 0)
 
-    captureFeatureUsage(posthog, "food_snap_captured")
+    captureFeatureUsage(
+      posthog,
+      mode === "barcode" ? "barcode_captured" : "food_snap_captured"
+    )
     canvas.toBlob(
       async (blob) => {
         if (!blob) {
           setSnapPhase("error")
+          setBarcodeError("Scan failed. Try again.")
           return
         }
-        await processSnapBlob(blob)
+        if (mode === "barcode") {
+          await processBarcodeBlob(blob)
+        } else {
+          await processSnapBlob(blob)
+        }
       },
       "image/jpeg",
       0.85

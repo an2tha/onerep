@@ -133,18 +133,35 @@ function RepairRunner({
   const [snapshot, setSnapshot] = useState<DayPayload[] | null>(null)
   const [progress, setProgress] = useState(0)
   const readErrorsRef = useRef(0)
+  const settleDeadlineRef = useRef(0)
 
   useEffect(() => {
     if (phase !== "loading") return
 
     // Every key must be a loaded value or an Error — undefined means the
     // query is still in flight and pushing now could file a day as empty.
+    // If the device has lost connectivity the queries can stay undefined,
+    // so this effect polls each render until they settle or the deadline
+    // passes, rather than blocking the main thread.
+    if (settleDeadlineRef.current === 0) {
+      settleDeadlineRef.current = Date.now() + 20_000
+    }
+
     const allSettled = dayKeys.every(
       (key) =>
         foodQueries[key] !== undefined && waterQueries[key] !== undefined
     )
-    if (!allSettled) return
-
+    if (!allSettled) {
+      if (Date.now() >= settleDeadlineRef.current) {
+        // Timeout — the parent restores the arm button and shows the retry
+        // message instead of leaving the progress bar stuck.
+        onFinished(null)
+        settleDeadlineRef.current = 0
+      }
+      return
+    }
+    // settled — release the deadline so a re-arm can start a fresh clock.
+    settleDeadlineRef.current = 0
     let readErrors = 0
     const payloads: DayPayload[] = dayKeys.map((date) => {
       const food = foodQueries[date]
@@ -194,30 +211,50 @@ function RepairRunner({
         setHealthSyncPhase(i === 0 ? "Rewriting today…" : `Rewriting ${date}…`)
         setProgress(i)
 
-        if (totals.calories > 0 || totals.protein > 0 || totals.carbs > 0 || totals.fat > 0) {
-          const pushes: [string, number][] = [
-            ["dietaryEnergyKcal", Math.round(totals.calories)],
-            ["dietaryProteinG", Math.round(totals.protein)],
-            ["dietaryCarbsG", Math.round(totals.carbs)],
-            ["dietaryFatG", Math.round(totals.fat)],
-          ]
-          for (const [metric, value] of pushes) {
-            const result = await saveHealthDailyMetric({ metric, date, value })
+        const hadNutrition = totals.calories > 0 || totals.protein > 0 || totals.carbs > 0 || totals.fat > 0
+        const hadWater = waterMl > 0
+        if (hadNutrition || hadWater) {
+          if (hadNutrition) {
+            const pushes: [string, number][] = [
+              ["dietaryEnergyKcal", Math.round(totals.calories)],
+              ["dietaryProteinG", Math.round(totals.protein)],
+              ["dietaryCarbsG", Math.round(totals.carbs)],
+              ["dietaryFatG", Math.round(totals.fat)],
+            ]
+            for (const [metric, value] of pushes) {
+              const result = await saveHealthDailyMetric({ metric, date, value })
+              if (result.saved) summary.writes += 1
+              else summary.failures += 1
+            }
+          }
+          if (hadWater) {
+            const result = await saveHealthDailyMetric({
+              metric: "hydrationMl",
+              date,
+              value: Math.round(waterMl),
+            })
             if (result.saved) summary.writes += 1
             else summary.failures += 1
           }
           summary.days += 1
-        }
-
-        if (waterMl > 0) {
-          const result = await saveHealthDailyMetric({
-            metric: "hydrationMl",
-            date,
-            value: Math.round(waterMl),
-          })
-          if (result.saved) summary.writes += 1
-          else summary.failures += 1
-          summary.days += 1
+        } else if (!cancelled) {
+          // A day with no logged food or water still may have stacked Health
+          // Connect records from an older build. Clean them so the day ends
+          // empty, not doubled.
+          for (const recordType of [
+            "dietaryEnergyKcal",
+            "dietaryProteinG",
+            "dietaryCarbsG",
+            "dietaryFatG",
+            "hydrationMl",
+          ]) {
+            const result = await saveHealthDailyMetric({
+              metric: recordType as any,
+              date,
+              value: 0,
+            })
+            if (!result.saved) summary.failures += 1
+          }
         }
       }
 
@@ -237,6 +274,10 @@ function RepairRunner({
     void writeAll()
     return () => {
       cancelled = true
+      // If the runner unmounts mid-write, end the persisted status so the
+      // Health & Wearables page does not stay "syncing" for the rest of the
+      // process.
+      endHealthSync({ error: "Repair cancelled" })
     }
     // onFinished is a setState-wrapping closure from the parent; it is stable
     // enough for a one-shot run and must not restart the writes.

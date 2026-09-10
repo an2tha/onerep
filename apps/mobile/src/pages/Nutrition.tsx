@@ -1389,21 +1389,27 @@ function FoodEntrySheet({
     return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0
   }
   const trimmedName = name.trim()
+  const parsedTime = (() => {
+    if (loggedAtTime === "") return null
+    const [hours, minutes] = loggedAtTime.split(":").map(Number)
+    if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null
+    return { hours, minutes }
+  })()
   const nextLoggedAt = (() => {
     const at = new Date(entry.loggedAt)
-    const [hours, minutes] = loggedAtTime.split(":").map(Number)
+    if (!parsedTime) return entry.loggedAt
     return new Date(
       at.getFullYear(),
       at.getMonth(),
       at.getDate(),
-      hours,
-      minutes
+      parsedTime.hours,
+      parsedTime.minutes
     ).toISOString()
   })()
   const changed =
     trimmedName !== entry.name ||
     meal !== entry.meal ||
-    nextLoggedAt !== entry.loggedAt ||
+    (parsedTime !== null && nextLoggedAt !== entry.loggedAt) ||
     number(macros.calories) !== Math.round(entry.calories) ||
     number(macros.protein) !== Math.round(entry.protein) ||
     number(macros.carbs) !== Math.round(entry.carbs) ||
