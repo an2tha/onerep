@@ -561,9 +561,18 @@ function FoodEntryEditor({
   energyUnit: EnergyUnit
   onClose: () => void
 }) {
-  const updateFood = useMutation(api.logs.foodLogs.updateEntry)
-  const addFood = useMutation(api.logs.foodLogs.addEntry)
-  const removeFood = useMutation(api.logs.foodLogs.removeEntry)
+  const updateFood = useOfflineMutation(
+    api.logs.foodLogs.updateEntry,
+    "logs.foodLogs.updateEntry"
+  )
+  const addFood = useOfflineMutation(
+    api.logs.foodLogs.addEntry,
+    "logs.foodLogs.addEntry"
+  )
+  const removeFood = useOfflineMutation(
+    api.logs.foodLogs.removeEntry,
+    "logs.foodLogs.removeEntry"
+  )
   const [meal, setMeal] = useState(entry.meal)
   const [serving, setServing] = useState(entry.servingLabel ?? "")
   // The entry's own clock, editable: the timeline holds the day, this moves
@@ -608,7 +617,7 @@ function FoodEntryEditor({
         _id: undefined,
         id: createClientId(),
         meal: copiedMeal,
-        loggedAt: foodLogTimestampForMeal(dateKey, copiedMeal),
+        loggedAt: foodLogTimestamp(dateKey, loggedAtTime),
         servingLabel: serving ? serving : undefined,
       }) as FoodLogEntry
       await addFood({ date: dateKey, entry: copy })
