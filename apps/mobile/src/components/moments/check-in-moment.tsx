@@ -6,6 +6,7 @@ import { api } from "../../../../../convex/_generated/api"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { hapticMedium, hapticSelection } from "@/lib/haptics"
 import { createClientId, logDevWarn } from "@/lib/utils"
+import { announceOrbActivity } from "@/lib/orb-activity"
 import { fmtMl } from "@/lib/water-amounts"
 import type { FoodLogEntry } from "@/lib/food-log"
 import type { SourceWorkoutLog } from "@/lib/moment-quick-log"
@@ -178,6 +179,7 @@ export function CheckInMoment({
     setBusy(true)
     try {
       await markRestDays({ dates, source: "moment" })
+      announceOrbActivity("log", Math.min(dates.length, 3))
       hapticMedium()
       onClose("resolved")
       toast.success(
@@ -188,6 +190,7 @@ export function CheckInMoment({
           action: {
             label: "Undo",
             onClick: () => {
+              announceOrbActivity("delete", Math.min(dates.length, 3))
               void unmarkRestDays({ dates }).catch(() => {
                 toast.error("Couldn't undo that")
               })
@@ -218,11 +221,13 @@ export function CheckInMoment({
         date: todayKey,
         entry: { id, amountMl, loggedAt: new Date().toISOString() },
       })
+      announceOrbActivity("log")
       hapticMedium()
       toast.success(`${fmtMl(amountMl)} logged`, {
         action: {
           label: "Undo",
           onClick: () => {
+            announceOrbActivity("delete")
             void removeWater({ date: todayKey, id }).catch(() => {
               toast.error("Couldn't undo that")
             })

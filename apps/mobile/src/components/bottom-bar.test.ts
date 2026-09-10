@@ -82,6 +82,24 @@ describe("bottom bar accessibility contract", () => {
     expect(nativeTabs).not.toContain("getNativeTabItems")
   })
 
+  test("coach keeps a native-safe icon with an iOS fallback", () => {
+    const nativeTabs = readFileSync(
+      new URL("../lib/native-tab-bar.ts", import.meta.url),
+      "utf8"
+    )
+    const iosPlugin = readFileSync(
+      new URL("../../ios/App/App/NativeTabBarPlugin.swift", import.meta.url),
+      "utf8"
+    )
+
+    expect(nativeTabs).toContain(
+      '{ id: "/coach", symbol: "sparkles", label: "Coach", prominent: true }'
+    )
+    expect(iosPlugin).toContain(
+      '?? UIImage(systemName: "sparkles", withConfiguration: config)'
+    )
+  })
+
   test("the slide order matches the order the tabs are drawn in", () => {
     const tabs = readFileSync(
       new URL("./bottom-bar.tsx", import.meta.url),

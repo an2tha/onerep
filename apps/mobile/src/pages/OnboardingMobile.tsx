@@ -65,6 +65,7 @@ import {
 } from "@/lib/coach-chat"
 import { currentDateKey, detectTimeZone } from "@/lib/food-log"
 import { useSmoothNavigate } from "@/lib/navigation"
+import { announceOrbActivity } from "@/lib/orb-activity"
 import { trackUmami } from "@/lib/analytics"
 import {
   createClientId,
@@ -1448,6 +1449,7 @@ export function OnboardingMobile() {
           recipeId: result.recipeId,
         },
       })
+      announceOrbActivity("log")
       await recordCoachAction({
         kind: "log_recipe",
         summary: `Logged one serving of ${result.name}`,

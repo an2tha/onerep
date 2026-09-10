@@ -60,6 +60,7 @@ import { useAiFeatureGate } from "@/lib/ai-access"
 import { promptForCoachPush } from "@/components/coach-push-registration"
 import { trackUmami, usageBucket } from "@/lib/analytics"
 import { useSmoothNavigate } from "@/lib/navigation"
+import { announceOrbActivity } from "@/lib/orb-activity"
 import { useEnergyUnit } from "@/lib/use-energy-unit"
 import { energyDisplay } from "@repo/ui"
 import { TourAnchor, useTourAnchor } from "@/components/walkthrough/tour-anchor"
@@ -1244,6 +1245,7 @@ export default function Coach({
               recipeId: String(recipeId),
             },
           })
+          announceOrbActivity("log")
           const logActionId = await recordAction({
             kind: "log_recipe",
             summary: `Logged ${servings} serving${servings === 1 ? "" : "s"} of ${operation.name}`,
@@ -1297,6 +1299,7 @@ export default function Coach({
           await updateFoodEntry({ date, entry })
         } else {
           await addFoodEntry({ date, entry })
+          announceOrbActivity("log")
         }
         const actionId = await recordAction({
           kind: existing ? "correct_nutrition" : "log_nutrition",
@@ -1326,6 +1329,7 @@ export default function Coach({
           date: operation.date,
           entryId: operation.entryId,
         })
+        announceOrbActivity("delete")
         const actionId = await recordAction({
           kind: "delete_nutrition",
           summary: operation.summary,
@@ -1806,6 +1810,7 @@ export default function Coach({
           recipeId: result.recipeId,
         },
       })
+      announceOrbActivity("log")
       await recordAction({
         kind: "log_recipe",
         summary: `Logged one serving of ${result.name}`,

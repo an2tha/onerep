@@ -21,6 +21,7 @@ import {
 import { useQuery } from "convex/react"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { useSmoothNavigate } from "@/lib/navigation"
+import { announceOrbActivity } from "@/lib/orb-activity"
 import { BrowserMultiFormatReader } from "@zxing/browser"
 import {
   ChecksumException,
@@ -754,6 +755,7 @@ export default function SnapAndLog() {
 
     try {
       await addFoodEntry({ date, entry })
+      announceOrbActivity("log")
 
       captureFeatureUsage(posthog, "food_logged_from_camera", {
         item_count: 1,
@@ -769,6 +771,7 @@ export default function SnapAndLog() {
         action: {
           label: "Undo",
           onClick: () => {
+            announceOrbActivity("delete")
             void removeFoodEntry({ date, entryId: entry.id }).catch(() =>
               toast.error("Couldn't undo that")
             )
@@ -808,6 +811,7 @@ export default function SnapAndLog() {
       await Promise.all(
         entries.map((entry) => addFoodEntry({ date, entry }))
       )
+      announceOrbActivity("log", Math.min(entries.length, 3))
 
       captureFeatureUsage(posthog, "food_logged_from_camera", {
         item_count: entries.length,
@@ -822,6 +826,7 @@ export default function SnapAndLog() {
           action: {
             label: "Undo",
             onClick: () => {
+              announceOrbActivity("delete", Math.min(entries.length, 3))
               void Promise.all(
                 entries.map((entry) =>
                   removeFoodEntry({ date, entryId: entry.id })

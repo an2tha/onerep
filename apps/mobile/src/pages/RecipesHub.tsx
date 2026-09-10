@@ -27,6 +27,7 @@ import { NavigationBar, ToolbarButton } from "@repo/ui"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { hapticSelection, hapticTap } from "@/lib/haptics"
 import { useSmoothNavigate } from "@/lib/navigation"
+import { announceOrbActivity } from "@/lib/orb-activity"
 import { COACH_RECIPE_PLACEHOLDER } from "@/lib/recipe-images"
 import { safeLocalStorageGet, safeLocalStorageSet } from "@/lib/utils"
 import { currentDateKey, type Recipe } from "@/lib/food-log"
@@ -1041,6 +1042,7 @@ export default function RecipesHub() {
           recipeId: recipe._id,
         },
       })
+      announceOrbActivity("log")
       const shouldPrompt = await claimRatingPrompt({
         recipeId: recipe._id as Id<"recipes">,
       }).catch(() => false)
@@ -1049,6 +1051,7 @@ export default function RecipesHub() {
         action: {
           label: "Undo",
           onClick: () => {
+            announceOrbActivity("delete")
             void removeFoodEntry({ date, entryId }).catch(() => {
               toast.error("Couldn't undo that")
             })

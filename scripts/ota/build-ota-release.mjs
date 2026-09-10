@@ -21,7 +21,7 @@
  */
 
 import { spawnSync } from "node:child_process"
-import { createHash } from "node:crypto"
+import { createHash, createSign } from "node:crypto"
 import {
   copyFileSync,
   cpSync,
@@ -34,6 +34,7 @@ import {
 import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
+import { validateOtaSourcePolicy } from "./check-release-policy.mjs"
 
 /**
  * Native shells older than this must not receive OTA bundles.
@@ -43,6 +44,10 @@ import path from "node:path"
  * can infer that coupling, so it has to be a deliberate edit.
  */
 const OTA_MIN_NATIVE_VERSION = "1.1.0"
+const OTA_NATIVE_API_LEVEL = 1
+const OTA_REVIEWED_FEATURE_SET = "onerep-2026.09"
+const OTA_SIGNING_KEY_ID = "onerep-ota-2026-01"
+const OTA_RELEASE_KINDS = new Set(["content", "bugfix", "security"])
 
 const APP_ID = "com.ananthh.onerep"
 const SEMVER_PATTERN = /^\d+\.\d+\.\d+$/
@@ -55,10 +60,17 @@ export class OtaPackagingError extends Error {}
  */
 export function buildManifest({
   version,
-  commit,
+  sourceCommit,
+  baseCommit,
   checksum,
   baseUrl,
   minNativeVersion = OTA_MIN_NATIVE_VERSION,
+  maxNativeVersion,
+  releaseKind,
+  changeTicket,
+  rolloutPercent = 100,
+  nativeApiLevel = OTA_NATIVE_API_LEVEL,
+  reviewedFeatureSet = OTA_REVIEWED_FEATURE_SET,
   releasedAt = new Date().toISOString(),
 }) {
   if (!SEMVER_PATTERN.test(version ?? "")) {
@@ -74,6 +86,29 @@ export function buildManifest({
   if (!/^[0-9a-f]{64}$/.test(checksum ?? "")) {
     throw new OtaPackagingError(`Checksum must be sha256 hex, got ${checksum}`)
   }
+  if (!OTA_RELEASE_KINDS.has(releaseKind)) {
+    throw new OtaPackagingError(`Invalid OTA release kind: ${releaseKind}`)
+  }
+  if (!baseCommit?.trim() || !sourceCommit?.trim()) {
+    throw new OtaPackagingError("baseCommit and sourceCommit are required")
+  }
+  if (!changeTicket?.trim()) {
+    throw new OtaPackagingError("A change ticket/review reference is required")
+  }
+  if (
+    !Number.isInteger(rolloutPercent) ||
+    rolloutPercent < 1 ||
+    rolloutPercent > 100
+  ) {
+    throw new OtaPackagingError(
+      "rolloutPercent must be an integer from 1 to 100"
+    )
+  }
+  if (maxNativeVersion && !SEMVER_PATTERN.test(maxNativeVersion)) {
+    throw new OtaPackagingError(
+      `maxNativeVersion must be semver, got ${JSON.stringify(maxNativeVersion)}`
+    )
+  }
 
   const origin = new URL(baseUrl).origin
   return {
@@ -82,18 +117,60 @@ export function buildManifest({
     url: `${origin}/ota/bundles/${version}.zip`,
     checksum,
     minNativeVersion,
-    commit: commit ?? "unknown",
+    ...(maxNativeVersion ? { maxNativeVersion } : {}),
+    releaseKind,
+    baseCommit,
+    sourceCommit,
+    changeTicket,
+    rolloutPercent,
+    nativeApiLevel,
+    reviewedFeatureSet,
     releasedAt,
     mandatory: false,
   }
 }
 
+export function signManifest(manifest, privateKeyPem) {
+  if (!privateKeyPem?.trim()) {
+    throw new OtaPackagingError("OTA_SIGNING_PRIVATE_KEY is required")
+  }
+  const payloadBytes = Buffer.from(JSON.stringify(manifest), "utf8")
+  const signature = createSign("RSA-SHA256")
+    .update(payloadBytes)
+    .end()
+    .sign(privateKeyPem, "base64")
+  return {
+    schema: 1,
+    algorithm: "RS256",
+    keyId: OTA_SIGNING_KEY_ID,
+    payload: payloadBytes.toString("base64"),
+    signature,
+  }
+}
+
 function parseArgs(argv) {
-  const args = { dist: "apps/mobile/dist", baseUrl: "https://app.onerep.life" }
+  const args = {
+    dist: "apps/mobile/dist",
+    baseUrl: "https://app.onerep.life",
+    minNativeVersion: OTA_MIN_NATIVE_VERSION,
+    releaseKind: "",
+    baseCommit: "",
+    changeTicket: "",
+    rolloutPercent: 100,
+  }
   for (let index = 0; index < argv.length; index += 1) {
     const flag = argv[index]
     if (flag === "--dist") args.dist = argv[++index]
     else if (flag === "--base-url") args.baseUrl = argv[++index]
+    else if (flag === "--min-native-version")
+      args.minNativeVersion = argv[++index]
+    else if (flag === "--max-native-version")
+      args.maxNativeVersion = argv[++index]
+    else if (flag === "--release-kind") args.releaseKind = argv[++index]
+    else if (flag === "--base-commit") args.baseCommit = argv[++index]
+    else if (flag === "--change-ticket") args.changeTicket = argv[++index]
+    else if (flag === "--rollout-percent")
+      args.rolloutPercent = Number(argv[++index])
   }
   return args
 }
@@ -236,6 +313,12 @@ function main() {
   }
 
   const stamp = readVersionStamp(distDir)
+  validateOtaSourcePolicy({
+    repoRoot,
+    baseCommit: args.baseCommit,
+    headCommit: stamp.commit,
+    releaseKind: args.releaseKind,
+  })
   const { stageRoot, stageDir } = stageBundle(distDir)
 
   try {
@@ -260,34 +343,82 @@ function main() {
 
     const manifest = buildManifest({
       version: stamp.version,
-      commit: stamp.commit,
+      sourceCommit: stamp.commit,
+      baseCommit: args.baseCommit,
       checksum,
       baseUrl: args.baseUrl,
+      minNativeVersion: args.minNativeVersion,
+      maxNativeVersion: args.maxNativeVersion,
+      releaseKind: args.releaseKind,
+      changeTicket: args.changeTicket,
+      rolloutPercent: args.rolloutPercent,
     })
+    const keyFromEnvironment = process.env.OTA_SIGNING_PRIVATE_KEY?.replace(
+      /\\n/g,
+      "\n"
+    )
+    const localKeyPath = path.join(repoRoot, ".ota-signing-private.pem")
+    const privateKeyPem =
+      keyFromEnvironment ||
+      (existsSync(localKeyPath) ? readFileSync(localKeyPath, "utf8") : "")
+    const envelope = signManifest(manifest, privateKeyPem)
 
     const bundlesDir = path.join(distDir, "ota", "bundles")
     mkdirSync(bundlesDir, { recursive: true })
     moveFile(zipPath, path.join(bundlesDir, `${stamp.version}.zip`))
+    const serializedEnvelope = `${JSON.stringify(envelope, null, 2)}\n`
     writeFileSync(
       path.join(distDir, "ota", "manifest.json"),
-      `${JSON.stringify(manifest, null, 2)}\n`
+      serializedEnvelope
     )
+
+    // Each native shell requests its own immutable compatibility channel. The
+    // generic manifest remains for store-build CI and operational inspection.
+    const channelVersion = args.maxNativeVersion || args.minNativeVersion
+    for (const platform of ["ios", "android"]) {
+      const channelDir = path.join(
+        distDir,
+        "ota",
+        "channels",
+        platform,
+        channelVersion
+      )
+      mkdirSync(channelDir, { recursive: true })
+      writeFileSync(path.join(channelDir, "manifest.json"), serializedEnvelope)
+    }
 
     const sizeMb = (zipBytes.byteLength / 1024 / 1024).toFixed(2)
     console.log(`OTA bundle ${stamp.version} packaged (${sizeMb} MB)`)
-    console.log(JSON.stringify(manifest, null, 2))
+    console.log(
+      JSON.stringify(
+        {
+          version: manifest.version,
+          releaseKind: manifest.releaseKind,
+          sourceCommit: manifest.sourceCommit,
+          rolloutPercent: manifest.rolloutPercent,
+          keyId: envelope.keyId,
+        },
+        null,
+        2
+      )
+    )
   } finally {
     rmSync(stageRoot, { recursive: true, force: true })
   }
 }
 
 // Only run when invoked directly, so tests can import buildManifest.
-if (process.argv[1] && import.meta.url.endsWith(path.basename(process.argv[1]))) {
+if (
+  process.argv[1] &&
+  import.meta.url.endsWith(path.basename(process.argv[1]))
+) {
   try {
     main()
   } catch (error) {
     console.error(
-      error instanceof OtaPackagingError ? error.message : String(error?.stack ?? error)
+      error instanceof OtaPackagingError
+        ? error.message
+        : String(error?.stack ?? error)
     )
     process.exit(1)
   }

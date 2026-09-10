@@ -1,8 +1,10 @@
 import { describe, expect, test } from "bun:test"
 import {
   compareVersions,
+  decodeOtaSignedPayload,
   decideOtaUpdate,
   parseOtaManifest,
+  parseOtaSignedEnvelope,
   type OtaManifest,
 } from "../ota-manifest"
 
@@ -14,9 +16,65 @@ const validManifest = {
   url: "https://app.onerep.life/ota/bundles/1.0.482.zip",
   checksum: "a".repeat(64),
   minNativeVersion: "1.0.0",
-  commit: "abc1234",
+  releaseKind: "bugfix",
+  baseCommit: "base1234",
+  sourceCommit: "abc1234",
+  changeTicket: "INC-42",
+  rolloutPercent: 100,
+  nativeApiLevel: 1,
+  reviewedFeatureSet: "onerep-2026.09",
   releasedAt: "2026-08-04T12:00:00Z",
 }
+
+describe("signed OTA envelope", () => {
+  test("decodes only the pinned algorithm and key", () => {
+    const payload = btoa(JSON.stringify(validManifest))
+    const envelope = parseOtaSignedEnvelope({
+      schema: 1,
+      algorithm: "RS256",
+      keyId: "onerep-ota-2026-01",
+      payload,
+      signature: "AA==",
+    })
+
+    expect(envelope).not.toBeNull()
+    expect(envelope && decodeOtaSignedPayload(envelope)).toEqual(validManifest)
+    expect(
+      parseOtaSignedEnvelope({
+        schema: 1,
+        algorithm: "none",
+        keyId: "onerep-ota-2026-01",
+        payload,
+        signature: "AA==",
+      })
+    ).toBeNull()
+  })
+
+  test("rejects an unknown key id", () => {
+    const payload = btoa(JSON.stringify(validManifest))
+    expect(
+      parseOtaSignedEnvelope({
+        schema: 1,
+        algorithm: "RS256",
+        keyId: "attacker-key",
+        payload,
+        signature: "AA==",
+      })
+    ).toBeNull()
+  })
+
+  test("returns null for a payload that is not JSON", () => {
+    const envelope = parseOtaSignedEnvelope({
+      schema: 1,
+      algorithm: "RS256",
+      keyId: "onerep-ota-2026-01",
+      payload: btoa("not-json{{{"),
+      signature: "AA==",
+    })
+    expect(envelope).not.toBeNull()
+    expect(envelope && decodeOtaSignedPayload(envelope)).toBeNull()
+  })
+})
 
 function parsed(overrides: Record<string, unknown> = {}) {
   const manifest = parseOtaManifest(
@@ -234,8 +292,63 @@ describe("decideOtaUpdate", () => {
   })
 
   test("propagates the mandatory flag", () => {
+    const androidManifest = parseOtaManifest(
+      { ...validManifest, mandatory: true },
+      "android",
+      ORIGIN
+    )
     expect(
-      decideOtaUpdate({ ...base, manifest: parsed({ mandatory: true }) })
+      decideOtaUpdate({ ...base, manifest: androidManifest })
     ).toMatchObject({ action: "download", mandatory: true })
+    expect(parsed({ mandatory: true }).mandatory).toBe(false)
+  })
+
+  test("never forces an immediate reload on iOS, even for security releases", () => {
+    const iosManifest = parseOtaManifest(
+      { ...validManifest, releaseKind: "security", mandatory: true },
+      "ios",
+      ORIGIN
+    )
+    expect(iosManifest?.mandatory).toBe(false)
+    expect(decideOtaUpdate({ ...base, manifest: iosManifest })).toMatchObject({
+      action: "download",
+      mandatory: false,
+    })
+  })
+
+  test("requires release provenance metadata", () => {
+    expect(
+      parseOtaManifest({ ...validManifest, baseCommit: "" }, "ios", ORIGIN)
+    ).toBeNull()
+    expect(
+      parseOtaManifest({ ...validManifest, changeTicket: "" }, "ios", ORIGIN)
+    ).toBeNull()
+    expect(
+      parseOtaManifest(
+        { ...validManifest, releaseKind: "feature" },
+        "ios",
+        ORIGIN
+      )
+    ).toBeNull()
+  })
+
+  test("holds devices outside a staged rollout", () => {
+    expect(
+      decideOtaUpdate({
+        ...base,
+        manifest: parsed({ rolloutPercent: 10 }),
+        rolloutBucket: 10,
+      })
+    ).toEqual({ action: "skip", reason: "rollout" })
+  })
+
+  test("includes devices inside a staged rollout", () => {
+    expect(
+      decideOtaUpdate({
+        ...base,
+        manifest: parsed({ rolloutPercent: 10 }),
+        rolloutBucket: 9,
+      })
+    ).toMatchObject({ action: "download", version: "1.0.482" })
   })
 })

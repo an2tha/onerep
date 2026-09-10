@@ -22,6 +22,7 @@ import { useSearchParams } from "react-router"
 import { cn } from "@/lib/utils"
 import { FormCoachPinnedCards } from "@/components/form-coach-card"
 import { useSmoothNavigate } from "@/lib/navigation"
+import { announceOrbActivity } from "@/lib/orb-activity"
 import { updateOneRepWidgets } from "@/lib/home-widgets"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { ReactiveOrbField } from "@/components/reactive-orb-field"
@@ -723,8 +724,10 @@ export default function Workouts() {
     try {
       if (restDates?.includes(date)) {
         await unmarkRestDays({ dates: [date] })
+        announceOrbActivity("delete")
       } else {
         await markRestDays({ dates: [date], source: "manual" })
+        announceOrbActivity("log")
       }
     } catch {
       toast.error("Couldn't save that. Try again.")
@@ -1198,6 +1201,7 @@ export default function Workouts() {
     hapticMedium()
     try {
       await removeWorkoutLog({ id })
+      announceOrbActivity("delete")
       toast.success("Workout removed")
     } catch {
       toast.error("Could not remove workout")
@@ -1756,10 +1760,10 @@ export default function Workouts() {
                               slotRefs.current[day] = el
                             }}
                             className={cn(
-                              "motion-card relative flex min-h-[5.25rem] min-w-0 basis-[calc((100%-1rem)/3)] flex-col items-center justify-center gap-1.5 overflow-hidden rounded-[20px] border border-border/55 bg-card px-2 py-2.5 shadow-[0_8px_28px_rgba(0,0,0,0.05)] transition-[transform,background-color,border-color,box-shadow] min-[430px]:basis-[calc((100%-1.5rem)/4)] md:min-h-[5.5rem] md:basis-auto md:px-2 md:py-3",
+                              "motion-card relative flex min-h-[5.25rem] min-w-0 basis-[calc((100%-1rem)/3)] flex-col items-center justify-center gap-1.5 overflow-hidden rounded-[20px] border border-foreground/10 bg-card/55 px-2 py-2.5 shadow-[0_8px_28px_rgba(0,0,0,0.12)] backdrop-blur-xl backdrop-saturate-150 transition-[transform,background-color,border-color,box-shadow,backdrop-filter] min-[430px]:basis-[calc((100%-1.5rem)/4)] md:min-h-[5.5rem] md:basis-auto md:border-border/55 md:bg-card md:px-2 md:py-3 md:shadow-[0_8px_28px_rgba(0,0,0,0.05)] md:backdrop-blur-none md:backdrop-saturate-100",
                               isToday &&
                                 !isOver &&
-                                "border-foreground/20 bg-foreground/[0.055] shadow-[0_10px_32px_rgba(0,0,0,0.075)]",
+                                "border-foreground/25 bg-card/85 shadow-[0_10px_36px_rgba(0,0,0,0.22),inset_0_1px_0_rgba(255,255,255,0.14)] ring-1 ring-foreground/15 ring-inset backdrop-blur-2xl md:border-foreground/20 md:bg-foreground/[0.055] md:shadow-[0_10px_32px_rgba(0,0,0,0.075)] md:ring-0 md:backdrop-blur-none md:backdrop-saturate-100",
                               isOver &&
                                 "scale-[1.035] border-foreground/30 bg-foreground/[0.08] shadow-lg"
                             )}

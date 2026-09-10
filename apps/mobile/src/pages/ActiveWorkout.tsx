@@ -37,6 +37,7 @@ import {
   safeSessionStorageSet,
 } from "@/lib/utils"
 import { useSmoothNavigate } from "@/lib/navigation"
+import { announceOrbActivity } from "@/lib/orb-activity"
 import { findNextWorkoutSequenceTarget } from "@/lib/workout-sequencing"
 import {
   resolveExerciseIds,
@@ -2068,6 +2069,7 @@ export default function ActiveWorkout() {
           item_count: exercises.length,
         })
         if (retroDraftKey) clearActiveWorkoutDraft(slot, retroDraftKey)
+        announceOrbActivity("log", 3)
         celebrateAchievement("workout")
         window.setTimeout(() => navigate(-1), 450)
       } catch (err) {
@@ -2113,6 +2115,7 @@ export default function ActiveWorkout() {
         clearActiveWorkoutDraft(slot)
         void endWorkoutLiveActivity(liveActivityState)
         void writeSessionToHealth(exercises.length)
+        announceOrbActivity("log", 3)
         celebrateAchievement("workout")
         window.setTimeout(() => navigate(-1), 450)
       } catch (fallbackErr) {

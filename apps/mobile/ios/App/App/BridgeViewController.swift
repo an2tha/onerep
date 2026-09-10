@@ -7,6 +7,7 @@ class BridgeViewController: CAPBridgeViewController {
         bridge?.registerPluginInstance(AppleHealthPlugin())
         bridge?.registerPluginInstance(WorkoutLiveActivityPlugin())
         bridge?.registerPluginInstance(NativeTabBarPlugin())
+        bridge?.registerPluginInstance(OtaTrustPlugin())
         bridge?.registerPluginInstance(OAuthSessionPlugin())
         bridge?.registerPluginInstance(BillingPlugin())
 

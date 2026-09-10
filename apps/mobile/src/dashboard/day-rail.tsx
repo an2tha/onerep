@@ -17,6 +17,7 @@ import type { ReactNode } from "react"
 
 import { api } from "../../../../convex/_generated/api"
 import { hapticMedium } from "@/lib/haptics"
+import { announceOrbActivity } from "@/lib/orb-activity"
 import {
   currentMeasurementSystem,
   formatWater,
@@ -68,8 +69,10 @@ export function DayRail({
     try {
       if (supplement.logId) {
         await removeLog({ logId: supplement.logId })
+        announceOrbActivity("delete")
       } else {
         await logTaken({ supplementId: supplement.id, date: dateKey })
+        announceOrbActivity("log")
       }
       hapticMedium()
     } finally {
@@ -130,7 +133,8 @@ export function DayRail({
             aria-label={
               isToday ? "Add a glass of water" : "Add a glass to this day"
             }
-            onClick={() =>
+            onClick={() => {
+              announceOrbActivity("log")
               void addWater({
                 date: dateKey,
                 entry: {
@@ -144,7 +148,7 @@ export function DayRail({
                     : new Date(`${dateKey}T12:00:00`).toISOString(),
                 },
               })
-            }
+            }}
             className="motion-tactile inline-flex size-7 items-center justify-center rounded-full bg-foreground text-background"
           >
             <Plus size={14} weight="bold" />

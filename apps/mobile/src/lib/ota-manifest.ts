@@ -8,6 +8,21 @@
 
 export type OtaPlatform = "ios" | "android"
 
+export const OTA_SIGNATURE_ALGORITHM = "RS256" as const
+export const OTA_SIGNING_KEY_ID = "onerep-ota-2026-01" as const
+
+export type OtaReleaseKind = "content" | "bugfix" | "security"
+
+export type OtaSignedEnvelope = {
+  schema: 1
+  algorithm: typeof OTA_SIGNATURE_ALGORITHM
+  keyId: typeof OTA_SIGNING_KEY_ID
+  /** Base64-encoded UTF-8 JSON. These exact bytes are signed natively. */
+  payload: string
+  /** Base64 RSA PKCS#1 v1.5 SHA-256 signature of the payload bytes. */
+  signature: string
+}
+
 export type OtaManifest = {
   schema: 1
   /** Semver of the web bundle, e.g. "1.0.482". */
@@ -20,8 +35,18 @@ export type OtaManifest = {
   minNativeVersion: string
   /** Optional upper bound, for pinning an old JS line to an old shell. */
   maxNativeVersion?: string
-  commit?: string
-  releasedAt?: string
+  /** Feature delivery is intentionally absent from this classification. */
+  releaseKind: OtaReleaseKind
+  /** Auditable source range approved for this release. */
+  baseCommit: string
+  sourceCommit: string
+  changeTicket: string
+  /** Deterministic percentage of devices eligible for this release. */
+  rolloutPercent: number
+  /** Native bridge contract and reviewed product capability set. */
+  nativeApiLevel: number
+  reviewedFeatureSet: string
+  releasedAt: string
   /** Apply immediately without waiting for the user to tap Update. */
   mandatory?: boolean
   /** Per-platform overrides, merged over the base fields. */
@@ -39,6 +64,7 @@ export type OtaSkipReason =
   | "invalid-manifest"
   | "already-staged"
   | "blocked"
+  | "rollout"
 
 export type OtaDecision =
   | {
@@ -53,6 +79,49 @@ export type OtaDecision =
 const SEMVER_PATTERN =
   /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/
 const SHA256_HEX_PATTERN = /^[0-9a-f]{64}$/
+const BASE64_PATTERN = /^[A-Za-z0-9+/]+={0,2}$/
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0
+}
+
+export function parseOtaSignedEnvelope(raw: unknown): OtaSignedEnvelope | null {
+  if (!isRecord(raw)) return null
+  if (
+    raw.schema !== 1 ||
+    raw.algorithm !== OTA_SIGNATURE_ALGORITHM ||
+    raw.keyId !== OTA_SIGNING_KEY_ID ||
+    !isNonEmptyString(raw.payload) ||
+    raw.payload.length > 65_536 ||
+    !BASE64_PATTERN.test(raw.payload) ||
+    !isNonEmptyString(raw.signature) ||
+    raw.signature.length > 1_024 ||
+    !BASE64_PATTERN.test(raw.signature)
+  ) {
+    return null
+  }
+
+  return {
+    schema: 1,
+    algorithm: OTA_SIGNATURE_ALGORITHM,
+    keyId: OTA_SIGNING_KEY_ID,
+    payload: raw.payload,
+    signature: raw.signature,
+  }
+}
+
+export function decodeOtaSignedPayload(
+  envelope: OtaSignedEnvelope
+): unknown | null {
+  try {
+    const bytes = Uint8Array.from(atob(envelope.payload), (character) =>
+      character.charCodeAt(0)
+    )
+    return JSON.parse(new TextDecoder().decode(bytes)) as unknown
+  } catch {
+    return null
+  }
+}
 
 export function isSemver(value: unknown): value is string {
   return typeof value === "string" && SEMVER_PATTERN.test(value)
@@ -139,6 +208,34 @@ export function parseOtaManifest(
     return null
   }
 
+  if (
+    merged.releaseKind !== "content" &&
+    merged.releaseKind !== "bugfix" &&
+    merged.releaseKind !== "security"
+  ) {
+    return null
+  }
+  if (!isNonEmptyString(merged.baseCommit)) return null
+  if (!isNonEmptyString(merged.sourceCommit)) return null
+  if (!isNonEmptyString(merged.changeTicket)) return null
+  if (
+    typeof merged.rolloutPercent !== "number" ||
+    !Number.isSafeInteger(merged.rolloutPercent) ||
+    merged.rolloutPercent < 1 ||
+    merged.rolloutPercent > 100
+  ) {
+    return null
+  }
+  if (
+    typeof merged.nativeApiLevel !== "number" ||
+    !Number.isSafeInteger(merged.nativeApiLevel) ||
+    merged.nativeApiLevel < 1
+  ) {
+    return null
+  }
+  if (!isNonEmptyString(merged.reviewedFeatureSet)) return null
+  if (!isNonEmptyString(merged.releasedAt)) return null
+
   if (typeof merged.url !== "string") return null
   let parsedUrl: URL
   try {
@@ -165,11 +262,17 @@ export function parseOtaManifest(
     ...(merged.maxNativeVersion === undefined
       ? {}
       : { maxNativeVersion: merged.maxNativeVersion as string }),
-    ...(typeof merged.commit === "string" ? { commit: merged.commit } : {}),
-    ...(typeof merged.releasedAt === "string"
-      ? { releasedAt: merged.releasedAt }
-      : {}),
-    mandatory: merged.mandatory === true,
+    releaseKind: merged.releaseKind,
+    baseCommit: merged.baseCommit,
+    sourceCommit: merged.sourceCommit,
+    changeTicket: merged.changeTicket,
+    rolloutPercent: merged.rolloutPercent,
+    nativeApiLevel: merged.nativeApiLevel,
+    reviewedFeatureSet: merged.reviewedFeatureSet,
+    releasedAt: merged.releasedAt,
+    // iOS repairs are never forced. They wait for explicit user action or a
+    // later cold launch even when the release is security-classified.
+    mandatory: platform === "ios" ? false : merged.mandatory === true,
   }
 }
 
@@ -190,6 +293,8 @@ export function decideOtaUpdate(input: {
   stagedVersion?: string | null
   /** Versions that previously failed to boot and were rolled back. */
   blockedVersions?: readonly string[]
+  /** Stable integer from 0 through 99 assigned locally to this install. */
+  rolloutBucket?: number
 }): OtaDecision {
   const {
     manifest,
@@ -197,6 +302,7 @@ export function decideOtaUpdate(input: {
     nativeVersion,
     stagedVersion,
     blockedVersions = [],
+    rolloutBucket = 0,
   } = input
 
   if (!manifest) return { action: "skip", reason: "invalid-manifest" }
@@ -216,6 +322,16 @@ export function decideOtaUpdate(input: {
 
   if (blockedVersions.includes(manifest.version)) {
     return { action: "skip", reason: "blocked" }
+  }
+  if (
+    rolloutBucket < 0 ||
+    rolloutBucket > 99 ||
+    !Number.isInteger(rolloutBucket)
+  ) {
+    return { action: "skip", reason: "invalid-manifest" }
+  }
+  if (rolloutBucket >= manifest.rolloutPercent) {
+    return { action: "skip", reason: "rollout" }
   }
 
   const versionDelta = compareVersions(manifest.version, currentVersion)

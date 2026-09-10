@@ -20,6 +20,7 @@ import { useEnergyUnit, type EnergyUnit } from "@/lib/use-energy-unit"
 import { energyDisplay } from "@repo/ui"
 import { hapticMedium, hapticSelection } from "@/lib/haptics"
 import { createClientId, logDevWarn } from "@/lib/utils"
+import { announceOrbActivity } from "@/lib/orb-activity"
 import { recipeTotals } from "@/lib/coach-chat"
 import { foodLogTimestampForMeal } from "@/lib/food-log-context"
 import {
@@ -255,6 +256,7 @@ export function QuickFoodStep({
       await Promise.all(
         entries.map((entry) => addFood({ date: todayKey, entry }))
       )
+      announceOrbActivity("log", Math.min(entries.length, 3))
       hapticMedium()
       setLogged((count) => count + 1)
       toast.success(`${choice.name} logged`, {
@@ -262,6 +264,7 @@ export function QuickFoodStep({
           label: "Undo",
           onClick: () => {
             setLogged((count) => Math.max(0, count - 1))
+            announceOrbActivity("delete", Math.min(entries.length, 3))
             void Promise.all(
               entries.map((entry) =>
                 removeFood({ date: todayKey, entryId: entry.id })
@@ -301,6 +304,7 @@ export function QuickFoodStep({
     setBusy(true)
     try {
       await addFood({ date: todayKey, entry })
+      announceOrbActivity("log")
       hapticMedium()
       setLogged((count) => count + 1)
       setDetailItem(null)
@@ -309,6 +313,7 @@ export function QuickFoodStep({
           label: "Undo",
           onClick: () => {
             setLogged((count) => Math.max(0, count - 1))
+            announceOrbActivity("delete")
             void removeFood({ date: todayKey, entryId: entry.id }).catch(() =>
               toast.error("Couldn't undo that")
             )

@@ -13,6 +13,7 @@ import { api } from "../../../../../convex/_generated/api"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { hapticMedium, hapticSelection } from "@/lib/haptics"
 import { createClientId, logDevWarn } from "@/lib/utils"
+import { announceOrbActivity } from "@/lib/orb-activity"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { isBrowserOnline } from "@/lib/offline-queue"
 import { resolveExerciseIds, type Exercise } from "@/lib/exercise-catalog"
@@ -182,6 +183,7 @@ export function QuickLogStep({
         durationSeconds,
         completedAt: new Date(`${date}T12:00:00`).getTime(),
       })
+      announceOrbActivity("log", 2)
       hapticMedium()
       onClose("resolved")
       toast.success(
@@ -193,6 +195,7 @@ export function QuickLogStep({
               action: {
                 label: "Undo",
                 onClick: () => {
+                  announceOrbActivity("delete", 2)
                   void removeBySlot({ date, slot }).catch(() => {
                     toast.error("Couldn't undo that")
                   })

@@ -346,7 +346,7 @@ export function InsightRow({
 export function Interpretation({ children }: { children: ReactNode }) {
   return (
     <section
-      className="progress-tab-enter border-y border-border bg-muted/25 px-4 py-4"
+      className="progress-tab-enter progress-interpretation border-y border-border bg-muted/25 px-4 py-4"
       style={{ animationDelay: "120ms" }}
     >
       <div className="flex gap-3">

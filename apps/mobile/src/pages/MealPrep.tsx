@@ -28,6 +28,7 @@ import type { Id } from "../../../../convex/_generated/dataModel"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { hapticSelection, hapticTap } from "@/lib/haptics"
 import { useSmoothNavigate } from "@/lib/navigation"
+import { announceOrbActivity } from "@/lib/orb-activity"
 import { reportOfflineMutationError } from "@/lib/offline-mutation-errors"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { carbLabelLower, displayCarbs } from "@/lib/carb-display"
@@ -136,6 +137,7 @@ export default function MealPrep() {
           date: today,
           entry: foodLogEntryFromMealPrep(batch, { servings: amount }),
         })
+        announceOrbActivity("log")
       }
       await consumeBatch({ id: id as Id<"mealPrepBatches">, servings: amount })
       if (amount > 0) {
