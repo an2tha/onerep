@@ -78,6 +78,9 @@ describe("@repo/ui package boundary", () => {
       // Convex writes and haptics behind the shared sheet and button
       // primitives; the catalog it edits is app-side.
       "custom-exercise-sheet.tsx",
+      // Edits mobile app's custom-food draft model and validation helpers;
+      // sheet chrome and action controls come from shared UI package.
+      "custom-food-editor-sheet.tsx",
       "check-in-history.tsx",
       "health-metric-picker.tsx",
       "track-something-new.tsx",
@@ -107,6 +110,9 @@ describe("@repo/ui package boundary", () => {
       // Renders null; pulls platform health workouts into Convex on
       // foreground — HealthKit on iOS, Health Connect on Android.
       "health-sync.tsx",
+      // Reconciles Convex nutrition totals with native HealthKit/Health Connect
+      // records; rendered action uses shared button primitive.
+      "health-writeback-repair.tsx",
       // Backdates a workout against the app's local-date and preset helpers,
       // with haptics on the day strip.
       "log-past-workout-sheet.tsx",
