@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		7C41A0402D09000000000040 /* NeedlePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C41A0412D09000000000041 /* NeedlePlugin.swift */; };
 		184AF324302395AE009D4737 /* MotionBERT.mlpackage in Sources */ = {isa = PBXBuildFile; fileRef = 184AF323302395AE009D4737 /* MotionBERT.mlpackage */; };
 		184AF326302395B8009D4737 /* Yolo11nPose.mlpackage in Sources */ = {isa = PBXBuildFile; fileRef = 184AF325302395B8009D4737 /* Yolo11nPose.mlpackage */; };
 		184AF328302395EA009D4737 /* NativePoseEstimation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 184AF327302395E5009D4737 /* NativePoseEstimation.swift */; };
@@ -77,6 +78,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		7C41A0412D09000000000041 /* NeedlePlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Needle/NeedlePlugin.swift; sourceTree = "<group>"; };
+		7C41A0422D09000000000042 /* Needle.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = ../Needle.xcconfig; sourceTree = SOURCE_ROOT; };
 		184AF323302395AE009D4737 /* MotionBERT.mlpackage */ = {isa = PBXFileReference; lastKnownFileType = folder.mlpackage; path = MotionBERT.mlpackage; sourceTree = "<group>"; };
 		184AF325302395B8009D4737 /* Yolo11nPose.mlpackage */ = {isa = PBXFileReference; lastKnownFileType = folder.mlpackage; path = Yolo11nPose.mlpackage; sourceTree = "<group>"; };
 		184AF327302395E5009D4737 /* NativePoseEstimation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativePoseEstimation.swift; sourceTree = "<group>"; };
@@ -198,6 +201,8 @@
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
 				7C41A0042D09000000000004 /* BridgeViewController.swift */,
+				7C41A0412D09000000000041 /* NeedlePlugin.swift */,
+				7C41A0422D09000000000042 /* Needle.xcconfig */,
 				7C41A0022D09000000000002 /* AppleHealthPlugin.swift */,
 				7C41A0102D09000000000010 /* NativeTabBarPlugin.swift */,
 				7C41A0302D09000000000030 /* OtaTrustPlugin.swift */,
@@ -399,6 +404,7 @@
 				184AF324302395AE009D4737 /* MotionBERT.mlpackage in Sources */,
 				184AF326302395B8009D4737 /* Yolo11nPose.mlpackage in Sources */,
 				7C41A0032D09000000000003 /* BridgeViewController.swift in Sources */,
+				7C41A0402D09000000000040 /* NeedlePlugin.swift in Sources */,
 				7C41A0012D09000000000001 /* AppleHealthPlugin.swift in Sources */,
 				7C41A0112D09000000000011 /* NativeTabBarPlugin.swift in Sources */,
 				7C41A0312D09000000000031 /* OtaTrustPlugin.swift in Sources */,
@@ -657,7 +663,7 @@
 		};
 		504EC3171FED79650016851F /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 958DCC722DB07C7200EA8C5F /* debug.xcconfig */;
+			baseConfigurationReference = 7C41A0422D09000000000042 /* Needle.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
@@ -682,6 +688,7 @@
 		};
 		504EC3181FED79650016851F /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 7C41A0422D09000000000042 /* Needle.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;

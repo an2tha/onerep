@@ -1,13 +1,8 @@
 // Build settings for the on-device Needle 2 engine.
 //
-// Set this as the App target's base configuration for Debug and Release (or
-// paste the four settings in by hand). It is a separate file because
-// debug.xcconfig is wired to the Debug configuration only, and a plugin that
-// links in Debug and fails to link in Release is the worst of the options.
-//
-// `bun run needle:fetch` puts the archives where these paths expect them.
-// They are build artifacts of the model repo — 14 MB each, four slices — so
-// they are fetched rather than committed, exactly like the pose weights.
+// The App target uses this configuration for both Debug and Release.
+// Project-level debug.xcconfig still supplies CAPACITOR_DEBUG in Debug.
+// Fetch the archives with `bun run needle:fetch:native` before building.
 
 // libneedle.a ships one archive per slice. $(CURRENT_ARCH) is wrong here
 // because the simulator and the device are both arm64 and need different files.

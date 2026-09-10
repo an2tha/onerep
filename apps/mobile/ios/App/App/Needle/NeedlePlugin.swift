@@ -207,7 +207,7 @@ public class NeedlePlugin: CAPPlugin, CAPBridgedPlugin {
             guard let url = Bundle.main.url(
                 forResource: file,
                 withExtension: nil,
-                subdirectory: subdirectory
+                subdirectory: ["public", subdirectory].compactMap { $0 }.joined(separator: "/")
             ) else {
                 throw NeedleError.assetNotFound(path)
             }

@@ -1,3 +1,4 @@
+import { RouteActivityContext } from "./lib/route-activity"
 import {
   StrictMode,
   useCallback,
@@ -646,7 +647,9 @@ function NavSync() {
                   // tappable for the length of the transition.
                   inert
                 >
-                  {routeTransition.from}
+                  <RouteActivityContext.Provider value={false}>
+                    {routeTransition.from}
+                  </RouteActivityContext.Provider>
                 </div>
               )}
               <div
