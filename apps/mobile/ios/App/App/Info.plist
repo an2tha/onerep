@@ -70,6 +70,8 @@
 	<string>OneRep uses your location during an active endurance workout to measure distance and draw your route.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>OneRep uses the microphone when you dictate a message to Coach.</string>
+	<key>NSMotionUsageDescription</key>
+	<string>OneRep reads device tilt so the hero artwork can drift as you move your phone.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>OneRep saves a photo to your library only when you ask it to.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

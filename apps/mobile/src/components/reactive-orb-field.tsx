@@ -149,6 +149,11 @@ export function ReactiveOrbField({ className = "" }: ReactiveOrbFieldProps) {
       window.addEventListener("deviceorientation", handleOrientation, {
         passive: true,
       })
+      // Some Android builds only fire the absolute variant; it carries the
+      // same gamma/beta payload, so one handler serves both.
+      window.addEventListener("deviceorientationabsolute", handleOrientation, {
+        passive: true,
+      })
       window.addEventListener("devicemotion", handleDeviceMotion, {
         passive: true,
       })
@@ -171,9 +176,17 @@ export function ReactiveOrbField({ className = "" }: ReactiveOrbFieldProps) {
           motionConstructor?.requestPermission?.() ?? "granted",
           orientationConstructor?.requestPermission?.() ?? "granted",
         ])
-        if (results.every((result) => result === "granted")) startSensors()
+        if (results.every((result) => result === "granted")) {
+          startSensors()
+        } else {
+          // A dismissed prompt latches nothing: the next tap retries, so one
+          // accidental dismissal does not silence tilt forever.
+          sensorPermissionRequested = false
+        }
       } catch {
-        // Permission denial leaves autonomous and pointer motion intact.
+        // Permission denial leaves autonomous and pointer motion intact, and
+        // the next tap may retry.
+        sensorPermissionRequested = false
       }
     }
 
@@ -382,6 +395,7 @@ export function ReactiveOrbField({ className = "" }: ReactiveOrbFieldProps) {
       interactionRoot.removeEventListener("pointerdown", handlePointerDown)
       document.removeEventListener("visibilitychange", handleVisibilityChange)
       window.removeEventListener("deviceorientation", handleOrientation)
+      window.removeEventListener("deviceorientationabsolute", handleOrientation)
       window.removeEventListener("devicemotion", handleDeviceMotion)
     }
   }, [])
