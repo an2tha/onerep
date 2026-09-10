@@ -155,6 +155,17 @@ async function patchHealthSync(
     ...existing?.healthSync,
     ...patch,
   };
+  // An explicit `lastSyncError: undefined` in the patch means "the sync
+  // succeeded — clear the old failure". Convex patches cannot unset a field,
+  // so the key is removed from the replacement object instead; the nested
+  // patch replaces `healthSync` wholesale, so the key is gone from the
+  // document. Without this, a stale "permission denied" row survives every
+  // successful sync forever.
+  for (const key of Object.keys(patch) as Array<keyof typeof patch>) {
+    if (patch[key] === undefined) {
+      delete (healthSync as Record<string, unknown>)[key]
+    }
+  }
   if (existing) {
     await ctx.db.patch(existing._id, { healthSync, updatedAt: Date.now() });
   } else {
@@ -244,7 +255,12 @@ export const importHealthWorkouts = mutation({
       }
     }
 
-    await patchHealthSync(ctx, user._id, { lastSyncedAt: now });
+    await patchHealthSync(ctx, user._id, {
+      lastSyncedAt: now,
+      // A successful import is the strongest evidence the old error is
+      // obsolete — clear it rather than nagging about a fixed problem.
+      lastSyncError: undefined,
+    });
     return { imported, updated, skipped };
   },
 });

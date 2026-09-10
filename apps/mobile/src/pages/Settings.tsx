@@ -2779,32 +2779,6 @@ export default function Settings({
                         </p>
                       </div>
                     )}
-                    {syncStatus.recent.length > 0 && (
-                      <div className="px-[var(--app-page-x)]">
-                        <p className="text-[13px] font-medium">Recent sync activity</p>
-                        <ul className="mt-1 space-y-0.5">
-                          {syncStatus.recent.map((activity) => (
-                            <li
-                              key={activity.at}
-                              className="text-[13px] text-muted-foreground"
-                            >
-                              {new Date(activity.at).toLocaleTimeString([], {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
-                              {" — "}
-                              {activity.label}
-                              {activity.count != null ? ` (${activity.count})` : null}
-                            </li>
-                          ))}
-                        </ul>
-                        {syncStatus.lastDurationMs != null && (
-                          <p className="text-[12px] text-muted-foreground">
-                            Last sync took {(syncStatus.lastDurationMs / 1000).toFixed(1)}s
-                          </p>
-                        )}
-                      </div>
-                    )}
                     {supportsHealthSettingsDeepLink() && healthWriteEnabled && (
                       <div className="px-[var(--app-page-x)]">
                         <HealthWriteBackRepair
@@ -2989,6 +2963,49 @@ export default function Settings({
                         ))
                       )}
                     </GroupedList>
+
+                    {/*
+                      The sync journal, as native rows at the section's foot.
+                      It used to be a bare <ul> wedged between the sync button
+                      and the repair card, which read as debugging output taped
+                      over the settings; here it speaks the page's own design
+                      system, newest first, and stays out of the way until
+                      something actually happened.
+                    */}
+                    {syncStatus.recent.length > 0 && (
+                      <>
+                        <SettingsSectionLabel
+                          title="Sync activity"
+                          detail={
+                            syncStatus.lastDurationMs != null
+                              ? `Last sync took ${(syncStatus.lastDurationMs / 1000).toFixed(1)}s`
+                              : undefined
+                          }
+                        />
+                        <GroupedList label="Recent sync activity">
+                          {syncStatus.recent.map((activity) => (
+                            <ListRow
+                              key={activity.at}
+                              leading={<Heartbeat size={18} weight="bold" aria-hidden className="text-muted-foreground" />}
+                              title={activity.label}
+                              detail={new Date(activity.at).toLocaleString([], {
+                                month: "short",
+                                day: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                              value={
+                                activity.count != null ? (
+                                  <span className="text-[14px] font-semibold text-muted-foreground tabular-nums">
+                                    {activity.count}
+                                  </span>
+                                ) : undefined
+                              }
+                            />
+                          ))}
+                        </GroupedList>
+                      </>
+                    )}
                   </>
                 )}
               </>
