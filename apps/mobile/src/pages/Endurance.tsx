@@ -257,7 +257,12 @@ export default function Endurance() {
       <ReactiveOrbField className="endurance-hero-wash" />
       <main className="app-page pb-28">
         <header className="app-header flex items-center justify-between gap-3">
-          <h1 className="app-title">Endurance</h1>
+          <h1 className="app-title flex items-center gap-2">
+            Endurance
+            <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
+              Beta
+            </span>
+          </h1>
           <button
             type="button"
             onClick={() => setGoalsOpen(true)}

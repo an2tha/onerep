@@ -65,11 +65,11 @@ describe("bottom bar accessibility contract", () => {
     }
 
     expect(SOURCE).toContain("label: t(labelKey)")
-    expect(SOURCE).not.toContain("experimentalFeaturesEnabled")
-    expect(SOURCE).not.toContain("\u00B7 Beta")
+    expect(SOURCE).toContain("experimentalFeaturesEnabled")
+    expect(SOURCE).toContain("Beta")
   })
 
-  test("endurance is available in native navigation without a feature gate", () => {
+  test("endurance is gated by experimental features in native navigation", () => {
     const nativeTabs = readFileSync(
       new URL("../lib/native-tab-bar.ts", import.meta.url),
       "utf8"
@@ -78,8 +78,8 @@ describe("bottom bar accessibility contract", () => {
     expect(nativeTabs).toContain(
       '{ id: "/endurance", symbol: "bicycle", label: "Endurance" }'
     )
-    expect(nativeTabs).not.toContain("experimentalFeaturesEnabled")
-    expect(nativeTabs).not.toContain("getNativeTabItems")
+    expect(nativeTabs).toContain("experimentalFeaturesEnabled")
+    expect(nativeTabs).toContain("getNativeTabItems")
   })
 
   test("coach keeps a native-safe icon with an iOS fallback", () => {
