@@ -43,6 +43,7 @@ import { ReactiveOrbField } from "@/components/reactive-orb-field"
 import { TourAnchor, useTourAnchor } from "@/components/walkthrough/tour-anchor"
 import { DateSelectorButton } from "@repo/ui"
 import { useSmoothNavigate } from "@/lib/navigation"
+import { announceOrbActivity } from "@/lib/orb-activity"
 import { updateOneRepWidgets } from "@/lib/home-widgets"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { cn, safeLocalStorageGet, safeLocalStorageSet } from "@/lib/utils"
@@ -2586,6 +2587,7 @@ export default function Nutrition() {
           loggedAt: foodLogTimestamp(dateKey),
         },
       })
+      announceOrbActivity("log")
       if (completesGoal) setWaterGoalCelebration(true)
       return true
     } catch {
@@ -2763,6 +2765,7 @@ export default function Nutrition() {
         loggedAt: foodLogTimestamp(dateKey),
         servingMultiplier: 1,
       })
+      announceOrbActivity("log")
       hapticSelection()
       if (dueSupplements.length === 1) {
         setSupplementRainKey((value) => value + 1)
@@ -2776,6 +2779,7 @@ export default function Nutrition() {
   function removeFoodEntry(entryId: string) {
     // Targeted removal: rewriting the whole day from this client's snapshot
     // erases concurrent adds and lets racing writes resurrect the entry.
+    announceOrbActivity("delete")
     void removeFoodEntryById({ date: dateKey, entryId })
   }
 
@@ -2803,10 +2807,12 @@ export default function Nutrition() {
   function removeWaterEntry(entryId: string) {
     // Targeted removeEntry, not a setDay rewrite — a rewrite drops any glass
     // logged elsewhere between this page's read and its write.
+    announceOrbActivity("delete")
     void removeWaterEntryById({ date: dateKey, id: entryId })
   }
 
   function removeSupplementEntry(logId: Id<"supplementIntakeLogs">) {
+    announceOrbActivity("delete")
     void removeSupplementLog({ logId })
   }
 
@@ -2844,6 +2850,7 @@ export default function Nutrition() {
         date: dateKey,
         entries: [...entries, ...presetEntries],
       })
+      announceOrbActivity("log", Math.min(presetEntries.length, 3))
       dismissSmartMealSuggestion(suggestion.key)
     } finally {
       setSmartMealBusyKey(null)
@@ -2870,6 +2877,7 @@ export default function Nutrition() {
         date: dateKey,
         entries: [...entries, repeatedFood],
       })
+      announceOrbActivity("log")
       hapticSelection()
       setAddOpen(false)
     } catch (error) {

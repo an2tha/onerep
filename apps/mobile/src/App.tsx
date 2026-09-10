@@ -39,6 +39,7 @@ import {
 import { DayTimeline, type TimelineEntry } from "@/dashboard/timeline"
 import { DashboardDials } from "@/dashboard/dials"
 import { ReactiveOrbField } from "@/components/reactive-orb-field"
+import { announceOrbActivity } from "@/lib/orb-activity"
 
 import LegacyApp from "./App.legacy"
 
@@ -196,6 +197,7 @@ function Dashboard() {
     if (separator === -1) return
     const kind = entry.id.slice(0, separator)
     const id = entry.id.slice(separator + 1)
+    announceOrbActivity("delete")
     if (kind === "food") {
       void removeFoodEntry({ date: dateKey, entryId: id })
     } else if (kind === "water") {

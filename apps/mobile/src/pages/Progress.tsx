@@ -25,6 +25,7 @@ import { currentDateKey, type FoodLogDaySnapshot } from "@/lib/food-log"
 import type { BodyMeasurementEntry } from "@/lib/body-progress"
 import type { EffectiveGoalsResult, WeightUnit } from "@/lib/health-goals"
 import { useSmoothNavigate } from "@/lib/navigation"
+import { announceOrbActivity } from "@/lib/orb-activity"
 import { buildProgressSummary } from "@/lib/progress-summary"
 import type { CachedWorkoutLog } from "@/lib/workout-sync"
 import {
@@ -122,6 +123,11 @@ export default function Progress() {
   // What the body is currently showing. It trails the selection by however
   // long the new tab takes to render, rather than by a fixed delay.
   const [shownMetric, setShownMetric] = useState<ProgressTab>(metric)
+  // Entrance direction for the incoming tab pane: the library rises from
+  // below, metric tabs slide in from the side being travelled toward.
+  const [tabTransition, setTabTransition] = useState<
+    "from-left" | "from-right" | "slide-up"
+  >("from-right")
   const today = currentDateKey()
   const bodyMeasurements = useQuery(api.bodyProgress.list) as
     BodyMeasurementEntry[] | undefined
@@ -335,6 +341,13 @@ export default function Progress() {
   function selectMetric(nextMetric: ProgressTab) {
     if (nextMetric === metric) return
     hapticSelection()
+    setTabTransition(
+      nextMetric === "exercises"
+        ? "slide-up"
+        : PROGRESS_TABS.indexOf(nextMetric) > PROGRESS_TABS.indexOf(metric)
+          ? "from-right"
+          : "from-left"
+    )
     setMetric(nextMetric)
     startTransition(() => setShownMetric(nextMetric))
   }
@@ -391,6 +404,7 @@ export default function Progress() {
   async function deleteCheckIn(clientId: string, date: string) {
     try {
       await removeMeasurement({ clientId })
+      announceOrbActivity("delete")
       hapticMedium()
       toast.success(`Check-in for ${formatProgressDate(date)} deleted`)
       if (editingDate === date) closeEntry()
@@ -477,6 +491,7 @@ export default function Progress() {
         weightKg: unit === "lbs" ? enteredWeight / 2.20462 : enteredWeight,
         ...(enteredBodyFat !== undefined ? { bodyFatPct: enteredBodyFat } : {}),
       }).catch(() => {})
+      if (!entryClientId) announceOrbActivity("log")
       hapticMedium()
       toast.success(
         entryClientId
@@ -512,7 +527,7 @@ export default function Progress() {
 
   return (
     <div
-      className="desktop-canvas app-hero min-h-svh bg-background lg:pr-8 lg:pl-72"
+      className="desktop-canvas app-hero progress-page min-h-svh bg-background lg:pr-8 lg:pl-72"
       style={
         {
           "--hero-fill": shownMetric === "exercises" ? 40 : keptFill,
@@ -613,13 +628,19 @@ export default function Progress() {
         </div>
 
         {shownMetric === "exercises" ? (
-          <div key="exercises" className="progress-tab-content">
+          <div
+            key="exercises"
+            className={`progress-tab-content progress-tab-${tabTransition}`}
+          >
             <ExerciseLibrary />
           </div>
         ) : loading ? (
           <ProgressLoading />
         ) : (
-          <div key={shownMetric} className="progress-tab-content grid gap-6">
+          <div
+            key={shownMetric}
+            className={`progress-tab-content progress-tab-${tabTransition} grid gap-6`}
+          >
             {shownMetric === "body" && (
               <>
                 {/* Its `measurements` prop feeds one thing: a read-only copy

@@ -265,9 +265,12 @@ public class NativeTabBarPlugin: CAPPlugin, CAPBridgedPlugin {
         let button = UIButton(type: .system)
         let config = UIImage.SymbolConfiguration(
             pointSize: pointSize, weight: .medium)
-        button.setImage(
-            UIImage(systemName: item.symbol, withConfiguration: config),
-            for: .normal)
+        // SF Symbols can vary with the OS running an OTA-updated web bundle.
+        // Never leave a tab as an unlabeled empty target when a newer symbol
+        // name reaches an older shell.
+        let image = UIImage(systemName: item.symbol, withConfiguration: config)
+            ?? UIImage(systemName: "sparkles", withConfiguration: config)
+        button.setImage(image, for: .normal)
         button.tintColor = iconTint(active: false)
         // The pill divides the room it has; a button that insists on its
         // intrinsic width would break the layout instead of getting narrower.

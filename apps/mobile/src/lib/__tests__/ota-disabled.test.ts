@@ -1,14 +1,16 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test"
 
-// Pin the disabled behavior itself: with the shipped config (OTA_ENABLED =
-// false, Apple review mode), every entry point must be a no-op and must never
-// touch the Capgo plugin or the network, even if a future refactor breaks the
-// module's internal guards. Unlike ota.test.ts, this suite does NOT alias
-// ota-config, so it exercises the shipped configuration.
+// Pin the unsupported-shell behavior: without the native OtaTrust plugin
+// (older store builds predating it), every entry point must be a no-op and
+// must never touch the Capgo plugin or the network, even if a future refactor
+// breaks the module's internal guards. Unlike ota.test.ts, this suite does
+// NOT alias ota-config and reports the plugin as unavailable, so it exercises
+// the shipped configuration on a shell without native trust.
 mock.module("@capacitor/core", () => ({
   Capacitor: {
     getPlatform: () => "ios",
     isNativePlatform: () => true,
+    isPluginAvailable: () => false,
   },
   registerPlugin: () => ({}),
   WebPlugin: class {},
@@ -95,7 +97,7 @@ beforeEach(() => {
   resetOtaStateForTests()
 })
 
-describe("OTA disabled (Apple review mode)", () => {
+describe("OTA unavailable without native trust", () => {
   test("checkForOtaUpdate is a no-op that never fetches or touches the plugin", async () => {
     const decision = await checkForOtaUpdate({ force: true })
 

@@ -20,7 +20,11 @@
   bottom: 0;
   height: 100%;
   min-height: 100%;
-  overflow: hidden;
+  /* Visible overflow lets the orb bounce below the hero and drift over page
+     content instead of being clipped at the hero edge. Horizontal safety
+     still comes from the page-wide `overflow-x: clip` on .desktop-canvas and
+     .app-route-shell, so this cannot introduce sideways scrolling. */
+  overflow: visible;
   pointer-events: none;
   background-image:
     radial-gradient(
@@ -44,15 +48,51 @@
   isolation: isolate;
 }
 
-/* Hero washes sit behind the page's first section, not the whole document.
-   Without this the field stretches to the full page height, so the
-   percentage-placed orb, wave, and veil sink as the page grows — on Progress
-   the orb ended up behind Body insights instead of the week rings. Keep the
-   field to hero height (the dashboard wash keeps its full-bleed rule below). */
-:root .reactive-orb-field.app-hero-wash:not(.dashboard-home-wash) {
-  bottom: auto;
-  height: var(--app-hero-wash-h, min(38rem, 68svh));
-  min-height: 0;
+/* On phones and tablets, put the atmosphere in the same grid cell as the
+   page. It then stretches to the document's real content height instead of
+   resolving against the route frame's one-screen minimum height. */
+@media (max-width: 1023px) {
+  :is(.app-hero, .nutrition-hero) {
+    display: grid;
+  }
+
+  :root
+    :is(.app-hero, .nutrition-hero)
+    > .reactive-orb-field.app-hero-wash:not(.dashboard-home-wash) {
+    position: relative;
+    inset: auto;
+    grid-area: 1 / 1;
+    width: 100%;
+    height: auto;
+    min-height: 100svh;
+    background-size: 100% 100svh;
+  }
+
+  :is(.app-hero, .nutrition-hero) > *:not(.reactive-orb-field) {
+    grid-area: 1 / 1;
+    min-width: 0;
+  }
+
+}
+
+/* On desktop, retain the tighter original cutoff around the hero content. */
+@media (min-width: 1024px) {
+  :root .reactive-orb-field.app-hero-wash:not(.dashboard-home-wash) {
+    position: absolute;
+    right: 0;
+    bottom: auto;
+    left: 0;
+    height: var(--app-hero-wash-h, min(38rem, 68svh));
+    min-height: 0;
+  }
+
+  /* Desktop keeps the orb inside the hero band: the follow channel is
+     parked at zero by JS, and this clips any stray wander or diffusion at
+     the hero edge so nothing leaks over the content below. */
+  :root .reactive-orb-field.app-hero-wash,
+  .reactive-orb-field__stage {
+    overflow: hidden;
+  }
 }
 
 .endurance-hero {
@@ -123,7 +163,21 @@
   content: none;
 }
 
-:root .reactive-orb-field.app-hero-wash::after {
+.reactive-orb-field__stage {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  display: block;
+  height: 100svh;
+  /* The orb is scroll-driven past the hero, so the stage must not clip it.
+     Horizontal overflow is contained by the page-wide `overflow-x: clip`
+     ancestors; see the field rule above. */
+  overflow: visible;
+  pointer-events: none;
+}
+
+.reactive-orb-field__stage::after {
   position: absolute;
   z-index: 2;
   top: var(--orb-wave-top);
@@ -150,6 +204,56 @@
   mask-image: linear-gradient(to bottom, transparent 0, rgb(0 0 0 / 0.3) 8rem, black 14rem);
   transform: rotate(var(--orb-wave-tilt));
   transform-origin: top center;
+}
+
+@media (max-width: 1023px) {
+  /* The desktop hero melt finishes with an opaque edge. Clipping that edge at
+     one viewport creates a horizontal block halfway through long mobile pages. */
+  .reactive-orb-field__stage::after {
+    content: none;
+  }
+}
+
+/* Leaked paint: droplets the orb sheds into the background and later
+   recollects. They live in stage space behind the orb, start invisible
+   (also covering reduced-motion, where the JS never runs), and are driven
+   entirely through transform/opacity from the frame loop. */
+.reactive-orb-field__droplets {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.reactive-orb-field__droplet {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border-radius: 50%;
+  opacity: 0;
+  background: radial-gradient(
+    circle,
+    rgb(var(--droplet-color, var(--orb-yellow)) / 0.8) 0 30%,
+    rgb(var(--droplet-color, var(--orb-yellow)) / 0.35) 52%,
+    rgb(var(--droplet-color, var(--orb-yellow)) / 0) 72%
+  );
+  filter: blur(var(--droplet-blur, 8px));
+  will-change: transform, opacity;
+}
+
+.reactive-orb-field__droplet:nth-child(4n + 1) {
+  --droplet-color: var(--orb-yellow);
+}
+
+.reactive-orb-field__droplet:nth-child(4n + 2) {
+  --droplet-color: var(--orb-rose);
+}
+
+.reactive-orb-field__droplet:nth-child(4n + 3) {
+  --droplet-color: var(--orb-orange);
+}
+
+.reactive-orb-field__droplet:nth-child(4n + 4) {
+  --droplet-color: var(--orb-peach);
 }
 
 .reactive-orb-field__orb {
@@ -339,6 +443,25 @@
   );
 }
 
+/* The default dark token was designed for a near-black canvas. The orb field
+   is much lighter, so pair a stronger foreground tint with a bounded scrim. */
+:root:is(.dark, [data-theme="dark"])
+  :is(.app-hero, .nutrition-hero, .dashboard-home) {
+  --muted-foreground: color-mix(in srgb, var(--foreground) 88%, transparent);
+}
+
+:root:is(.dark, [data-theme="dark"])
+  :is(.app-hero, .nutrition-hero, .dashboard-home)
+  .reactive-orb-field__veil {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--background) 58%, transparent) 0%,
+    color-mix(in srgb, var(--background) 52%, transparent) 30%,
+    color-mix(in srgb, var(--background) 62%, transparent) 62%,
+    color-mix(in srgb, var(--background) 70%, transparent) 100%
+  );
+}
+
 .dashboard-home > .reactive-orb-field.dashboard-home-wash {
   inset: 0;
   width: 100%;
@@ -496,5 +619,9 @@
   .reactive-orb-field__piece {
     transform: none;
     will-change: auto;
+  }
+
+  .reactive-orb-field__droplet {
+    display: none;
   }
 }

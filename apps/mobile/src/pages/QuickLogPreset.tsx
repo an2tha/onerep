@@ -8,6 +8,7 @@ import { api } from "../../../../convex/_generated/api"
 import { cn, createClientId, logDevWarn } from "@/lib/utils"
 import { hapticMedium, hapticSelection } from "@/lib/haptics"
 import { useSmoothNavigate } from "@/lib/navigation"
+import { announceOrbActivity } from "@/lib/orb-activity"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { resolveExerciseIds, type Exercise } from "@/lib/exercise-catalog"
 import { todayIso } from "@/lib/workout-sync"
@@ -198,6 +199,7 @@ export default function QuickLogPreset() {
         completedAt: new Date(`${date}T12:00:00`).getTime(),
       })
       hapticMedium()
+      announceOrbActivity("log", 2)
       navigate("/workouts", { motion: "back", replace: true })
     } catch (error) {
       logDevWarn("Failed to log preset workout", error)

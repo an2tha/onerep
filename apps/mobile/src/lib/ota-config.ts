@@ -1,6 +1,6 @@
 /**
- * OTA master switch, isolated in its own module so the test suite can alias
- * it with mock.module() and re-enable the flow without touching production
- * code. See src/lib/ota.ts for the full rationale (Apple guideline 2.7.2).
+ * OTA master switch. App Review receives this same enabled mechanism; policy
+ * lives in the signed release pipeline, never in reviewer detection (Apple
+ * App Review guidelines 2.3.1 and 2.5.2).
  */
-export const OTA_ENABLED = false
+export const OTA_ENABLED = true

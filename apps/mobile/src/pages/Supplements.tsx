@@ -21,6 +21,7 @@ import { SlideToDeleteRow } from "@repo/ui"
 import { useBottomBarAction } from "@/components/bottom-bar"
 import { AnimatedAccordion } from "@repo/ui"
 import { useSmoothNavigate } from "@/lib/navigation"
+import { announceOrbActivity } from "@/lib/orb-activity"
 import { reportOfflineMutationError } from "@/lib/offline-mutation-errors"
 import {
   currentDateKey,
@@ -1922,6 +1923,7 @@ export default function Supplements() {
         loggedAt: new Date().toISOString(),
         servingMultiplier,
       })
+      announceOrbActivity("log")
       hapticSelection()
       setLoggedFeedbackId(supplementId)
       window.setTimeout(() => setLoggedFeedbackId(null), 520)
@@ -1945,6 +1947,10 @@ export default function Supplements() {
           servingMultiplier: 1,
         })
       }
+      announceOrbActivity(
+        "log",
+        Math.min(remainingScheduledPlans.length, 3)
+      )
       toast.success(
         `${remainingScheduledPlans.length} supplement${
           remainingScheduledPlans.length === 1 ? "" : "s"
@@ -1978,12 +1984,14 @@ export default function Supplements() {
   }
 
   function deleteLog(logId: string) {
+    announceOrbActivity("delete")
     void removeLog({ logId: logId as Id<"supplementIntakeLogs"> }).catch(
       reportOfflineMutationError
     )
   }
 
   function deleteDayEntry(id: string) {
+    announceOrbActivity("delete")
     void removeEntry({ date: dateKey, id }).catch(reportOfflineMutationError)
   }
 

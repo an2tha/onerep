@@ -34,6 +34,7 @@ import { MobileSheet } from "@/components/mobile-sheet"
 import { CustomFoodEditorSheet } from "@/components/custom-food-editor-sheet"
 import { hapticSelection, hapticTap } from "@/lib/haptics"
 import { useSmoothNavigate } from "@/lib/navigation"
+import { announceOrbActivity } from "@/lib/orb-activity"
 import { reportOfflineMutationError } from "@/lib/offline-mutation-errors"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { cn } from "@/lib/utils"
@@ -196,6 +197,7 @@ export default function CustomFoods() {
     })
     try {
       await addFoodEntry({ date: options.date, entry })
+      announceOrbActivity("log")
       if (id) void markUsed({ id: id as Id<"customFoods"> }).catch(() => {})
       // The entry carries its own id, so undo works offline too: the queue
       // takes the removal the same way it took the log.
@@ -205,6 +207,7 @@ export default function CustomFoods() {
           action: {
             label: "Undo",
             onClick: () => {
+              announceOrbActivity("delete")
               void removeFoodEntry({
                 date: options.date,
                 entryId: entry.id,

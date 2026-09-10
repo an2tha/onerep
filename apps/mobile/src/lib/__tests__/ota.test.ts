@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test"
 
 let isNative = true
+let trustAvailable = true
 
 const downloadMock = mock(async (options: { version: string }) => ({
   id: `bundle-${options.version}`,
@@ -31,24 +32,19 @@ const currentMock = mock(async () => ({
 const getNextBundleMock = mock(async () => null)
 const getFailedUpdateMock = mock(async () => null)
 const addListenerMock = mock(async () => ({ remove: async () => {} }))
+const verifyManifestMock = mock(async () => ({ valid: true }))
 
 mock.module("@capacitor/core", () => ({
   Capacitor: {
     getPlatform: () => "ios",
     isNativePlatform: () => isNative,
+    isPluginAvailable: (name: string) => trustAvailable && name === "OtaTrust",
   },
-  registerPlugin: () => ({}),
+  registerPlugin: (name: string) =>
+    name === "OtaTrust" ? { verifyManifest: verifyManifestMock } : {},
   WebPlugin: class {},
 }))
 
-// The module ships with OTA_ENABLED = false (Apple review mode). The test
-// build re-enables it via alias so the mechanics stay covered; a separate
-// suite below pins the disabled behavior itself.
-mock.module("../ota-config", () => ({ OTA_ENABLED: true }))
-
-// The module ships with OTA_ENABLED = false (Apple review mode). The test
-// build re-enables it by aliasing the flag so the mechanics stay covered; a
-// separate suite below pins the disabled behavior itself.
 mock.module("../ota-config", () => ({ OTA_ENABLED: true }))
 
 mock.module("@capgo/capacitor-updater", () => ({
@@ -68,9 +64,11 @@ const {
   applyOtaUpdateNow,
   checkForOtaUpdate,
   getOtaState,
+  initializeOta,
   isOtaSupported,
   notifyOtaAppReady,
   otaBuildVersion,
+  otaDiagnostics,
   resetOtaStateForTests,
 } = await import("../ota")
 
@@ -80,6 +78,14 @@ const MANIFEST = {
   url: "https://app.onerep.life/ota/bundles/1.0.482.zip",
   checksum: "a".repeat(64),
   minNativeVersion: "1.0.0",
+  releaseKind: "bugfix",
+  baseCommit: "base123",
+  sourceCommit: "head456",
+  changeTicket: "INC-42",
+  rolloutPercent: 100,
+  nativeApiLevel: 1,
+  reviewedFeatureSet: "onerep-2026.09",
+  releasedAt: "2026-09-10T12:00:00Z",
 }
 
 const originalFetch = globalThis.fetch
@@ -105,10 +111,17 @@ const storage = installStorage()
 function stubFetch(impl: () => Promise<unknown>) {
   globalThis.fetch = mock(async () => {
     const body = await impl()
+    const payload = btoa(JSON.stringify(body))
     return {
       ok: true,
       status: 200,
-      json: async () => body,
+      json: async () => ({
+        schema: 1,
+        algorithm: "RS256",
+        keyId: "onerep-ota-2026-01",
+        payload,
+        signature: "AA==",
+      }),
     } as unknown as Response
   }) as unknown as typeof fetch
 }
@@ -122,14 +135,30 @@ const capgoMocks = [
   getNextBundleMock,
   getFailedUpdateMock,
   addListenerMock,
+  verifyManifestMock,
 ]
 
 beforeEach(() => {
   isNative = true
+  trustAvailable = true
   for (const fn of capgoMocks) fn.mockClear()
+  verifyManifestMock.mockImplementation(async () => ({ valid: true }))
   storage.clear()
   resetOtaStateForTests()
 })
+
+function readPendingMarker(): { id: string; version: string } | null {
+  const raw = storage.getItem("onerep:ota:pending-bundle")
+  return raw ? (JSON.parse(raw) as { id: string; version: string }) : null
+}
+
+function stubEnvelope(raw: unknown) {
+  globalThis.fetch = mock(async () => ({
+    ok: true,
+    status: 200,
+    json: async () => raw,
+  })) as unknown as typeof fetch
+}
 
 afterEach(() => {
   globalThis.fetch = originalFetch
@@ -154,7 +183,7 @@ describe("platform guard", () => {
 })
 
 describe("checkForOtaUpdate", () => {
-  test("downloads a newer bundle and stages it for the next launch", async () => {
+  test("downloads a newer bundle and persists it for the next cold launch", async () => {
     stubFetch(async () => MANIFEST)
 
     const decision = await checkForOtaUpdate({ force: true })
@@ -165,9 +194,18 @@ describe("checkForOtaUpdate", () => {
       version: "1.0.482",
       checksum: MANIFEST.checksum,
     })
-    // Staging is what makes the update land without the user tapping anything.
-    expect(nextMock).toHaveBeenCalledWith({ id: "bundle-1.0.482" })
+    // Cold-launch-only: never stage via next() (Capgo would apply it on
+    // background), never apply in this same session. The marker is consumed
+    // by initializeOta on the next launch.
+    expect(nextMock).not.toHaveBeenCalled()
+    expect(setMock).not.toHaveBeenCalled()
+    expect(readPendingMarker()).toEqual({
+      id: "bundle-1.0.482",
+      version: "1.0.482",
+    })
     expect(getOtaState()).toMatchObject({ phase: "ready", version: "1.0.482" })
+    const diagnostics = await otaDiagnostics()
+    expect(diagnostics.staged).toBe("1.0.482")
   })
 
   test("keeps the installed bundle when the network fails", async () => {
@@ -191,6 +229,16 @@ describe("checkForOtaUpdate", () => {
     expect(downloadMock).not.toHaveBeenCalled()
   })
 
+  test("rejects a manifest the native shell cannot authenticate", async () => {
+    stubFetch(async () => MANIFEST)
+    verifyManifestMock.mockImplementationOnce(async () => ({ valid: false }))
+
+    const decision = await checkForOtaUpdate({ force: true })
+
+    expect(decision).toEqual({ action: "skip", reason: "invalid-manifest" })
+    expect(downloadMock).not.toHaveBeenCalled()
+  })
+
   test("does not stage a bundle whose download failed", async () => {
     stubFetch(async () => MANIFEST)
     downloadMock.mockImplementationOnce(async () => {
@@ -200,6 +248,8 @@ describe("checkForOtaUpdate", () => {
     await checkForOtaUpdate({ force: true })
 
     expect(nextMock).not.toHaveBeenCalled()
+    expect(setMock).not.toHaveBeenCalled()
+    expect(readPendingMarker()).toBeNull()
     expect(getOtaState()).toMatchObject({ phase: "error" })
   })
 
@@ -221,6 +271,157 @@ describe("checkForOtaUpdate", () => {
     await checkForOtaUpdate()
 
     expect(globalThis.fetch).not.toHaveBeenCalled()
+  })
+
+  test("rejects an envelope with an unknown key id", async () => {
+    const payload = btoa(JSON.stringify(MANIFEST))
+    stubEnvelope({
+      schema: 1,
+      algorithm: "RS256",
+      keyId: "attacker-key",
+      payload,
+      signature: "AA==",
+    })
+
+    const decision = await checkForOtaUpdate({ force: true })
+
+    expect(decision).toEqual({ action: "skip", reason: "invalid-manifest" })
+    expect(verifyManifestMock).not.toHaveBeenCalled()
+    expect(downloadMock).not.toHaveBeenCalled()
+  })
+
+  test("rejects an envelope with an unknown algorithm", async () => {
+    const payload = btoa(JSON.stringify(MANIFEST))
+    stubEnvelope({
+      schema: 1,
+      algorithm: "none",
+      keyId: "onerep-ota-2026-01",
+      payload,
+      signature: "AA==",
+    })
+
+    const decision = await checkForOtaUpdate({ force: true })
+
+    expect(decision).toEqual({ action: "skip", reason: "invalid-manifest" })
+    expect(verifyManifestMock).not.toHaveBeenCalled()
+    expect(downloadMock).not.toHaveBeenCalled()
+  })
+
+  test("rejects a tampered payload the native shell will not sign for", async () => {
+    stubFetch(async () => ({
+      ...MANIFEST,
+      url: "https://app.onerep.life/ota/bundles/1.0.482.zip",
+    }))
+    verifyManifestMock.mockImplementationOnce(async () => ({ valid: false }))
+
+    const decision = await checkForOtaUpdate({ force: true })
+
+    expect(decision).toEqual({ action: "skip", reason: "invalid-manifest" })
+    expect(downloadMock).not.toHaveBeenCalled()
+    expect(readPendingMarker()).toBeNull()
+  })
+
+  test("rejects an envelope whose payload is not JSON", async () => {
+    stubEnvelope({
+      schema: 1,
+      algorithm: "RS256",
+      keyId: "onerep-ota-2026-01",
+      payload: btoa("not-json{{{"),
+      signature: "AA==",
+    })
+
+    const decision = await checkForOtaUpdate({ force: true })
+
+    expect(decision).toEqual({ action: "skip", reason: "invalid-manifest" })
+    expect(downloadMock).not.toHaveBeenCalled()
+  })
+
+  test("holds devices outside a staged rollout", async () => {
+    storage.setItem("onerep:ota:rollout-bucket", "50")
+    stubFetch(async () => ({ ...MANIFEST, rolloutPercent: 10 }))
+
+    const decision = await checkForOtaUpdate({ force: true })
+
+    expect(decision).toEqual({ action: "skip", reason: "rollout" })
+    expect(downloadMock).not.toHaveBeenCalled()
+  })
+
+  test("includes devices inside a staged rollout", async () => {
+    storage.setItem("onerep:ota:rollout-bucket", "9")
+    stubFetch(async () => ({ ...MANIFEST, rolloutPercent: 10 }))
+
+    const decision = await checkForOtaUpdate({ force: true })
+
+    expect(decision).toMatchObject({ action: "download", version: "1.0.482" })
+    expect(downloadMock).toHaveBeenCalled()
+  })
+
+  test("never forces an immediate reload on iOS", async () => {
+    stubFetch(async () => ({ ...MANIFEST, mandatory: true }))
+
+    const decision = await checkForOtaUpdate({ force: true })
+
+    expect(decision).toMatchObject({ action: "download", mandatory: false })
+    expect(getOtaState()).toMatchObject({ phase: "ready", mandatory: false })
+  })
+
+  test("skips entirely on shells without OtaTrust", async () => {
+    trustAvailable = false
+    stubFetch(async () => MANIFEST)
+
+    expect(isOtaSupported()).toBe(false)
+    const decision = await checkForOtaUpdate({ force: true })
+
+    expect(decision).toEqual({ action: "skip", reason: "up-to-date" })
+    expect(globalThis.fetch).not.toHaveBeenCalled()
+    expect(downloadMock).not.toHaveBeenCalled()
+  })
+
+  test("does not re-download a version already persisted for next launch", async () => {
+    stubFetch(async () => MANIFEST)
+    await checkForOtaUpdate({ force: true })
+    expect(readPendingMarker()?.version).toBe("1.0.482")
+
+    resetOtaStateForTests()
+    const decision = await checkForOtaUpdate({ force: true })
+
+    expect(decision).toEqual({ action: "skip", reason: "already-staged" })
+    expect(downloadMock).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe("cold-launch activation", () => {
+  test("initializeOta applies a bundle staged by a prior session", async () => {
+    storage.setItem(
+      "onerep:ota:pending-bundle",
+      JSON.stringify({ id: "bundle-1.0.482", version: "1.0.482" })
+    )
+
+    const dispose = await initializeOta()
+
+    expect(setMock).toHaveBeenCalledWith({ id: "bundle-1.0.482" })
+    expect(storage.getItem("onerep:ota:pending-bundle")).toBeNull()
+    dispose()
+  })
+
+  test("a freshly downloaded bundle is not applied in the same session", async () => {
+    stubFetch(async () => MANIFEST)
+    await checkForOtaUpdate({ force: true })
+    expect(readPendingMarker()?.version).toBe("1.0.482")
+
+    const dispose = await initializeOta()
+
+    // The just-downloaded bundle waits for the toast or the next launch.
+    expect(setMock).not.toHaveBeenCalled()
+    expect(readPendingMarker()?.version).toBe("1.0.482")
+    dispose()
+  })
+
+  test("initializeOta with no pending bundle touches nothing", async () => {
+    const dispose = await initializeOta()
+
+    expect(setMock).not.toHaveBeenCalled()
+    dispose()
   })
 })
 

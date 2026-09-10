@@ -9,6 +9,7 @@ import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { api } from "../../../../convex/_generated/api"
 import { FoodDetailSheet } from "@/components/food-detail-sheet"
 import { useSmoothNavigate } from "@/lib/navigation"
+import { announceOrbActivity } from "@/lib/orb-activity"
 import { getFoodDetail } from "@/lib/openfoodfacts"
 import { scaledFoodMacros } from "@/lib/food-search-nutrition"
 import {
@@ -126,6 +127,7 @@ export default function FoodReview() {
 
     try {
       await addFoodEntry({ date, entry })
+      announceOrbActivity("log")
       captureFeatureUsage(posthog, "food_logged", {
         item_count: 1,
         source: "search_review_page",

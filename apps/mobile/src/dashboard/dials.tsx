@@ -22,9 +22,9 @@ const ORBIT = 98
 // The phone gets a row instead of a crown. Beside a greeting the crown ate
 // half the width, wrapped the name onto three lines and truncated the date;
 // under it, the three read left to right with the number each was hiding.
-// One size for all three: the hold dial needs 84 to fit its two words, and
-// two readings a size down beside it looked like an afterthought.
-const ROW_SIZE = 84
+// Kept deliberately small and quiet on phones: the greeting owns the hero,
+// the dials are a secondary glanceable row, not three co-headlines.
+const ROW_SIZE = 68
 
 // Left and right of the hold dial's lower arc. Mirrored so each reading fills
 // away from the centre instead of sweeping underneath it.
@@ -67,7 +67,7 @@ export function DashboardDials({
       suffix: "%",
       color: "var(--accent-food)",
       onClick: onOpenNutrition,
-      icon: <ForkKnife size={17} weight="bold" />,
+      icon: <ForkKnife size={14} weight="bold" />,
     },
     {
       // "Recovery" is four characters too many for a dial this size; the
@@ -79,21 +79,21 @@ export function DashboardDials({
       suffix: "",
       color: "var(--accent-training-hero)",
       onClick: onOpenRecovery,
-      icon: <Heartbeat size={17} weight="bold" />,
+      icon: <Heartbeat size={14} weight="bold" />,
     },
   ]
 
   if (layout === "row") {
     return (
-      <div className="mx-auto flex w-full max-w-sm items-center justify-between gap-4">
+      <div className="mx-auto flex w-full max-w-xs items-center justify-center gap-6 px-2 opacity-90">
         <HoldToStartDial
           label="Open workout"
-          primaryIcon={<Play size={22} weight="fill" />}
-          icon={<Barbell size={14} weight="bold" />}
+          primaryIcon={<Play size={18} weight="fill" />}
+          icon={<Barbell size={12} weight="bold" />}
           onComplete={onStartWorkout}
           onShortPress={onStartWorkoutTip}
           size={ROW_SIZE}
-          stroke={7}
+          stroke={6}
           color="var(--accent-training-hero)"
         />
         {readings.map((reading) => (
@@ -113,7 +113,7 @@ export function DashboardDials({
               color={reading.color}
               icon={reading.icon}
               size={ROW_SIZE}
-              stroke={7}
+              stroke={6}
             />
           </button>
         ))}

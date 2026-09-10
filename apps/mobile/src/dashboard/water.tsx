@@ -7,6 +7,7 @@ import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { hapticRain } from "@/lib/haptics"
 import { cn } from "@/lib/utils"
+import { announceOrbActivity } from "@/lib/orb-activity"
 import {
   filledWaterGlassCount,
   waterAmountNeededForGlass,
@@ -53,6 +54,7 @@ export function WaterWidget({ dateKey }: { dateKey: string }) {
       amountMl,
       loggedAt: new Date().toISOString(),
     }
+    announceOrbActivity("log")
     void addWaterEntry({ date: dateKey, entry })
   }
 
@@ -73,6 +75,7 @@ export function WaterWidget({ dateKey }: { dateKey: string }) {
     const newest = [...entries].sort((a, b) =>
       b.loggedAt.localeCompare(a.loggedAt)
     )[0]
+    announceOrbActivity("delete")
     void removeWaterEntry({ date: dateKey, id: newest.id })
   }
 
@@ -179,6 +182,7 @@ export function WaterSmall({
       amountMl,
       loggedAt: new Date().toISOString(),
     }
+    announceOrbActivity("log")
     void addWaterEntry({ date: dateKey, entry })
   }
 
@@ -191,6 +195,7 @@ export function WaterSmall({
     const newest = [...entries].sort((a, b) =>
       b.loggedAt.localeCompare(a.loggedAt)
     )[0]
+    announceOrbActivity("delete")
     void removeWaterEntry({ date: dateKey, id: newest.id })
   }
 

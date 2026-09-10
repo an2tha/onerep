@@ -12,9 +12,8 @@
  * - Boot never waits on the network. Every failure path leaves the currently
  *   installed bundle running, so an offline launch is indistinguishable from
  *   a normal one.
- * - A staged bundle applies on its own. download() is always followed by
- *   next(), so the update lands when the app is next backgrounded or
- *   relaunched even if the user never sees or taps the toast.
+ * - A staged bundle applies on a later cold launch. The user may also choose
+ *   Update from the ready toast; iOS never forces an immediate reload.
  * - A bundle that cannot boot rolls itself back. notifyAppReady() is only
  *   called once React has actually committed; if it never runs, the plugin's
  *   appReadyTimeout reverts the device on the next launch. A revert is treated
@@ -23,24 +22,21 @@
  * All decision rules live in ./ota-manifest so they are testable in isolation.
  * This file is only the glue: platform guard, network, plugin calls, state.
  *
- * ── OTA DISABLED FOR APPLE REVIEW ─────────────────────────────────────────
- * Apple's guideline 2.7.2 disallows downloading executable code after review.
- * The whole OTA flow is therefore switched off at module level via
- * OTA_ENABLED. Every public entry point short-circuits to a no-op, so no
- * manifest is fetched, no bundle is downloaded, staged or applied, and the
- * native plugin is never invoked. To re-enable (e.g. for Android builds or
- * after obtaining explicit App Store clearance), set OTA_ENABLED to True.
- * The native side stays configured with autoUpdate: false and empty
- * updateUrl/statsUrl in capacitor.config.ts as a second layer of defence.
- * ─────────────────────────────────────────────────────────────────────────
+ * Apple App Review guideline 2.5.2 means this channel is only for content,
+ * security repairs, and bug fixes that restore already-reviewed behaviour.
+ * It must never introduce a feature or new use of a native capability. The
+ * mechanism is enabled in the exact build App Review receives and documented
+ * in docs/app-store-review/ota-updates.md; there is no review-only switch.
  */
 
-import { Capacitor } from "@capacitor/core"
+import { Capacitor, registerPlugin } from "@capacitor/core"
 import {
   compareVersions,
+  decodeOtaSignedPayload,
   decideOtaUpdate,
   isSemver,
   parseOtaManifest,
+  parseOtaSignedEnvelope,
   type OtaDecision,
   type OtaPlatform,
 } from "./ota-manifest"
@@ -66,11 +62,19 @@ const FAILURE_COUNT_KEY = "onerep:ota:failure-count"
 const BLOCKED_VERSIONS_KEY = "onerep:ota:blocked-versions"
 const REPORTED_ROLLBACK_KEY = "onerep:ota:reported-rollback"
 const VERSION_FAILURES_KEY = "onerep:ota:version-failures"
+const ROLLOUT_BUCKET_KEY = "onerep:ota:rollout-bucket"
+/**
+ * Bundle downloaded in a prior JS context and awaiting a cold launch.
+ * Persisted so a reload (which destroys module state) does not lose it, and
+ * consumed exactly once by initializeOta on the next launch.
+ */
+const PENDING_BUNDLE_KEY = "onerep:ota:pending-bundle"
 
 /**
  * Master switch, defined in ./ota-config so tests can alias it. False = OTA
- * completely disabled (Apple review mode). Only flip to True when the flow is
- * explicitly cleared for use.
+ * completely disabled. The supported path is also gated on the native
+ * OtaTrust plugin: store builds predating it safely remain on built-in
+ * assets.
  */
 
 const MIN_CHECK_INTERVAL_MS = 30 * 60 * 1000
@@ -84,6 +88,15 @@ const ROLLBACK_STRIKES = 2
 const DEFAULT_OTA_ORIGIN = "https://app.onerep.life"
 
 type CapgoModule = typeof import("@capgo/capacitor-updater")
+type OtaTrustPlugin = {
+  verifyManifest(options: {
+    payload: string
+    signature: string
+    keyId: string
+  }): Promise<{ valid: boolean }>
+}
+
+const otaTrust = registerPlugin<OtaTrustPlugin>("OtaTrust")
 type BundleInfo = Awaited<
   ReturnType<CapgoModule["CapacitorUpdater"]["download"]>
 >
@@ -93,14 +106,53 @@ const subscribers = new Set<(next: OtaState) => void>()
 /** Bundle staged this session, held so the toast's Update action can apply it. */
 let stagedBundle: BundleInfo | null = null
 
+export type OtaPendingBundle = { id: string; version: string }
+
+function readPendingBundle(): OtaPendingBundle | null {
+  const raw = safeLocalStorageGet(PENDING_BUNDLE_KEY)
+  if (!raw) return null
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    if (
+      typeof parsed === "object" &&
+      parsed !== null &&
+      typeof (parsed as { id?: unknown }).id === "string" &&
+      typeof (parsed as { version?: unknown }).version === "string" &&
+      (parsed as { id: string }).id.length > 0 &&
+      (parsed as { version: string }).version.length > 0
+    ) {
+      return {
+        id: (parsed as { id: string }).id,
+        version: (parsed as { version: string }).version,
+      }
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
+function writePendingBundle(bundle: { id: string; version: string }) {
+  safeLocalStorageSet(PENDING_BUNDLE_KEY, JSON.stringify(bundle))
+}
+
+function clearPendingBundle() {
+  safeLocalStorageRemove(PENDING_BUNDLE_KEY)
+}
+
 export function otaOrigin(): string {
   const configured = import.meta.env.VITE_OTA_ORIGIN as string | undefined
   return configured?.trim() || DEFAULT_OTA_ORIGIN
 }
 
-function manifestUrl(): string {
+function manifestUrl(platform: OtaPlatform, nativeVersion: string): string {
   const configured = import.meta.env.VITE_OTA_MANIFEST_URL as string | undefined
-  return configured?.trim() || `${otaOrigin()}/ota/manifest.json`
+  const template =
+    configured?.trim() ||
+    `${otaOrigin()}/ota/channels/{platform}/{nativeVersion}/manifest.json`
+  return template
+    .replace("{platform}", encodeURIComponent(platform))
+    .replace("{nativeVersion}", encodeURIComponent(nativeVersion))
 }
 
 /**
@@ -116,7 +168,7 @@ export function otaBuildVersion(): string {
 }
 
 export function isOtaSupported(): boolean {
-  return Capacitor.isNativePlatform()
+  return Capacitor.isNativePlatform() && Capacitor.isPluginAvailable("OtaTrust")
 }
 
 function otaPlatform(): OtaPlatform | null {
@@ -228,6 +280,21 @@ function clearFailures() {
   safeLocalStorageRemove(FAILURE_COUNT_KEY)
 }
 
+function rolloutBucket(): number {
+  const existing = Number.parseInt(
+    safeLocalStorageGet(ROLLOUT_BUCKET_KEY) ?? "",
+    10
+  )
+  if (Number.isInteger(existing) && existing >= 0 && existing <= 99) {
+    return existing
+  }
+  const values = new Uint32Array(1)
+  crypto.getRandomValues(values)
+  const bucket = (values[0] ?? 0) % 100
+  safeLocalStorageSet(ROLLOUT_BUCKET_KEY, String(bucket))
+  return bucket
+}
+
 /**
  * Rate limits checks so foregrounding the app repeatedly does not hammer the
  * CDN, and backs off further while checks keep failing.
@@ -285,17 +352,31 @@ async function currentVersions(
   }
 }
 
-async function fetchManifest(platform: OtaPlatform) {
+async function fetchManifest(platform: OtaPlatform, nativeVersion: string) {
   // Cache-busted and no-store: both the Cloudflare edge and the WebView's own
   // HTTP cache sit in front of this, and a stale manifest silently pins a
   // device to an old bundle.
-  const url = `${manifestUrl()}?v=${Date.now()}`
+  const url = `${manifestUrl(platform, nativeVersion)}?v=${Date.now()}`
   const response = await fetch(url, {
     cache: "no-store",
     signal: AbortSignal.timeout(MANIFEST_TIMEOUT_MS),
   })
   if (!response.ok) throw new Error(`manifest responded ${response.status}`)
-  return parseOtaManifest(await response.json(), platform, otaOrigin())
+  const envelope = parseOtaSignedEnvelope(await response.json())
+  if (!envelope) return null
+
+  const verification = await otaTrust.verifyManifest({
+    payload: envelope.payload,
+    signature: envelope.signature,
+    keyId: envelope.keyId,
+  })
+  if (!verification.valid) return null
+
+  return parseOtaManifest(
+    decodeOtaSignedPayload(envelope),
+    platform,
+    otaOrigin()
+  )
 }
 
 /**
@@ -305,7 +386,8 @@ async function fetchManifest(platform: OtaPlatform) {
 export async function checkForOtaUpdate(
   options: { force?: boolean } = {}
 ): Promise<OtaDecision> {
-  if (!OTA_ENABLED || !isOtaSupported()) return { action: "skip", reason: "up-to-date" }
+  if (!OTA_ENABLED || !isOtaSupported())
+    return { action: "skip", reason: "up-to-date" }
 
   const platform = otaPlatform()
   if (!platform) return { action: "skip", reason: "up-to-date" }
@@ -332,7 +414,7 @@ export async function checkForOtaUpdate(
   try {
     updater = await loadCapgo()
     versions = await currentVersions(updater)
-    manifest = await fetchManifest(platform)
+    manifest = await fetchManifest(platform, versions.native)
     safeLocalStorageSet(LAST_CHECK_KEY, String(now))
   } catch (error) {
     // Offline, timed out, or malformed: keep the installed bundle and try
@@ -346,11 +428,15 @@ export async function checkForOtaUpdate(
 
   clearFailures()
 
-  let stagedVersion: string | null = null
+  // A bundle staged by a previous session (persisted marker) or by this
+  // session (in-memory) counts as already staged. getNextBundle is retained
+  // for shells that staged via next() before the cold-launch-only change.
+  let stagedVersion: string | null =
+    stagedBundle?.version ?? readPendingBundle()?.version ?? null
   try {
-    stagedVersion = (await updater.getNextBundle())?.version ?? null
+    stagedVersion ??= (await updater.getNextBundle())?.version ?? null
   } catch {
-    stagedVersion = null
+    // Nothing staged via the plugin.
   }
 
   const decision = decideOtaUpdate({
@@ -359,6 +445,7 @@ export async function checkForOtaUpdate(
     nativeVersion: versions.native,
     stagedVersion,
     blockedVersions: readBlockedVersions(),
+    rolloutBucket: rolloutBucket(),
   })
 
   if (decision.action === "skip") {
@@ -376,10 +463,13 @@ export async function checkForOtaUpdate(
       checksum: decision.checksum,
     })
 
-    // Stage immediately. This is what makes the update land on its own when
-    // the app is next backgrounded or relaunched; the toast below is only an
-    // opportunity to have it sooner.
-    await updater.next({ id: bundle.id })
+    // Persist for a later cold launch; the toast is an explicit opportunity
+    // to apply it sooner. Deliberately never call updater.next(): Capgo
+    // applies a next bundle when the app backgrounds, which would bypass the
+    // explicit-action-or-cold-launch policy. The marker is consumed exactly
+    // once by initializeOta on the next launch and is never applied in this
+    // same session.
+    writePendingBundle({ id: bundle.id, version: bundle.version })
     stagedBundle = bundle
 
     setState({
@@ -406,12 +496,14 @@ export async function checkForOtaUpdate(
  */
 export async function applyOtaUpdateNow(): Promise<void> {
   if (!OTA_ENABLED || !isOtaSupported()) return
-  const bundle = stagedBundle
+  const bundle = stagedBundle ?? readPendingBundle()
   if (!bundle || state.phase !== "ready") return
 
   setState({ phase: "applying", version: bundle.version })
   try {
     const updater = await loadCapgo()
+    clearPendingBundle()
+    stagedBundle = null
     await updater.set({ id: bundle.id })
   } catch (error) {
     console.warn("OTA apply failed", error)
@@ -423,8 +515,16 @@ export async function applyOtaUpdateNow(): Promise<void> {
 }
 
 /**
- * Wires plugin listeners and reports a rollback if the previous bundle failed
+ * Wires plugin listeners, applies a bundle staged by a previous JS context
+ * on this cold launch, and reports a rollback if the previous bundle failed
  * to boot. Returns a disposer.
+ *
+ * Cold-launch activation: checkForOtaUpdate only downloads and persists a
+ * marker — it never calls updater.next(), so backgrounding cannot apply it.
+ * The marker is consumed here, exactly once, on the next launch via
+ * updater.set(). A bundle downloaded in this same session (stagedBundle
+ * non-null) is never applied here; it waits for the explicit Update action
+ * or the following cold launch.
  *
  * `onRollback` fires at most once per failed version so a user is not told
  * about the same bad release on every launch.
@@ -443,6 +543,21 @@ export async function initializeOta(
 
   try {
     const updater = await loadCapgo()
+
+    // Apply a bundle staged by a prior JS context. Skip when this session
+    // already staged one: that bundle must wait for explicit action or the
+    // next cold launch, never this same session.
+    if (stagedBundle === null) {
+      const pending = readPendingBundle()
+      if (pending) {
+        clearPendingBundle()
+        try {
+          await updater.set({ id: pending.id })
+        } catch (error) {
+          console.warn("OTA cold-launch apply failed", error)
+        }
+      }
+    }
 
     let lastPercent = -1
     track(
@@ -525,12 +640,18 @@ export async function otaDiagnostics(): Promise<{
   try {
     const updater = await loadCapgo()
     const { bundle, native } = await updater.current()
-    const staged = await updater.getNextBundle()
+    const pending = readPendingBundle()?.version ?? null
+    let nextVersion: string | null = null
+    try {
+      nextVersion = (await updater.getNextBundle())?.version ?? null
+    } catch {
+      nextVersion = null
+    }
     return {
       ...base,
       current: bundle.version,
       native,
-      staged: staged?.version ?? null,
+      staged: stagedBundle?.version ?? pending ?? nextVersion,
     }
   } catch {
     return { ...base, current: null, native: null, staged: null }

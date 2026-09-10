@@ -38,6 +38,7 @@ import {
 } from "@/lib/food-log"
 import { foodSources, searchFoodsAccurate } from "@/lib/openfoodfacts"
 import { useSmoothNavigate } from "@/lib/navigation"
+import { announceOrbActivity } from "@/lib/orb-activity"
 import type { FoodDetail } from "@repo/models"
 import {
   readRecentFoodSearches,
@@ -399,6 +400,7 @@ export default function SearchFoods() {
       })
 
       await addFoodEntry({ date, entry })
+      announceOrbActivity("log")
 
       captureFeatureUsage(posthog, "food_logged", {
         item_count: 1,
@@ -433,6 +435,7 @@ export default function SearchFoods() {
         ),
       })
       await addFoodEntry({ date, entry })
+      announceOrbActivity("log")
       captureFeatureUsage(posthog, "food_logged", {
         item_count: 1,
         source: "search_repeat",
@@ -443,6 +446,7 @@ export default function SearchFoods() {
         action: {
           label: "Undo",
           onClick: () => {
+            announceOrbActivity("delete")
             void removeFoodEntry({ date, entryId: entry.id }).catch(() =>
               toast.error("Couldn't undo that")
             )
@@ -475,6 +479,7 @@ export default function SearchFoods() {
         ),
       })
       await addFoodEntry({ date, entry })
+      announceOrbActivity("log")
       captureFeatureUsage(posthog, "food_logged", {
         item_count: 1,
         source: "search_custom",
@@ -485,6 +490,7 @@ export default function SearchFoods() {
         action: {
           label: "Undo",
           onClick: () => {
+            announceOrbActivity("delete")
             void removeFoodEntry({ date, entryId: entry.id }).catch(() =>
               toast.error("Couldn't undo that")
             )

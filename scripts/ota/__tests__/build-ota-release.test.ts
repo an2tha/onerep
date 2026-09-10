@@ -1,10 +1,12 @@
 import { describe, expect, test } from "bun:test"
+import { createVerify, generateKeyPairSync } from "node:crypto"
 import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import {
   buildManifest,
   OtaPackagingError,
+  signManifest,
   stageBundle,
 } from "../build-ota-release.mjs"
 
@@ -12,7 +14,11 @@ const CHECKSUM = "a".repeat(64)
 
 const base = {
   version: "1.0.482",
-  commit: "abc1234",
+  sourceCommit: "abc1234",
+  baseCommit: "base1234",
+  releaseKind: "bugfix",
+  changeTicket: "INC-42",
+  rolloutPercent: 10,
   checksum: CHECKSUM,
   baseUrl: "https://app.onerep.life",
   releasedAt: "2026-08-04T12:00:00Z",
@@ -29,7 +35,13 @@ describe("buildManifest", () => {
       // HealthConnect / WorkoutStatus / HomeWidgets, which a 1.0.0 shell has no
       // implementation for.
       minNativeVersion: "1.1.0",
-      commit: "abc1234",
+      releaseKind: "bugfix",
+      baseCommit: "base1234",
+      sourceCommit: "abc1234",
+      changeTicket: "INC-42",
+      rolloutPercent: 10,
+      nativeApiLevel: 1,
+      reviewedFeatureSet: "onerep-2026.09",
       releasedAt: "2026-08-04T12:00:00Z",
       mandatory: false,
     })
@@ -62,13 +74,44 @@ describe("buildManifest", () => {
     expect(() => buildManifest({ ...base, checksum: "abc123" })).toThrow(
       OtaPackagingError
     )
-    expect(() =>
-      buildManifest({ ...base, checksum: "A".repeat(64) })
-    ).toThrow(OtaPackagingError)
+    expect(() => buildManifest({ ...base, checksum: "A".repeat(64) })).toThrow(
+      OtaPackagingError
+    )
   })
 
-  test("defaults the commit when the build was not stamped with one", () => {
-    expect(buildManifest({ ...base, commit: undefined }).commit).toBe("unknown")
+  test("requires auditable provenance and approval", () => {
+    expect(() => buildManifest({ ...base, sourceCommit: undefined })).toThrow(
+      OtaPackagingError
+    )
+    expect(() => buildManifest({ ...base, changeTicket: "" })).toThrow(
+      OtaPackagingError
+    )
+  })
+})
+
+describe("signManifest", () => {
+  test("signs the exact payload bytes in the published envelope", () => {
+    const { privateKey, publicKey } = generateKeyPairSync("rsa", {
+      modulusLength: 2048,
+    })
+    const manifest = buildManifest(base)
+    const envelope = signManifest(
+      manifest,
+      privateKey.export({ type: "pkcs8", format: "pem" }).toString()
+    )
+    const payload = Buffer.from(envelope.payload, "base64")
+    const valid = createVerify("RSA-SHA256")
+      .update(payload)
+      .end()
+      .verify(publicKey, envelope.signature, "base64")
+
+    expect(valid).toBe(true)
+    expect(JSON.parse(payload.toString("utf8"))).toEqual(manifest)
+    expect(envelope).toMatchObject({
+      schema: 1,
+      algorithm: "RS256",
+      keyId: "onerep-ota-2026-01",
+    })
   })
 })
 

@@ -33,14 +33,13 @@ export function OtaLifecycle() {
     // must never move to module scope or a timeout.
     //
     // Except when the document is hidden, where there is no such thing as a
-    // committed frame. A staged bundle is applied by the plugin from
-    // appMovedToBackground: it swaps the bundle, reloads the WebView, and arms
-    // its appReadyTimeout right there, all while the app is backgrounded and
-    // rAF is halted. Waiting for paint in that state waits forever, the timer
-    // wins, and a perfectly good bundle gets rolled back and blocked — which
-    // is every user who declines the toast and simply backgrounds the app.
-    // So when hidden, settle for the weaker but obtainable proof: this effect
-    // running at all means React mounted and committed without throwing.
+    // committed frame. Updates never apply from the background — ota.ts
+    // deliberately avoids updater.next(), so Capgo cannot swap a bundle on
+    // appMovedToBackground — but a cold-launch apply via updater.set() can
+    // still land while hidden, where rAF is halted and waiting for paint
+    // would let the appReadyTimeout win over a good bundle. So when hidden,
+    // settle for the weaker but obtainable proof: this effect running at all
+    // means React mounted and committed without throwing.
     let outerFrame = 0
     if (document.visibilityState === "hidden") {
       void notifyOtaAppReady()

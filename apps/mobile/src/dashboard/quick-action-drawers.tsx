@@ -44,6 +44,7 @@ import { useSmoothNavigate } from "@/lib/navigation"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { hapticMedium, hapticRain, hapticTap } from "@/lib/haptics"
 import { createClientId, logDevWarn } from "@/lib/utils"
+import { announceOrbActivity } from "@/lib/orb-activity"
 import {
   defaultMeal,
   foodLogEntriesFromMealPreset,
@@ -490,11 +491,13 @@ function FoodDrawer({
       await Promise.all(
         entries.map((entry) => addFood({ date: dateKey, entry }))
       )
+      announceOrbActivity("log", Math.min(entries.length, 3))
       hapticMedium()
       toast.success(`${choice.name} logged`, {
         action: {
           label: "Undo",
           onClick: () => {
+            announceOrbActivity("delete", Math.min(entries.length, 3))
             void Promise.all(
               entries.map((entry) =>
                 removeFood({ date: dateKey, entryId: entry.id })
@@ -637,11 +640,13 @@ function FoodEntryEditor({
         servingLabel: serving ? serving : undefined,
       }) as FoodLogEntry
       await addFood({ date: dateKey, entry: copy })
+      announceOrbActivity("log")
       hapticMedium()
       toast.success(`${entry.name} logged as a new entry`, {
         action: {
           label: "Undo",
           onClick: () => {
+            announceOrbActivity("delete")
             void removeFood({ date: dateKey, entryId: copy.id }).catch(() => {
               toast.error("Couldn't undo that")
             })
@@ -780,11 +785,13 @@ function RecipesDrawer({
     setBusy(true)
     try {
       await addFood({ date: dateKey, entry })
+      announceOrbActivity("log")
       hapticMedium()
       toast.success(`${recipe.name} logged`, {
         action: {
           label: "Undo",
           onClick: () => {
+            announceOrbActivity("delete")
             void removeFood({ date: dateKey, entryId: entry.id }).catch(() => {
               toast.error("Couldn't undo that")
             })
@@ -1145,6 +1152,7 @@ function SupplementsDrawer({
     setBusyId(item._id)
     try {
       const result = await logTaken({ supplementId: item._id, date: dateKey })
+      announceOrbActivity("log")
       hapticMedium()
       // Queued offline, the write returns no log to point at yet — the
       // toast goes out without a button rather than with a broken one.
@@ -1159,6 +1167,7 @@ function SupplementsDrawer({
               action: {
                 label: "Undo",
                 onClick: () => {
+                  announceOrbActivity("delete")
                   void removeLog({ logId }).catch(() => {
                     toast.error("Couldn't undo that")
                   })
