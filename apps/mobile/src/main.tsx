@@ -67,6 +67,7 @@ import VerifyEmailRequired from "./pages/VerifyEmailRequired.tsx"
 import OAuthConsent from "./pages/OAuthConsent.tsx"
 import Workouts from "./pages/Workouts.tsx"
 import Endurance from "./pages/Endurance.tsx"
+import { ExperimentalFeatureGuard } from "./components/experimental-feature-guard.tsx"
 import ActiveEnduranceWorkout from "./pages/ActiveEnduranceWorkout.tsx"
 import NewPreset from "./pages/NewPreset.tsx"
 import ActiveWorkout from "./pages/ActiveWorkout.tsx"
@@ -827,7 +828,9 @@ const router = createBrowserRouter([
         element: (
           <AuthGuard>
             <ErrorBoundary label="Endurance">
-              <Endurance />
+              <ExperimentalFeatureGuard>
+                <Endurance />
+              </ExperimentalFeatureGuard>
             </ErrorBoundary>
           </AuthGuard>
         ),
@@ -837,7 +840,9 @@ const router = createBrowserRouter([
         element: (
           <AuthGuard>
             <ErrorBoundary label="Active Endurance Workout">
-              <ActiveEnduranceWorkout />
+              <ExperimentalFeatureGuard>
+                <ActiveEnduranceWorkout />
+              </ExperimentalFeatureGuard>
             </ErrorBoundary>
           </AuthGuard>
         ),

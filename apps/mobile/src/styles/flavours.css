@@ -1,0 +1,243 @@
+/* The chosen palette owns these task canvases in both appearances. */
+:root .quick-add-more {
+  --task-wash: 7%;
+  --task-surface: color-mix(
+    in srgb,
+    var(--accent-water) var(--task-wash),
+    var(--background)
+  );
+  background-color: var(--task-surface);
+  background-image: linear-gradient(
+    155deg,
+    color-mix(in srgb, var(--accent-workout) 5%, transparent),
+    transparent 65%
+  );
+  --muted-foreground: color-mix(
+    in srgb,
+    var(--foreground) 72%,
+    var(--task-surface)
+  );
+}
+
+:root:is(.dark, [data-theme="dark"]) .quick-add-more {
+  --task-wash: 4%;
+}
+
+/* No pale scrim, artificial grain or unrelated page leaking through. */
+:root .quick-add-more::before,
+:root .quick-add-more::after {
+  content: none;
+}
+
+:root .flavours-overlay {
+  backdrop-filter: none;
+  box-shadow: none;
+}
+
+@supports (-webkit-backdrop-filter: blur(1px)) {
+  :root .flavours-overlay {
+    -webkit-backdrop-filter: none;
+  }
+}
+
+:root .flavours-overlay > .flavours-page {
+  animation: none;
+}
+
+.flavours-page {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(100%, 40rem);
+  height: 100%;
+  margin-inline: auto;
+  padding: max(24px, var(--app-safe-top)) max(20px, env(safe-area-inset-right))
+    max(20px, var(--app-safe-bottom)) max(20px, env(safe-area-inset-left));
+}
+
+.flavours-header {
+  display: flex;
+  flex-shrink: 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding-bottom: 28px;
+}
+
+.flavours-header h1 {
+  margin: 0;
+  font-size: 30px;
+  line-height: 1.15;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+}
+
+.flavours-header p {
+  margin-top: 10px;
+  max-width: 30ch;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--muted-foreground);
+}
+
+:root .flavours-overlay .flavours-close {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--background) 65%, transparent);
+  box-shadow: none;
+}
+
+.flavours-content {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  padding: 3px;
+  margin: -3px;
+}
+
+.flavours-appearance {
+  margin: 0 0 28px;
+}
+.flavours-appearance legend {
+  margin-bottom: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted-foreground);
+}
+.flavours-appearance-options {
+  display: flex;
+  padding: 4px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--foreground) 6%, transparent);
+}
+.flavours-appearance-options label {
+  flex: 1;
+  cursor: pointer;
+}
+.flavours-appearance-options span {
+  display: grid;
+  min-height: 44px;
+  place-items: center;
+  border-radius: 9px;
+  font-size: 14px;
+  font-weight: 550;
+  color: var(--muted-foreground);
+}
+.flavours-appearance-options input:checked + span {
+  color: var(--foreground);
+  background: var(--background);
+  font-weight: 650;
+}
+
+.flavours-options {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.flavours-option {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 68px 20px;
+  align-items: center;
+  gap: 16px;
+  min-height: 76px;
+  padding-block: 16px;
+  border-top: 1px solid var(--border);
+  cursor: pointer;
+}
+.flavours-option-copy {
+  display: grid;
+  gap: 4px;
+}
+.flavours-option-name {
+  font-size: 16px;
+  line-height: 1.3;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+.flavours-option-description {
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--muted-foreground);
+}
+.flavours-check {
+  display: grid;
+  place-items: center;
+  color: var(--foreground);
+}
+.flavours-option:has(input:checked) .flavours-option-name {
+  font-weight: 750;
+}
+
+.flavours-swatches > span {
+  display: flex;
+  gap: 4px;
+}
+.flavours-swatches i {
+  display: block;
+  width: 20px;
+  height: 28px;
+  border-radius: 5px;
+}
+.flavours-swatches i:nth-child(1) {
+  background: var(--swatch-training);
+}
+.flavours-swatches i:nth-child(2) {
+  background: var(--swatch-water);
+}
+.flavours-swatches i:nth-child(3) {
+  background: var(--swatch-food);
+}
+.flavours-swatches [data-appearance="dark"] {
+  display: none;
+}
+:root:is(.dark, [data-theme="dark"])
+  .flavours-swatches
+  [data-appearance="light"] {
+  display: none;
+}
+:root:is(.dark, [data-theme="dark"])
+  .flavours-swatches
+  [data-appearance="dark"] {
+  display: flex;
+}
+
+.flavours-option:has(input:focus-visible),
+.flavours-appearance-options input:focus-visible + span,
+:root .flavours-close:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) {
+  .flavours-option:hover {
+    background: color-mix(in srgb, var(--foreground) 3%, transparent);
+  }
+}
+@media (min-width: 768px) {
+  .flavours-page {
+    padding-top: 48px;
+    padding-bottom: 40px;
+  }
+  .flavours-header {
+    padding-bottom: 36px;
+  }
+  .flavours-header h1 {
+    font-size: 34px;
+  }
+}
+@media (max-width: 360px) {
+  .flavours-option {
+    grid-template-columns: minmax(0, 1fr) 56px 18px;
+    gap: 10px;
+  }
+  .flavours-swatches i {
+    width: 16px;
+  }
+}

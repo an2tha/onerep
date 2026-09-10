@@ -11,8 +11,10 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Capacitor, registerPlugin } from "@capacitor/core"
 import type { PluginListenerHandle } from "@capacitor/core"
+import { useQuery } from "convex/react"
 import { logDevWarn } from "@/lib/utils"
 import { activeTabPath, isTabActive } from "@/components/bottom-bar"
+import { api } from "../../../../convex/_generated/api"
 
 type NativeTabBarItem = {
   id: string
@@ -39,7 +41,7 @@ type NativeTabBarPlugin = {
 const nativeTabBar = registerPlugin<NativeTabBarPlugin>("NativeTabBar")
 
 /** Ids are the web routes, so a tap event is already a navigation target. */
-const NATIVE_TAB_ITEMS: NativeTabBarItem[] = [
+const BASE_NATIVE_TAB_ITEMS: NativeTabBarItem[] = [
   { id: "/", symbol: "house.fill", label: "Today" },
   { id: "/nutrition", symbol: "fork.knife", label: "Nutrition" },
   { id: "/workouts", symbol: "dumbbell.fill", label: "Training" },
@@ -49,6 +51,12 @@ const NATIVE_TAB_ITEMS: NativeTabBarItem[] = [
   { id: "/coach", symbol: "sparkles", label: "Coach", prominent: true },
   { id: "/settings", symbol: "gearshape.fill", label: "Settings" },
 ]
+
+function getNativeTabItems(experimentalFeaturesEnabled: boolean) {
+  return BASE_NATIVE_TAB_ITEMS.filter(
+    (item) => item.id !== "/endurance" || experimentalFeaturesEnabled
+  )
+}
 
 /**
  * Settings is not a web tab — on the desktop it lives in the sidebar's profile
@@ -133,6 +141,17 @@ export function useNativeTabBar({
     onSelectRef.current = onSelect
   }, [onSelect])
 
+  const preferences = useQuery(
+    api.users.users.getPreferences,
+    supported ? {} : "skip"
+  )
+  const experimentalFeaturesEnabled =
+    preferences?.experimentalFeaturesEnabled ?? false
+  const nativeTabItems = useMemo(
+    () => getNativeTabItems(experimentalFeaturesEnabled),
+    [experimentalFeaturesEnabled]
+  )
+
   // Build the bar once and subscribe to taps.
   const initialSelectionRef = useRef(nativeSelection(pathname))
   useEffect(() => {
@@ -141,7 +160,7 @@ export function useNativeTabBar({
     let disposed = false
     void nativeTabBar
       .configure({
-        items: NATIVE_TAB_ITEMS,
+        items: nativeTabItems,
         selectedId: initialSelectionRef.current,
       })
       .catch((error) => logDevWarn("Native tab bar configure failed", error))
@@ -155,7 +174,7 @@ export function useNativeTabBar({
       disposed = true
       void handle?.remove()
     }
-  }, [supported])
+  }, [supported, nativeTabItems])
 
   // Mirror route changes into the bar (covers back gestures and deep links,
   // which never pass through a tab tap).

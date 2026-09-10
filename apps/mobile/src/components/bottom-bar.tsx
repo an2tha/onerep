@@ -8,6 +8,7 @@ import {
 } from "react"
 import { useLocation } from "react-router"
 import { useTranslation } from "react-i18next"
+import { useQuery } from "convex/react"
 import {
   Barbell,
   Bicycle,
@@ -22,6 +23,7 @@ import { AppNavigationChrome, type NavigationTabView } from "@repo/ui"
 import { cn } from "@/lib/utils"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { TourAnchor, useTourAnchor } from "@/components/walkthrough/tour-anchor"
+import { api } from "../../../../convex/_generated/api"
 
 type BottomBarAction = () => void
 type BottomBarActionSetter = (action?: BottomBarAction) => void
@@ -63,17 +65,22 @@ type TabDef = {
   path: string
   Icon: typeof House
   labelKey: string
+  beta?: boolean
 }
 
 const BASE_TABS: TabDef[] = [
   { path: "/", Icon: House, labelKey: "nav.today" },
   { path: "/nutrition", Icon: ForkKnife, labelKey: "nav.nutrition" },
   { path: "/workouts", Icon: Barbell, labelKey: "nav.training" },
-  { path: "/endurance", Icon: Bicycle, labelKey: "nav.endurance" },
+  { path: "/endurance", Icon: Bicycle, labelKey: "nav.endurance", beta: true },
   { path: "/progress", Icon: ChartLine, labelKey: "nav.progress" },
   { path: "/health", Icon: HeartbeatIcon, labelKey: "nav.health" },
   { path: "/coach", Icon: RocketLaunchIcon, labelKey: "nav.coach" },
 ]
+
+function getTabs(experimentalFeaturesEnabled: boolean) {
+  return BASE_TABS.filter((tab) => !tab.beta || experimentalFeaturesEnabled)
+}
 
 const DESKTOP_TABS = BASE_TABS
 
@@ -114,7 +121,10 @@ export function isTabActive(pathname: string, path: string) {
 }
 
 /** The tab that should read as selected for a pathname, if any. */
-export function activeTabPath(pathname: string, tabs = BASE_TABS): string | null {
+export function activeTabPath(
+  pathname: string,
+  tabs = BASE_TABS
+): string | null {
   return tabs.find((tab) => isTabActive(pathname, tab.path))?.path ?? null
 }
 
@@ -138,34 +148,47 @@ export function BottomBar({
   const settingsActive = isActive(pathname, "/settings")
   const coachActive = isActive(pathname, "/coach")
   const primaryNavRef = useTourAnchor("bottom-bar")
-  const tabs = BASE_TABS
+  const preferences = useQuery(api.users.users.getPreferences)
+  const experimentalFeaturesEnabled =
+    preferences?.experimentalFeaturesEnabled ?? false
+  const tabs = getTabs(experimentalFeaturesEnabled)
 
-  const tabsForNav: NavigationTabView[] = tabs.map(({ path, Icon, labelKey }) => {
-    const active = isActive(pathname, path)
-    return {
-      id: path,
-      label: t(labelKey),
-      active,
-      icon: <Icon size={22} weight={active ? "fill" : "regular"} />,
-      onSelect: () => {
-        if (pathname === path) return
-        navigate(path, { motion: active ? "back" : "switch" })
-      },
+  const tabsForNav: NavigationTabView[] = tabs.map(
+    ({ path, Icon, labelKey, beta }) => {
+      const active = isActive(pathname, path)
+      return {
+        id: path,
+        label: t(labelKey),
+        active,
+        icon: (
+          <span className="relative">
+            <Icon size={22} weight={active ? "fill" : "regular"} />
+            {beta && (
+              <span className="absolute -top-1 -right-1 size-1.5 rounded-full bg-muted-foreground" />
+            )}
+          </span>
+        ),
+        onSelect: () => {
+          if (pathname === path) return
+          navigate(path, { motion: active ? "back" : "switch" })
+        },
+      }
     }
-  })
-  const desktopTabs = DESKTOP_TABS.map(({ path, Icon, labelKey }) => {
+  )
+  const desktopTabs = DESKTOP_TABS.map(({ path, Icon, labelKey, beta }) => {
     const active = isActive(pathname, path)
     return {
       id: path,
-      label: t(labelKey),
+      label: beta ? `${t(labelKey)} \u00B7 Beta` : t(labelKey),
       active,
+      beta: beta === true,
       icon: <Icon size={17} weight={active ? "fill" : "regular"} />,
       onSelect: () => {
         if (pathname === path) return
         navigate(path, { motion: active ? "back" : "switch" })
       },
     }
-  })
+  }).filter((tab) => !tab.beta || experimentalFeaturesEnabled)
 
   return (
     <AppNavigationChrome

@@ -659,13 +659,3 @@
     height: 38px;
   }
 }
-
-/* ─── Flavours overlay ────────────────────────────────────────────────────── */
-/* QuickAddMore rides on the `.quick-add-reveal` pour behind it; the flavours
-   sheet has no reveal, so it brings its own backdrop: the app's background
-   colour, thickened, plus a blur so the settings list behind it frosts over. */
-.flavours-overlay {
-  background-color: color-mix(in srgb, var(--background) 82%, transparent);
-  -webkit-backdrop-filter: blur(24px) saturate(1.25);
-  backdrop-filter: blur(24px) saturate(1.25);
-}

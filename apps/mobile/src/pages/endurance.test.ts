@@ -38,8 +38,8 @@ const ANDROID_HEALTH_SOURCE = readFileSync(
 )
 
 describe("endurance tab", () => {
-  test("is presented as a standard section", () => {
-    expect(SOURCE).not.toContain("Beta")
+  test("is presented as a beta section", () => {
+    expect(SOURCE).toContain("Beta")
     expect(SOURCE).not.toContain("experimentalFeaturesEnabled")
   })
 
