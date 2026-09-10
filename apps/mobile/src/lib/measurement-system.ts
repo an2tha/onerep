@@ -137,8 +137,9 @@ export function formatWaterPair(
   }
   if (goalMl >= 1000) {
     const fmt = (ml: number) => {
+      if (ml < 1000) return `${Math.round(ml)} ml`
       const liters = ml / 1000
-      return `${liters % 1 === 0 ? liters : liters.toFixed(2)} L`
+      return `${liters % 1 === 0 ? liters : Number(liters.toFixed(2))} L`
     }
     return { total: fmt(totalMl), goal: fmt(goalMl) }
   }

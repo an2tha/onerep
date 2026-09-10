@@ -64,6 +64,9 @@ public class WatchSyncPlugin: CAPPlugin, CAPBridgedPlugin {
         ] {
             if let value = call.getInt(key) { context[key] = value }
         }
+        if let waterUnit = call.getString("waterUnit") {
+            context["waterUnit"] = waterUnit
+        }
         if let brief = call.getString("workoutBrief") {
             context["workoutBrief"] = brief
         }

@@ -7,7 +7,8 @@ import { useSmoothNavigate } from "@/lib/navigation"
 import { hapticMedium, hapticSelection } from "@/lib/haptics"
 import { createClientId, logDevWarn } from "@/lib/utils"
 import { announceOrbActivity } from "@/lib/orb-activity"
-import { fmtMl } from "@/lib/water-amounts"
+import { formatWater } from "@/lib/measurement-system"
+import { useWaterUnit } from "@/lib/use-water-unit"
 import type { FoodLogEntry } from "@/lib/food-log"
 import type { SourceWorkoutLog } from "@/lib/moment-quick-log"
 import { QuickFoodStep } from "@/components/moments/quick-food-step"
@@ -157,6 +158,8 @@ export function CheckInMoment({
   const navigate = useSmoothNavigate()
   const [step, setStep] = useState<"ask" | "day" | "coach" | "food">("ask")
   const [busy, setBusy] = useState(false)
+  const waterUnit = useWaterUnit()
+  const fmtWater = (amountMl: number) => formatWater(amountMl, waterUnit)
 
   const markRestDays = useMutation(api.logs.restDays.mark)
   const unmarkRestDays = useMutation(api.logs.restDays.unmark)
@@ -223,7 +226,7 @@ export function CheckInMoment({
       })
       announceOrbActivity("log")
       hapticMedium()
-      toast.success(`${fmtMl(amountMl)} logged`, {
+      toast.success(`${fmtWater(amountMl)} logged`, {
         action: {
           label: "Undo",
           onClick: () => {
@@ -395,7 +398,7 @@ export function CheckInMoment({
               <Chip
                 key={amountMl}
                 icon={<Drop size={13} weight="bold" />}
-                label={fmtMl(amountMl)}
+                label={fmtWater(amountMl)}
                 disabled={busy}
                 onClick={() => void logWater(amountMl)}
               />

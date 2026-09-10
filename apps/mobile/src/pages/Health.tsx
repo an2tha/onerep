@@ -10,6 +10,7 @@ import {
 import { useMutation, useQuery } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
 import { currentDateKey } from "@/lib/food-log"
+import { formatWeight } from "@/lib/exercise-display"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { isHealthSyncSupportedPlatform } from "@/lib/health-provider"
 import { hapticSelection } from "@/lib/haptics"
@@ -241,9 +242,7 @@ function HealthHub({ data }: { data: Dashboard }) {
   const weightCaption =
     latestWeightKg == null
       ? "nothing recorded"
-      : weightUnit === "lbs"
-        ? `${(latestWeightKg * 2.20462).toFixed(1)}lbs`
-        : `${latestWeightKg.toFixed(1)}kg`
+      : formatWeight(latestWeightKg, weightUnit)
   const selection = resolveHealthDialSelection(
     (preferences as { healthSync?: { dials?: Record<string, boolean> } } | null)
       ?.healthSync?.dials
