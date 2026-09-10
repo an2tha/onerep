@@ -23,7 +23,7 @@ describe("backdated food navigation", () => {
     expect(search).toContain("/foods/custom?new=1&log=1&${foodLogContextParams")
     expect(search).toContain("/foods/custom?${foodLogContextParams")
     expect(source("./FoodReview.tsx")).toContain(
-      'foodLogTimestamp(date, reviewParams.get("time"))'
+      'foodLogTimestampForMeal(date, meal, reviewParams.get("time"))'
     )
   })
 

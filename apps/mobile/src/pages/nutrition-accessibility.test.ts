@@ -18,9 +18,10 @@ describe("Nutrition page accessibility contract", () => {
 
   test("custom water amount input exposes a stable name and label", () => {
     expect(NUTRITION_SOURCE).toContain('name="nutrition-custom-water-ml"')
-    expect(NUTRITION_SOURCE).toContain(
-      'aria-label="Custom water amount in milliliters"'
-    )
+    // The accessible name announces the unit the field actually converts
+    // from — fl oz under imperial, ml under metric — not a fixed one.
+    expect(NUTRITION_SOURCE).toContain('? "Custom water amount in fluid ounces"')
+    expect(NUTRITION_SOURCE).toContain(': "Custom water amount in milliliters"')
   })
 
   test("nutrition entry sheet keeps its primary action named", () => {

@@ -347,7 +347,7 @@ export default function Settings({
       ?.consent?.wearableIntegrations === true
   const healthWorkouts = useQuery(
     api.logs.healthWorkouts.list,
-    isHealthSyncSupportedPlatform() ? { limit: 20 } : "skip"
+    isHealthSyncSupportedPlatform() ? { limit: 20, excludeLinked: true } : "skip"
   )
   // "Recent imports" is a work queue, not an archive: once a session joins the
   // training log it has nowhere further to go, so it leaves the list instead of
@@ -880,6 +880,10 @@ export default function Settings({
   async function chooseEnergyUnit(unit: EnergyUnitStored) {
     setEnergyUnitState(unit)
     cacheEnergyUnit(unit)
+    // Same contract as the weight-unit row: a hand-picked unit picks its
+    // system. Label-only, so a kcal pick never resets a kJ household's
+    // weight unit underneath them.
+    setMeasurementSystemLabel(unit === "Cal" ? "imperial" : "metric")
     try {
       await setEnergyUnit({ unit })
     } catch {

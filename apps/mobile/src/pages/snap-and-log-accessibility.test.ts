@@ -26,7 +26,9 @@ describe("Snap and Log accessibility contract", () => {
       "Keep OneRep open while we connect to your camera."
     )
     expect(SNAP_SOURCE).toContain("Try camera again")
-    expect(SNAP_SOURCE).toContain('navigate(`/foods/search?date=${date}`)')
+    expect(SNAP_SOURCE).toContain(
+      "navigate(`/foods/search?${foodLogContextParams(date, logTime)}`)"
+    )
   })
 
   test("a camera that will not start hands over to the system camera", () => {

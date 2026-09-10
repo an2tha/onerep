@@ -196,6 +196,8 @@ describe("customFoodDraftFromDatabaseFood", () => {
       brand: "A Brand",
       servingLabel: "1 bar",
       servingGrams: 40,
+      // Per-100g macros in, per-serving macros out: the declared serving is
+      // kept, so the numbers must be rebased (40/100 = 0.4).
       calories: 190.4,
       protein: 20.12,
       carbs: 12.36,
@@ -207,10 +209,27 @@ describe("customFoodDraftFromDatabaseFood", () => {
     expect(draft.barcode).toBe("3017620422003")
     expect(draft.servingLabel).toBe("1 bar")
     expect(draft.servingGrams).toBe("40")
-    expect(draft.nutrients.calories).toBe("190")
-    expect(draft.nutrients.protein).toBe("20.1")
-    expect(draft.nutrients.carbs).toBe("12.4")
-    expect(draft.nutrients.fat).toBe("9")
+    expect(draft.nutrients.calories).toBe("76")
+    expect(draft.nutrients.protein).toBe("8")
+    expect(draft.nutrients.carbs).toBe("4.9")
+    expect(draft.nutrients.fat).toBe("3.6")
+  })
+
+  test("a declared 100 g serving carries the macros over as typed", () => {
+    const draft = customFoodDraftFromDatabaseFood({
+      name: "Water Packed Tuna",
+      servingLabel: "1 can",
+      servingGrams: 100,
+      calories: 116,
+      protein: 25.5,
+      carbs: 0,
+      fat: 0.8,
+    })
+    expect(draft.servingGrams).toBe("100")
+    expect(draft.nutrients.calories).toBe("116")
+    expect(draft.nutrients.protein).toBe("25.5")
+    expect(draft.nutrients.carbs).toBe("0")
+    expect(draft.nutrients.fat).toBe("0.8")
   })
 
   test("a missing serving label gets a per-100g fallback instead of failing validation", () => {

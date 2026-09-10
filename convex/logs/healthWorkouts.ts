@@ -404,20 +404,33 @@ export const getHeartRateSeries = query({
 });
 
 export const list = query({
-  args: { limit: v.optional(v.number()) },
+  args: {
+    limit: v.optional(v.number()),
+    // Work-queue mode: pending rows only, filtered *before* the limit. A
+    // queue whose newest 20 imports all happened to be linked rendered an
+    // empty list while an older pending import sat behind them.
+    excludeLinked: v.optional(v.boolean()),
+  },
   handler: async (ctx, args) => {
     const user = await safeGetAuthUser(ctx);
     if (!user) return [];
     const limit = Math.min(Math.max(args.limit ?? 20, 1), 50);
 
+    // Probe a wider window in queue mode: linked rows are dropped in memory
+    // (the same post-take filter the strength pairing uses below), so they
+    // must not fill the window and starve the queue. Not a full scan by
+    // design — filtering inside the chain needs an index on the field.
     const rows = await ctx.db
       .query("healthWorkouts")
       .withIndex("by_userId_and_startedAt", (q) => q.eq("userId", user._id))
       .order("desc")
-      .take(limit * 2);
+      .take(args.excludeLinked ? limit * 4 : limit * 2);
 
     const candidates = rows
       .filter((row) => row.dismissedAt === undefined)
+      .filter((row) =>
+        args.excludeLinked ? row.linkedSessionId === undefined : true
+      )
       .slice(0, limit);
 
     return Promise.all(

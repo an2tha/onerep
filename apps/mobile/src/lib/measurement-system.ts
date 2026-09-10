@@ -102,6 +102,38 @@ export function formatWater(
   return `${Math.round(ml)} ml`
 }
 
+/**
+ * Formats a total/goal pair in ONE unit, so a day-rail row never mixes
+ * magnitude systems. formatWater picks per-value (a 250 ml total reads "250
+ * ml" while a 2000 ml goal reads "2 L"), which left the pair "0.25 / 500
+ * ml" — a quarter milliliter, if you read it literally. The goal anchors
+ * the choice: metric stays ml whenever the goal is sub-liter, imperial is
+ * always fl oz.
+ */
+export function formatWaterPair(
+  totalMl: number,
+  goalMl: number,
+  system: MeasurementSystem
+): { total: string; goal: string } {
+  if (system === "imperial") {
+    return {
+      total: `${Number(mlToFlOz(totalMl).toFixed(1))} fl oz`,
+      goal: `${Number(mlToFlOz(goalMl).toFixed(1))} fl oz`,
+    }
+  }
+  if (goalMl >= 1000) {
+    const fmt = (ml: number) => {
+      const liters = ml / 1000
+      return `${liters % 1 === 0 ? liters : liters.toFixed(2)} L`
+    }
+    return { total: fmt(totalMl), goal: fmt(goalMl) }
+  }
+  return {
+    total: `${Math.round(totalMl)} ml`,
+    goal: `${Math.round(goalMl)} ml`,
+  }
+}
+
 /** 1 avoirdupois ounce = 28.3495 g. Food quantities stay grams underneath. */
 export const G_PER_OZ = 28.3495
 
