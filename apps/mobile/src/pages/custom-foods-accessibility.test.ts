@@ -5,6 +5,13 @@ const CUSTOM_FOODS_SOURCE = readFileSync(
   new URL("./CustomFoods.tsx", import.meta.url),
   "utf8"
 )
+// The create/edit form lives in a shared component (also mounted from
+// SearchFoods and SnapAndLog for corrections), so its accessibility
+// contract is enforced against the component's own source.
+const FOOD_EDITOR_SOURCE = readFileSync(
+  new URL("../components/custom-food-editor-sheet.tsx", import.meta.url),
+  "utf8"
+)
 const NUTRITION_SOURCE = readFileSync(
   new URL("./Nutrition.tsx", import.meta.url),
   "utf8"
@@ -27,19 +34,19 @@ describe("Custom foods accessibility contract", () => {
   })
 
   test("validation errors are announced", () => {
-    expect(CUSTOM_FOODS_SOURCE).toContain('role="alert"')
+    expect(FOOD_EDITOR_SOURCE).toContain('role="alert"')
   })
 
   test("the favourite toggle exposes its state", () => {
-    expect(CUSTOM_FOODS_SOURCE).toContain("aria-pressed={draft.favorite}")
+    expect(FOOD_EDITOR_SOURCE).toContain("aria-pressed={draft.favorite}")
   })
 
   test("the micronutrient section reports whether it is expanded", () => {
-    expect(CUSTOM_FOODS_SOURCE).toContain("aria-expanded={microsOpen}")
+    expect(FOOD_EDITOR_SOURCE).toContain("aria-expanded={microsOpen}")
   })
 
   test("sheets can be dismissed by a named button", () => {
-    expect(CUSTOM_FOODS_SOURCE).toContain('aria-label="Close food editor"')
+    expect(FOOD_EDITOR_SOURCE).toContain('aria-label="Close food editor"')
     expect(CUSTOM_FOODS_SOURCE).toContain('aria-label="Close log sheet"')
   })
 

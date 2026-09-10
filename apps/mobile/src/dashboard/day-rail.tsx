@@ -20,8 +20,7 @@ import { hapticMedium } from "@/lib/haptics"
 import { announceOrbActivity } from "@/lib/orb-activity"
 import {
   currentMeasurementSystem,
-  formatWater,
-  mlToFlOz,
+  formatWaterPair,
 } from "@/lib/measurement-system"
 
 export function DayRail({
@@ -84,7 +83,11 @@ export function DayRail({
     ? Math.round(calorieGoal - calories)
     : null
   const takenCount = supplements.filter((s) => s.logId).length
-  const imperialWater = currentMeasurementSystem() === "imperial"
+  const waterPair = formatWaterPair(
+    waterTotalMl,
+    waterGoalMl,
+    currentMeasurementSystem()
+  )
 
   return (
     <aside
@@ -157,12 +160,10 @@ export function DayRail({
       >
         <p className="flex items-baseline gap-1.5">
           <span className="text-[26px] leading-none font-semibold tracking-tight text-foreground tabular-nums lg:text-[32px]">
-            {imperialWater
-              ? Number(mlToFlOz(waterTotalMl).toFixed(1))
-              : (waterTotalMl / 1000).toFixed(2).replace(/0$/, "")}
+            {waterPair.total}
           </span>
           <span className="text-[13px] text-muted-foreground">
-            / {formatWater(waterGoalMl, currentMeasurementSystem())}
+            / {waterPair.goal}
           </span>
         </p>
         <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">

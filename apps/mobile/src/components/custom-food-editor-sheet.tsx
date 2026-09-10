@@ -227,10 +227,16 @@ export function CustomFoodEditorSheet({
         <PrimaryButton
           className="mt-5 w-full"
           onClick={onSave}
-          disabled={saving}
+          disabled={saving || !validation.valid}
           aria-busy={saving}
         >
-          {saving ? "Saving…" : draft.id ? "Save changes" : "Save food"}
+          {saving
+            ? "Saving…"
+            : !validation.valid
+              ? "Fix the errors to save"
+              : draft.id
+                ? "Save changes"
+                : "Save food"}
         </PrimaryButton>
 
         {onDelete && (

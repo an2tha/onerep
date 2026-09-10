@@ -382,10 +382,12 @@ describe("a capture with no detected reps", () => {
 // distinct field rather than the findings reformatted.
 describe("the report schema", () => {
   test("requires a checklist", () => {
+    // Normalize line endings: on Windows checkouts core.autocrlf materializes
+    // the YAML with CRLF and an LF needle silently never matches.
     const prompt = readFileSync(
       new URL("../ai/prompts/form_coach.yaml", import.meta.url),
       "utf8",
-    );
+    ).replace(/\r\n/g, "\n");
     expect(prompt).toContain("CHECKLIST");
     expect(prompt).toContain("Never return an\n  empty checklist");
   });

@@ -294,24 +294,33 @@ export function customFoodDraftFromDatabaseFood(food: {
   fat: number
 }): CustomFoodDraft {
   const base = emptyCustomFoodDraft()
+  // Incoming macros are per 100 g (the datasource basis for both search
+  // results and FoodDetail rows). The copy keeps the product's declared
+  // serving, so rebase the numbers onto it — otherwise a corrected "1 bar
+  // (40 g)" saves the 100 g macros as one serving and every later log
+  // over-reports by servingGrams/100. No declared serving keeps the 100 g
+  // basis, where the values carry over as typed.
+  const servingGrams =
+    food.servingGrams !== undefined &&
+    food.servingGrams !== null &&
+    Number.isFinite(food.servingGrams) &&
+    food.servingGrams > 0
+      ? food.servingGrams
+      : null
+  const basis = servingGrams !== null && servingGrams !== 100 ? servingGrams / 100 : 1
   return {
     ...base,
     name: food.name,
     brand: food.brand ?? "",
     barcode: food.code ?? "",
     servingLabel: food.servingLabel || "100 g",
-    servingGrams:
-      food.servingGrams !== undefined &&
-      food.servingGrams !== null &&
-      Number.isFinite(food.servingGrams)
-        ? String(Math.round(food.servingGrams))
-        : "",
+    servingGrams: servingGrams !== null ? String(Math.round(servingGrams)) : "",
     nutrients: {
       ...base.nutrients,
-      calories: String(Math.round(food.calories)),
-      protein: String(round2(food.protein)),
-      carbs: String(round2(food.carbs)),
-      fat: String(round2(food.fat)),
+      calories: String(Math.round(food.calories * basis)),
+      protein: String(round2(food.protein * basis)),
+      carbs: String(round2(food.carbs * basis)),
+      fat: String(round2(food.fat * basis)),
     },
   }
 }
