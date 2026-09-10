@@ -519,9 +519,14 @@ export default function SnapAndLog() {
   async function handlePickFromLibrary() {
     if (mode === "snap" && !requireAiAccess(1, "snap_capture")) return
     try {
+      // Only iOS gates the picker on a photos permission. Android's photo
+      // picker is a system intent that needs no runtime permission — and on
+      // Android 16+ the plugin's READ_MEDIA_IMAGES declaration is capped at
+      // SDK 35, so requesting it there auto-denies with no dialog and would
+      // block the picker behind a permission the app cannot ever hold.
       // The web build hands this to a file input, which needs no permission
-      // and answers `requestPermissions` with an exception. Only ask natively.
-      if (Capacitor.isNativePlatform()) {
+      // and answers `requestPermissions` with an exception.
+      if (Capacitor.getPlatform() === "ios") {
         const permission = await NativeCamera.requestPermissions({
           permissions: ["photos"],
         })
