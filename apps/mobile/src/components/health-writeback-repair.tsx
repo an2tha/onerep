@@ -5,9 +5,11 @@
  * Why this exists: builds before the native upsert fix filed every writeback
  * push as a NEW record, and Health Connect aggregates by summing — so a day
  * logged three times can read three days' worth of food. The fix stops future
- * stacking; this repair washes out the past. Each re-push lands on a clean
- * day (the native side deletes the app's own same-day cumulative records
- * before inserting), so one pass leaves each day correct.
+ * stacking; this repair washes out the past. Each day is cleaned once via
+ * deleteDailyRecords before its batch is pushed (a per-write delete would
+ * erase batch siblings sharing NutritionRecord), then the per-metric
+ * clientRecordId upsert keeps future pushes from stacking — so one pass
+ * leaves each day correct.
  *
  * The queries live in a child component that only mounts once the user arms
  * the repair — this convex version's `useQueries` has no skip, so gating by
@@ -19,7 +21,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { useQueries } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
 import { PrimaryButton } from "@repo/ui"
-import { saveHealthDailyMetric } from "@/lib/health-provider"
+import { saveHealthDailyMetric, deleteHealthDailyRecords } from "@/lib/health-provider"
 import {
   beginHealthSync,
   endHealthSync,
@@ -210,6 +212,21 @@ function RepairRunner({
         const hadNutrition = totals.calories > 0 || totals.protein > 0 || totals.carbs > 0 || totals.fat > 0
         const hadWater = waterMl > 0
         if (hadNutrition || hadWater) {
+          // Wash pre-fix stacks once per day BEFORE the batch: the four
+          // nutrition metrics share NutritionRecord, so a per-write delete
+          // would erase batch siblings (energy pushed, then protein's delete
+          // eats it). The per-metric clientRecordId upsert handles future
+          // dedupe; this handles records filed before ids existed.
+          await deleteHealthDailyRecords({
+            date,
+            metrics: [
+              "dietaryEnergyKcal",
+              "dietaryProteinG",
+              "dietaryCarbsG",
+              "dietaryFatG",
+              "hydrationMl",
+            ],
+          })
           if (hadNutrition) {
             const pushes: [string, number][] = [
               ["dietaryEnergyKcal", Math.round(totals.calories)],
@@ -235,22 +252,20 @@ function RepairRunner({
           summary.days += 1
         } else if (!cancelled) {
           // A day with no logged food or water still may have stacked Health
-          // Connect records from an older build. Clean them so the day ends
-          // empty, not doubled.
-          for (const recordType of [
-            "dietaryEnergyKcal",
-            "dietaryProteinG",
-            "dietaryCarbsG",
-            "dietaryFatG",
-            "hydrationMl",
-          ]) {
-            const result = await saveHealthDailyMetric({
-              metric: recordType as any,
-              date,
-              value: 0,
-            })
-            if (!result.saved) summary.failures += 1
-          }
+          // Connect records from an older build. Delete them so the day ends
+          // empty — writing zero-value NutritionRecords would file
+          // meaningless records instead of cleaning.
+          await deleteHealthDailyRecords({
+            date,
+            metrics: [
+              "dietaryEnergyKcal",
+              "dietaryProteinG",
+              "dietaryCarbsG",
+              "dietaryFatG",
+              "hydrationMl",
+            ],
+          })
+          summary.days += 1
         }
       }
 
