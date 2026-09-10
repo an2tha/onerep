@@ -38,6 +38,10 @@ import {
   playNativeRestHaptic,
   scheduleRestAlert,
 } from "@/lib/rest-alerts"
+import {
+  distanceUnitForSystem,
+  readMeasurementSystem,
+} from "@/lib/measurement-system"
 
 export type SetType = "working" | "warmup" | "failure" | "myoreps" | "drop"
 export type WeightUnit = "kg" | "lbs"
@@ -336,7 +340,10 @@ export function formatHealthWorkoutDate(startedAt: string) {
 export function makeCardioState(): CardioExerciseState {
   return {
     distance: "",
-    distanceUnit: "km",
+    // New cardio starts in the measurement system's unit — an imperial
+    // household logging a run should see miles, not kilometres, without
+    // hunting for a per-exercise toggle.
+    distanceUnit: distanceUnitForSystem(readMeasurementSystem()),
     durationHours: "",
     durationMinutes: "",
     durationSeconds: "",
