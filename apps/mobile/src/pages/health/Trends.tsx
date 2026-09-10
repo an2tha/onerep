@@ -4,6 +4,7 @@ import { api } from "../../../../../convex/_generated/api"
 import { currentDateKey } from "@/lib/food-log"
 import { useEnergyUnit } from "@/lib/use-energy-unit"
 import { useWeightUnit } from "@/lib/use-weight-unit"
+import { formatWeight as formatDisplayWeight } from "@/lib/exercise-display"
 import { energyDisplay } from "@repo/ui"
 import { healthProviderLabel } from "@/lib/health-provider"
 import { platformMetric } from "../../../../../convex/lib/platformHealthMetrics"
@@ -195,10 +196,7 @@ export default function HealthTrends() {
                 ? (value: number) =>
                     `${chart.format(energyDisplay(value, energyUnit))} ${energyUnit}`
                 : chart.metric === "weight"
-                  ? (value: number) =>
-                      weightUnit === "lbs"
-                        ? `${(value * 2.20462).toFixed(1)}lb`
-                        : `${chart.format(value)}kg`
+                  ? (value: number) => formatDisplayWeight(value, weightUnit)
                   : chart.format
             }
             tone={chart.tone}

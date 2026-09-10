@@ -1337,10 +1337,10 @@ public class WorkoutLiveActivityPlugin: CAPPlugin, CAPBridgedPlugin {
             call.reject("Shared widget storage is unavailable")
             return
         }
-        for key in ["calories", "calorieGoal", "protein", "proteinGoal", "carbs", "carbsGoal", "fat", "fatGoal", "caloriesLeft"] {
+        for key in ["calories", "calorieGoal", "protein", "proteinGoal", "carbs", "carbsGoal", "fat", "fatGoal", "caloriesLeft", "waterMl", "waterGoalMl"] {
             if let value = call.getInt(key) { defaults.set(value, forKey: key) }
         }
-        for key in ["foodsLogged", "workoutExercises", "workoutBrief"] {
+        for key in ["foodsLogged", "workoutExercises", "workoutBrief", "waterUnit"] {
             if let value = call.getString(key) { defaults.set(value, forKey: key) }
         }
         let updatedAt = Date().timeIntervalSince1970

@@ -16,6 +16,9 @@ struct OneRepEntry: TimelineEntry {
     let carbsGoal: Int
     let fat: Int
     let fatGoal: Int
+    let waterMl: Int
+    let waterGoalMl: Int
+    let waterUnit: String
     let foodsLogged: String
     let workoutExercises: String
     let workoutBrief: String
@@ -35,6 +38,9 @@ struct OneRepEntry: TimelineEntry {
             carbsGoal: defaults?.integer(forKey: "carbsGoal") ?? 0,
             fat: defaults?.integer(forKey: "fat") ?? 0,
             fatGoal: defaults?.integer(forKey: "fatGoal") ?? 0,
+            waterMl: defaults?.integer(forKey: "waterMl") ?? 0,
+            waterGoalMl: defaults?.integer(forKey: "waterGoalMl") ?? 0,
+            waterUnit: defaults?.string(forKey: "waterUnit") ?? "ml",
             foodsLogged: defaults?.string(forKey: "foodsLogged") ?? "",
             workoutExercises: defaults?.string(forKey: "workoutExercises") ?? "",
             workoutBrief: defaults?.string(forKey: "workoutBrief") ?? ""
@@ -47,6 +53,32 @@ struct OneRepProvider: TimelineProvider {
     func getSnapshot(in context: Context, completion: @escaping (OneRepEntry) -> Void) { completion(.current()) }
     func getTimeline(in context: Context, completion: @escaping (Timeline<OneRepEntry>) -> Void) {
         completion(Timeline(entries: [.current()], policy: .after(Date().addingTimeInterval(15 * 60))))
+    }
+}
+
+private func formatWaterAmount(_ ml: Int, unit: String) -> String {
+    if unit == "fl oz" {
+        let value = Double(ml) / 29.5735
+        let rounded = (value * 10).rounded() / 10
+        return rounded == rounded.rounded() ? "\(Int(rounded)) fl oz" : "\(rounded) fl oz"
+    }
+    if ml >= 1000 {
+        let liters = Double(ml) / 1000
+        let rounded = (liters * 100).rounded() / 100
+        return rounded == rounded.rounded() ? "\(Int(rounded)) L" : "\(rounded) L"
+    }
+    return "\(ml) ml"
+}
+
+private struct WaterCaption: View {
+    let entry: OneRepEntry
+    var body: some View {
+        if entry.waterGoalMl > 0 {
+            Text("Water \(formatWaterAmount(entry.waterMl, unit: entry.waterUnit)) / \(formatWaterAmount(entry.waterGoalMl, unit: entry.waterUnit))")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
+        }
     }
 }
 
@@ -111,6 +143,7 @@ struct NutritionOverviewView: View {
                     Label("Nutrition", systemImage: "fork.knife").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
                     Text("\(max(entry.calorieGoal - entry.calories, 0)) left").font(.title2.weight(.semibold))
                     ProgressBar(value: entry.calories, goal: entry.calorieGoal)
+                    WaterCaption(entry: entry)
                     Spacer(minLength: 0)
                     macroRow("P", entry.protein, entry.proteinGoal)
                     macroRow("C", entry.carbs, entry.carbsGoal)
@@ -155,6 +188,7 @@ struct CombinedOverviewView: View {
                         Image(systemName: "fork.knife")
                     }
                     ProgressBar(value: entry.calories, goal: entry.calorieGoal)
+                    WaterCaption(entry: entry)
                     Text(entry.foodsLogged).font(.subheadline.weight(.medium)).lineLimit(2)
                     Spacer(minLength: 0)
                     HStack(spacing: 8) {

@@ -194,6 +194,24 @@ describe("snap review helpers", () => {
     })
   })
 
+  test("uses the selected measurement system in the logged quantity label", () => {
+    const entry = buildSnapFoodLogEntry(
+      {
+        id: "row-oz",
+        detectedName: "Chicken",
+        grams: 250,
+        selected: true,
+        food: food({ code: "chicken-code" }),
+        alternatives: [],
+      },
+      "lunch",
+      { quantityLabel: "8.8 oz" }
+    )
+
+    expect(entry?.name).toBe("Chicken breast (8.8 oz)")
+    expect(entry?.quantityGrams).toBe(250)
+  })
+
   test("removes nested undefined values before writing Open Food Facts data", () => {
     expect(
       toConvexSafe({

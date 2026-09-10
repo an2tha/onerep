@@ -33,6 +33,7 @@ import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import kotlin.math.max
+import kotlin.math.round
 
 /**
  * Home-screen widgets — the Android counterpart of the WidgetKit extension in
@@ -117,6 +118,31 @@ private fun CalorieProgress(value: Int, goal: Int) {
         color = androidx.glance.unit.ColorProvider(INK),
         backgroundColor = androidx.glance.unit.ColorProvider(HAIRLINE),
     )
+}
+
+private fun formatWaterAmount(ml: Int, unit: String): String {
+    if (unit == "fl oz") {
+        val value = ml / 29.5735
+        val rounded = round(value * 10) / 10
+        return if (rounded == rounded.toInt().toDouble()) "${rounded.toInt()} fl oz" else "$rounded fl oz"
+    }
+    if (ml >= 1000) {
+        val liters = ml / 1000.0
+        val rounded = round(liters * 100) / 100
+        return if (rounded == rounded.toInt().toDouble()) "${rounded.toInt()} L" else "$rounded L"
+    }
+    return "$ml ml"
+}
+
+private fun waterSummary(snapshot: WidgetStore.Snapshot): String {
+    val unit = if (snapshot.waterUnit == "fl oz") "fl oz" else "ml"
+    return "${formatWaterAmount(snapshot.waterMl, unit)} / ${formatWaterAmount(snapshot.waterGoalMl, unit)}"
+}
+
+@Composable
+private fun WaterCaption(snapshot: WidgetStore.Snapshot) {
+    if (snapshot.waterGoalMl <= 0) return
+    Caption("Water ${waterSummary(snapshot)}")
 }
 
 @Composable
@@ -229,6 +255,8 @@ class NutritionWidget : GlanceAppWidget() {
                         Caption("kcal left")
                         Spacer(GlanceModifier.height(7.dp))
                         CalorieProgress(s.calories, s.calorieGoal)
+                        Spacer(GlanceModifier.height(7.dp))
+                        WaterCaption(s)
                         Spacer(GlanceModifier.defaultWeight())
                         MacroRow("P", s.protein, s.proteinGoal)
                         Spacer(GlanceModifier.height(3.dp))
@@ -309,6 +337,8 @@ class CombinedWidget : GlanceAppWidget() {
                         Caption("${s.calories} of ${s.calorieGoal} eaten")
                         Spacer(GlanceModifier.height(9.dp))
                         CalorieProgress(s.calories, s.calorieGoal)
+                        Spacer(GlanceModifier.height(7.dp))
+                        WaterCaption(s)
                         Spacer(GlanceModifier.height(9.dp))
                         Text(
                             text = s.foodsLogged,

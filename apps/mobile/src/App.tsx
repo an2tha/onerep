@@ -40,6 +40,8 @@ import { DayTimeline, type TimelineEntry } from "@/dashboard/timeline"
 import { DashboardDials } from "@/dashboard/dials"
 import { ReactiveOrbField } from "@/components/reactive-orb-field"
 import { announceOrbActivity } from "@/lib/orb-activity"
+import { useWaterUnit } from "@/lib/use-water-unit"
+import { formatWater, type WaterUnit } from "@/lib/measurement-system"
 
 import LegacyApp from "./App.legacy"
 
@@ -60,6 +62,7 @@ function Dashboard() {
   const navigate = useSmoothNavigate()
   const { user } = useAppAuth()
   const preferences = useQuery(api.users.users.getPreferences, {})
+  const waterUnit = useWaterUnit()
   const activeTimezone = preferences?.lastActiveTimezone || "UTC"
   const todayKey = useMemo(
     () => currentDateKey(activeTimezone),
@@ -102,8 +105,9 @@ function Dashboard() {
         water: waterEntries,
         supplements: supplementEntries,
         workouts: workoutLogs,
+        waterUnit,
       }),
-    [foodEntries, waterEntries, supplementEntries, workoutLogs]
+    [foodEntries, waterEntries, supplementEntries, waterUnit, workoutLogs]
   )
   const [timelineOverrides, setTimelineOverrides] = useState<
     Record<string, string>
@@ -536,9 +540,11 @@ function buildTimelineEntries({
   water,
   supplements,
   workouts,
+  waterUnit,
 }: {
   food?: TimelineFoodEntry[]
   water?: TimelineWaterEntry[]
+  waterUnit?: WaterUnit
   supplements?: TimelineSupplementEntry[]
   workouts?: TimelineWorkoutLog[]
 }): TimelineEntry[] {
@@ -564,16 +570,16 @@ function buildTimelineEntries({
   }
 
   for (const entry of water ?? []) {
-    const liters = entry.amountMl >= 1000
     entries.push({
       id: `water:${entry.id}`,
       time: formatLoggedTime(entry.loggedAt),
       title: "Water",
-      detail: liters
-        ? `${(entry.amountMl / 1000).toFixed(1).replace(/\.0$/, "")} L`
-        : `${entry.amountMl} ml`,
+      detail: formatWater(entry.amountMl, waterUnit ?? "ml"),
       kind: "water",
-      facts: [{ label: "Amount", value: `${entry.amountMl} ml` }],
+      facts: [{
+        label: "Amount",
+        value: formatWater(entry.amountMl, waterUnit ?? "ml"),
+      }],
     })
   }
 
