@@ -345,9 +345,14 @@ export default function Settings({
     setupWearableConsent ??
     (onboarding as { consent?: { wearableIntegrations?: boolean } } | null)
       ?.consent?.wearableIntegrations === true
+  // No excludeLinked arg: the deployed backend is the source of truth for
+  // the function contract, and a client-only arg makes Convex reject the
+  // whole query until the author merges and deploys the server change.
+  // Linked rows are filtered client-side instead — same queue behavior,
+  // deploy-order safe.
   const healthWorkouts = useQuery(
     api.logs.healthWorkouts.list,
-    isHealthSyncSupportedPlatform() ? { limit: 20, excludeLinked: true } : "skip"
+    isHealthSyncSupportedPlatform() ? { limit: 20 } : "skip"
   )
   // "Recent imports" is a work queue, not an archive: once a session joins the
   // training log it has nowhere further to go, so it leaves the list instead of
