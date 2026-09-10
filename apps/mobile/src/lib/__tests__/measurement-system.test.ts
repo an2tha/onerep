@@ -5,6 +5,7 @@ import {
   flOzToMl,
   formatQuantityAmount,
   formatWater,
+  formatWaterPair,
   gramsToOz,
   mlToFlOz,
   ozToGrams,
@@ -16,6 +17,12 @@ import {
 } from "../measurement-system"
 import { cacheWeightUnit, readCachedWeightUnit } from "../use-weight-unit"
 import { cacheEnergyUnit } from "../use-energy-unit"
+import {
+  cacheWaterUnit,
+  clearExplicitWaterUnit,
+  readCachedWaterUnit,
+  waterUnitIsExplicit,
+} from "../use-water-unit"
 
 class MemoryStorage {
   private map = new Map<string, string>()
@@ -73,6 +80,22 @@ describe("applyMeasurementSystem", () => {
     applyMeasurementSystem("metric")
     expect(readCachedWeightUnit()).toBe("kg")
   })
+
+  test("water default follows the system until the user picks a unit", () => {
+    applyMeasurementSystem("imperial")
+    expect(readCachedWaterUnit()).toBe("fl oz")
+    // A deliberate ml choice survives the master switch.
+    cacheWaterUnit("ml", true)
+    expect(waterUnitIsExplicit()).toBe(true)
+    applyMeasurementSystem("metric")
+    expect(readCachedWaterUnit()).toBe("ml")
+    // Without an explicit choice, the default tracks the system again.
+    clearExplicitWaterUnit()
+    applyMeasurementSystem("metric")
+    expect(readCachedWaterUnit()).toBe("ml")
+    applyMeasurementSystem("imperial")
+    expect(readCachedWaterUnit()).toBe("fl oz")
+  })
 })
 
 describe("derived units", () => {
@@ -81,22 +104,24 @@ describe("derived units", () => {
     expect(distanceUnitForSystem("metric")).toBe("km")
   })
 
-  test("water unit follows the system", () => {
+  test("water unit follows the system as a default", () => {
     expect(waterUnitForSystem("imperial")).toBe("fl oz")
     expect(waterUnitForSystem("metric")).toBe("ml")
   })
 })
 
 describe("water formatting", () => {
-  test("metric renders ml and L exactly as before", () => {
-    expect(formatWater(250, "metric")).toBe("250 ml")
-    expect(formatWater(1000, "metric")).toBe("1 L")
-    expect(formatWater(1500, "metric")).toBe("1.5 L")
+  test("ml renders ml below a liter and liters at or above", () => {
+    expect(formatWater(250, "ml")).toBe("250 ml")
+    expect(formatWater(1000, "ml")).toBe("1 L")
+    expect(formatWater(1500, "ml")).toBe("1.5 L")
   })
 
-  test("imperial renders fl oz", () => {
-    const out = formatWater(250, "imperial")
-    expect(out.endsWith("fl oz")).toBe(true)
+  test("fl oz renders fl oz at a tenth-ounce resolution", () => {
+    // 250 ml ≈ 8.45 fl oz
+    expect(formatWater(250, "fl oz")).toBe("8.5 fl oz")
+    // 1000 ml ≈ 33.8 fl oz (whole-number rounding only kicks in at 100+)
+    expect(formatWater(1000, "fl oz")).toBe("33.8 fl oz")
   })
 
   test("fl oz conversion round-trips", () => {
@@ -104,6 +129,24 @@ describe("water formatting", () => {
     expect(mlToFlOz(ml)).toBeCloseTo(1, 6)
     expect(flOzToMl(1)).toBeCloseTo(29.5735, 6)
     expect(flOzToMl(mlToFlOz(1234))).toBeCloseTo(1234, 3)
+  })
+
+  test("formatWaterPair keeps both operands in one unit", () => {
+    // Sub-liter goal anchors ml for both sides (the "0.25 / 500 ml" bug)
+    expect(formatWaterPair(250, 500, "ml")).toEqual({
+      total: "250 ml",
+      goal: "500 ml",
+    })
+    // Liter-scale goal keeps both in liters
+    expect(formatWaterPair(1000, 2000, "ml")).toEqual({
+      total: "1 L",
+      goal: "2 L",
+    })
+    // fl oz never mixes magnitudes
+    expect(formatWaterPair(250, 2000, "fl oz")).toEqual({
+      total: "8.5 fl oz",
+      goal: "67.6 fl oz",
+    })
   })
 })
 

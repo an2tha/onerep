@@ -18,10 +18,8 @@ import type { ReactNode } from "react"
 import { api } from "../../../../convex/_generated/api"
 import { hapticMedium } from "@/lib/haptics"
 import { announceOrbActivity } from "@/lib/orb-activity"
-import {
-  currentMeasurementSystem,
-  formatWaterPair,
-} from "@/lib/measurement-system"
+import { formatWaterPair } from "@/lib/measurement-system"
+import { useWaterUnit } from "@/lib/use-water-unit"
 
 export function DayRail({
   dateKey,
@@ -83,11 +81,8 @@ export function DayRail({
     ? Math.round(calorieGoal - calories)
     : null
   const takenCount = supplements.filter((s) => s.logId).length
-  const waterPair = formatWaterPair(
-    waterTotalMl,
-    waterGoalMl,
-    currentMeasurementSystem()
-  )
+  const waterUnit = useWaterUnit()
+  const waterPair = formatWaterPair(waterTotalMl, waterGoalMl, waterUnit)
 
   return (
     <aside

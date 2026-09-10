@@ -344,6 +344,31 @@ export const setWeightUnit = mutation({
   },
 });
 
+export const setWaterUnit = mutation({
+  args: { unit: v.union(v.literal("ml"), v.literal("fl oz")) },
+  handler: async (ctx, args) => {
+    const user = await requireUser(ctx);
+    const existing = await ctx.db
+      .query("userPreferences")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .unique();
+
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        waterUnit: args.unit,
+        updatedAt: Date.now(),
+      });
+    } else {
+      await ctx.db.insert("userPreferences", {
+        userId: user._id,
+        lastActiveTimezone: "UTC",
+        waterUnit: args.unit,
+        updatedAt: Date.now(),
+      });
+    }
+  },
+});
+
 export const setEnergyUnit = mutation({
   args: {
     unit: v.union(v.literal("kcal"), v.literal("Cal"), v.literal("kJ")),

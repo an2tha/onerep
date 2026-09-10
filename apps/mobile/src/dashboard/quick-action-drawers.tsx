@@ -58,11 +58,8 @@ import { useEnergyUnit, type EnergyUnit } from "@/lib/use-energy-unit"
 import { energyDisplay } from "@repo/ui"
 import { WATER_BG, WATER_COLOR } from "./constants"
 import { fmtWater } from "./helpers"
-import {
-  currentMeasurementSystem,
-  flOzToMl,
-  mlToFlOz,
-} from "@/lib/measurement-system"
+import { flOzToMl, mlToFlOz } from "@/lib/measurement-system"
+import { useWaterUnit } from "@/lib/use-water-unit"
 
 export type QuickActionId =
   | "workout"
@@ -201,8 +198,10 @@ function WaterDrawer({
   const entries = (rawEntries ?? []) as WaterEntry[]
   const totalMl = entries.reduce((sum, entry) => sum + entry.amountMl, 0)
   const goalMl = preferences?.waterGoalMl ?? 2500
-  // The custom field speaks the system's unit; storage stays ml underneath.
-  const imperialWater = currentMeasurementSystem() === "imperial"
+  // The custom field speaks the user's chosen water unit; storage stays ml
+  // underneath.
+  const waterUnit = useWaterUnit()
+  const imperialWater = waterUnit === "fl oz"
   const percent = Math.min(
     100,
     Math.round((totalMl / Math.max(1, goalMl)) * 100)
