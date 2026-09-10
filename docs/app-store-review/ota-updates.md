@@ -55,24 +55,30 @@ When uncertain, use a store release.
    still scopes who can reach the signing secret).
 2. Store the PEM private key in the environment secret
    `OTA_SIGNING_PRIVATE_KEY`. Never commit or paste it into workflow inputs.
-3. Run **Deploy production** manually. Supply:
+3. Pushes to `main` auto-deploy Convex, the PWA, and marketing through
+   **Deploy production**, which carries the live signed OTA release forward
+   untouched. Pushing never publishes an OTA release.
+4. Run **OTA release** manually, from `main` after the repair has merged and
+   the push is green. Supply:
    - the permitted release kind;
    - the last reviewed source commit;
    - an approval or incident ticket;
    - an initial rollout percentage (normally 1 or 10);
    - the exact native application version receiving the update.
-4. The workflow runs tests and rejects native, billing, health-provider, OTA
-   infrastructure, dependency, new-screen, and new-route changes.
-5. Observe crash-free launches and rollback reports before increasing rollout.
+5. The workflow runs the OTA test gate and rejects native, billing,
+   health-provider, OTA infrastructure, dependency, new-screen, and new-route
+   changes. (The full suite already ran on the repair in Deploy production.)
+6. Observe crash-free launches and rollback reports before increasing rollout.
    Republish the same source range with a higher bundle version and increased
    percentage. Never mutate a published signed manifest in place outside CI.
-6. For a bad release, publish a higher bundle version containing the last good
+7. For a bad release, publish a higher bundle version containing the last good
    reviewed code. Devices also locally block a bundle after repeated failed
    starts.
 
-The generated local development key `.ota-signing-private.pem` is gitignored.
-Before production use, either install it as the protected GitHub secret or
-rotate it through a store release by changing the native public key and key ID.
+The signing private key exists only as the `ota-production` environment
+secret `OTA_SIGNING_PRIVATE_KEY` (plus a gitignored local backup,
+`.ota-signing-private.pem`, that is never committed). Rotating it means
+changing the embedded native public key and key ID through a store release.
 
 ## Policy references
 
