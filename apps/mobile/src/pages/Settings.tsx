@@ -63,6 +63,11 @@ import {
 import { HealthWriteBackRepair } from "@/components/health-writeback-repair"
 import { cacheWeightUnit, readCachedWeightUnit } from "@/lib/use-weight-unit"
 import {
+  applyMeasurementSystem,
+  type MeasurementSystem,
+} from "@/lib/measurement-system"
+import { useMeasurementSystem } from "@/lib/use-measurement-system"
+import {
   cacheEnergyUnit,
   readCachedEnergyUnitStored,
   type EnergyUnitStored,
@@ -512,6 +517,14 @@ export default function Settings({
     (preferences?.energyUnit as EnergyUnitStored) ||
       readCachedEnergyUnitStored()
   )
+  // The metric/imperial master switch. Follows the individual units too:
+  // hand-picking lb or cal flips the system, so the switch never disagrees
+  // with the rows beneath it.
+  const {
+    system: measurementSystem,
+    setSystem: setMeasurementSystemState,
+    setSystemLabel: setMeasurementSystemLabel,
+  } = useMeasurementSystem()
   const [foodSearchLanguage, setFoodSearchLanguageState] =
     useState<FoodSearchLanguage>(
       (preferences?.foodSearchLanguage as FoodSearchLanguage) || "en"
@@ -828,10 +841,34 @@ export default function Settings({
   async function chooseWeightUnit(unit: WeightUnit) {
     setWeightUnitState(unit)
     cacheWeightUnit(unit)
+    // Keep the master switch in step: picking a unit by hand picks its
+    // system. Label-only — no cache writes, so a kJ household picking kg
+    // doesn't get their energy unit silently reset underneath them.
+    setMeasurementSystemLabel(unit === "lbs" ? "imperial" : "metric")
     try {
       await setWeightUnit({ unit })
     } catch {
       toast.error("Could not save your weight unit")
+    }
+  }
+
+  /**
+   * One switch that sets every unit at once: weight, energy, and the
+   * distance new workouts start in. Weight and energy persist to the
+   * account through their existing mutations, so the whole household of
+   * units agrees without visiting three rows.
+   */
+  async function chooseMeasurementSystem(system: MeasurementSystem) {
+    applyMeasurementSystem(system)
+    const weight: WeightUnit = system === "imperial" ? "lbs" : "kg"
+    const energy: EnergyUnitStored = system === "imperial" ? "Cal" : "kcal"
+    setWeightUnitState(weight)
+    setEnergyUnitState(energy)
+    try {
+      await setWeightUnit({ unit: weight })
+      await setEnergyUnit({ unit: energy })
+    } catch {
+      toast.error("Could not save your measurement system")
     }
   }
 
@@ -1943,6 +1980,23 @@ export default function Settings({
                             { value: "strength", label: "Strength" },
                             { value: "cardio", label: "Cardio" },
                             { value: "mobility", label: "Mobility" },
+                          ]}
+                        />
+                      </SettingsRow>
+                      <SettingsRow
+                        label="Measurement system"
+                        detail="Sets weight, energy, and workout distance together"
+                      >
+                        <SegmentedControl
+                          onInteract={hapticSelection}
+                          label="Measurement system"
+                          value={measurementSystem}
+                          onChange={(value) => {
+                            void chooseMeasurementSystem(value as MeasurementSystem)
+                          }}
+                          options={[
+                            { value: "metric", label: "Metric" },
+                            { value: "imperial", label: "Imperial" },
                           ]}
                         />
                       </SettingsRow>
