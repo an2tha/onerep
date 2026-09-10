@@ -8,7 +8,7 @@
  * weight-unit cache pattern.
  */
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useQuery } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
 import {
@@ -30,16 +30,34 @@ export function useMeasurementSystem(): {
   const [system, setSystemState] = useState<MeasurementSystem>(
     () => readMeasurementSystem()
   )
+  // The preferences row id is a stable per-account sentinel: when it changes,
+  // a different account took over the device.
+  const lastAccountRef = useRef<string | null>(null)
+  const accountKey = preferences?._id ?? null
 
-  // First-run seed: an account with lb saved is imperial until they say
-  // otherwise. Only applies while the local switch has never been touched.
+  // Seed AND reconcile from the active account. The original seed only went
+  // one direction (lbs→imperial), so an imperial account's cached switch
+  // leaked onto a metric account that signed in on the same phone. The
+  // reconciliation runs only when the active account *changes* — re-running
+  // it on every preferences render would clobber a deliberate local choice
+  // (someone using kg weights but imperial water) on every server tick.
   useEffect(() => {
     if (preferences === undefined) return
-    if (preferences.weightUnit === "lbs" && readMeasurementSystem() === "metric") {
-      applyMeasurementSystem("imperial")
-      setSystemState("imperial")
+    const accountChanged = accountKey !== lastAccountRef.current
+    lastAccountRef.current = accountKey
+    if (accountKey === null || !accountChanged) return
+
+    const implied: MeasurementSystem | null =
+      preferences.weightUnit === "lbs"
+        ? "imperial"
+        : preferences.weightUnit === "kg"
+          ? "metric"
+          : null
+    if (implied && readMeasurementSystem() !== implied) {
+      applyMeasurementSystem(implied)
+      setSystemState(implied)
     }
-  }, [preferences])
+  }, [preferences, accountKey])
 
   const setSystem = (next: MeasurementSystem) => {
     applyMeasurementSystem(next)

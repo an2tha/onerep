@@ -37,6 +37,7 @@ import {
   DEFAULT_MEAL_CATEGORIES,
 } from "@/lib/food-log"
 import {
+  foodLogContextParams,
   foodLogTimestamp,
   foodLogTimestampForMeal,
   isFoodLogTime,
@@ -422,7 +423,10 @@ export default function SnapAndLog() {
           captureFeatureUsage(posthog, "food_barcode_scanned", {
             success: true,
           })
-          setBarcodeResult(food)
+          // Same correction overlay as the shutter path: a saved correction
+          // must hold on the live scan too, or the two entries disagree.
+          const corrected = correctedForBarcode(code)
+          setBarcodeResult(corrected ? withCorrectedMacros(food, corrected) : food)
         } else {
           setBarcodeError(`No food found for barcode ${code}`)
         }
@@ -951,7 +955,9 @@ export default function SnapAndLog() {
               )}
               <button
                 type="button"
-                onClick={() => navigate(`/foods/search?date=${date}`)}
+                onClick={() =>
+                  navigate(`/foods/search?${foodLogContextParams(date, logTime)}`)
+                }
                 className="min-h-11 rounded-lg border border-white/25 px-4 text-[14px] font-semibold text-white"
               >
                 Search foods
@@ -960,7 +966,9 @@ export default function SnapAndLog() {
                   database are the same dead end from the user's side. */}
               <button
                 type="button"
-                onClick={() => navigate("/foods/custom?new=1&log=1")}
+                onClick={() =>
+                  navigate(`/foods/custom?new=1&log=1&${foodLogContextParams(date, logTime)}`)
+                }
                 className="min-h-11 rounded-lg border border-white/25 px-4 text-[14px] font-semibold text-white"
               >
                 Enter it yourself
@@ -1225,7 +1233,7 @@ export default function SnapAndLog() {
             setBarcodeError(null)
             setBarcodeScanNonce((n) => n + 1)
           }}
-          onSearchManually={() => navigate(`/foods/search?date=${date}`)}
+          onSearchManually={() => navigate(`/foods/search?${foodLogContextParams(date, logTime)}`)}
           onDismiss={() => {
             setSnapPhase("idle")
             setSnapReviewItems([])

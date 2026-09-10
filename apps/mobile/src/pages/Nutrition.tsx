@@ -704,7 +704,11 @@ function CustomWaterSheet({
               type="number"
               inputMode="numeric"
               name="nutrition-custom-water-ml"
-              aria-label="Custom water amount in milliliters"
+              aria-label={
+                imperial
+                  ? "Custom water amount in fluid ounces"
+                  : "Custom water amount in milliliters"
+              }
               min={1}
               max={5000}
               value={
@@ -2141,10 +2145,22 @@ export default function Nutrition() {
   // The diary's entries used to stamp themselves with whatever the clock said
   // when the entry landed. Someone who logs a 7 pm dinner at 9 pm got a 9 pm
   // diary, and every number that rolls up by time of day was quietly wrong.
-  // The add sheet now carries its own time field, defaulting to now, and
-  // every door out of it hands that time to the next screen.
-  const [logTime, setLogTime] = useState(() => foodLogTime())
-  const resetLogTime = useCallback(() => setLogTime(foodLogTime()), [])
+  // The add sheet now carries its own time field, and every door out of it
+  // hands that time to the next screen.
+  //
+  // `null` means the user never touched the field: downstream logging then
+  // passes no explicit time, so the *meal tag* supplies its configured
+  // default ("breakfast" logs at the breakfast hour). Seeding the state with
+  // the clock made the untouched field an explicit choice, which silently
+  // bypassed the meal defaults the Settings row promises.
+  const [logTime, setLogTime] = useState<string | null>(null)
+  const resetLogTime = useCallback(() => setLogTime(null), [])
+  // Dismissal resets too: a time picked for one add must not leak into the
+  // next one opened from a different anchor (bottom bar vs. header button).
+  const closeAddSheet = useCallback(() => {
+    setAddOpen(false)
+    resetLogTime()
+  }, [resetLogTime])
   const [microsOpen, setMicrosOpen] = useState(false)
   const [fastingOpen, setFastingOpen] = useState(false)
   const [showAllFood, setShowAllFood] = useState(false)
@@ -2644,9 +2660,9 @@ export default function Nutrition() {
 
   function openSnapCamera() {
     if (!requireAiAccess(1, "snap_camera")) return
-    setAddOpen(false)
+    closeAddSheet()
     navigate(
-      `/camera?date=${dateKey}&time=${logTime}`
+      `/camera?date=${dateKey}&${foodLogContextParams(dateKey, logTime)}`
     )
   }
 
@@ -4067,7 +4083,7 @@ export default function Nutrition() {
 
       {addOpen && (
         <MobileSheet
-          onClose={() => setAddOpen(false)}
+          onClose={closeAddSheet}
           overlayClassName="bg-black/55"
           panelClassName="sheet-panel mx-auto w-full max-w-sm overflow-hidden rounded-t-2xl border-t border-border bg-card md:!w-full md:!max-w-sm"
           panelStyle={{
@@ -4080,7 +4096,7 @@ export default function Nutrition() {
               <h2 className="text-[21px] font-semibold">Add to diary</h2>
               <button
                 type="button"
-                onClick={() => setAddOpen(false)}
+                onClick={closeAddSheet}
                 className="native-toolbar-button -mt-1 -mr-2 px-0 text-muted-foreground"
                 aria-label="Close add menu"
               >
@@ -4100,7 +4116,7 @@ export default function Nutrition() {
               <input
                 id="nutrition-log-time"
                 type="time"
-                value={logTime}
+                value={logTime ?? foodLogTime()}
                 onChange={(event) => {
                   if (isFoodLogTime(event.target.value))
                     setLogTime(event.target.value)
@@ -4175,10 +4191,12 @@ export default function Nutrition() {
                   detail: "Packaged food",
                   Icon: Barcode,
                   supportsHistory: true,
-                  action: () =>
+                  action: () => {
+                    closeAddSheet()
                     navigate(
-                      `/camera?mode=barcode&date=${dateKey}&time=${logTime}`
-                    ),
+                      `/camera?mode=barcode&date=${dateKey}&${foodLogContextParams(dateKey, logTime)}`
+                    )
+                  },
                 },
                 {
                   label: "Snap meal",

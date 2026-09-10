@@ -217,7 +217,12 @@ function RepairRunner({
           // would erase batch siblings (energy pushed, then protein's delete
           // eats it). The per-metric clientRecordId upsert handles future
           // dedupe; this handles records filed before ids existed.
-          await deleteHealthDailyRecords({
+          //
+          // A failed cleanup is a failed day, never a silent overwrite: on an
+          // older native shell without deleteDailyRecords the replacement
+          // writes would stack on top of the legacy records, inflating the
+          // totals while the UI reported the day repaired.
+          const cleanup = await deleteHealthDailyRecords({
             date,
             metrics: [
               "dietaryEnergyKcal",
@@ -227,6 +232,10 @@ function RepairRunner({
               "hydrationMl",
             ],
           })
+          if (!cleanup.deleted) {
+            summary.failures += 1
+            continue
+          }
           if (hadNutrition) {
             const pushes: [string, number][] = [
               ["dietaryEnergyKcal", Math.round(totals.calories)],
@@ -254,8 +263,10 @@ function RepairRunner({
           // A day with no logged food or water still may have stacked Health
           // Connect records from an older build. Delete them so the day ends
           // empty — writing zero-value NutritionRecords would file
-          // meaningless records instead of cleaning.
-          await deleteHealthDailyRecords({
+          // meaningless records instead of cleaning. A refused cleanup on a
+          // day we would have counted as done still is a failure: the day
+          // was not verified empty.
+          const cleanup = await deleteHealthDailyRecords({
             date,
             metrics: [
               "dietaryEnergyKcal",
@@ -265,7 +276,8 @@ function RepairRunner({
               "hydrationMl",
             ],
           })
-          summary.days += 1
+          if (cleanup.deleted) summary.days += 1
+          else summary.failures += 1
         }
       }
 

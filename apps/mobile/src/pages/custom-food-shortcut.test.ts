@@ -41,7 +41,9 @@ describe("creating a food the database is missing", () => {
   })
 
   test("a failed camera offers the same way out", () => {
-    expect(SNAP_SOURCE).toContain('navigate("/foods/custom?new=1&log=1")')
+    expect(SNAP_SOURCE).toContain(
+      "navigate(`/foods/custom?new=1&log=1&${foodLogContextParams(date, logTime)}`)"
+    )
     expect(SNAP_SOURCE).toContain("Enter it yourself")
   })
 
