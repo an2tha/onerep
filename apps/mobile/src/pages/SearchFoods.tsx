@@ -500,9 +500,11 @@ export default function SearchFoods() {
     searchState === "done" &&
     results.length === 0 &&
     recipeResults.length === 0 &&
+    matchedCustomFoods.length === 0 &&
+    matchedLoggedFoods.length === 0 &&
     completedQuery !== ""
   const showResults =
-    results.length > 0 || recipeResults.length > 0 || matchedCustomFoods.length > 0
+    results.length > 0 || recipeResults.length > 0 || matchedCustomFoods.length > 0 || matchedLoggedFoods.length > 0
 
   function openFoodReview(item: FoodSearchItem) {
     if (shouldOpenReviewAsPage()) {
@@ -1064,11 +1066,11 @@ export default function SearchFoods() {
                 code: detailItem.code,
                 name: detailItem.name,
                 brand: detailItem.brand,
-                // Pre-fill from the serving the sheet actually shows, not a
-                // raw per-100g basis the user never saw.
-                servingLabel: detail?.servingLabel || detailItem.serving,
-                servingGrams: detail?.servingGrams,
-                ...foodCardMacros(detailItem),
+                // Prefill from the serving the sheet actually shows; fall back
+                // to the search result's own serving when no detail sheet chose
+                // one. Macros come from the same basis so servingLabel /
+                // servingGrams and the nutrient numbers never disagree.
+                ...(detail ?? detailItem),
               })
             )
           }

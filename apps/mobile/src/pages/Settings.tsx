@@ -57,6 +57,7 @@ import {
   friendlyHealthError,
   recordSyncActivity,
   setHealthSyncPhase,
+  updateHealthSyncStatus,
   useHealthSyncStatus,
 } from "@/lib/health-sync-status"
 import { HealthWriteBackRepair } from "@/components/health-writeback-repair"
@@ -134,7 +135,7 @@ import {
   offlineSyncStatusCopy,
 } from "@/lib/offline-sync-status"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
-import { mealLabel } from "@/lib/food-log"
+import { mealLabel, readAllMealCategories } from "@/lib/food-log"
 import {
   DEFAULT_MEAL_TIMES,
   MEAL_TIME_OFF,
@@ -520,10 +521,19 @@ export default function Settings({
   )
   // Per-meal default log times. Local-only by design — the tag is a writing
   // convenience, not account data; device defaults keep it that way.
-  const [mealTimes, setMealTimes] = useState<Record<string, string>>(() => ({
-    ...DEFAULT_MEAL_TIMES,
-    ...readMealTimes(),
-  }))
+  //
+  // The editor lists every known meal category (the four built-in ones plus any
+  // the user created), so a brand-new custom category is immediately editable
+  // rather than invisible until the user logs something with it.
+  const [mealTimes, setMealTimes] = useState<Record<string, string>>(() => {
+    const defaults: Record<string, string> = {}
+    for (const cat of readAllMealCategories()) {
+      if (cat.id && DEFAULT_MEAL_TIMES[cat.id]) {
+        defaults[cat.id] = DEFAULT_MEAL_TIMES[cat.id]
+      }
+    }
+    return { ...defaults, ...readMealTimes() }
+  })
   const [calories, setCalories] = useState(
     effectiveGoals?.effective.calories ?? 2000
   )
@@ -1847,7 +1857,10 @@ export default function Settings({
 
                 <SettingsSectionLabel title="Default log times" />
                 <GroupedList label="Default log times">
-                  {Object.keys(mealTimes).map((key) => {
+                  {readAllMealCategories()
+                    .map((cat) => cat.id)
+                    .filter(Boolean)
+                    .map((key) => {
                     const value = mealTimes[key]
                     const isOff = value === MEAL_TIME_OFF
                     return (
@@ -2713,7 +2726,9 @@ export default function Settings({
                     )}
                     {supportsHealthSettingsDeepLink() && healthWriteEnabled && (
                       <div className="px-[var(--app-page-x)]">
-                        <HealthWriteBackRepair />
+                        <HealthWriteBackRepair
+                          disabled={healthBusy || syncStatus.running}
+                        />
                         <p className="native-row-detail mt-2">
                           Earlier builds filed each sync push as a separate record, so
                           Health Connect can show stacked day totals. This re-writes the
@@ -2721,10 +2736,11 @@ export default function Settings({
                         </p>
                       </div>
                     )}
-                    {(healthError || healthSync?.lastSyncError) && (
+                    {(healthError || healthSync?.lastSyncError || syncStatus.lastError) && (
                       <p className="native-row-detail px-[var(--app-page-x)] text-destructive">
                         {healthError ??
                           friendlyHealthError(healthSync?.lastSyncError) ??
+                          syncStatus.lastError ??
                           healthSync?.lastSyncError}
                       </p>
                     )}
@@ -2732,12 +2748,17 @@ export default function Settings({
                     <div className="px-[var(--app-page-x)] pt-4">
                       <PrimaryButton
                         className="w-full"
-                        disabled={healthBusy || !healthSyncEnabled}
+                        disabled={healthBusy || syncStatus.running || !healthSyncEnabled}
                         onClick={async () => {
                           setHealthBusy(true)
                           beginHealthSync("Checking Health Connect…")
                           setHealthError(null)
-                          try {
+                          if (syncStatus.lastError) {
+                            // Clear the persisted client-side error the repair /
+                            // a stale mount may have left, so the next sync starts
+                            // with a clean error row.
+                            updateHealthSyncStatus({ lastError: null })
+                          }                          try {
                             const authorization =
                               await requestHealthAuthorization()
                             if (!authorization.granted) {
