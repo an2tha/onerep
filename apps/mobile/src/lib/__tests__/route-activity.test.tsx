@@ -10,7 +10,7 @@ describe("workout ownership during route transitions", () => {
   })
 
   test("the outgoing copy cannot initialize a session or recovery prompt", () => {
-    function SessionThatMustNotMount() {
+    function SessionThatMustNotMount(): never {
       throw new Error("Outgoing route initialized a workout")
     }
     expect(renderToStaticMarkup(
