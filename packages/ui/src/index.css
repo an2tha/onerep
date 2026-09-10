@@ -3525,6 +3525,46 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
     box-shadow: var(--shadow-surface);
   }
 
+  /* Sliding variant: one pill carries the selection and travels between
+     buttons instead of each button painting its own background. The control
+     sets --seg-index to the active button's index; the columns are equal 1fr
+     tracks with a fixed gap, so the pill's offset is index x (its own width +
+     one gap), computed entirely in CSS. */
+  .app-segmented-sliding {
+    position: relative;
+  }
+
+  .app-segmented-pill {
+    position: absolute;
+    z-index: 0;
+    top: 0.25rem;
+    bottom: 0.25rem;
+    left: 0.25rem;
+    width: calc((100% - 1.5rem) / 5);
+    border-radius: calc(var(--radius-control) - 2px);
+    background: var(--surface-panel);
+    box-shadow: var(--shadow-surface);
+    transform: translate3d(calc(var(--seg-index, 0) * (100% + 0.25rem)), 0, 0);
+    transition: transform 340ms var(--motion-ease-out);
+  }
+
+  .app-segmented-sliding .app-segmented-button {
+    position: relative;
+    z-index: 1;
+    transition:
+      color 240ms var(--motion-ease-standard),
+      transform 140ms var(--motion-ease-standard);
+  }
+
+  .app-segmented-sliding .app-segmented-button:active {
+    transform: scale(0.94);
+  }
+
+  .app-segmented-sliding .app-segmented-button[data-active="true"] {
+    background: transparent;
+    box-shadow: none;
+  }
+
   .app-data-chip {
     display: inline-flex;
     min-height: 1.65rem;
@@ -5107,6 +5147,10 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
     animation: none;
   }
 
+  .app-segmented-pill {
+    transition: none;
+  }
+
   .progress-hero-rings.is-armed {
     transition: none;
   }
@@ -5157,6 +5201,25 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   animation: progress-tab-enter 280ms var(--motion-ease-out) both;
 }
 
+/* The pane's sections arrive as a short cascade rather than one block:
+   nth-child delays inside whatever group wraps them, capped so the tail
+   never lags far behind the press. */
+.progress-tab-content .progress-tab-enter:nth-child(2) {
+  animation-delay: 45ms;
+}
+
+.progress-tab-content .progress-tab-enter:nth-child(3) {
+  animation-delay: 90ms;
+}
+
+.progress-tab-content .progress-tab-enter:nth-child(4) {
+  animation-delay: 135ms;
+}
+
+.progress-tab-content .progress-tab-enter:nth-child(n + 5) {
+  animation-delay: 180ms;
+}
+
 /* ── Progress glass (mobile only) ──────────────────────────────────────────
    Frosted matte-glass treatment for the Progress page on phones: chart cards,
    the guidance panel, and the related-history group go translucent with
@@ -5174,6 +5237,26 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   }
 
   .progress-page .app-segmented-button[data-active="true"] {
+    border: 1px solid color-mix(in srgb, var(--foreground) 15%, transparent);
+    background: color-mix(in srgb, var(--surface-panel) 85%, transparent);
+    -webkit-backdrop-filter: blur(24px) saturate(1.5);
+    backdrop-filter: blur(24px) saturate(1.5);
+    box-shadow:
+      0 10px 36px rgba(0, 0, 0, 0.22),
+      inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  }
+
+  .progress-page
+    .app-segmented-sliding
+    .app-segmented-button[data-active="true"] {
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  .progress-page .app-segmented-pill {
     border: 1px solid color-mix(in srgb, var(--foreground) 15%, transparent);
     background: color-mix(in srgb, var(--surface-panel) 85%, transparent);
     -webkit-backdrop-filter: blur(24px) saturate(1.5);
