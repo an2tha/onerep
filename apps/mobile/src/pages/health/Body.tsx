@@ -14,6 +14,7 @@ import {
 import { DialCustomMetrics } from "@/components/dial-custom-metrics"
 import { TrackSomethingNew } from "@/components/track-something-new"
 import { useWeightUnit } from "@/lib/use-weight-unit"
+import { formatWeight as formatDisplayWeight } from "@/lib/exercise-display"
 
 function formatPercent(value: number) {
   return `${value.toFixed(1)}%`
@@ -33,10 +34,7 @@ export default function HealthBody() {
   const navigate = useSmoothNavigate()
   // Storage is kilograms everywhere; the display unit is the user's.
   const weightUnit = useWeightUnit()
-  const formatWeight = (kg: number) =>
-    weightUnit === "lbs"
-      ? `${(kg * 2.20462).toFixed(1)}lb`
-      : `${kg.toFixed(1)}kg`
+  const formatWeight = (kg: number) => formatDisplayWeight(kg, weightUnit)
   const measurements = useQuery(api.bodyProgress.list) as
     | {
         loggedAt: string

@@ -3329,7 +3329,9 @@ export default function Nutrition() {
                     disabled={loggingWaterAmount !== null}
                     className="native-toolbar-button h-11 border border-border bg-card px-3"
                   >
-                    {loggingWaterAmount === 250 ? "Adding..." : "+250 ml"}
+                    {loggingWaterAmount === 250
+                      ? "Adding..."
+                      : `+${fmtWater(250)}`}
                   </button>
                 </div>
                 {waterEntries.length > 0 ? (

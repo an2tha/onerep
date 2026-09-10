@@ -24,9 +24,11 @@ object WidgetStore {
         "carbsGoal",
         "fat",
         "fatGoal",
+        "waterMl",
+        "waterGoalMl",
     )
 
-    val STRING_KEYS = listOf("foodsLogged", "workoutExercises", "workoutBrief")
+    val STRING_KEYS = listOf("foodsLogged", "workoutExercises", "workoutBrief", "waterUnit")
 
     const val NUTRITION_UPDATED_AT = "nutritionWidgetUpdatedAt"
     const val WORKOUT_UPDATED_AT = "workoutWidgetUpdatedAt"
@@ -46,6 +48,9 @@ object WidgetStore {
         val carbsGoal: Int,
         val fat: Int,
         val fatGoal: Int,
+        val waterMl: Int,
+        val waterGoalMl: Int,
+        val waterUnit: String,
         val foodsLogged: String,
         val workoutExercises: String,
         val workoutBrief: String,
@@ -65,6 +70,9 @@ object WidgetStore {
             carbsGoal = p.getInt("carbsGoal", 0),
             fat = p.getInt("fat", 0),
             fatGoal = p.getInt("fatGoal", 0),
+            waterMl = p.getInt("waterMl", 0),
+            waterGoalMl = p.getInt("waterGoalMl", 0),
+            waterUnit = p.getString("waterUnit", "ml").orEmpty(),
             foodsLogged = p.getString("foodsLogged", "").orEmpty(),
             workoutExercises = p.getString("workoutExercises", "").orEmpty(),
             workoutBrief = p.getString("workoutBrief", "").orEmpty(),

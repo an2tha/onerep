@@ -20,6 +20,10 @@ struct TodaySnapshot: Codable, Equatable {
     var fatGoal = 0
     var waterMl = 0
     var waterGoalMl = 0
+    /// How the watch should render water: "ml" or "fl oz". The phone writes
+    /// its user's choice; "ml" keeps older cached snapshots rendering as
+    /// before.
+    var waterUnit = "ml"
     var daysLast28 = 0
     var workoutBrief = ""
     /// Seconds since the epoch. Zero means the phone has never reported in,
@@ -53,6 +57,7 @@ extension TodaySnapshot {
             "fatGoal": fatGoal,
             "waterMl": waterMl,
             "waterGoalMl": waterGoalMl,
+            "waterUnit": waterUnit,
             "daysLast28": daysLast28,
             "workoutBrief": workoutBrief,
             "updatedAt": updatedAt,
@@ -72,6 +77,7 @@ extension TodaySnapshot {
         fatGoal = int("fatGoal")
         waterMl = int("waterMl")
         waterGoalMl = int("waterGoalMl")
+        waterUnit = dictionary["waterUnit"] as? String ?? "ml"
         daysLast28 = int("daysLast28")
         workoutBrief = dictionary["workoutBrief"] as? String ?? ""
         updatedAt = dictionary["updatedAt"] as? Double ?? 0

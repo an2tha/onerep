@@ -150,21 +150,40 @@ private struct WaterRow: View {
             }
             Button {
                 WKInterfaceDevice.current().play(.click)
-                store.logWater(ml: 250)
+                // One glass per tap in either unit: 8 fl oz ≈ 237 ml, so an
+                // fl-oz user's optimistic tick and the phone's correction
+                // agree on the same stored number.
+                store.logWater(ml: store.snapshot.waterUnit == "fl oz" ? 237 : 250)
             } label: {
-                Label("Add 250 ml", systemImage: "plus")
-                    .font(.system(size: 13, weight: .semibold))
-                    .frame(maxWidth: .infinity)
+                Label(
+                    store.snapshot.waterUnit == "fl oz" ? "Add 8 fl oz" : "Add 250 ml",
+                    systemImage: "plus"
+                )
+                .font(.system(size: 13, weight: .semibold))
+                .frame(maxWidth: .infinity)
             }
             .buttonStyle(.bordered)
             .tint(.cyan)
         }
     }
 
+    /// Renders the total and goal in the phone's chosen unit — one unit for
+    /// both operands, fl oz at a tenth-ounce resolution. Storage stays ml.
     private func format(_ ml: Int) -> String {
         let goal = store.snapshot.waterGoalMl
+        if store.snapshot.waterUnit == "fl oz" {
+            return "\(Self.flOzText(ml)) / \(Self.flOzText(goal)) fl oz"
+        }
         guard goal > 0 else { return "\(ml) ml" }
         return "\(ml) / \(goal) ml"
+    }
+
+    /// 1 US fl oz = 29.5735 ml, rounded to a tenth; whole numbers stay whole.
+    private static func flOzText(_ ml: Int) -> String {
+        let flOz = Double(ml) / 29.5735
+        let rounded = (flOz * 10).rounded() / 10
+        if rounded == rounded.rounded() { return String(Int(rounded)) }
+        return String(rounded)
     }
 }
 

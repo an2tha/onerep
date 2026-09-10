@@ -438,15 +438,15 @@ function createFoodLogId() {
 export function buildSnapFoodLogEntry(
   item: SnapReviewItem,
   meal: MealType,
-  options: { id?: string; loggedAt?: string } = {}
+  options: { id?: string; loggedAt?: string; quantityLabel?: string } = {}
 ): FoodLogEntry | null {
   if (!item.selected || !item.food) return null
 
   const grams = clampSnapGrams(item.grams)
   const scaled = scaleFoodForGrams(item.food, grams)
-  const label = snapPortionLabel(grams)
+  const label = options.quantityLabel ?? snapPortionLabel(grams)
   const name =
-    grams === DEFAULT_SNAP_GRAMS
+    grams === DEFAULT_SNAP_GRAMS && !options.quantityLabel
       ? item.food.name
       : `${item.food.name} (${label})`
 

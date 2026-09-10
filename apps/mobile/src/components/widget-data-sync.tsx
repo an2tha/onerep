@@ -11,6 +11,7 @@ import {
 } from "@/lib/workout-sync"
 import { updateOneRepWidgets } from "@/lib/home-widgets"
 import { updateWatchToday, onWatchAction } from "@/lib/watch-sync"
+import { useWaterUnit } from "@/lib/use-water-unit"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { calcTrailingSessions } from "@/lib/training-consistency"
 import { toast } from "@repo/ui"
@@ -18,6 +19,8 @@ import { logDevWarn } from "@/lib/utils"
 
 export function WidgetDataSync() {
   const { user } = useAppAuth()
+  // The watch's water row renders in the user's chosen unit.
+  const waterUnit = useWaterUnit()
   const preferences = useQuery(
     api.users.users.getPreferences,
     user ? {} : "skip"
@@ -42,7 +45,13 @@ export function WidgetDataSync() {
   )
 
   const payload = useMemo(() => {
-    if (!user || !goals || !foodLogs || !presetDocs || schedule === undefined) {
+    if (
+      !user ||
+      !goals ||
+      !foodLogs ||
+      !presetDocs ||
+      schedule === undefined
+    ) {
       return null
     }
 
@@ -92,6 +101,8 @@ export function WidgetDataSync() {
       )
     }, 0)
 
+    const waterEntries = (waterLogs ?? []) as { amountMl: number }[]
+
     return {
       calories: Math.round(totals.calories),
       calorieGoal: Math.round(target.calories),
@@ -117,14 +128,24 @@ export function WidgetDataSync() {
         exerciseNames.length > 0
           ? `${exerciseNames.length} exercises · ${totalSets} sets`
           : "Recovery day",
+      waterUnit,
+      ...(waterLogs !== undefined
+        ? {
+            waterMl: waterEntries.reduce((sum, entry) => sum + entry.amountMl, 0),
+            waterGoalMl: preferences?.waterGoalMl ?? 2500,
+          }
+        : {}),
     }
   }, [
     foodLogs,
     goals,
     preferences?.lastActiveTimezone,
+    preferences?.waterGoalMl,
     presetDocs,
     schedule,
     user,
+    waterLogs,
+    waterUnit,
   ])
 
   useEffect(() => {
@@ -161,10 +182,19 @@ export function WidgetDataSync() {
       fatGoal: payload.fatGoal,
       waterMl: entries.reduce((sum, entry) => sum + entry.amountMl, 0),
       waterGoalMl: preferences?.waterGoalMl ?? 2500,
+      // The watch renders water in the user's chosen unit; ml is the watch's
+      // own default for snapshots from phone builds that predate the choice.
+      waterUnit,
       daysLast28: calcTrailingSessions(trainedDates, trailingDate, 28),
       workoutBrief: payload.workoutBrief,
     }
-  }, [payload, preferences?.waterGoalMl, waterLogs, workoutHistory])
+  }, [
+    payload,
+    preferences?.waterGoalMl,
+    waterLogs,
+    waterUnit,
+    workoutHistory,
+  ])
 
   useEffect(() => {
     if (!watchPayload) return

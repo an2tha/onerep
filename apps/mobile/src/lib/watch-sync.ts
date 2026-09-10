@@ -26,6 +26,12 @@ export type WatchTodayState = {
   fatGoal?: number
   waterMl?: number
   waterGoalMl?: number
+  /**
+   * How the watch should render water — the phone's chosen unit. Optional
+   * with an "ml" default on the watch side, so snapshots from older phone
+   * builds keep rendering exactly as before.
+   */
+  waterUnit?: "ml" | "fl oz"
   daysLast28?: number
   workoutBrief?: string
 }

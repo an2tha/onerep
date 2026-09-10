@@ -81,6 +81,7 @@ import { CustomFoodEditorSheet } from "@/components/custom-food-editor-sheet"
 import {
   currentMeasurementSystem,
   formatQuantityAmount,
+  quantityLabel,
   ozToGrams,
 } from "@/lib/measurement-system"
 import { APP_ACCENT_COLORS, MACRO_COLORS, tint } from "@repo/ui"
@@ -797,8 +798,14 @@ export default function SnapAndLog() {
     // day via setDay, so a concurrent add from the other path loses entries.
     if (snapLogging || loggingTargetRef.current) return
 
+    const system = currentMeasurementSystem()
     const entries = snapReviewItems
-      .map((item) => buildSnapFoodLogEntry(item, meal, { loggedAt: logStamp() }))
+      .map((item) =>
+        buildSnapFoodLogEntry(item, meal, {
+          loggedAt: logStamp(),
+          quantityLabel: quantityLabel(item.grams, system),
+        })
+      )
       .filter((entry): entry is FoodLogEntry => entry !== null)
 
     if (entries.length === 0) {

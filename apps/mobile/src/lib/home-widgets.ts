@@ -1,4 +1,5 @@
 import { Capacitor, registerPlugin } from "@capacitor/core"
+import { formatWaterPair, type WaterUnit } from "./measurement-system"
 
 export type WidgetOverviewState = {
   calories?: number
@@ -13,6 +14,9 @@ export type WidgetOverviewState = {
   foodsLogged?: string
   workoutExercises?: string
   workoutBrief?: string
+  waterMl?: number
+  waterGoalMl?: number
+  waterUnit?: WaterUnit
 }
 
 type HomeWidgetsPlugin = {
@@ -25,6 +29,16 @@ type HomeWidgetsPlugin = {
 // Activity check, which is the reason they never worked on Android.
 const iosPlugin = registerPlugin<HomeWidgetsPlugin>("WorkoutLiveActivity")
 const androidPlugin = registerPlugin<HomeWidgetsPlugin>("HomeWidgets")
+
+/** Pure contract helper shared by tests and any web-side widget preview. */
+export function formatWidgetWater(
+  totalMl: number,
+  goalMl: number,
+  unit: WaterUnit = "ml"
+): string {
+  const pair = formatWaterPair(totalMl, goalMl, unit)
+  return `${pair.total} / ${pair.goal}`
+}
 
 export async function updateOneRepWidgets(state: WidgetOverviewState) {
   if (!Capacitor.isNativePlatform()) return

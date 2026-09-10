@@ -914,7 +914,7 @@ export function RecipeBreakdown({
               >
                 <span>{ingredient.name}</span>
                 <span className="shrink-0 text-muted-foreground tabular-nums">
-                  {Math.round(ingredient.grams)}g
+                  {Math.round(ingredient.grams)} g
                 </span>
               </li>
             ))}
