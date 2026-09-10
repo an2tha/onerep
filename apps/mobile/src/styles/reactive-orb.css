@@ -159,6 +159,48 @@
   --orb-theme-rotation: -4deg;
 }
 
+/* Match OneRep's luminous field before the shared dark veil is applied.
+   Mixing these with the dark canvas here would dim the atmosphere twice. */
+:root:is(.dark, [data-theme="dark"])[data-visual-identity="dusk"] .reactive-orb-field {
+  --orb-field: rgb(201 187 225);
+  --orb-yellow: 255 201 139;
+  --orb-orange: 255 151 127;
+  --orb-rose: 218 155 222;
+  --orb-peach: 248 183 172;
+}
+
+:root:is(.dark, [data-theme="dark"])[data-visual-identity="forest"] .reactive-orb-field {
+  --orb-field: rgb(178 211 202);
+  --orb-yellow: 159 242 193;
+  --orb-orange: 72 216 182;
+  --orb-rose: 114 201 221;
+  --orb-peach: 190 234 211;
+}
+
+:root:is(.dark, [data-theme="dark"])[data-visual-identity="slate"] .reactive-orb-field {
+  --orb-field: rgb(190 204 221);
+  --orb-yellow: 192 217 251;
+  --orb-orange: 132 175 234;
+  --orb-rose: 179 166 227;
+  --orb-peach: 205 212 240;
+}
+
+:root:is(.dark, [data-theme="dark"])[data-visual-identity="ocean"] .reactive-orb-field {
+  --orb-field: rgb(166 209 230);
+  --orb-yellow: 159 232 246;
+  --orb-orange: 87 185 245;
+  --orb-rose: 151 160 236;
+  --orb-peach: 171 228 230;
+}
+
+:root:is(.dark, [data-theme="dark"])[data-visual-identity="blossom"] .reactive-orb-field {
+  --orb-field: rgb(224 188 211);
+  --orb-yellow: 255 204 212;
+  --orb-orange: 250 143 180;
+  --orb-rose: 214 155 237;
+  --orb-peach: 253 187 205;
+}
+
 :root .reactive-orb-field.app-hero-wash::before {
   content: none;
 }
@@ -623,5 +665,107 @@
 
   .reactive-orb-field__droplet {
     display: none;
+  }
+}
+
+/* Live sessions carry the mobile atmosphere behind both workout layouts.
+   Keep the layer out of desktop and past-workout editing entirely. */
+@media (max-width: 767px) {
+  .active-workout-atmosphere {
+    position: relative;
+    isolation: isolate;
+    --muted-foreground: color-mix(in srgb, var(--foreground) 78%, transparent);
+  }
+
+  .active-workout-atmosphere > .active-workout-content {
+    position: relative;
+    z-index: 1;
+  }
+
+  :root .active-workout-atmosphere > .active-workout-wash {
+    height: 100%;
+    min-height: 100svh;
+    --orb-wave-top: 58%;
+    --orb-field-glow-x: 72%;
+    --orb-field-glow-y: 26%;
+    --orb-satellite-opacity: 0.28;
+    --orb-satellite-b-opacity: 0.18;
+  }
+
+  .active-workout-wash .reactive-orb-field__orb {
+    top: 32%;
+    left: 62%;
+    width: min(84vw, 400px);
+    --orb-page-rotation: -12deg;
+  }
+
+  .active-workout-atmosphere .workout-live-header,
+  .active-workout-atmosphere .active-workout-exercise,
+  .active-workout-atmosphere .active-workout-superset,
+  .active-workout-atmosphere .active-workout-focus-sets {
+    background-color: color-mix(in srgb, var(--background) 36%, transparent);
+    background-image: linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--foreground) 7%, transparent),
+      transparent 58%
+    );
+    backdrop-filter: blur(22px) saturate(1.35);
+    -webkit-backdrop-filter: blur(22px) saturate(1.35);
+    border-color: color-mix(in srgb, var(--foreground) 16%, transparent);
+    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--foreground) 12%, transparent),
+      0 12px 28px -18px color-mix(in srgb, #000 38%, transparent);
+  }
+
+  .active-workout-atmosphere .active-workout-exercise-current {
+    border-color: color-mix(in srgb, var(--foreground) 34%, transparent);
+  }
+
+  :root:is(.dark, [data-theme="dark"]) .active-workout-atmosphere {
+    --muted-foreground: color-mix(in srgb, var(--foreground) 88%, transparent);
+  }
+
+  :root:is(.dark, [data-theme="dark"])
+    .active-workout-wash .reactive-orb-field__veil {
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--background) 58%, transparent),
+      color-mix(in srgb, var(--background) 52%, transparent) 30%,
+      color-mix(in srgb, var(--background) 62%, transparent) 62%,
+      color-mix(in srgb, var(--background) 92%, transparent)
+    );
+  }
+
+  /* The superset's outer pane owns the blur; its rows stay transparent. */
+  .active-workout-atmosphere .active-workout-superset .active-workout-exercise {
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    box-shadow: none;
+  }
+
+  .active-workout-atmosphere[data-workout-phase="resting"]
+    .reactive-orb-field__theme-shaper {
+    animation: workout-orb-breathe 5s ease-in-out infinite;
+  }
+
+  @supports not (backdrop-filter: blur(1px)) {
+    .active-workout-atmosphere .workout-live-header,
+    .active-workout-atmosphere .active-workout-exercise,
+    .active-workout-atmosphere .active-workout-superset,
+    .active-workout-atmosphere .active-workout-focus-sets {
+      background-color: color-mix(in srgb, var(--background) 88%, transparent);
+    }
+  }
+}
+
+@keyframes workout-orb-breathe {
+  0%, 100% { scale: 0.96; opacity: 0.85; }
+  50% { scale: 1.04; opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .active-workout-atmosphere[data-workout-phase="resting"]
+    .reactive-orb-field__theme-shaper {
+    animation: none;
   }
 }

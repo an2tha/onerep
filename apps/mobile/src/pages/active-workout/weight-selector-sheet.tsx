@@ -3,15 +3,15 @@
  * total. Lives in its own module because NewPreset reuses it verbatim.
  */
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useId, useRef, useState } from "react"
+import type { ReactNode } from "react"
 import { createPortal } from "react-dom"
-import { Minus, Plus, X } from "@phosphor-icons/react"
+import { CaretDown, Minus, Plus, X } from "@phosphor-icons/react"
 import { cn } from "@/lib/utils"
 import { pushDismissHandler, useBackdropDismiss } from "@repo/ui"
 import {
   BAR_PROFILES,
   KG_TO_LBS,
-  barImageForType,
   barLabelForType,
   defaultBarWeight,
   displayWeightToKg,
@@ -19,8 +19,6 @@ import {
   formatWeightValue,
   normalizeBarType,
   parseKg,
-  plateDisplayFromValues,
-  platePerSideKg,
   toDisplay,
   toKg,
 } from "@/lib/workout-logging"
@@ -30,6 +28,71 @@ export type WeightSelectorChange = {
   weight?: string
   barWeight?: string
   barType?: BarType
+}
+
+// Plate entry also works for equipment whose bar weight is not included.
+function platePerSideKg(totalKg: number | null, barKg: number | null) {
+  return totalKg == null
+    ? null
+    : Math.max(0, (totalKg - Math.max(0, barKg ?? 0)) / 2)
+}
+
+function plateDisplayFromValues(
+  totalWeight: string,
+  barWeight: string,
+  unit: WeightUnit
+) {
+  const plates = platePerSideKg(parseKg(totalWeight), parseKg(barWeight))
+  return plates == null ? "" : formatWeightValue(plates, unit)
+}
+
+function SlidingSection({
+  summary,
+  children,
+  className,
+}: {
+  summary: ReactNode
+  children: ReactNode
+  className?: string
+}) {
+  const [open, setOpen] = useState(false)
+  const contentId = useId()
+
+  return (
+    <div className={className}>
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls={contentId}
+        onClick={() => setOpen((value) => !value)}
+        className="flex min-h-12 w-full items-center justify-between gap-3 rounded-lg text-left text-[13px]"
+      >
+        {summary}
+        <CaretDown
+          size={14}
+          className={cn(
+            "shrink-0 text-muted-foreground transition-transform duration-200 ease-out motion-reduce:transition-none",
+            open && "rotate-180"
+          )}
+        />
+      </button>
+      <div
+        id={contentId}
+        inert={!open}
+        aria-hidden={!open}
+        className={cn(
+          "grid transition-[grid-template-rows,opacity] ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none",
+          open
+            ? "grid-rows-[1fr] opacity-100 duration-240"
+            : "grid-rows-[0fr] opacity-0 duration-180"
+        )}
+      >
+        <div className="min-h-0 overflow-hidden">
+          <div className="p-0.5">{children}</div>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 export function WeightSelectorSheet({
@@ -74,7 +137,6 @@ export function WeightSelectorSheet({
   const totalKg = parseKg(toKg(weightInput, unit))
   const barKg = parseKg(toKg(barInput, unit))
   const hasBar = !!barKg && barKg > 0
-  const activeBarImage = barImageForType(selectedBarType)
   const activeBarLabel = barLabelForType(selectedBarType)
   const currentPlateKg = platePerSideKg(totalKg, barKg)
   const lastWeightLabel =
@@ -197,7 +259,7 @@ export function WeightSelectorSheet({
       return
     }
     setBarInput("")
-    setPlateInput("")
+    updatePlateInput(totalKg, 0)
     onChange({ barWeight: "", barType: selectedBarType })
   }
 
@@ -208,24 +270,11 @@ export function WeightSelectorSheet({
     setBarDisplay(value, true, "custom")
   }
 
-  function ensureBarForPlates() {
-    if (barKg != null && barKg > 0) {
-      return { kg: barKg, type: selectedBarType }
-    }
-    const nextType = selectedBarType === "custom" ? "olympic" : selectedBarType
-    const nextBarKgString = defaultBarWeight(nextType, unit)
-    const nextBarKg = parseKg(nextBarKgString)
-    setSelectedBarType(nextType)
-    setBarInput(toDisplay(nextBarKgString, unit))
-    return { kg: nextBarKg ?? 0, type: nextType }
-  }
-
   function setPlatePerSideDisplay(value: string) {
     setPlateInput(value)
     const nextPlateKg = parseKg(toKg(value, unit))
-    const activeBar = ensureBarForPlates()
     if (nextPlateKg == null) return
-    commitWeightKg(activeBar.kg + nextPlateKg * 2, activeBar.kg, activeBar.type)
+    commitWeightKg(Math.max(0, barKg ?? 0) + nextPlateKg * 2)
   }
 
   function setPlateFromDisplayNumber(value: number) {
@@ -246,16 +295,15 @@ export function WeightSelectorSheet({
   }
 
   function selectPlatePerSide(displayPlate: number) {
-    const activeBar = ensureBarForPlates()
     const plateKg = displayWeightToKg(displayPlate, unit)
     setPlateInput(String(displayPlate))
-    commitWeightKg(activeBar.kg + plateKg * 2, activeBar.kg, activeBar.type)
+    commitWeightKg(Math.max(0, barKg ?? 0) + plateKg * 2)
   }
 
   return createPortal(
     <div
       className={cn(
-        "fixed inset-0 z-50 flex items-end justify-center bg-black/55 backdrop-blur-[8px] md:items-center md:p-6",
+        "mobile-modal-backdrop fixed inset-0 z-50 flex items-end justify-center bg-black/55 backdrop-blur-[8px] md:items-center md:p-6",
         isClosing
           ? "weight-selector-overlay-exit"
           : "weight-selector-overlay-enter"
@@ -270,7 +318,7 @@ export function WeightSelectorSheet({
         aria-modal="true"
         aria-label="Weight selector"
         className={cn(
-          "flex max-h-[92dvh] w-full max-w-sm flex-col overflow-hidden rounded-t-3xl bg-card shadow-[0_-12px_60px_rgba(0,0,0,0.24)] md:max-h-[calc(100dvh-3rem)] md:max-w-3xl md:rounded-[28px] md:shadow-2xl",
+          "mobile-modal-surface flex max-h-[92dvh] w-full max-w-sm flex-col overflow-hidden rounded-t-3xl bg-card shadow-[0_-12px_60px_rgba(0,0,0,0.24)] md:max-h-[calc(100dvh-3rem)] md:max-w-md md:rounded-[28px] md:shadow-2xl [&_button]:focus-visible:outline-2 [&_button]:focus-visible:outline-offset-2 [&_button]:focus-visible:outline-foreground [&_summary]:focus-visible:outline-2 [&_summary]:focus-visible:outline-foreground",
           isClosing
             ? "weight-selector-panel-exit"
             : "weight-selector-panel-enter"
@@ -294,220 +342,14 @@ export function WeightSelectorSheet({
           <button
             onClick={dismiss}
             aria-label="Close weight selector"
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-muted/50 text-muted-foreground/60 transition-colors active:bg-muted active:text-foreground"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-muted/50 text-muted-foreground transition-colors active:bg-muted active:text-foreground"
           >
             <X size={13} weight="bold" />
           </button>
         </div>
 
-        <div
-          className={cn(
-            "min-h-0 flex-1 overflow-y-auto px-5 pb-4 md:px-6 md:pb-5",
-            hasBar &&
-              "md:grid md:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] md:items-start md:gap-3"
-          )}
-        >
-          <div className="rounded-[26px] border border-border/45 bg-background p-3">
-            <div className="flex items-center justify-between gap-3 px-1">
-              <div className="min-w-0">
-                <p className="text-[13px] font-semibold text-muted-foreground">
-                  Bar setup
-                </p>
-                <p className="mt-1 truncate text-[13px] font-semibold text-foreground/75">
-                  {hasBar
-                    ? `${activeBarLabel} · ${barDisplayValue} ${unit}`
-                    : "No bar added"}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={toggleBar}
-                className={cn(
-                  "h-10 shrink-0 rounded-[18px] px-4 text-[13px] font-semibold transition-all",
-                  hasBar
-                    ? "bg-foreground text-background"
-                    : "bg-muted/55 text-muted-foreground/75 active:bg-muted active:text-foreground"
-                )}
-              >
-                {hasBar ? "On" : "Add bar"}
-              </button>
-            </div>
-
-            <div className="relative mt-3 overflow-hidden rounded-[24px] border border-border/35 bg-muted/25 px-3 py-4">
-              <div className="absolute inset-x-5 top-1/2 h-px bg-border/45" />
-              <img
-                src={activeBarImage}
-                alt=""
-                className={cn(
-                  "relative mx-auto w-full object-contain transition-all duration-200",
-                  selectedBarType === "trap" ? "h-24" : "h-14",
-                  !hasBar && "opacity-35 grayscale"
-                )}
-              />
-            </div>
-
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              {BAR_PROFILES.map((profile) => {
-                const selected = hasBar && selectedBarType === profile.type
-                const presetWeight =
-                  unit === "lbs" ? `${profile.lbs} lbs` : `${profile.kg} kg`
-                return (
-                  <button
-                    key={profile.type}
-                    type="button"
-                    onClick={() => selectBarType(profile.type)}
-                    className={cn(
-                      "min-w-0 overflow-hidden rounded-[20px] border p-2 text-left transition-all",
-                      selected
-                        ? "border-foreground/20 bg-foreground text-background shadow-sm"
-                        : "border-border/40 bg-card/65 active:border-primary/20 active:bg-card"
-                    )}
-                  >
-                    <div
-                      className={cn(
-                        "flex h-9 items-center rounded-[14px] px-1.5",
-                        selected ? "bg-background/10" : "bg-muted/30"
-                      )}
-                    >
-                      <img
-                        src={profile.image}
-                        alt=""
-                        className={cn(
-                          "h-full w-full object-contain",
-                          profile.type === "trap" && "scale-125"
-                        )}
-                      />
-                    </div>
-                    <div className="mt-2 flex items-center justify-between gap-2">
-                      <span className="min-w-0 truncate text-[13px] font-semibold">
-                        {profile.shortLabel}
-                      </span>
-                      <span
-                        className={cn(
-                          "shrink-0 text-[13px] font-semibold tabular-nums",
-                          selected
-                            ? "text-background/70"
-                            : "text-muted-foreground"
-                        )}
-                      >
-                        {presetWeight}
-                      </span>
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
-
-            {hasBar && (
-              <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto] gap-2">
-                <label className="relative min-w-0">
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    value={barInput}
-                    onChange={(event) =>
-                      setCustomBarDisplay(event.target.value)
-                    }
-                    className="h-12 w-full [appearance:textfield] rounded-[20px] border border-border/50 bg-card px-3 pr-12 text-center text-[18px] font-semibold tabular-nums transition-all outline-none focus:border-foreground/30 focus:ring-2 focus:ring-foreground/10 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                    aria-label={`Bar weight in ${unit}`}
-                  />
-                  <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-[13px] font-semibold text-muted-foreground">
-                    {unit}
-                  </span>
-                </label>
-                <button
-                  type="button"
-                  onClick={() => setCustomBarDisplay(barInput || "0")}
-                  className={cn(
-                    "h-12 rounded-[20px] px-3 text-[13px] font-semibold transition-all",
-                    selectedBarType === "custom"
-                      ? "bg-foreground text-background"
-                      : "bg-muted/50 text-muted-foreground/70 active:bg-muted active:text-foreground"
-                  )}
-                >
-                  Custom
-                </button>
-              </div>
-            )}
-          </div>
-
-          {hasBar && (
-            <div className="mt-3 rounded-[24px] border border-border/50 bg-background px-4 py-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-[13px] font-semibold text-muted-foreground">
-                    Plates per side
-                  </p>
-                  <p className="mt-1 text-[13px] font-semibold text-foreground/75">
-                    Total {weightInput || "0"} {unit}
-                  </p>
-                </div>
-                <span className="rounded-full bg-muted/45 px-2.5 py-1 text-[13px] font-semibold text-muted-foreground/65">
-                  {activeBarLabel}
-                </span>
-              </div>
-              <div className="mt-3 grid grid-cols-[3rem_minmax(0,1fr)_3rem] items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => applyPlateDelta(-(unit === "kg" ? 1.25 : 2.5))}
-                  className="flex h-11 items-center justify-center rounded-[18px] bg-muted/55 text-muted-foreground/70 transition-all active:bg-muted"
-                  aria-label="Decrease plates per side"
-                >
-                  <Minus size={15} weight="bold" />
-                </button>
-                <label className="relative min-w-0">
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    value={plateInput}
-                    onChange={(event) =>
-                      setPlatePerSideDisplay(event.target.value)
-                    }
-                    placeholder="0"
-                    className="h-12 w-full [appearance:textfield] rounded-[20px] border border-border/55 bg-card px-4 pr-14 text-center text-[22px] leading-none font-semibold tracking-tight tabular-nums transition-all outline-none placeholder:text-muted-foreground focus:border-foreground/30 focus:ring-2 focus:ring-foreground/10 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                    aria-label={`Plates per side in ${unit}`}
-                  />
-                  <span className="pointer-events-none absolute top-1/2 right-4 -translate-y-1/2 text-[13px] font-semibold text-muted-foreground">
-                    {unit}
-                  </span>
-                </label>
-                <button
-                  type="button"
-                  onClick={() => applyPlateDelta(unit === "kg" ? 1.25 : 2.5)}
-                  className="flex h-11 items-center justify-center rounded-[18px] bg-muted/55 text-muted-foreground/70 transition-all active:bg-muted"
-                  aria-label="Increase plates per side"
-                >
-                  <Plus size={15} weight="bold" />
-                </button>
-              </div>
-              <div className="mt-3 grid grid-cols-3 gap-1.5">
-                {plateDeltas.map((delta) => (
-                  <button
-                    key={delta}
-                    type="button"
-                    onClick={() => applyPlateDelta(delta)}
-                    className="h-9 rounded-[15px] bg-muted/40 text-[13px] font-semibold text-muted-foreground/75 tabular-nums transition-all active:bg-muted active:text-foreground"
-                  >
-                    +{delta}
-                  </button>
-                ))}
-              </div>
-              <div className="mt-3 grid grid-cols-4 gap-1.5">
-                {platePresets.map((plate) => (
-                  <button
-                    key={plate}
-                    type="button"
-                    onClick={() => selectPlatePerSide(plate)}
-                    className="h-9 rounded-[15px] bg-card/80 text-[13px] font-semibold text-muted-foreground/75 tabular-nums transition-all active:bg-card active:text-foreground"
-                  >
-                    {plate}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="mt-3 rounded-[24px] border border-border/50 bg-background px-4 py-4 md:mt-0">
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-4">
+          <div className="pb-5">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-[13px] font-semibold text-muted-foreground">
@@ -524,7 +366,7 @@ export function WeightSelectorSheet({
               <button
                 type="button"
                 onClick={() => applyDelta(-(unit === "kg" ? 2.5 : 5))}
-                className="flex h-12 items-center justify-center rounded-[20px] bg-muted/55 text-muted-foreground/70 transition-all active:bg-muted"
+                className="flex h-12 items-center justify-center rounded-[20px] bg-muted/55 text-muted-foreground transition-all active:bg-muted"
                 aria-label="Decrease weight"
               >
                 <Minus size={16} weight="bold" />
@@ -546,39 +388,192 @@ export function WeightSelectorSheet({
               <button
                 type="button"
                 onClick={() => applyDelta(unit === "kg" ? 2.5 : 5)}
-                className="flex h-12 items-center justify-center rounded-[20px] bg-muted/55 text-muted-foreground/70 transition-all active:bg-muted"
+                className="flex h-12 items-center justify-center rounded-[20px] bg-muted/55 text-muted-foreground transition-all active:bg-muted"
                 aria-label="Increase weight"
               >
                 <Plus size={16} weight="bold" />
               </button>
             </div>
-            {!hasBar && (
-              <button
-                type="button"
-                onClick={toggleBar}
-                className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-[18px] bg-muted/55 text-[13px] font-semibold text-foreground/80 transition-all active:bg-muted"
-              >
-                <Plus size={14} weight="bold" />
-                Add bar
-              </button>
-            )}
             <div className="mt-3 grid grid-cols-4 gap-1.5">
               {quickDeltas.map((delta) => (
                 <button
                   key={delta}
                   type="button"
                   onClick={() => applyDelta(delta)}
-                  className="h-10 rounded-[16px] bg-muted/40 text-[13px] font-semibold text-muted-foreground/75 tabular-nums transition-all active:bg-muted active:text-foreground"
+                  className="h-11 rounded-xl bg-muted/40 text-[13px] font-semibold text-muted-foreground tabular-nums transition-all active:bg-muted active:text-foreground"
                 >
                   +{delta}
                 </button>
               ))}
             </div>
           </div>
+
+          <SlidingSection
+            className="border-t border-border/50 py-2"
+            summary={
+              <>
+                <span className="font-semibold">Bar</span>
+                <span className="ml-auto text-muted-foreground">
+                  {hasBar
+                    ? `${activeBarLabel} · ${barDisplayValue} ${unit}`
+                    : "None"}
+                </span>
+              </>
+            }
+          >
+            <div
+              className="grid grid-cols-2 gap-2 pb-3 pt-1"
+              role="group"
+              aria-label="Bar type"
+            >
+              <button
+                type="button"
+                aria-pressed={!hasBar}
+                onClick={() => {
+                  if (hasBar) toggleBar()
+                }}
+                className={cn(
+                  "min-h-11 rounded-xl px-3 text-left text-[13px] font-semibold transition-colors",
+                  !hasBar
+                    ? "bg-foreground text-background"
+                    : "bg-muted/50 text-foreground hover:bg-muted"
+                )}
+              >
+                No bar
+              </button>
+              {BAR_PROFILES.map((profile) => (
+                <button
+                  key={profile.type}
+                  type="button"
+                  aria-pressed={hasBar && selectedBarType === profile.type}
+                  onClick={() => selectBarType(profile.type)}
+                  className={cn(
+                    "flex min-h-11 items-center justify-between gap-2 rounded-xl px-3 text-left text-[13px] font-semibold transition-colors",
+                    hasBar && selectedBarType === profile.type
+                      ? "bg-foreground text-background"
+                      : "bg-muted/50 text-foreground hover:bg-muted"
+                  )}
+                >
+                  <span>{profile.shortLabel}</span>
+                  <span className="font-normal tabular-nums">
+                    {unit === "lbs" ? profile.lbs : profile.kg} {unit}
+                  </span>
+                </button>
+              ))}
+              <button
+                type="button"
+                aria-pressed={hasBar && selectedBarType === "custom"}
+                onClick={() =>
+                  setCustomBarDisplay(
+                    barInput ||
+                      toDisplay(defaultBarWeight("olympic", unit), unit)
+                  )
+                }
+                className={cn(
+                  "min-h-11 rounded-xl px-3 text-left text-[13px] font-semibold transition-colors",
+                  selectedBarType === "custom" && hasBar
+                    ? "bg-foreground text-background"
+                    : "bg-muted/50 text-foreground hover:bg-muted"
+                )}
+              >
+                Custom
+              </button>
+            </div>
+            {selectedBarType === "custom" && (
+              <label className="mb-3 flex min-h-12 items-center gap-3 text-[13px] text-muted-foreground">
+                Bar weight ({unit})
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  value={barInput}
+                  onChange={(event) => setCustomBarDisplay(event.target.value)}
+                  className="h-11 min-w-0 flex-1 rounded-xl border border-border bg-background px-3 text-base font-semibold text-foreground tabular-nums"
+                />
+              </label>
+            )}
+          </SlidingSection>
+
+          <SlidingSection
+            className="border-t border-border/50 py-2"
+            summary={
+              <>
+                <span className="font-semibold">Plates per side</span>
+                <span className="ml-auto text-muted-foreground tabular-nums">
+                  {plateDisplayValue || "0"} {unit}
+                </span>
+              </>
+            }
+          >
+            <div className="mt-3 grid grid-cols-[3rem_minmax(0,1fr)_3rem] items-center gap-2">
+              <button
+                type="button"
+                onClick={() => applyPlateDelta(-(unit === "kg" ? 1.25 : 2.5))}
+                className="flex h-11 items-center justify-center rounded-[18px] bg-muted/55 text-muted-foreground transition-all active:bg-muted"
+                aria-label="Decrease plates per side"
+              >
+                <Minus size={15} weight="bold" />
+              </button>
+              <label className="relative min-w-0">
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  value={plateInput}
+                  onChange={(event) =>
+                    setPlatePerSideDisplay(event.target.value)
+                  }
+                  placeholder="0"
+                  className="h-12 w-full [appearance:textfield] rounded-[20px] border border-border/55 bg-card px-4 pr-14 text-center text-[22px] leading-none font-semibold tracking-tight tabular-nums transition-all outline-none placeholder:text-muted-foreground focus:border-foreground/30 focus:ring-2 focus:ring-foreground/10 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                  aria-label={`Plates per side in ${unit}`}
+                />
+                <span className="pointer-events-none absolute top-1/2 right-4 -translate-y-1/2 text-[13px] font-semibold text-muted-foreground">
+                  {unit}
+                </span>
+              </label>
+              <button
+                type="button"
+                onClick={() => applyPlateDelta(unit === "kg" ? 1.25 : 2.5)}
+                className="flex h-11 items-center justify-center rounded-[18px] bg-muted/55 text-muted-foreground transition-all active:bg-muted"
+                aria-label="Increase plates per side"
+              >
+                <Plus size={15} weight="bold" />
+              </button>
+            </div>
+            <SlidingSection
+              className="mt-3"
+              summary={
+                <span className="text-muted-foreground">Plate shortcuts</span>
+              }
+            >
+              <div className="mt-3 grid grid-cols-3 gap-1.5">
+                {plateDeltas.map((delta) => (
+                  <button
+                    key={delta}
+                    type="button"
+                    onClick={() => applyPlateDelta(delta)}
+                    className="h-11 rounded-xl bg-muted/40 text-[13px] font-semibold text-muted-foreground tabular-nums transition-all active:bg-muted active:text-foreground"
+                  >
+                    +{delta}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-3 grid grid-cols-4 gap-1.5">
+                {platePresets.map((plate) => (
+                  <button
+                    key={plate}
+                    type="button"
+                    onClick={() => selectPlatePerSide(plate)}
+                    className="h-11 rounded-xl bg-card/80 text-[13px] font-semibold text-muted-foreground tabular-nums transition-all active:bg-card active:text-foreground"
+                  >
+                    {plate}
+                  </button>
+                ))}
+              </div>
+            </SlidingSection>
+          </SlidingSection>
         </div>
 
         <div
-          className="shrink-0 border-t border-border/40 bg-card px-5 pt-3 md:px-6"
+          className="shrink-0 border-t border-border/40 bg-card px-5 pt-3 "
           style={{
             paddingBottom: "max(1rem, env(safe-area-inset-bottom, 1rem))",
           }}

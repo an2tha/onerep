@@ -41,7 +41,9 @@ describe("retro mode never touches live workout state", () => {
     // updateActive, via the debounced sync closure
     expect(PAGE).toContain("if (isRetroRef.current) return")
     // abortActive
-    expect(PAGE).toContain("if (!isRetro) await abortActive({ slot })")
+    expect(PAGE).toMatch(
+      /if \(!isRetro\) \{\s*await abortWorkoutAfterPendingWrites\([\s\S]*?\(\) => abortActive\(\{ slot \}\)/
+    )
   })
 
   test("saves through the log mutation, never finishActive", () => {

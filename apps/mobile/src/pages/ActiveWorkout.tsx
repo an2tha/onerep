@@ -1,3 +1,4 @@
+import { ActiveRouteOnly } from "@/lib/route-activity"
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { readCachedWeightUnit } from "@/lib/use-weight-unit"
 import { useParams, useSearchParams } from "react-router"
@@ -37,7 +38,10 @@ import {
   safeSessionStorageSet,
 } from "@/lib/utils"
 import { useSmoothNavigate } from "@/lib/navigation"
+import { abortWorkoutAfterPendingWrites } from "@/lib/workout-lifecycle"
 import { announceOrbActivity } from "@/lib/orb-activity"
+import { ReactiveOrbField } from "@/components/reactive-orb-field"
+import { useIsMobile } from "@/lib/is-mobile"
 import { findNextWorkoutSequenceTarget } from "@/lib/workout-sequencing"
 import {
   resolveExerciseIds,
@@ -296,7 +300,7 @@ function renderSupersetItem(
         else itemRefs.current.delete(key)
       }}
       className={cn(
-        "relative scroll-mt-56 overflow-hidden rounded-[26px] border border-border/55 bg-card shadow-[0_10px_32px_rgba(0,0,0,0.055)] transition-[border-color,opacity,transform] duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+        "active-workout-superset relative scroll-mt-56 overflow-hidden rounded-[26px] border border-border/55 bg-card shadow-[0_10px_32px_rgba(0,0,0,0.055)] transition-[border-color,opacity,transform] duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
         allDone && "bg-muted/[0.06]",
         dropActive && "border-foreground/35",
         supersetDropActive &&
@@ -427,6 +431,15 @@ const SIMPLE_VIEW_KEY = "onerep:active-workout-simple-view"
 const EMPTY_COLLAPSED: Record<string, boolean> = {}
 
 export default function ActiveWorkout() {
+  return (
+    <ActiveRouteOnly>
+      <ActiveWorkoutSession />
+    </ActiveRouteOnly>
+  )
+}
+
+function ActiveWorkoutSession() {
+  const isMobile = useIsMobile(767)
   const routeParams = useParams<{ presetId?: string; date?: string }>()
   const navigate = useSmoothNavigate()
   const posthog = usePostHog()
@@ -654,11 +667,23 @@ export default function ActiveWorkout() {
     )
   }, [rest.remaining])
 
+  const wasRestingRef = useRef(false)
+  useEffect(() => {
+    const isResting = rest.remaining !== null
+    if (wasRestingRef.current && !isResting && isMobile && !isRetro) {
+      announceOrbActivity("workout-ready")
+    }
+    wasRestingRef.current = isResting
+  }, [rest.remaining, isMobile, isRetro])
+
   // Track if we've initialized from Convex to avoid overwriting user's workout data
   const [isInitialized, setIsInitialized] = useState(false)
   // Debounce sync to Convex
   const syncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const isSyncingRef = useRef(false)
+  const pendingCreateRef = useRef<Promise<unknown> | null>(null)
+  const pendingUpdateRef = useRef<Promise<unknown> | null>(null)
+  const createdActiveRef = useRef(false)
   const isDirtyRef = useRef(false)
   const dirtyVersionRef = useRef(0)
   const abortingRef = useRef(false)
@@ -668,6 +693,15 @@ export default function ActiveWorkout() {
   const [achievementMessage, setAchievementMessage] = useState<string | null>(
     null
   )
+  useEffect(() => {
+    return () => {
+      if (syncTimeoutRef.current) {
+        clearTimeout(syncTimeoutRef.current)
+        syncTimeoutRef.current = null
+      }
+    }
+  }, [])
+
   // Refs to capture current state for sync
   const itemsRef = useRef(items)
   const exDataRef = useRef(exData)
@@ -933,6 +967,7 @@ export default function ActiveWorkout() {
         position === index ? { ...set, completed: false } : set
       ),
     })
+    wasRestingRef.current = false
     if (rest.remaining !== null) rest.dismiss()
   }
   function addFocusSet() {
@@ -1023,12 +1058,15 @@ export default function ActiveWorkout() {
             while (!abortingRef.current && isDirtyRef.current) {
               const syncVersion = dirtyVersionRef.current
               setWorkoutSyncStatus("saving")
-              await updateActive({
+              if (pendingCreateRef.current) await pendingCreateRef.current
+              if (abortingRef.current) break
+              pendingUpdateRef.current = updateActive({
                 slot: slotRef.current,
                 items: itemsRef.current,
                 exerciseData: exDataRef.current,
                 elapsedSeconds: elapsedRef.current,
               })
+              await pendingUpdateRef.current
               if (dirtyVersionRef.current === syncVersion) {
                 isDirtyRef.current = false
                 setWorkoutSyncError("")
@@ -1044,6 +1082,7 @@ export default function ActiveWorkout() {
             )
             setWorkoutSyncStatus("error")
           } finally {
+            pendingUpdateRef.current = null
             isSyncingRef.current = false
           }
         },
@@ -1055,7 +1094,9 @@ export default function ActiveWorkout() {
 
   // ── Load from Convex or preset on mount ────────────────────────────────────
   useEffect(() => {
-    if (isInitialized) return
+    if (isInitialized || abortingRef.current) return
+    // Undefined means loading, not permission to start a fresh session.
+    if (!isRetro && activeWorkout === undefined) return
 
     const loadWorkoutState = (
       loadedItems: WorkoutItem[],
@@ -1158,12 +1199,11 @@ export default function ActiveWorkout() {
     }
 
     // If there's an active workout in Convex, load it
-    if (activeWorkout) {
+    if (activeWorkout && resumeDecision !== "discard") {
       if (resumeDecision === "pending") {
         setResumePrompt({ source: "convex" })
         return
       }
-      if (resumeDecision === "discard") return
 
       const loadedItems = (activeWorkout.items as WorkoutItem[]) ?? []
       const loadedExData =
@@ -1173,7 +1213,7 @@ export default function ActiveWorkout() {
     }
 
     const localDraft = readActiveWorkoutDraft(slot)
-    if (localDraft && localDraft.items.length > 0) {
+    if (resumeDecision !== "discard" && localDraft && localDraft.items.length > 0) {
       if (resumeDecision === "pending") {
         setResumePrompt({ source: "local", draft: localDraft })
         return
@@ -1196,8 +1236,11 @@ export default function ActiveWorkout() {
         const loadedExData =
           (match.exerciseData as Record<string, ExerciseState>) ?? {}
         loadWorkoutState(loadedItems, loadedExData, Date.now())
+        return
       }
     }
+    if (presetId && presets === undefined) return
+    loadWorkoutState([], {}, Date.now())
   }, [
     activeWorkout,
     editingLog,
@@ -1248,19 +1291,33 @@ export default function ActiveWorkout() {
     if (!isInitialized) return
     if (abortingRef.current) return
     if (items.length === 0) return
-    if (activeWorkout) return // Already have an active workout
+    if (activeWorkout === undefined) return
+    if (activeWorkout) {
+      if (resumeDecision !== "discard") createdActiveRef.current = true
+      return
+    }
+    if (createdActiveRef.current || pendingCreateRef.current) return
 
     const ids = items.flatMap((i) =>
       i.kind === "solo" ? [i.exerciseId] : i.exerciseIds
     )
     if (ids.length > 0) {
       safeSessionStorageRemove(ABORTED_WORKOUT_SLOT_KEY)
-      void createActive({
+      const pending = createActive({
         slot,
         presetId: presetId ?? undefined,
         items,
         exerciseData: exData,
-      }).catch(reportOfflineMutationError)
+      })
+      pendingCreateRef.current = pending
+      void pending
+        .then(() => {
+          createdActiveRef.current = true
+        })
+        .catch(reportOfflineMutationError)
+        .finally(() => {
+          pendingCreateRef.current = null
+        })
     }
   }, [
     isRetro,
@@ -1270,6 +1327,7 @@ export default function ActiveWorkout() {
     createActive,
     slot,
     presetId,
+    resumeDecision,
     items,
     exData,
   ])
@@ -1295,7 +1353,7 @@ export default function ActiveWorkout() {
     // is the condition that actually matters — it is only reachable after the
     // load effect ran or the user added an exercise themselves, so a session
     // still waiting on a resume decision (items still empty) is unaffected.
-    if (items.length === 0) return
+    if (items.length === 0 || abortingRef.current) return
     // Android's ongoing notification is opt-out; iOS has no such setting, so
     // supportsLiveWorkoutStatusSetting() keeps the preference from suppressing
     // the Live Activity there.
@@ -1818,6 +1876,21 @@ export default function ActiveWorkout() {
     toast.success(`Swapped to ${ex.name}`)
   }
   function updateExData(id: string, data: ExerciseState) {
+    // Compare stable set IDs so edits, reordering and adding empty rows don't
+    // celebrate. Both workout views (and their undo controls) pass here.
+    if (isMobile && !isRetro) {
+      const previous = new Map(
+        exData[id]?.sets.map((set) => [set.id, set.completed])
+      )
+      const logged = data.sets.filter(
+        (set) => set.completed && previous.get(set.id) === false
+      ).length
+      const undone = data.sets.filter(
+        (set) => !set.completed && previous.get(set.id) === true
+      ).length
+      if (logged > 0) announceOrbActivity("workout-set", logged)
+      else if (undone > 0) announceOrbActivity("workout-undo", undone)
+    }
     setExData((prev) => ({ ...prev, [id]: data }))
   }
   function toggleCollapsed(id: string) {
@@ -2243,9 +2316,16 @@ export default function ActiveWorkout() {
 
   return (
     <div
-      className="desktop-canvas min-h-svh [scrollbar-gutter:stable] bg-background md:px-8"
+      className={cn(
+        "desktop-canvas min-h-svh [scrollbar-gutter:stable] bg-background md:px-8",
+        !isRetro && "active-workout-atmosphere"
+      )}
+      data-workout-phase={rest.remaining !== null ? "resting" : "lifting"}
       style={{ viewTransitionName: "active-workout" }}
     >
+      {isMobile && !isRetro && (
+        <ReactiveOrbField className="active-workout-wash" />
+      )}
       {achievementMessage && (
         <div
           className="workout-achievement-pill"
@@ -2256,7 +2336,7 @@ export default function ActiveWorkout() {
           {achievementMessage}
         </div>
       )}
-      <div className="mx-auto flex w-full max-w-2xl flex-col pb-[calc(var(--app-safe-bottom-lg)+7rem)] md:pb-12">
+      <div className="active-workout-content mx-auto flex w-full max-w-2xl flex-col pb-[calc(var(--app-safe-bottom-lg)+7rem)] md:pb-12">
         {!simpleViewActive && (
           <header className="active-workout-header-enter workout-live-header sticky top-0 z-30 border-b border-border bg-background/95 px-[var(--app-page-x)] backdrop-blur-xl md:px-0">
             <div
@@ -2889,30 +2969,37 @@ export default function ActiveWorkout() {
       {confirmAbort && (
         <AbortSheet
           onConfirm={async () => {
-            try {
-              abortingRef.current = true
-              isDirtyRef.current = false
-              if (syncTimeoutRef.current) {
-                clearTimeout(syncTimeoutRef.current)
-                syncTimeoutRef.current = null
+              try {
+                abortingRef.current = true
+                isDirtyRef.current = false
+                if (syncTimeoutRef.current) {
+                  clearTimeout(syncTimeoutRef.current)
+                  syncTimeoutRef.current = null
+                }
+                if (!isRetro) {
+                  await abortWorkoutAfterPendingWrites(
+                    [pendingCreateRef.current, pendingUpdateRef.current],
+                    () => abortActive({ slot })
+                  )
+                  wasRestingRef.current = false
+                  rest.dismiss()
+                  liveActivityStartedRef.current = false
+                  safeSessionStorageSet(ABORTED_WORKOUT_SLOT_KEY, String(slot))
+                  await endWorkoutLiveActivity(liveActivityState).catch((error) =>
+                    logDevWarn("Failed to end workout status", error)
+                  )
+                }
+                clearActiveWorkoutDraft(slot, retroDraftKey ?? undefined)
+                navigate("/workouts", { replace: true, motion: "back" })
+              } catch (err) {
+                abortingRef.current = false
+                isDirtyRef.current = true
+                dirtyVersionRef.current += 1
+                logDevError("Failed to abort workout in Convex:", err)
+                toast.error("Failed to abort workout. Please try again.")
+                throw err
               }
-              if (!isRetro) await abortActive({ slot })
-              clearActiveWorkoutDraft(slot, retroDraftKey ?? undefined)
-              safeSessionStorageSet(ABORTED_WORKOUT_SLOT_KEY, String(slot))
-              void endWorkoutLiveActivity(liveActivityState)
-              navigate(-1)
-            } catch (err) {
-              abortingRef.current = false
-              logDevError("Failed to abort workout in Convex:", err)
-              // Clear pending sync timer on error
-              if (syncTimeoutRef.current) {
-                clearTimeout(syncTimeoutRef.current)
-                syncTimeoutRef.current = null
-              }
-              toast.error("Failed to abort workout. Please try again.")
-              throw err
-            }
-          }}
+            }}
           onCancel={() => setConfirmAbort(false)}
         />
       )}
@@ -2930,26 +3017,38 @@ export default function ActiveWorkout() {
             setResumePrompt(null)
           }}
           onDiscard={async () => {
-            hapticMedium()
-            clearActiveWorkoutDraft(slot)
-            setResumeDecision("discard")
-            setResumePrompt(null)
-            if (resumePrompt.source === "convex") {
+              hapticMedium()
               abortingRef.current = true
               isDirtyRef.current = false
               if (syncTimeoutRef.current) {
                 clearTimeout(syncTimeoutRef.current)
                 syncTimeoutRef.current = null
               }
-              await abortActive({ slot })
-              safeSessionStorageSet(ABORTED_WORKOUT_SLOT_KEY, String(slot))
-              abortingRef.current = false
-            }
-            if (!presetId) {
-              setLocalStartedAt(Date.now())
-              setIsInitialized(true)
-            }
-          }}
+              try {
+                // Keep the prompt open until deletion succeeds. A stale query
+                // must never become the replacement session's contents.
+                await abortWorkoutAfterPendingWrites(
+                  [pendingCreateRef.current, pendingUpdateRef.current],
+                  () => abortActive({ slot })
+                )
+                clearActiveWorkoutDraft(slot)
+                wasRestingRef.current = false
+                rest.dismiss()
+                liveActivityStartedRef.current = false
+                await endWorkoutLiveActivity(liveActivityState).catch((error) =>
+                  logDevWarn("Failed to end workout status", error)
+                )
+                createdActiveRef.current = false
+                setResumeDecision("discard")
+                setResumePrompt(null)
+                setLocalStartedAt(Date.now())
+              } catch (error) {
+                toast.error("Failed to discard workout. Please try again.")
+                throw error
+              } finally {
+                abortingRef.current = false
+              }
+            }}
         />
       )}
       {infoSheet && (

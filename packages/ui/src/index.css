@@ -3,6 +3,8 @@
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/instrument-sans";
 @import "./styles/palette.css";
+@import "./styles/mobile-modals.css";
+@import "./styles/mobile-actions.css";
 
 @source "./**/*.{ts,tsx}";
 @source "../../../apps/mobile/src/**/*.{ts,tsx}";
@@ -8356,7 +8358,7 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
 }
 
 :root[data-visual-identity]:not([data-visual-identity="onerep"])
-  .app-hero-wash.dashboard-home-wash {
+  .app-hero-wash.dashboard-home-wash:not(.reactive-orb-field) {
   background: var(--identity-home-gradient);
 }
 
@@ -9066,9 +9068,9 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
 }
 
 :root[data-visual-identity]:not([data-visual-identity="onerep"])
-  .nutrition-hero-wash,
+  .nutrition-hero-wash:not(.reactive-orb-field),
 :root[data-visual-identity]:not([data-visual-identity="onerep"])
-  .app-hero-wash:not(.dashboard-home-wash) {
+  .app-hero-wash:not(.dashboard-home-wash):not(.reactive-orb-field) {
   height: var(--identity-hero-height);
   background: var(--identity-page-gradient);
   -webkit-mask-image: var(--identity-hero-mask);

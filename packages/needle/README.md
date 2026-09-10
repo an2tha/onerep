@@ -127,17 +127,15 @@ shim over `libneedle.a`, because Kotlin cannot call into a static archive — fo
 archives stop CMake with one line rather than a wall of undefined symbols.
 `MainActivity` registers the plugin.
 
-**iOS** needs two clicks, once. `libneedle.a` has no module map, so Swift needs
-a bridging header, and Xcode build settings do not live in a file `cap sync`
-respects. In Xcode, select the **App** target → **Info** → set **Based on
-Configuration File** to `Needle.xcconfig` for both Debug and Release. That file
-carries the library search paths (device and simulator are both arm64 and need
-different archives), the header search path, `-lneedle -lc++`, and the bridging
-header.
+**iOS** is wired in the App target for both Debug and Release through
+`Needle.xcconfig`. The target compiles `NeedlePlugin.swift`, and
+`BridgeViewController` registers it with Capacitor. The configuration selects
+the device or simulator archive and supplies the bridging header and C++ linker
+flags. Fetch the native archives before building.
 
-`-lc++` is not optional: the engine is C++ behind a C interface, and without it
-the link fails on `___cxa_throw` and a few dozen `std::` symbols, which reads
-like a corrupt archive rather than a missing flag.
+Both native plugins read tuned weights under the bundled `public/needle/`
+directory, which remains available after an OTA update. If the installed shell
+has no tuned asset, the plugins use the supplied fallback URL.
 
 ## The thing to know about the engine
 

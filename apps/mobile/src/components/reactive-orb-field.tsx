@@ -1,4 +1,7 @@
-import { useEffect, useRef } from "react"
+import { useEffect, useMemo, useRef } from "react"
+import { useQuery } from "convex/react"
+import { api } from "../../../../convex/_generated/api"
+import { currentDateKey, offsetDateKey } from "@/lib/food-log"
 
 type ReactiveOrbFieldProps = {
   className?: string
@@ -28,6 +31,12 @@ const clamp = (value: number, minimum: number, maximum: number) =>
 const randomBetween = (minimum: number, maximum: number) =>
   minimum + Math.random() * (maximum - minimum)
 
+// Hard cap on streak plumpness: consecutive logged days grow the orb's
+// resting size, and no chain inflates it past this.
+const FULLNESS_MIN = -0.25
+const FULLNESS_MAX = 0.32
+const STREAK_MASS_PER_DAY = 0.04
+
 /**
  * A soft, inertial background field derived from the supplied orb study.
  * It responds to pointer position, taps, scrolling, a weak pull toward the
@@ -36,13 +45,46 @@ const randomBetween = (minimum: number, maximum: number) =>
  * the viewport on a bouncy spring and drops below the hero — where the oil
  * takes over: a trampoline membrane plus buoyant drift slowly reject it
  * back upward while every mechanism damps down. Desktop parks the orb in
- * the hero instead.
+ * the hero instead. Its resting size is its training age: consecutive
+ * logged days plump it up, a broken chain slims it back down.
  */
 export function ReactiveOrbField({ className = "" }: ReactiveOrbFieldProps) {
   const fieldRef = useRef<HTMLSpanElement>(null)
   const stageRef = useRef<HTMLSpanElement>(null)
   const orbRef = useRef<HTMLSpanElement>(null)
   const deformerRef = useRef<HTMLSpanElement>(null)
+
+  // Streak mass, read live: any day with a workout or a food log keeps the
+  // chain. Same args as the dashboard's own subscriptions, so on the home
+  // stage this data is already in the client cache.
+  const workoutHistory = useQuery(api.logs.workouts.getHistory, {})
+  const recentFoodDays = useQuery(api.logs.foodLogs.getRecent, { limit: 30 })
+
+  const streakTarget = useMemo(() => {
+    if (workoutHistory === undefined || recentFoodDays === undefined) return 0
+    const active = new Set<string>()
+    for (const log of workoutHistory as Array<{ date?: string }>) {
+      if (log.date) active.add(log.date)
+    }
+    for (const day of recentFoodDays as Array<{
+      date: string
+      entries: unknown[]
+    }>) {
+      if (day.entries.length > 0) active.add(day.date)
+    }
+    // Alive if today or yesterday is logged; then count the run backwards.
+    const today = currentDateKey()
+    let cursor = active.has(today) ? today : offsetDateKey(today, -1)
+    if (!active.has(cursor)) return 0
+    let streak = 0
+    while (active.has(cursor)) {
+      streak += 1
+      cursor = offsetDateKey(cursor, -1)
+    }
+    return Math.min(streak * STREAK_MASS_PER_DAY, FULLNESS_MAX)
+  }, [workoutHistory, recentFoodDays])
+  const streakTargetRef = useRef(0)
+  streakTargetRef.current = streakTarget
 
   useEffect(() => {
     const field = fieldRef.current
@@ -526,36 +568,36 @@ export function ReactiveOrbField({ className = "" }: ReactiveOrbFieldProps) {
     const desktopLayout = window.matchMedia("(min-width: 1024px)")
 
     // Appetite: the app announces logged and deleted items on a window
-    // event, and the orb plumps or thins through a slow spring — shedding a
-    // droplet on every log, calling leaks home on every delete. Never
-    // attached under reduced motion (the effect returns early above), so
-    // the orb stays a static illustration there.
+    // event — a log shakes a droplet loose, a delete calls leaks home.
+    // Size itself comes from the streak (see streakTargetRef), not from
+    // individual logs. Never attached under reduced motion (the effect
+    // returns early above), so the orb stays a static illustration there.
     const fullness = { value: 0, velocity: 0, target: 0 }
-    // Hard cap on plumpness, plus a fresh slim orb every calendar day.
-    const FULLNESS_MIN = -0.25
-    const FULLNESS_MAX = 0.32
-    let fullnessDay = new Date().toLocaleDateString("en-CA")
-    let lastDayCheck = 0
     const handleOrbActivity = (event: Event) => {
       const detail = (
         event as CustomEvent<{ kind: string; magnitude?: number }>
       ).detail
       if (!detail) return
-      const magnitude = clamp(detail.magnitude ?? 1, 0.25, 3)
       if (detail.kind === "log") {
-        fullness.target = clamp(
-          fullness.target + 0.08 * magnitude,
-          FULLNESS_MIN,
-          FULLNESS_MAX
-        )
         shedDroplet(performance.now())
-      } else if (detail.kind === "delete") {
-        fullness.target = clamp(
-          fullness.target - 0.1 * magnitude,
-          FULLNESS_MIN,
-          FULLNESS_MAX
-        )
+      } else if (detail.kind === "delete" || detail.kind === "workout-undo") {
         recallDroplets()
+        if (detail.kind === "workout-undo") bodySpring.velocity -= 1.8
+      } else if (detail.kind === "workout-set" || detail.kind === "workout-ready") {
+        // Drive the existing springs: a set gives an upward, elastic kick;
+        // the end of rest is a smaller nudge back into lifting.
+        const strength = detail.kind === "workout-ready"
+          ? 0.45
+          : clamp(Number.isFinite(detail.magnitude) ? detail.magnitude! : 1, 1, 3)
+        bodySpring.angle = 90
+        bodySpring.velocity = clamp(bodySpring.velocity + 4.5 * strength, -8, 12)
+        motion.velocityY -= Math.min(fieldSize.height * 0.18, 130) * strength
+        motion.velocityX += randomBetween(-24, 24) * strength
+        pieces.forEach((piece) => {
+          piece.stretchVelocity += randomBetween(0.12, 0.24) * strength
+          piece.rotationVelocity += randomBetween(-14, 14) * strength
+        })
+        if (detail.kind === "workout-set") shedDroplet(performance.now())
       }
     }
     window.addEventListener("orb-activity", handleOrbActivity)
@@ -861,20 +903,9 @@ export function ReactiveOrbField({ className = "" }: ReactiveOrbFieldProps) {
       // scale below pays for every gram still out there.
       updateDroplets(deltaTime, time)
 
-      // Appetite spring: plumpness from logged items lingers about a minute
-      // before settling back to baseline — and a new calendar day starts
-      // slim again, checked every couple of seconds.
-      if (time - lastDayCheck > 2000) {
-        lastDayCheck = time
-        const today = new Date().toLocaleDateString("en-CA")
-        if (today !== fullnessDay) {
-          fullnessDay = today
-          fullness.value = 0
-          fullness.velocity = 0
-          fullness.target = 0
-        }
-      }
-      fullness.target *= Math.exp(-0.015 * deltaTime)
+      // Streak mass: the spring eases the orb's resting size toward what the
+      // current chain earns. A broken streak slims it back down on its own.
+      fullness.target = streakTargetRef.current
       fullness.velocity +=
         ((fullness.target - fullness.value) * 18 - fullness.velocity * 7) *
         deltaTime

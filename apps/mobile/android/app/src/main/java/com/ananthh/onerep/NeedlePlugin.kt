@@ -82,7 +82,7 @@ class NeedlePlugin : Plugin() {
                 val bytes: ByteArray = if (hasAsset) {
                     try {
                         weightBytesFromAsset(call)
-                    } catch (_: IllegalArgumentException) {
+                    } catch (_: java.io.FileNotFoundException) {
                         // Asset not in bundle (e.g. after OTA update) — fall
                         // through to the network URL if one was supplied.
                         val url = call.getString("url")
@@ -183,7 +183,7 @@ class NeedlePlugin : Plugin() {
 
     private fun weightBytesFromAsset(call: PluginCall): ByteArray {
         val path = call.getString("asset") ?: error("load needs asset path")
-        return context.assets.open(path).use { it.readBytes() }
+        return context.assets.open("public/$path").use { it.readBytes() }
     }
 
     private fun weightBytesFromURL(call: PluginCall, url: String): ByteArray {

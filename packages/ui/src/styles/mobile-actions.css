@@ -1,0 +1,96 @@
+/* A frosted floating button; the expanded menu retains its original styling. */
+@media (max-width: 767px) {
+  :root .coach-fab-trigger {
+    --fab-frost: blur(22px) saturate(1.25) brightness(1.02);
+    color: var(--foreground);
+    background-color: rgb(255 255 255 / 0.46);
+    background-image: linear-gradient(
+      155deg,
+      rgb(255 255 255 / 0.32),
+      rgb(255 255 255 / 0.04) 65%
+    );
+    backdrop-filter: var(--fab-frost);
+    border: 1px solid rgb(255 255 255 / 0.55);
+    border-bottom-color: color-mix(in srgb, var(--foreground) 16%, transparent);
+    border-radius: 50%;
+    box-shadow:
+      inset 0 1px 1px rgb(255 255 255 / 0.45),
+      inset 0 -1px 1px rgb(0 0 0 / 0.06),
+      0 5px 14px -5px rgb(0 0 0 / 0.24);
+    transition: scale 160ms var(--motion-ease-out), box-shadow 160ms ease-out;
+  }
+
+  /* A little white suspended in the blurred backdrop gives dark-mode glass
+     its misty body. It doesn't borrow the nearly opaque modal fill. */
+  :root:is(.dark, [data-theme="dark"]) .coach-fab-trigger {
+    --fab-frost: blur(22px) saturate(1.25) brightness(0.6);
+    background-color: rgb(255 255 255 / 0.1);
+    background-image: linear-gradient(
+      155deg,
+      rgb(255 255 255 / 0.14),
+      rgb(255 255 255 / 0.015) 65%
+    );
+    border-color: rgb(255 255 255 / 0.24);
+    border-bottom-color: rgb(255 255 255 / 0.1);
+    box-shadow:
+      inset 0 1px 1px rgb(255 255 255 / 0.18),
+      inset 0 -1px 1px rgb(0 0 0 / 0.12),
+      0 5px 16px -5px rgb(0 0 0 / 0.35);
+  }
+
+  :root .coach-fab-trigger::before,
+  :root .coach-fab-trigger .coach-fab-gloss {
+    display: none;
+  }
+
+  :root .coach-fab-trigger:active {
+    scale: 0.95;
+    box-shadow: inset 0 1px 2px rgb(255 255 255 / 0.15), 0 2px 6px -3px rgb(0 0 0 / 0.25);
+  }
+
+  :root .coach-fab-trigger[data-open="true"] {
+    border-color: color-mix(in srgb, var(--foreground) 40%, transparent);
+  }
+
+  :root .coach-fab-trigger[data-drag="true"] {
+    scale: 1.04;
+    box-shadow: inset 0 1px 1px rgb(255 255 255 / 0.25), 0 10px 20px -8px rgb(0 0 0 / 0.35);
+  }
+
+  :root .coach-fab-trigger[data-drag="parking"] {
+    transition: translate 320ms var(--motion-ease-out), scale 160ms ease-out;
+  }
+
+  :root .coach-fab-trigger:focus-visible {
+    outline: 2px solid var(--foreground);
+    outline-offset: 4px;
+  }
+
+  /* Separate alias rule keeps Chromium blur intact after CSS optimization. */
+  @supports (-webkit-backdrop-filter: blur(1px)) {
+    :root .coach-fab-trigger {
+      -webkit-backdrop-filter: var(--fab-frost);
+    }
+  }
+
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    :root .coach-fab-trigger,
+    :root:is(.dark, [data-theme="dark"]) .coach-fab-trigger {
+      background-color: var(--background);
+    }
+  }
+
+  @media (prefers-reduced-transparency: reduce) {
+    :root .coach-fab-trigger,
+    :root:is(.dark, [data-theme="dark"]) .coach-fab-trigger {
+      background-color: var(--background);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :root .coach-fab-trigger,
+    :root .coach-fab-trigger[data-drag="parking"] {
+      transition: none;
+    }
+  }
+}

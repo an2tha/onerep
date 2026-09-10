@@ -233,7 +233,7 @@ export function FocusWorkoutView({
 
       {/* The active workout card, shrunk to what fits under a dial: every set
           of this exercise, with the one you are on opened up for editing. */}
-      <div className="mt-6 w-full rounded-2xl border border-border/60 bg-card/40 p-2">
+      <div className="active-workout-focus-sets mt-6 w-full rounded-2xl border border-border/60 bg-card/40 p-2">
         {isCardio ? (
           <p className="px-2 py-3 text-[14px] text-muted-foreground">
             Cardio details live in the expanded view.

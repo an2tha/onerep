@@ -734,12 +734,12 @@ function SearchOverlay({
   return (
     <>
       <div
-        className="fixed inset-0 z-50 bg-background"
+        className="mobile-modal-backdrop fixed inset-0 z-50 bg-background"
         role="dialog"
         aria-modal="true"
         aria-label="Add ingredient"
       >
-        <div className="desktop-canvas flex min-h-svh flex-col bg-background">
+        <div className="mobile-modal-surface desktop-canvas flex min-h-svh flex-col bg-background">
           <div className="mx-auto flex w-full max-w-lg flex-1 flex-col md:max-w-4xl">
             <div
               className="flex items-center gap-3 px-[var(--app-page-x)] pb-4"

@@ -10,6 +10,7 @@ class BridgeViewController: CAPBridgeViewController {
         bridge?.registerPluginInstance(OtaTrustPlugin())
         bridge?.registerPluginInstance(OAuthSessionPlugin())
         bridge?.registerPluginInstance(BillingPlugin())
+        bridge?.registerPluginInstance(NeedlePlugin())
 
         // The web app supplies its own controls. Remove Safari's large
         // previous/next/dismiss form accessory bar above the iOS keyboard.

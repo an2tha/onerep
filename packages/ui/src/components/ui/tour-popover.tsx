@@ -152,6 +152,7 @@ export function TourPopover({
   return createPortal(
     <div
       ref={cardRef}
+      data-slot="tour-content"
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}
