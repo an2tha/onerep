@@ -78,12 +78,12 @@ import {
   type CarbDisplayMode,
 } from "@/lib/carb-display"
 import {
-  currentMeasurementSystem,
   flOzToMl,
   formatWater,
   mlToFlOz,
-  waterUnitForSystem,
+  type WaterUnit,
 } from "@/lib/measurement-system"
+import { useWaterUnit } from "@/lib/use-water-unit"
 import { mealTargetProgress } from "@/lib/meal-targets"
 import { formatFastDuration } from "@/lib/fasting"
 import { useFastTimer } from "@/lib/use-fast-timer"
@@ -243,8 +243,9 @@ function fmt(n: number) {
   return Math.round(n).toLocaleString("en-US")
 }
 
-function fmtWater(ml: number) {
-  return formatWater(ml, currentMeasurementSystem())
+/** Curried so every water surface in this file formats in one chosen unit. */
+function makeWaterFormatter(unit: WaterUnit) {
+  return (ml: number) => formatWater(ml, unit)
 }
 
 /** Coarse countdown for the fasting ring: "3h 47m", or "12m" under the hour. */
@@ -667,9 +668,14 @@ function CustomWaterSheet({
   onAdd: () => void | Promise<void>
   onClose: () => void
 }) {
-  // The field speaks the system's unit; storage and the clamp stay ml, so a
-  // fl oz entry rounds to the same stored number the drawer and widgets use.
-  const imperial = currentMeasurementSystem() === "imperial"
+  // The field speaks the user's chosen water unit; storage and the clamp
+  // stay ml, so a fl oz entry rounds to the same stored number the drawer
+  // and widgets use.
+  const unit = useWaterUnit()
+  const flOz = unit === "fl oz"
+  // One fluid ounce per tap in fl-oz mode; 50 ml in metric. Unlabeled
+  // otherwise, but the number should move by a unit the user can picture.
+  const stepMl = flOz ? Math.round(flOzToMl(1)) : 50
   function setClamped(next: number) {
     onAmountChange(Math.max(1, Math.min(5000, Math.round(next))))
   }
@@ -688,7 +694,7 @@ function CustomWaterSheet({
         <div className="mt-4 flex items-center justify-between rounded-[1rem] bg-muted/35 p-1">
           <button
             type="button"
-            onClick={() => setClamped(amount - 50)}
+            onClick={() => setClamped(amount - stepMl)}
             aria-label="Decrease custom water amount"
             className="flex h-11 w-11 items-center justify-center rounded-[0.8rem] bg-background text-[18px] font-bold"
           >
@@ -696,7 +702,7 @@ function CustomWaterSheet({
           </button>
           <label className="min-w-0 flex-1 px-3 text-center">
             <span className="sr-only">
-              {imperial
+              {flOz
                 ? "Custom water amount in fluid ounces"
                 : "Water amount in milliliters"}
             </span>
@@ -705,31 +711,27 @@ function CustomWaterSheet({
               inputMode="numeric"
               name="nutrition-custom-water-ml"
               aria-label={
-                imperial
+                flOz
                   ? "Custom water amount in fluid ounces"
                   : "Custom water amount in milliliters"
               }
               min={1}
               max={5000}
-              value={
-                imperial
-                  ? Number(mlToFlOz(amount).toFixed(1))
-                  : amount
-              }
+              value={flOz ? Number(mlToFlOz(amount).toFixed(1)) : amount}
               onChange={(event) => {
                 const raw = Number(event.target.value)
                 if (Number.isNaN(raw)) return
-                setClamped(imperial ? flOzToMl(raw) : raw)
+                setClamped(flOz ? flOzToMl(raw) : raw)
               }}
               className="w-full bg-transparent text-center text-[1.75rem] leading-none font-extrabold tabular-nums outline-none"
             />
             <span className="mt-1 block text-[13px] font-medium text-muted-foreground">
-              {imperial ? "fl oz" : "milliliters"}
+              {flOz ? "fl oz" : "milliliters"}
             </span>
           </label>
           <button
             type="button"
-            onClick={() => setClamped(amount + 50)}
+            onClick={() => setClamped(amount + stepMl)}
             aria-label="Increase custom water amount"
             className="flex h-11 w-11 items-center justify-center rounded-[0.8rem] bg-background text-[18px] font-bold"
           >
@@ -737,14 +739,14 @@ function CustomWaterSheet({
           </button>
         </div>
         <div className="mt-3 grid grid-cols-4 gap-2">
-          {(imperial ? [5, 8, 17, 34] : [150, 250, 500, 1000]).map((preset) => (
+          {(flOz ? [5, 8, 17, 34] : [150, 250, 500, 1000]).map((preset) => (
             <button
               key={preset}
               type="button"
-              onClick={() => setClamped(imperial ? flOzToMl(preset) : preset)}
+              onClick={() => setClamped(flOz ? flOzToMl(preset) : preset)}
               className="app-button app-button-quiet justify-center"
             >
-              {fmtWater(imperial ? flOzToMl(preset) : preset)}
+              {formatWater(flOz ? flOzToMl(preset) : preset, unit)}
             </button>
           ))}
         </div>
@@ -753,7 +755,7 @@ function CustomWaterSheet({
           onClick={onAdd}
           className="app-button mt-4 min-h-11 w-full justify-center bg-foreground text-background"
         >
-          Add {fmtWater(amount)}
+          Add {formatWater(amount, unit)}
         </button>
       </div>
     </MobileSheet>
@@ -772,8 +774,13 @@ function WaterGoalSheet({
   onClose: () => void
 }) {
   const [draft, setDraft] = useState(goalMl)
-  // The field edits in the system's unit; storage stays ml.
-  const imperial = currentMeasurementSystem() === "imperial"
+  // The field edits in the user's chosen water unit; storage stays ml.
+  const unit = useWaterUnit()
+  const flOz = unit === "fl oz"
+  // 8 fl oz (a glass) per tap in fl-oz mode, 250 ml otherwise — the same
+  // rhythm the Settings goal stepper uses, with the same floors.
+  const stepMl = flOz ? Math.round(flOzToMl(8)) : 250
+  const minMl = flOz ? Math.round(flOzToMl(17)) : 250
 
   return (
     <MobileSheet
@@ -801,13 +808,15 @@ function WaterGoalSheet({
           <div className="flex items-baseline gap-1">
             <span className="text-[13px] font-medium">Water</span>
             <span className="text-[13px] text-muted-foreground">
-              {imperial ? "fl oz" : "ml"}
+              {unit === "fl oz" ? "fl oz" : "ml"}
             </span>
           </div>
           <div className="flex items-center rounded-xl bg-muted/50 p-0.5">
             <button
               type="button"
-              onClick={() => setDraft((value) => Math.max(250, value - 250))}
+              onClick={() =>
+                setDraft((value) => Math.max(minMl, value - stepMl))
+              }
               aria-label="Decrease daily water goal"
               className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground/60 active:bg-background active:text-foreground"
             >
@@ -817,23 +826,19 @@ function WaterGoalSheet({
               type="number"
               name="water-goal-ml"
               aria-label={
-                imperial ? "Daily water goal in fl oz" : "Daily water goal in ml"
+                flOz ? "Daily water goal in fl oz" : "Daily water goal in ml"
               }
-              value={
-                imperial ? Number(mlToFlOz(draft).toFixed(1)) : draft
-              }
+              value={flOz ? Number(mlToFlOz(draft).toFixed(1)) : draft}
               onChange={(event) => {
                 const next = Number.parseFloat(event.target.value)
                 if (Number.isNaN(next)) return
-                setDraft(
-                  Math.max(250, imperial ? flOzToMl(next) : next)
-                )
+                setDraft(Math.max(minMl, flOz ? flOzToMl(next) : next))
               }}
               className="h-10 w-20 bg-transparent text-center text-[13px] font-semibold tabular-nums outline-none"
             />
             <button
               type="button"
-              onClick={() => setDraft((value) => value + 250)}
+              onClick={() => setDraft((value) => value + stepMl)}
               aria-label="Increase daily water goal"
               className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground/60 active:bg-background active:text-foreground"
             >
@@ -2138,6 +2143,10 @@ function SupplementRow({
 
 export default function Nutrition() {
   const energyUnit = useEnergyUnit()
+  // Water's unit is its own choice (ml or fl oz), not an implication of the
+  // measurement system — the Settings row picks it.
+  const waterUnit = useWaterUnit()
+  const fmtWater = makeWaterFormatter(waterUnit)
   const navigate = useSmoothNavigate()
   const nutritionHeaderRef = useTourAnchor("nutrition-header")
   const [searchParams, setSearchParams] = useSearchParams()
@@ -3197,7 +3206,8 @@ export default function Nutrition() {
                 <p className="mt-1 text-[13px] text-muted-foreground">
                   {entries.length} food{" "}
                   {entries.length === 1 ? "entry" : "entries"} ·{" "}
-                  {fmtWater(waterTotal)} water · {supplementDone} supplements
+                  {fmtWater(waterTotal)} water ·{" "}
+                  {supplementDone} supplements
                 </p>
               </div>
               <button
@@ -3816,7 +3826,7 @@ export default function Nutrition() {
                     label="Hydration"
                     value={waterTotal}
                     target={waterGoal}
-                    suffix={waterUnitForSystem(currentMeasurementSystem())}
+                    suffix={waterUnit}
                     format={fmtWater}
                     color={APP_ACCENT_COLORS.water}
                     animateChanges

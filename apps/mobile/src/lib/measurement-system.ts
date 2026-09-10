@@ -18,6 +18,13 @@
 import { safeLocalStorageGet, safeLocalStorageSet } from "./utils"
 import { cacheEnergyUnit } from "./use-energy-unit"
 import { cacheWeightUnit } from "./use-weight-unit"
+import {
+  cacheWaterUnit,
+  waterUnitIsExplicit,
+  type WaterUnit,
+} from "./use-water-unit"
+
+export type { WaterUnit } from "./use-water-unit"
 import { formatSnapGrams } from "./food-snap-review"
 
 export type MeasurementSystem = "metric" | "imperial"
@@ -58,6 +65,14 @@ export function applyMeasurementSystem(system: MeasurementSystem) {
   cacheWeightUnit(system === "imperial" ? "lbs" : "kg")
   // The cache stores the account's spelling ("Cal"), not the display form.
   cacheEnergyUnit(system === "imperial" ? "Cal" : "kcal")
+  // Water follows the system only as a *default*: it keeps the cached unit
+  // in step for anyone who has never picked one explicitly. An explicit
+  // choice (Settings row, or an account that carries one) is never
+  // overridden — flipping the master switch must not undo a deliberate
+  // "imperial everything, but my bottle reads ml".
+  if (!waterUnitIsExplicit()) {
+    cacheWaterUnit(waterUnitForSystem(system))
+  }
 }
 
 /** The cardio distance unit new workouts should start in. */
@@ -65,8 +80,8 @@ export function distanceUnitForSystem(system: MeasurementSystem): "km" | "mi" {
   return system === "imperial" ? "mi" : "km"
 }
 
-/** The water goal's display unit for the system. */
-export function waterUnitForSystem(system: MeasurementSystem): "ml" | "fl oz" {
+/** The water goal's display unit for a system — the *default*, not the law. */
+export function waterUnitForSystem(system: MeasurementSystem): WaterUnit {
   return system === "imperial" ? "fl oz" : "ml"
 }
 
@@ -82,15 +97,14 @@ export function flOzToMl(flOz: number): number {
 }
 
 /**
- * Formats a stored ml amount for display in the system's unit. Storage is
+ * Formats a stored ml amount in the user's chosen water unit. Storage is
  * always ml; only this render step converts, so goals, chips, and history
- * keep one canonical number underneath.
+ * keep one canonical number underneath. The unit is its own preference —
+ * a metric household can still think in fl-oz glasses — so it is passed in
+ * rather than derived from the measurement system.
  */
-export function formatWater(
-  ml: number,
-  system: MeasurementSystem
-): string {
-  if (system === "imperial") {
+export function formatWater(ml: number, unit: WaterUnit): string {
+  if (unit === "fl oz") {
     const flOz = mlToFlOz(ml)
     if (flOz >= 100) return `${Math.round(flOz)} fl oz`
     return `${Number(flOz.toFixed(1))} fl oz`
@@ -107,15 +121,15 @@ export function formatWater(
  * magnitude systems. formatWater picks per-value (a 250 ml total reads "250
  * ml" while a 2000 ml goal reads "2 L"), which left the pair "0.25 / 500
  * ml" — a quarter milliliter, if you read it literally. The goal anchors
- * the choice: metric stays ml whenever the goal is sub-liter, imperial is
- * always fl oz.
+ * the choice: ml stays ml whenever the goal is sub-liter, fl oz is always
+ * fl oz.
  */
 export function formatWaterPair(
   totalMl: number,
   goalMl: number,
-  system: MeasurementSystem
+  unit: WaterUnit
 ): { total: string; goal: string } {
-  if (system === "imperial") {
+  if (unit === "fl oz") {
     return {
       total: `${Number(mlToFlOz(totalMl).toFixed(1))} fl oz`,
       goal: `${Number(mlToFlOz(goalMl).toFixed(1))} fl oz`,
