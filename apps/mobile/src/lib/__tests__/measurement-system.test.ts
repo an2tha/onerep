@@ -3,8 +3,13 @@ import {
   applyMeasurementSystem,
   distanceUnitForSystem,
   flOzToMl,
+  formatQuantityAmount,
   formatWater,
+  gramsToOz,
   mlToFlOz,
+  ozToGrams,
+  quantityLabel,
+  quantityUnitForSystem,
   readMeasurementSystem,
   waterUnitForSystem,
   writeMeasurementSystem,
@@ -99,5 +104,34 @@ describe("water formatting", () => {
     expect(mlToFlOz(ml)).toBeCloseTo(1, 6)
     expect(flOzToMl(1)).toBeCloseTo(29.5735, 6)
     expect(flOzToMl(mlToFlOz(1234))).toBeCloseTo(1234, 3)
+  })
+})
+
+describe("food quantity formatting", () => {
+  test("metric keeps the exact grams formatting", () => {
+    expect(formatQuantityAmount(100, "metric")).toBe("100")
+    expect(formatQuantityAmount(87.5, "metric")).toBe("87.5")
+    expect(quantityUnitForSystem("metric")).toBe("g")
+  })
+
+  test("imperial converts grams to ounces at a tenth-ounce resolution", () => {
+    expect(quantityUnitForSystem("imperial")).toBe("oz")
+    // 100 g ≈ 3.527 oz → shows 3.5
+    expect(formatQuantityAmount(100, "imperial")).toBe("3.5")
+    // A whole ounce stays whole (no trailing .0)
+    expect(formatQuantityAmount(28.3495, "imperial")).toBe("1")
+    expect(formatQuantityAmount(226.796, "imperial")).toBe("8")
+  })
+
+  test("typed ounces convert back to grams within rounding", () => {
+    // 3.5 oz typed → 99.22 g, rounds back to the same displayed 3.5 oz
+    const grams = ozToGrams(3.5)
+    expect(formatQuantityAmount(grams, "imperial")).toBe("3.5")
+    expect(gramsToOz(ozToGrams(6))).toBeCloseTo(6, 9)
+  })
+
+  test("quantityLabel prints number and unit together", () => {
+    expect(quantityLabel(250, "metric")).toBe("250 g")
+    expect(quantityLabel(250, "imperial")).toBe("8.8 oz")
   })
 })

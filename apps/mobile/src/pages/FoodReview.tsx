@@ -22,6 +22,10 @@ import {
 } from "@/lib/food-log"
 import type { FoodDetail, FoodResult } from "@repo/models"
 import { reportOfflineMutationError } from "@/lib/offline-mutation-errors"
+import {
+  currentMeasurementSystem,
+  quantityLabel,
+} from "@/lib/measurement-system"
 
 type FoodReviewLocationState = {
   item?: FoodResult
@@ -106,7 +110,7 @@ export default function FoodReview() {
       name:
         grams === 100 && !portion
           ? food.name
-          : `${food.name} (${portion ? foodPortionLabel(portion) : `${grams} g`})`,
+          : `${food.name} (${portion ? foodPortionLabel(portion) : quantityLabel(grams, currentMeasurementSystem())})`,
       ...macros,
       loggedAt: foodLogTimestampForMeal(date, meal, reviewParams.get("time")),
       meal,

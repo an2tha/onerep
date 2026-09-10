@@ -567,7 +567,7 @@ type Props = {
     portion: FoodPortion
   ) => string
   addedLabel?: (mealLabel: string, portion: FoodPortion) => string
-  /** Database foods only: opens the correction editor pre-filled with what
+  /** Every food: opens the correction editor pre-filled with what
    *  the sheet is displaying (same serving basis), saving the user a
    *  corrected private copy. */
   onCorrectValues?: (detail: FoodDetail | null) => void

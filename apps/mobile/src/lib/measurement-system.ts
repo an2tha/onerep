@@ -18,6 +18,7 @@
 import { safeLocalStorageGet, safeLocalStorageSet } from "./utils"
 import { cacheEnergyUnit } from "./use-energy-unit"
 import { cacheWeightUnit } from "./use-weight-unit"
+import { formatSnapGrams } from "./food-snap-review"
 
 export type MeasurementSystem = "metric" | "imperial"
 
@@ -31,6 +32,20 @@ export function readMeasurementSystem(): MeasurementSystem {
 
 export function writeMeasurementSystem(system: MeasurementSystem) {
   safeLocalStorageSet(MEASUREMENT_SYSTEM_KEY, system)
+  cachedSystem = system
+}
+
+/**
+ * One cached read for every non-component caller (formatters, event
+ * handlers, entry builders): re-reading localStorage per formatted number
+ * is not free, and the write path above keeps the cache honest.
+ */
+let cachedSystem: MeasurementSystem | null = null
+
+/** Non-reactive read for non-component code (pure helpers, event handlers). */
+export function currentMeasurementSystem(): MeasurementSystem {
+  if (cachedSystem === null) cachedSystem = readMeasurementSystem()
+  return cachedSystem
 }
 
 /**
@@ -85,4 +100,50 @@ export function formatWater(
     return `${liters % 1 === 0 ? liters : liters.toFixed(1)} L`
   }
   return `${Math.round(ml)} ml`
+}
+
+/** 1 avoirdupois ounce = 28.3495 g. Food quantities stay grams underneath. */
+export const G_PER_OZ = 28.3495
+
+export function gramsToOz(grams: number): number {
+  return grams / G_PER_OZ
+}
+
+export function ozToGrams(oz: number): number {
+  return oz * G_PER_OZ
+}
+
+/**
+ * A food quantity for display or typed input, in the system's unit.
+ *
+ * Metric keeps `formatSnapGrams`' exact trimming; imperial rounds to a tenth
+ * of an ounce, which is the resolution kitchen scales in the US actually
+ * show. Macros stay grams regardless — that is how US nutrition labels are
+ * legally presented, so converting "Protein 4.4 g" to ounces would read as
+ * wrong, not thorough.
+ */
+export function formatQuantityAmount(
+  grams: number,
+  system: MeasurementSystem
+): string {
+  if (system === "metric") return formatSnapGrams(grams)
+  const oz = gramsToOz(grams)
+  const rounded = Math.round(oz * 10) / 10
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1)
+}
+
+/** The typed-in display unit for food quantities. */
+export function quantityUnitForSystem(system: MeasurementSystem): "g" | "oz" {
+  return system === "imperial" ? "oz" : "g"
+}
+
+/**
+ * A logged entry's quantity tag — "150 g" or "5.3 oz" — for entry names and
+ * history rows. The grams underneath never change; this is only the words.
+ */
+export function quantityLabel(
+  grams: number,
+  system: MeasurementSystem
+): string {
+  return `${formatQuantityAmount(grams, system)} ${quantityUnitForSystem(system)}`
 }
