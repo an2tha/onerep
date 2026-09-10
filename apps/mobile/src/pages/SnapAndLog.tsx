@@ -68,6 +68,19 @@ import {
   type SnapFoodMatch,
   type SnapReviewItem,
 } from "@/lib/food-snap-review"
+import {
+  customFoodDraftFromFoodResult,
+  customFoodNutrientsFromDraft,
+  foodLogEntryFromCustomFood,
+  type CustomFood,
+  type CustomFoodDraft,
+} from "@/lib/custom-foods"
+import { CustomFoodEditorSheet } from "@/components/custom-food-editor-sheet"
+import {
+  currentMeasurementSystem,
+  formatQuantityAmount,
+  ozToGrams,
+} from "@/lib/measurement-system"
 import { APP_ACCENT_COLORS, MACRO_COLORS, tint } from "@repo/ui"
 import { useAiFeatureGate } from "@/lib/ai-access"
 import { reportOfflineMutationError } from "@/lib/offline-mutation-errors"
@@ -93,6 +106,34 @@ function isCancelledCapture(error: unknown) {
   if (!(error instanceof Error)) return false
   if (error.name === "UserCancelled" || error.name === "AbortError") return true
   return /cancel/i.test(error.message ?? "")
+}
+
+/**
+ * Overlays a user's corrected copy onto a scan result.
+ *
+ * Custom foods store macros per serving; a `FoodResult`'s macros are per
+ * 100 g — the basis the whole scanner (portion scaling, presets, entry
+ * building) is built on. Rebasing keeps that machinery intact and only the
+ * numbers change, so the review card shows and logs the user's own values
+ * for any quantity they pick.
+ */
+function withCorrectedMacros(
+  food: FoodResult,
+  corrected: CustomFood
+): FoodResult {
+  const per100 = corrected.servingGrams && corrected.servingGrams > 0
+    ? 100 / corrected.servingGrams
+    : 1
+  return {
+    ...food,
+    name: corrected.name,
+    brand: corrected.brand ?? food.brand,
+    serving: corrected.servingLabel || food.serving,
+    calories: Math.round(corrected.nutrientsPerServing.calories * per100),
+    protein: Math.round(corrected.nutrientsPerServing.protein * per100 * 10) / 10,
+    carbs: Math.round(corrected.nutrientsPerServing.carbs * per100 * 10) / 10,
+    fat: Math.round(corrected.nutrientsPerServing.fat * per100 * 10) / 10,
+  }
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -141,6 +182,22 @@ export default function SnapAndLog() {
     api.logs.foodLogs.removeEntry,
     "logs.foodLogs.removeEntry"
   )
+  const saveCustomFood = useOfflineMutation(
+    api.logs.customFoods.save,
+    "logs.customFoods.save"
+  )
+  // The user's corrected copies, so the next scan of the same barcode logs
+  // the user's numbers instead of the database's. Keyed by barcode for the
+  // direct hit; the fallback scan walks the list when the id differs.
+  const customFoodsQuery = useQuery(api.logs.customFoods.list, {})
+  const customFoods = (customFoodsQuery ?? []) as CustomFood[]
+  const correctedForBarcode = useCallback(
+    (code: string) =>
+      customFoods.find(
+        (food) => food.barcode && food.barcode.trim() === code.trim()
+      ) ?? null,
+    [customFoods]
+  )
 
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -172,6 +229,13 @@ export default function SnapAndLog() {
   const [barcodeResult, setBarcodeResult] = useState<FoodResult | null>(null)
   const [barcodeError, setBarcodeError] = useState<string | null>(null)
   const [barcodeScanNonce, setBarcodeScanNonce] = useState(0)
+  // Correcting a scanned product's values: the editor draft, pre-filled from
+  // what the card claims. Saving stores a private custom food carrying the
+  // barcode, so every later scan of the same product logs the fixed numbers.
+  const [correctionDraft, setCorrectionDraft] = useState<CustomFoodDraft | null>(
+    null
+  )
+  const [savingCorrection, setSavingCorrection] = useState(false)
 
   // Log state
   const [meal, setMeal] = useState<MealType>(defaultMeal())
@@ -408,7 +472,12 @@ export default function SnapAndLog() {
       const code = result.getText().trim()
       const food = await getFoodByBarcode(code)
       if (food) {
-        setBarcodeResult(food)
+        // A corrected copy wins: the user already told us the database's
+        // numbers for this barcode are wrong. The copy is per-serving, the
+        // card's macros are per-100 g, so the values are rebased before the
+        // overlay — the card then shows and logs the user's own figures.
+        const corrected = correctedForBarcode(code)
+        setBarcodeResult(corrected ? withCorrectedMacros(food, corrected) : food)
         setBarcodeError(null)
       } else {
         setBarcodeError(`No food found for barcode ${code}`)
@@ -616,6 +685,39 @@ export default function SnapAndLog() {
       "image/jpeg",
       0.85
     )
+  }
+
+  // ── Correct a scanned product's values ────────────────────────────────────
+
+  async function saveCorrection() {
+    if (!correctionDraft || savingCorrection) return
+    setSavingCorrection(true)
+    try {
+      await saveCustomFood({
+        name: correctionDraft.name.trim(),
+        brand: correctionDraft.brand.trim() || undefined,
+        servingLabel: correctionDraft.servingLabel.trim(),
+        servingGrams: correctionDraft.servingGrams.trim()
+          ? Number(correctionDraft.servingGrams)
+          : undefined,
+        barcode: correctionDraft.barcode.trim() || undefined,
+        notes: correctionDraft.notes.trim() || undefined,
+        favorite: correctionDraft.favorite,
+        nutrientsPerServing: customFoodNutrientsFromDraft(correctionDraft),
+      })
+      setCorrectionDraft(null)
+      toast.success("Corrected values saved to your foods")
+      // Re-run the barcode lookup so the open card rebases onto the saved
+      // copy without the user having to scan twice.
+      if (barcodeResult) {
+        const corrected = correctedForBarcode(barcodeResult.code)
+        if (corrected) setBarcodeResult(withCorrectedMacros(barcodeResult, corrected))
+      }
+    } catch (error) {
+      reportOfflineMutationError(error)
+    } finally {
+      setSavingCorrection(false)
+    }
   }
 
   // ── Log a food item ───────────────────────────────────────────────────────
@@ -1105,6 +1207,9 @@ export default function SnapAndLog() {
           snapLogging={snapLogging}
           loggingTarget={loggingTarget}
           onAdd={handleAdd}
+          onCorrectValues={(item) =>
+            setCorrectionDraft(customFoodDraftFromFoodResult(item))
+          }
           onConfirmSnap={handleConfirmSnapLog}
           onSnapItemChange={updateSnapReviewItem}
           onRetake={() => {
@@ -1124,6 +1229,17 @@ export default function SnapAndLog() {
             setBarcodeError(null)
             setBarcodeScanNonce((n) => n + 1)
           }}
+        />
+      )}
+
+      {correctionDraft && (
+        <CustomFoodEditorSheet
+          draft={correctionDraft}
+          saving={savingCorrection}
+          title="Correct these values"
+          onChange={setCorrectionDraft}
+          onClose={() => setCorrectionDraft(null)}
+          onSave={() => void saveCorrection()}
         />
       )}
 
@@ -1147,6 +1263,7 @@ type ResultsSheetProps = {
   snapLogging: boolean
   loggingTarget: string | null
   onAdd: (item: FoodResult) => void
+  onCorrectValues: (item: FoodResult) => void
   onConfirmSnap: () => void
   onSnapItemChange: (
     id: string,
@@ -1170,6 +1287,7 @@ function ResultsSheet({
   snapLogging,
   loggingTarget,
   onAdd,
+  onCorrectValues,
   onConfirmSnap,
   onSnapItemChange,
   onRetake,
@@ -1303,6 +1421,7 @@ function ResultsSheet({
                     logging={loggingTarget === item.id}
                     disabled={Boolean(loggingTarget)}
                     onAdd={onAdd}
+                    onCorrectValues={onCorrectValues}
                   />
                 ))}
               </div>
@@ -1525,22 +1644,33 @@ function SnapQuantityControl({
   disabled: boolean
   onChange: (grams: number) => void
 }) {
-  const [inputValue, setInputValue] = useState(formatSnapGrams(grams))
+  // The field speaks the system's unit; grams stay the currency underneath,
+  // so presets and macro scaling keep working unchanged.
+  const system = currentMeasurementSystem()
+  const imperial = system === "imperial"
+  const toDisplay = (g: number) => formatQuantityAmount(g, system)
+  const [inputValue, setInputValue] = useState(toDisplay(grams))
 
   useEffect(() => {
-    setInputValue(formatSnapGrams(grams))
-  }, [grams])
+    setInputValue(toDisplay(grams))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [grams, system])
 
   function commit(raw: string) {
     const next = Number(raw.replace(/[^0-9.]/g, ""))
     if (Number.isFinite(next) && next > 0) {
-      onChange(clampSnapGrams(next))
+      onChange(clampSnapGrams(imperial ? ozToGrams(next) : next))
     } else {
-      setInputValue(formatSnapGrams(grams))
+      setInputValue(toDisplay(grams))
     }
   }
 
   function step(direction: 1 | -1) {
+    if (imperial) {
+      // Half-ounce steps: the resolution US packages actually quote.
+      onChange(clampSnapGrams(grams + direction * ozToGrams(0.5)))
+      return
+    }
     const increment = grams < 50 ? 5 : grams < 200 ? 10 : 25
     onChange(clampSnapGrams(grams + direction * increment))
   }
@@ -1574,10 +1704,14 @@ function SnapQuantityControl({
             if (event.key === "Enter") event.currentTarget.blur()
           }}
           className="h-9 min-w-0 flex-1 bg-transparent text-center text-[15px] font-semibold text-white outline-none disabled:opacity-40"
-          aria-label="Snap food quantity in grams"
+          aria-label={
+            imperial
+              ? "Snap food quantity in ounces"
+              : "Snap food quantity in grams"
+          }
         />
         <span className="ml-1 shrink-0 text-[13px] font-semibold text-white/70">
-          g
+          {imperial ? "oz" : "g"}
         </span>
       </label>
 
@@ -1638,6 +1772,7 @@ function BarcodeResultRow({
   logging,
   disabled,
   onAdd,
+  onCorrectValues,
 }: {
   item: FoodResult
   meal: MealType
@@ -1645,6 +1780,7 @@ function BarcodeResultRow({
   logging: boolean
   disabled: boolean
   onAdd: (item: FoodResult, grams: number) => void
+  onCorrectValues: (item: FoodResult) => void
 }) {
   const energyUnit = useEnergyUnit()
   const mealCfg = mealConfig(meal)
@@ -1722,6 +1858,14 @@ function BarcodeResultRow({
           onChange={setGrams}
         />
       </div>
+      <button
+        type="button"
+        onClick={() => onCorrectValues(item)}
+        disabled={disabled}
+        className="mt-2 text-[13px] font-medium text-white/60 underline decoration-white/30 underline-offset-2 transition-opacity active:opacity-70"
+      >
+        Values look wrong? Correct them
+      </button>
     </div>
   )
 }

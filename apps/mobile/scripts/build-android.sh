@@ -61,7 +61,11 @@ echo "    verified: $ASSETS_PUBLIC matches dist/ (bundle $DIST_BUNDLE_NAME)"
 # Windows shell often has neither java on PATH nor JAVA_HOME set.
 if [ -z "${JAVA_HOME:-}" ]; then
   if command -v java >/dev/null 2>&1; then
-    JAVA_HOME="$(dirname "$(dirname "$(command -v java)")")"
+    # Resolve symlinks first: /usr/bin/java is an alternatives symlink on many
+    # Linux installs, and two naive dirname steps would yield /usr, which
+    # Gradle rejects as a Java home.
+    JAVA_BIN="$(readlink -f "$(command -v java)" 2>/dev/null || command -v java)"
+    JAVA_HOME="$(dirname "$(dirname "$JAVA_BIN")")"
   elif ls "$HOME"/.jdks/*/bin/java.exe >/dev/null 2>&1; then
     JAVA_HOME="$(ls -d "$HOME"/.jdks/*/ | sort | tail -1 | sed 's:/$::')"
   fi

@@ -57,6 +57,11 @@ import { useEnergyUnit, type EnergyUnit } from "@/lib/use-energy-unit"
 import { energyDisplay } from "@repo/ui"
 import { WATER_BG, WATER_COLOR } from "./constants"
 import { fmtWater } from "./helpers"
+import {
+  currentMeasurementSystem,
+  flOzToMl,
+  mlToFlOz,
+} from "@/lib/measurement-system"
 
 export type QuickActionId =
   | "workout"
@@ -195,6 +200,8 @@ function WaterDrawer({
   const entries = (rawEntries ?? []) as WaterEntry[]
   const totalMl = entries.reduce((sum, entry) => sum + entry.amountMl, 0)
   const goalMl = preferences?.waterGoalMl ?? 2500
+  // The custom field speaks the system's unit; storage stays ml underneath.
+  const imperialWater = currentMeasurementSystem() === "imperial"
   const percent = Math.min(
     100,
     Math.round((totalMl / Math.max(1, goalMl)) * 100)
@@ -226,9 +233,10 @@ function WaterDrawer({
   }
 
   function submitCustom() {
-    const parsed = Number.parseInt(custom, 10)
+    const parsed = Number.parseFloat(custom)
     if (!Number.isFinite(parsed) || parsed <= 0) return
-    add(parsed)
+    // The field speaks the system's unit; storage stays ml.
+    add(imperialWater ? flOzToMl(parsed) : parsed)
     setCustom("")
   }
 
@@ -301,7 +309,7 @@ function WaterDrawer({
           style={{ backgroundColor: WATER_BG, color: WATER_COLOR }}
         >
           <PintGlass size={19} weight="bold" />
-          Add 250 ml
+          Add {fmtWater(250)}
         </button>
         {WATER_CHIPS.map((ml) => (
           <button
@@ -321,14 +329,22 @@ function WaterDrawer({
           type="number"
           inputMode="numeric"
           min={1}
-          max={WATER_CUSTOM_MAX}
+          max={
+            imperialWater
+              ? Math.round(mlToFlOz(WATER_CUSTOM_MAX))
+              : WATER_CUSTOM_MAX
+          }
           value={custom}
           onChange={(event) => setCustom(event.target.value)}
           onKeyDown={(event) => {
             if (event.key === "Enter") submitCustom()
           }}
-          placeholder="Amount in ml"
-          aria-label="Custom water amount in millilitres"
+          placeholder={imperialWater ? "Amount in fl oz" : "Amount in ml"}
+          aria-label={
+            imperialWater
+              ? "Custom water amount in fluid ounces"
+              : "Custom water amount in millilitres"
+          }
           className="h-12 min-w-0 flex-1 bg-transparent text-right text-[15px] tabular-nums outline-none placeholder:text-left placeholder:text-muted-foreground"
         />
         <button
