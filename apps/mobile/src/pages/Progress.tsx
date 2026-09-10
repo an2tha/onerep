@@ -607,9 +607,17 @@ export default function Progress() {
 
         <div
           ref={progressTabsRef}
-          className="app-segmented mt-5 mb-5 grid grid-cols-5"
+          className="app-segmented app-segmented-sliding mt-5 mb-5 grid grid-cols-5"
           aria-label="Progress metric"
+          style={
+            { "--seg-index": PROGRESS_TABS.indexOf(metric) } as CSSProperties
+          }
         >
+          {/* One pill that travels instead of five backgrounds that blink:
+              --seg-index parks it under the active button and the transition
+              does the slide. The columns are equal 1fr tracks, so the offset
+              is index x (pill width + one gap) - no measuring JS. */}
+          <span className="app-segmented-pill" aria-hidden="true" />
           {PROGRESS_TABS.map((item) => (
             <button
               key={item}
