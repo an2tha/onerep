@@ -5,6 +5,10 @@
  * that can be reasoned about — and tested — without standing up the dashboard.
  */
 
+import {
+  currentMeasurementSystem,
+  formatWater,
+} from "@/lib/measurement-system"
 import { todayIso } from "@/lib/workout-sync"
 import { ABORTED_WORKOUT_SLOT_KEY } from "./constants"
 import type { ActiveWorkoutCandidate, RoutineDay } from "./constants"
@@ -22,11 +26,7 @@ export function fmtKcal(n: number) {
 }
 
 export function fmtWater(ml: number): string {
-  if (ml >= 1000) {
-    const l = ml / 1000
-    return l % 1 === 0 ? `${l} L` : `${l.toFixed(1)} L`
-  }
-  return `${ml} ml`
+  return formatWater(ml, currentMeasurementSystem())
 }
 
 export function dateKeyToCalendarDate(dateKey: string) {

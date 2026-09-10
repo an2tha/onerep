@@ -133,35 +133,31 @@ function RepairRunner({
   const [snapshot, setSnapshot] = useState<DayPayload[] | null>(null)
   const [progress, setProgress] = useState(0)
   const readErrorsRef = useRef(0)
-  const settleDeadlineRef = useRef(0)
+  const timedOutRef = useRef(false)
 
+  // Every key must be a loaded value or an Error — undefined means the query
+  // is still in flight and pushing now could file a day as empty. If the
+  // device has lost connectivity the queries can stay undefined forever, so
+  // a real timer owns the abort: render-triggered checks alone would never
+  // fire, because nothing re-renders when nothing arrives.
   useEffect(() => {
     if (phase !== "loading") return
+    timedOutRef.current = false
+    const timer = window.setTimeout(() => {
+      timedOutRef.current = true
+      onFinished(null)
+    }, 20_000)
+    return () => window.clearTimeout(timer)
+  }, [phase])
 
-    // Every key must be a loaded value or an Error — undefined means the
-    // query is still in flight and pushing now could file a day as empty.
-    // If the device has lost connectivity the queries can stay undefined,
-    // so this effect polls each render until they settle or the deadline
-    // passes, rather than blocking the main thread.
-    if (settleDeadlineRef.current === 0) {
-      settleDeadlineRef.current = Date.now() + 20_000
-    }
+  useEffect(() => {
+    if (phase !== "loading" || timedOutRef.current) return
 
     const allSettled = dayKeys.every(
       (key) =>
         foodQueries[key] !== undefined && waterQueries[key] !== undefined
     )
-    if (!allSettled) {
-      if (Date.now() >= settleDeadlineRef.current) {
-        // Timeout — the parent restores the arm button and shows the retry
-        // message instead of leaving the progress bar stuck.
-        onFinished(null)
-        settleDeadlineRef.current = 0
-      }
-      return
-    }
-    // settled — release the deadline so a re-arm can start a fresh clock.
-    settleDeadlineRef.current = 0
+    if (!allSettled) return
     let readErrors = 0
     const payloads: DayPayload[] = dayKeys.map((date) => {
       const food = foodQueries[date]

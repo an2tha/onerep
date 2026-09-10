@@ -17,6 +17,11 @@ import type { ReactNode } from "react"
 
 import { api } from "../../../../convex/_generated/api"
 import { hapticMedium } from "@/lib/haptics"
+import {
+  currentMeasurementSystem,
+  formatWater,
+  mlToFlOz,
+} from "@/lib/measurement-system"
 
 export function DayRail({
   dateKey,
@@ -76,6 +81,7 @@ export function DayRail({
     ? Math.round(calorieGoal - calories)
     : null
   const takenCount = supplements.filter((s) => s.logId).length
+  const imperialWater = currentMeasurementSystem() === "imperial"
 
   return (
     <aside
@@ -147,10 +153,12 @@ export function DayRail({
       >
         <p className="flex items-baseline gap-1.5">
           <span className="text-[26px] leading-none font-semibold tracking-tight text-foreground tabular-nums lg:text-[32px]">
-            {(waterTotalMl / 1000).toFixed(2).replace(/0$/, "")}
+            {imperialWater
+              ? Number(mlToFlOz(waterTotalMl).toFixed(1))
+              : (waterTotalMl / 1000).toFixed(2).replace(/0$/, "")}
           </span>
           <span className="text-[13px] text-muted-foreground">
-            / {(waterGoalMl / 1000).toFixed(1).replace(/\.0$/, "")} L
+            / {formatWater(waterGoalMl, currentMeasurementSystem())}
           </span>
         </p>
         <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">

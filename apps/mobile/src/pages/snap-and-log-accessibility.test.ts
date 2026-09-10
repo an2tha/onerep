@@ -60,7 +60,10 @@ describe("Snap and Log accessibility contract", () => {
 
   test("snap quantity input exposes stable mobile form metadata", () => {
     expect(SNAP_SOURCE).toContain('name="snap-food-grams"')
-    expect(SNAP_SOURCE).toContain('aria-label="Snap food quantity in grams"')
+    // The unit follows the measurement system; the label names whichever
+    // one is on screen so screen readers never announce the wrong unit.
+    expect(SNAP_SOURCE).toContain('"Snap food quantity in ounces"')
+    expect(SNAP_SOURCE).toContain('"Snap food quantity in grams"')
   })
 
   test("camera result logging prevents duplicate submissions", () => {

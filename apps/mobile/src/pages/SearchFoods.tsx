@@ -48,6 +48,10 @@ import {
 import { promoteLoggedFoods } from "@/lib/food-search-ranking"
 import { buildQuickRepeatFoods, type QuickRepeatFood } from "@/lib/food-quick-repeat"
 import {
+  currentMeasurementSystem,
+  quantityLabel,
+} from "@/lib/measurement-system"
+import {
   customFoodDraftFromDatabaseFood,
   customFoodNutrientsFromDraft,
   filterCustomFoods,
@@ -380,7 +384,7 @@ export default function SearchFoods() {
         name:
           grams === 100 && !portion
             ? item.name
-            : `${item.name} (${portion ? foodPortionLabel(portion) : `${grams} g`})`,
+            : `${item.name} (${portion ? foodPortionLabel(portion) : quantityLabel(grams, currentMeasurementSystem())})`,
         ...macros,
         loggedAt: foodLogTimestampForMeal(date, meal, searchParams.get("time")),
         meal,

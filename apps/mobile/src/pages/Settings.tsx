@@ -64,6 +64,8 @@ import { HealthWriteBackRepair } from "@/components/health-writeback-repair"
 import { cacheWeightUnit, readCachedWeightUnit } from "@/lib/use-weight-unit"
 import {
   applyMeasurementSystem,
+  flOzToMl,
+  mlToFlOz,
   type MeasurementSystem,
 } from "@/lib/measurement-system"
 import { useMeasurementSystem } from "@/lib/use-measurement-system"
@@ -859,7 +861,10 @@ export default function Settings({
    * units agrees without visiting three rows.
    */
   async function chooseMeasurementSystem(system: MeasurementSystem) {
-    applyMeasurementSystem(system)
+    // Through the hook setter, not applyMeasurementSystem alone: the
+    // SegmentedControl is bound to hook state, and a direct store write
+    // would leave the tapped button looking unselected until remount.
+    setMeasurementSystemState(system)
     const weight: WeightUnit = system === "imperial" ? "lbs" : "kg"
     const energy: EnergyUnitStored = system === "imperial" ? "Cal" : "kcal"
     setWeightUnitState(weight)
@@ -1881,12 +1886,22 @@ export default function Settings({
                   <SettingsRow label="Water" detail="Daily hydration target">
                     <NumberStepper
                       onInteract={hapticTap}
-                      value={waterGoal}
-                      onChange={setWaterGoalState}
-                      suffix="ml"
-                      min={500}
-                      max={5000}
-                      step={250}
+                      value={
+                        measurementSystem === "imperial"
+                          ? Math.round(mlToFlOz(waterGoal))
+                          : waterGoal
+                      }
+                      onChange={(next) =>
+                        setWaterGoalState(
+                          measurementSystem === "imperial"
+                            ? Math.round(flOzToMl(next))
+                            : next
+                        )
+                      }
+                      suffix={measurementSystem === "imperial" ? "oz" : "ml"}
+                      min={measurementSystem === "imperial" ? 17 : 500}
+                      max={measurementSystem === "imperial" ? 170 : 5000}
+                      step={measurementSystem === "imperial" ? 8 : 250}
                       label="Water"
                     />
                   </SettingsRow>
@@ -1898,8 +1913,11 @@ export default function Settings({
                     .map((cat) => cat.id)
                     .filter(Boolean)
                     .map((key) => {
+                    // A custom category with no stored time is "off" —
+                    // rendering it as enabled-with-empty-field would claim a
+                    // default exists while logging actually uses the clock.
                     const value = mealTimes[key]
-                    const isOff = value === MEAL_TIME_OFF
+                    const isOff = value === undefined || value === MEAL_TIME_OFF
                     return (
                       <SettingsRow
                         key={key}

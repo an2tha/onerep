@@ -319,3 +319,33 @@ export function customFoodDraftFromDatabaseFood(food: {
 function round2(value: number) {
   return Math.round(value * 10) / 10
 }
+
+/**
+ * Pre-fills the editor draft from any scan/search result, so the
+ * "correct these values" flow works from the camera sheet too. Every macro
+ * on a scan result is per 100 g (that is the datasource's basis), so the
+ * serving basis for the corrected copy is 100 g and the numbers carry over
+ * as typed — exactly the figures the review card was showing.
+ */
+export function customFoodDraftFromFoodResult(food: {
+  code?: string
+  name: string
+  brand?: string
+  serving?: string
+  calories: number
+  protein: number
+  carbs: number
+  fat: number
+}): CustomFoodDraft {
+  return customFoodDraftFromDatabaseFood({
+    code: food.code,
+    name: food.name,
+    brand: food.brand,
+    servingLabel: food.serving,
+    servingGrams: 100,
+    calories: food.calories,
+    protein: food.protein,
+    carbs: food.carbs,
+    fat: food.fat,
+  })
+}
