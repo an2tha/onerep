@@ -86,7 +86,6 @@ import {
 import { useWaterUnit } from "@/lib/use-water-unit"
 import { mealTargetProgress } from "@/lib/meal-targets"
 import { formatFastDuration } from "@/lib/fasting"
-import { mealDefaultTime } from "@/lib/meal-times"
 import { useFastTimer } from "@/lib/use-fast-timer"
 import {
   buildSupplementDayPlan,
@@ -4130,7 +4129,8 @@ export default function Nutrition() {
               <input
                 id="nutrition-log-time"
                 type="time"
-                value={logTime ?? mealDefaultTime(defaultMeal()) ?? ""}
+                value={logTime ?? ""}
+                placeholder="Meal default"
                 aria-description="Leave blank to use the selected meal's default time"
                 onChange={(event) => {
                   if (isFoodLogTime(event.target.value))

@@ -12,6 +12,7 @@ const WATER_UNIT_EXPLICIT_KEY = "onerep:water-unit-explicit"
 const listeners = new Set<WaterUnitListener>()
 let activeAccountKey: string | null = null
 let cachedUnit: WaterUnit | null = null
+const optimisticUnits = new Map<string, WaterUnit>()
 
 function scopedKey(key: string, accountKey = activeAccountKey) {
   return accountKey ? `${key}:${accountKey}` : `${key}:unscoped`
@@ -52,18 +53,28 @@ export function waterUnitIsExplicit(accountKey = activeAccountKey): boolean {
 export function cacheWaterUnit(
   unit: WaterUnit,
   explicit = false,
-  accountKey = activeAccountKey
+  accountKey = activeAccountKey,
+  optimistic = false
 ) {
   safeLocalStorageSet(scopedKey(WATER_UNIT_KEY, accountKey), unit)
   if (explicit) {
     safeLocalStorageSet(scopedKey(WATER_UNIT_EXPLICIT_KEY, accountKey), "1")
   }
+  const namespace = accountKey ?? "unscoped"
+  if (optimistic) optimisticUnits.set(namespace, unit)
+  else if (optimisticUnits.get(namespace) === unit) optimisticUnits.delete(namespace)
   cachedUnit = unit
   notifyWaterUnitChanged()
 }
 
 export function clearExplicitWaterUnit(accountKey = activeAccountKey) {
   safeLocalStorageSet(scopedKey(WATER_UNIT_EXPLICIT_KEY, accountKey), "0")
+  notifyWaterUnitChanged()
+}
+
+/** Reverts a pending offline choice when its server mutation fails. */
+export function clearOptimisticWaterUnit(accountKey = activeAccountKey) {
+  optimisticUnits.delete(accountKey ?? "unscoped")
   notifyWaterUnitChanged()
 }
 
@@ -87,12 +98,17 @@ export function useWaterUnit(): WaterUnit {
   const stored = preferences?.waterUnit
   const known: WaterUnit | null =
     stored === "fl oz" || stored === "ml" ? stored : null
+  const namespace = accountKey ?? "unscoped"
   const [cached, setCached] = useState(() => readCachedWaterUnit(accountKey))
 
   useEffect(() => {
     setActiveWaterAccount(accountKey)
     setCached(readCachedWaterUnit(accountKey))
-    if (known) cacheWaterUnit(known, true, accountKey)
+    if (known) {
+      const optimistic = optimisticUnits.get(namespace)
+      if (optimistic === known) optimisticUnits.delete(namespace)
+      if (!optimisticUnits.has(namespace)) cacheWaterUnit(known, true, accountKey)
+    }
   }, [accountKey, known])
 
   useEffect(() => {
@@ -104,5 +120,5 @@ export function useWaterUnit(): WaterUnit {
     }
   }, [accountKey])
 
-  return known ?? cached
+  return optimisticUnits.get(namespace) ?? known ?? cached
 }

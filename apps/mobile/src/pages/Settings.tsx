@@ -64,7 +64,9 @@ import { HealthWriteBackRepair } from "@/components/health-writeback-repair"
 import { cacheWeightUnit, readCachedWeightUnit } from "@/lib/use-weight-unit"
 import {
   cacheWaterUnit,
+  clearOptimisticWaterUnit,
   readCachedWaterUnit,
+  useWaterUnit,
   type WaterUnit,
 } from "@/lib/use-water-unit"
 import {
@@ -539,6 +541,7 @@ export default function Settings({
   const [waterUnit, setWaterUnitState] = useState<WaterUnit>(
     readCachedWaterUnit()
   )
+  const resolvedWaterUnit = useWaterUnit()
   // The metric/imperial master switch. Follows the individual units too:
   // hand-picking lb or cal flips the system, so the switch never disagrees
   // with the rows beneath it.
@@ -794,6 +797,10 @@ export default function Settings({
   }, [preferences])
 
   useEffect(() => {
+    if (preferences !== undefined) setWaterUnitState(resolvedWaterUnit)
+  }, [preferences, resolvedWaterUnit])
+
+  useEffect(() => {
     if (preferences?.waterGoalMl) {
       setWaterGoalState(preferences.waterGoalMl)
     }
@@ -919,13 +926,14 @@ export default function Settings({
 
   async function chooseWaterUnit(unit: WaterUnit) {
     setWaterUnitState(unit)
-    cacheWaterUnit(unit, true, preferences?._id ?? null)
+    cacheWaterUnit(unit, true, preferences?._id ?? null, true)
     // No system-label sync here on purpose: water is the one unit a user
     // may reasonably pick against their system (a kg household thinking in
     // 8-oz glasses), so it must not drag the master switch either way.
     try {
       await setWaterUnit({ unit })
     } catch {
+      clearOptimisticWaterUnit(preferences?._id ?? null)
       toast.error("Could not save your water unit")
     }
   }
@@ -1941,7 +1949,7 @@ export default function Settings({
                             : next
                         )
                       }
-                      suffix={waterUnit === "fl oz" ? "oz" : "ml"}
+                      suffix={waterUnit === "fl oz" ? "fl oz" : "ml"}
                       min={waterUnit === "fl oz" ? 17 : 500}
                       max={waterUnit === "fl oz" ? 170 : 5000}
                       step={waterUnit === "fl oz" ? 8 : 250}

@@ -8,7 +8,7 @@
  * weight-unit cache pattern.
  */
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 import { useQuery } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
 import {
@@ -18,6 +18,8 @@ import {
   type MeasurementSystem,
 } from "./measurement-system"
 import { setActiveWaterAccount } from "./use-water-unit"
+
+let reconciledAccountKey: string | null = null
 
 export function useMeasurementSystem(): {
   system: MeasurementSystem
@@ -32,8 +34,9 @@ export function useMeasurementSystem(): {
     () => readMeasurementSystem()
   )
   // The preferences row id is a stable per-account sentinel: when it changes,
-  // a different account took over the device.
-  const lastAccountRef = useRef<string | null>(null)
+  // a different account took over the device. Module scope preserves the
+  // sentinel across Settings remounts, so reopening the page cannot reset a
+  // deliberate local system label.
   const accountKey = preferences?._id ?? null
 
   // Seed AND reconcile from the active account. The original seed only went
@@ -44,8 +47,8 @@ export function useMeasurementSystem(): {
   // (someone using kg weights but imperial water) on every server tick.
   useEffect(() => {
     if (preferences === undefined) return
-    const accountChanged = accountKey !== lastAccountRef.current
-    lastAccountRef.current = accountKey
+    const accountChanged = accountKey !== reconciledAccountKey
+    reconciledAccountKey = accountKey
     setActiveWaterAccount(accountKey)
     if (accountKey === null || !accountChanged) return
 
