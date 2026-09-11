@@ -15,7 +15,8 @@ import {
   waterGlassTargetMl,
 } from "@/lib/water-glasses"
 import { WATER_BG, WATER_COLOR } from "./constants"
-import { fmtWater } from "./helpers"
+import { formatWater } from "@/lib/measurement-system"
+import { useWaterUnit } from "@/lib/use-water-unit"
 
 type WaterEntry = { id: string; amountMl: number; loggedAt: string }
 
@@ -27,6 +28,8 @@ type WaterEntry = { id: string; amountMl: number; loggedAt: string }
 export function WaterWidget({ dateKey }: { dateKey: string }) {
   const navigate = useSmoothNavigate()
   const preferences = useQuery(api.users.users.getPreferences)
+  const waterUnit = useWaterUnit()
+  const fmtWater = (ml: number) => formatWater(ml, waterUnit)
   const goalMl = preferences?.waterGoalMl ?? 2500
 
   const rawEntries = useQuery(api.logs.water.getDay, { date: dateKey })
@@ -158,6 +161,8 @@ export function WaterSmall({
   goalMl: number
 }) {
   const [hoveredGlass, setHoveredGlass] = useState<number | null>(null)
+  const waterUnit = useWaterUnit()
+  const fmtWater = (ml: number) => formatWater(ml, waterUnit)
   const rawEntries = useQuery(api.logs.water.getDay, { date: dateKey })
   const entries = (rawEntries ?? []) as WaterEntry[]
   const addWaterEntry = useOfflineMutation(

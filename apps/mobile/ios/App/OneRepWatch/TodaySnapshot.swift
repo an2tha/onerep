@@ -39,6 +39,29 @@ struct TodaySnapshot: Codable, Equatable {
         guard goal > 0 else { return 0 }
         return min(Double(value) / Double(goal), 1)
     }
+    private enum CodingKeys: String, CodingKey {
+        case calories, calorieGoal, caloriesLeft, protein, proteinGoal, carbs, carbsGoal, fat, fatGoal
+        case waterMl, waterGoalMl, waterUnit, daysLast28, workoutBrief, updatedAt
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        calories = try container.decodeIfPresent(Int.self, forKey: .calories) ?? 0
+        calorieGoal = try container.decodeIfPresent(Int.self, forKey: .calorieGoal) ?? 0
+        caloriesLeft = try container.decodeIfPresent(Int.self, forKey: .caloriesLeft) ?? 0
+        protein = try container.decodeIfPresent(Int.self, forKey: .protein) ?? 0
+        proteinGoal = try container.decodeIfPresent(Int.self, forKey: .proteinGoal) ?? 0
+        carbs = try container.decodeIfPresent(Int.self, forKey: .carbs) ?? 0
+        carbsGoal = try container.decodeIfPresent(Int.self, forKey: .carbsGoal) ?? 0
+        fat = try container.decodeIfPresent(Int.self, forKey: .fat) ?? 0
+        fatGoal = try container.decodeIfPresent(Int.self, forKey: .fatGoal) ?? 0
+        waterMl = try container.decodeIfPresent(Int.self, forKey: .waterMl) ?? 0
+        waterGoalMl = try container.decodeIfPresent(Int.self, forKey: .waterGoalMl) ?? 0
+        waterUnit = try container.decodeIfPresent(String.self, forKey: .waterUnit) ?? "ml"
+        daysLast28 = try container.decodeIfPresent(Int.self, forKey: .daysLast28) ?? 0
+        workoutBrief = try container.decodeIfPresent(String.self, forKey: .workoutBrief) ?? ""
+        updatedAt = try container.decodeIfPresent(Double.self, forKey: .updatedAt) ?? 0
+    }
 }
 
 // MARK: - Property-list bridging

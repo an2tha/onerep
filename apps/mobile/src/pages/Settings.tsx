@@ -919,7 +919,7 @@ export default function Settings({
 
   async function chooseWaterUnit(unit: WaterUnit) {
     setWaterUnitState(unit)
-    cacheWaterUnit(unit)
+    cacheWaterUnit(unit, true, preferences?._id ?? null)
     // No system-label sync here on purpose: water is the one unit a user
     // may reasonably pick against their system (a kg household thinking in
     // 8-oz glasses), so it must not drag the master switch either way.

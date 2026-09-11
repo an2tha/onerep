@@ -56,13 +56,13 @@ struct OneRepProvider: TimelineProvider {
     }
 }
 
-private func formatWaterAmount(_ ml: Int, unit: String) -> String {
+private func formatWaterAmount(_ ml: Int, unit: String, useLiters: Bool) -> String {
     if unit == "fl oz" {
         let value = Double(ml) / 29.5735
         let rounded = (value * 10).rounded() / 10
         return rounded == rounded.rounded() ? "\(Int(rounded)) fl oz" : "\(rounded) fl oz"
     }
-    if ml >= 1000 {
+    if useLiters {
         let liters = Double(ml) / 1000
         let rounded = (liters * 100).rounded() / 100
         return rounded == rounded.rounded() ? "\(Int(rounded)) L" : "\(rounded) L"
@@ -74,7 +74,8 @@ private struct WaterCaption: View {
     let entry: OneRepEntry
     var body: some View {
         if entry.waterGoalMl > 0 {
-            Text("Water \(formatWaterAmount(entry.waterMl, unit: entry.waterUnit)) / \(formatWaterAmount(entry.waterGoalMl, unit: entry.waterUnit))")
+            let useLiters = entry.waterUnit != "fl oz" && max(entry.waterMl, entry.waterGoalMl) >= 1000
+            Text("Water \(formatWaterAmount(entry.waterMl, unit: entry.waterUnit, useLiters: useLiters)) / \(formatWaterAmount(entry.waterGoalMl, unit: entry.waterUnit, useLiters: useLiters))")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
                 .monospacedDigit()

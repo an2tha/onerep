@@ -17,6 +17,7 @@ import {
   writeMeasurementSystem,
   type MeasurementSystem,
 } from "./measurement-system"
+import { setActiveWaterAccount } from "./use-water-unit"
 
 export function useMeasurementSystem(): {
   system: MeasurementSystem
@@ -45,6 +46,7 @@ export function useMeasurementSystem(): {
     if (preferences === undefined) return
     const accountChanged = accountKey !== lastAccountRef.current
     lastAccountRef.current = accountKey
+    setActiveWaterAccount(accountKey)
     if (accountKey === null || !accountChanged) return
 
     const implied: MeasurementSystem | null =

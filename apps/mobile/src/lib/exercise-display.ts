@@ -48,3 +48,9 @@ export function formatWeightValue(kg: number, unit: WeightUnit) {
   const value = toDisplayWeight(kg, unit)
   return value >= 100 ? Math.round(value) : Math.round(value * 10) / 10
 }
+
+/** Body readings retain tenth-unit precision; exercise loads use whole numbers at scale. */
+export function formatBodyWeight(kg: number, unit: WeightUnit) {
+  const value = toDisplayWeight(kg, unit)
+  return `${Math.round(value * 10) / 10} ${unit}`
+}

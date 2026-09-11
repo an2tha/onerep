@@ -21,6 +21,7 @@ import {
   cacheWaterUnit,
   clearExplicitWaterUnit,
   readCachedWaterUnit,
+  setActiveWaterAccount,
   waterUnitIsExplicit,
 } from "../use-water-unit"
 
@@ -81,6 +82,19 @@ describe("applyMeasurementSystem", () => {
     expect(readCachedWeightUnit()).toBe("kg")
   })
 
+  test("water cache is scoped to the active account", () => {
+    setActiveWaterAccount("account-a")
+    cacheWaterUnit("fl oz", true)
+    setActiveWaterAccount("account-b")
+    expect(readCachedWaterUnit()).toBe("ml")
+    expect(waterUnitIsExplicit()).toBe(false)
+    cacheWaterUnit("ml", true)
+    setActiveWaterAccount("account-a")
+    expect(readCachedWaterUnit()).toBe("fl oz")
+    expect(waterUnitIsExplicit()).toBe(true)
+    setActiveWaterAccount(null)
+  })
+
   test("water default follows the system until the user picks a unit", () => {
     applyMeasurementSystem("imperial")
     expect(readCachedWaterUnit()).toBe("fl oz")
@@ -137,7 +151,11 @@ describe("water formatting", () => {
       total: "250 ml",
       goal: "500 ml",
     })
-    // Liter-scale goal keeps both in liters
+    // Liter-scale goal keeps both in liters, including a sub-liter total.
+    expect(formatWaterPair(250, 2000, "ml")).toEqual({
+      total: "0.25 L",
+      goal: "2 L",
+    })
     expect(formatWaterPair(1000, 2000, "ml")).toEqual({
       total: "1 L",
       goal: "2 L",

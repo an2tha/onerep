@@ -3,7 +3,7 @@ import { formatWidgetWater } from "../home-widgets"
 
 describe("home widget water formatting", () => {
   test("keeps the total and goal in millilitres", () => {
-    expect(formatWidgetWater(250, 2000, "ml")).toBe("250 ml / 2 L")
+    expect(formatWidgetWater(250, 2000, "ml")).toBe("0.25 L / 2 L")
   })
 
   test("converts both values to fluid ounces", () => {

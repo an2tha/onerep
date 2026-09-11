@@ -5,70 +5,104 @@ import { safeLocalStorageGet, safeLocalStorageSet } from "@/lib/utils"
 
 export type WaterUnit = "ml" | "fl oz"
 
+type WaterUnitListener = () => void
+
 const WATER_UNIT_KEY = "onerep:water-unit"
-// Marks that the user actually picked a unit in Settings (or the account
-// carries one), as opposed to the cache merely being seeded by the
-// measurement system. The system switch must not stomp an explicit choice
-// when it re-derives defaults.
 const WATER_UNIT_EXPLICIT_KEY = "onerep:water-unit-explicit"
+const listeners = new Set<WaterUnitListener>()
+let activeAccountKey: string | null = null
+let cachedUnit: WaterUnit | null = null
 
-export function readCachedWaterUnit(): WaterUnit {
-  return safeLocalStorageGet(WATER_UNIT_KEY) === "fl oz" ? "fl oz" : "ml"
+function scopedKey(key: string, accountKey = activeAccountKey) {
+  return accountKey ? `${key}:${accountKey}` : `${key}:unscoped`
 }
 
-export function waterUnitIsExplicit(): boolean {
-  return safeLocalStorageGet(WATER_UNIT_EXPLICIT_KEY) === "1"
+function notifyWaterUnitChanged() {
+  for (const listener of listeners) listener()
 }
 
-export function cacheWaterUnit(unit: WaterUnit, explicit = false) {
-  safeLocalStorageSet(WATER_UNIT_KEY, unit)
-  if (explicit) safeLocalStorageSet(WATER_UNIT_EXPLICIT_KEY, "1")
+/** Selects the account namespace used by non-reactive water formatters. */
+export function setActiveWaterAccount(accountKey: string | null) {
+  if (activeAccountKey === accountKey) return
+  activeAccountKey = accountKey
+  cachedUnit = null
+  notifyWaterUnitChanged()
+}
+
+export function subscribeWaterUnit(listener: WaterUnitListener) {
+  listeners.add(listener)
+  return () => listeners.delete(listener)
+}
+
+export function readCachedWaterUnit(accountKey = activeAccountKey): WaterUnit {
+  const stored = safeLocalStorageGet(scopedKey(WATER_UNIT_KEY, accountKey))
+  if (stored === "fl oz") return "fl oz"
+  if (stored === "ml") return "ml"
+  // Existing installs have no scoped key yet. Preserve the account's old
+  // measurement-system default instead of making imperial users briefly see ml.
+  return safeLocalStorageGet("onerep:measurement-system") === "imperial"
+    ? "fl oz"
+    : "ml"
+}
+
+export function waterUnitIsExplicit(accountKey = activeAccountKey): boolean {
+  return safeLocalStorageGet(scopedKey(WATER_UNIT_EXPLICIT_KEY, accountKey)) === "1"
+}
+
+export function cacheWaterUnit(
+  unit: WaterUnit,
+  explicit = false,
+  accountKey = activeAccountKey
+) {
+  safeLocalStorageSet(scopedKey(WATER_UNIT_KEY, accountKey), unit)
+  if (explicit) {
+    safeLocalStorageSet(scopedKey(WATER_UNIT_EXPLICIT_KEY, accountKey), "1")
+  }
   cachedUnit = unit
+  notifyWaterUnitChanged()
 }
 
-export function clearExplicitWaterUnit() {
-  safeLocalStorageSet(WATER_UNIT_EXPLICIT_KEY, "0")
+export function clearExplicitWaterUnit(accountKey = activeAccountKey) {
+  safeLocalStorageSet(scopedKey(WATER_UNIT_EXPLICIT_KEY, accountKey), "0")
+  notifyWaterUnitChanged()
 }
 
 /**
- * One cached read for every non-component caller (entry-name builders,
- * drawer helpers): re-reading localStorage per formatted number is not
- * free, and the write path above keeps the cache honest. Components use
- * the `useWaterUnit` hook instead so a unit change re-renders.
+ * One cached read for non-component callers (entry-name builders and drawer
+ * helpers). Components use `useWaterUnit` so a server or cache change rerenders.
  */
-let cachedUnit: WaterUnit | null = null
-
 export function currentWaterUnit(): WaterUnit {
   if (cachedUnit === null) cachedUnit = readCachedWaterUnit()
   return cachedUnit
 }
 
 /**
- * How water is shown: milliliters or fluid ounces — its own choice, not an
- * implication of the measurement system. A kg user can still think in 8-fl-oz
- * glasses, and a lbs user may have a bottle graduated in ml. Storage stays ml
- * end-to-end; only rendering and input convert.
- *
- * Cached on-device like the weight and energy units, so the unit doesn't flip
- * while the preferences query loads. Until the account has an explicit
- * server-side choice, the cached answer follows the measurement system's
- * default (the system switch writes this cache), so the two stay in step
- * without re-deriving on every render.
+ * How water is shown: milliliters or fluid ounces. The cache is scoped to the
+ * active preferences record, so a second account on the same phone cannot
+ * inherit the first account's explicit choice.
  */
 export function useWaterUnit(): WaterUnit {
   const preferences = useQuery(api.users.users.getPreferences)
+  const accountKey = preferences?._id ?? null
   const stored = preferences?.waterUnit
   const known: WaterUnit | null =
     stored === "fl oz" || stored === "ml" ? stored : null
-  // Read once: localStorage during render is fine, but re-reading on every
-  // render of every screen is not.
-  const [cached] = useState(readCachedWaterUnit)
+  const [cached, setCached] = useState(() => readCachedWaterUnit(accountKey))
 
   useEffect(() => {
-    // A server-side choice is an explicit choice: cache it and mark it so
-    // the measurement system's default-derivation leaves it alone.
-    if (known) cacheWaterUnit(known, true)
-  }, [known])
+    setActiveWaterAccount(accountKey)
+    setCached(readCachedWaterUnit(accountKey))
+    if (known) cacheWaterUnit(known, true, accountKey)
+  }, [accountKey, known])
+
+  useEffect(() => {
+    const unsubscribe = subscribeWaterUnit(() =>
+      setCached(readCachedWaterUnit(accountKey))
+    )
+    return () => {
+      unsubscribe()
+    }
+  }, [accountKey])
 
   return known ?? cached
 }

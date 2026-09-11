@@ -119,6 +119,8 @@ import {
   type DashboardSettings,
   type DashboardWidgetLayoutItem,
 } from "@/dashboard/constants"
+import { formatWater } from "@/lib/measurement-system"
+import { useWaterUnit } from "@/lib/use-water-unit"
 import {
   dateKeyToCalendarDate,
   dateKeyToDay,
@@ -143,6 +145,8 @@ export default function LegacyApp() {
   const navigate = useSmoothNavigate()
   const { user } = useAppAuth()
   const energyUnit = useEnergyUnit()
+  const waterUnit = useWaterUnit()
+  const fmtWater = (ml: number) => formatWater(ml, waterUnit)
   const [dayOffset, setDayOffset] = useState(0)
   const quickWaterBurst = useReplayKey(1300)
   const [dashboardTrendMetric, setDashboardTrendMetricState] =

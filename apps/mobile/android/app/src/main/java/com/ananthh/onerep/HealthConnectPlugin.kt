@@ -1504,10 +1504,16 @@ class HealthConnectPlugin : Plugin() {
         scope.launch {
             val deleted = runCatching {
                 withContext(Dispatchers.IO) {
+                    val granted = hc.permissionController.getGrantedPermissions()
+                    val requiredPermissions = classes.map {
+                        HealthPermission.getWritePermission(it)
+                    }
+                    // Preflight every record class before deleting any. A user
+                    // can grant nutrition writes but refuse hydration; deleting
+                    // NutritionRecord first would otherwise leave the day
+                    // partially erased and the JS repair would skip its rewrite.
+                    if (requiredPermissions.any { it !in granted }) return@withContext false
                     for (klass in classes) {
-                        val permission = HealthPermission.getWritePermission(klass)
-                        val granted = hc.permissionController.getGrantedPermissions()
-                        if (!granted.contains(permission)) return@withContext false
                         hc.deleteRecords(
                             klass,
                             TimeRangeFilter.between(dayStart, dayEnd),
