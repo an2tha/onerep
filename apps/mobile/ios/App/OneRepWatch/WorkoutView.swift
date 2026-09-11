@@ -152,8 +152,14 @@ struct WorkoutView: View {
     }
 
     private func apply(_ command: EnduranceWatchCommand) {
-        if command.command == "end" {
-            if manager.externalSessionId == command.sessionId { manager.end() }
+        if command.command == "end" || command.command == "discard" {
+            if manager.externalSessionId == command.sessionId {
+                if command.command == "discard" {
+                    manager.discard()
+                } else {
+                    manager.end()
+                }
+            }
             return
         }
 
@@ -169,6 +175,9 @@ struct WorkoutView: View {
         guard !manager.isRunning else { return }
         Task {
             guard await manager.requestAuthorization() else { return }
+            guard store.activeEndurance?.sessionId == command.sessionId,
+                  store.activeEndurance?.command != "discard",
+                  store.activeEndurance?.command != "end" else { return }
             manager.start(
                 activity: activity(for: command.sport),
                 location: command.environment == "outdoor" ? .outdoor : .indoor,

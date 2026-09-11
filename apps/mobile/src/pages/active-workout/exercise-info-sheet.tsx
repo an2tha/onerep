@@ -24,6 +24,11 @@ export function ExerciseInfoSheet({
     Record<string, ClientExercise> | undefined
   const exercise = resolved?.[exerciseId]
 
+  // Let the sheet and its contents arrive as one motion. Mounting the sheet
+  // while this query is pending makes the shell animate up first and the
+  // instructions pop into place afterward.
+  if (resolved === undefined) return null
+
   return (
     <MobileSheet onClose={onClose} ariaLabel={`${exerciseName} instructions`}>
       <div className="max-h-[78dvh] min-h-0 flex-1 overflow-y-auto px-6 pt-2 pb-[max(2rem,env(safe-area-inset-bottom,2rem))]">
@@ -36,11 +41,7 @@ export function ExerciseInfoSheet({
           </p>
         )}
         <div className="mt-5">
-          {resolved === undefined ? (
-            <p className="py-12 text-center text-[14px] text-muted-foreground">
-              Loading…
-            </p>
-          ) : !exercise ? (
+          {!exercise ? (
             <p className="py-12 text-center text-[14px] text-muted-foreground">
               This one is not in the catalog — no photos or instructions to
               show.

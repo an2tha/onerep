@@ -37,7 +37,7 @@ export function CreateExerciseButton({
       type="button"
       onClick={onClick}
       className={cn(
-        "mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-[10px] border border-dashed border-border text-[14px] font-semibold text-muted-foreground transition-colors active:bg-muted/60 active:text-foreground",
+        "mt-4 flex min-h-12 w-full appearance-none items-center justify-center gap-2 rounded-xl border border-foreground/12 bg-foreground/6 text-[14px] font-semibold text-foreground shadow-[inset_0_1px_0_rgb(255_255_255/0.08)] transition-colors active:bg-foreground/10",
         className
       )}
     >

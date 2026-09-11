@@ -168,15 +168,15 @@ export function AddExerciseSheet({
   return (
     <div
       className={cn(
-        "fixed inset-0 z-40 bg-background md:flex md:justify-center md:bg-black/40 md:backdrop-blur-sm",
+        "fixed inset-0 z-40 flex justify-center bg-black/20 p-3 backdrop-blur-sm md:p-0 md:bg-black/40",
         closing ? "sheet-backdrop-exit" : "sheet-backdrop-enter"
       )}
-      style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
+      style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top, 0px))" }}
       onClick={requestClose}
     >
       <div
         className={cn(
-          "sheet-panel sheet-panel-fullscreen flex h-full w-full flex-col bg-background md:mt-12 md:h-auto md:max-h-[76vh] md:max-w-xl md:self-start md:overflow-hidden md:rounded-2xl md:border md:border-border/60 md:shadow-2xl",
+          "sheet-panel sheet-panel-fullscreen flex h-[calc(100%-0.75rem)] w-full max-w-xl flex-col self-start overflow-hidden rounded-[28px] border border-foreground/15 bg-[color-mix(in_srgb,var(--background)_78%,transparent)] shadow-[0_24px_80px_-28px_rgb(0_0_0/0.65)] backdrop-blur-2xl md:mt-12 md:h-auto md:max-h-[76vh]",
           closing ? "sheet-panel-exit" : "sheet-panel-enter"
         )}
         role="dialog"
@@ -184,12 +184,12 @@ export function AddExerciseSheet({
         aria-label="Add exercises"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center gap-3 border-b border-border/40 px-4 py-3">
+        <div className="flex items-center gap-3 px-4 pt-3 pb-2">
           <button
             type="button"
             onClick={requestClose}
             aria-label="Close exercise search"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors active:bg-muted/60 active:text-foreground"
+            className="flex h-10 w-10 shrink-0 appearance-none items-center justify-center rounded-full border border-foreground/10 bg-foreground/5 text-muted-foreground transition-colors active:bg-foreground/10 active:text-foreground"
           >
             <X size={16} weight="bold" />
           </button>
@@ -212,7 +212,7 @@ export function AddExerciseSheet({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search exercises…"
-              className="h-11 w-full rounded-lg border border-border/60 bg-background pr-4 pl-10 text-[15px] outline-none placeholder:text-muted-foreground focus:border-foreground/50 focus:ring-2 focus:ring-foreground/10"
+              className="h-11 w-full appearance-none rounded-xl border border-foreground/12 bg-foreground/6 pr-4 pl-10 text-[15px] shadow-[inset_0_1px_0_rgb(255_255_255/0.08)] outline-none placeholder:text-muted-foreground focus:border-foreground/30 focus:ring-2 focus:ring-foreground/10"
             />
             {query && (
               <button
@@ -222,7 +222,7 @@ export function AddExerciseSheet({
                   setActiveCategory(null)
                 }}
                 aria-label="Clear exercise search"
-                className="absolute top-1/2 right-0 flex h-11 w-11 -translate-y-1/2 items-center justify-center text-muted-foreground active:text-foreground"
+                className="absolute top-1/2 right-0 flex h-11 w-11 -translate-y-1/2 appearance-none items-center justify-center border-0 bg-transparent text-muted-foreground active:text-foreground"
               >
                 <X size={13} weight="bold" />
               </button>
@@ -234,7 +234,7 @@ export function AddExerciseSheet({
           onChange={setActiveCategory}
         />
         <div
-          className="flex-1 overflow-y-auto px-4 pb-[max(2rem,env(safe-area-inset-bottom,2rem))]"
+          className="flex-1 overflow-y-auto px-4 pb-[max(1.25rem,env(safe-area-inset-bottom,1.25rem))]"
           aria-live="polite"
         >
           {searchState === "loading" ? (
@@ -276,19 +276,21 @@ export function AddExerciseSheet({
               />
             </>
           ) : searchState === "idle" ? (
-            <div className="grid gap-5 pt-8">
-              <div className="border-y border-border/60 py-5 text-center">
+            <div className="grid gap-5 pt-5">
+              <div className="px-2 py-2 text-center">
                 <p className="text-[14px] text-muted-foreground">
                   {query.trim()
                     ? "Type one more letter to search."
                     : "Search a movement or browse below."}
                 </p>
               </div>
-              <ExerciseSuggestionGroups
-                recentSuggestions={recentSuggestions}
-                popularSuggestions={popularSuggestions}
-                onChoose={chooseSuggestion}
-              />
+              <div className="rounded-2xl border border-foreground/10 bg-foreground/5 p-3 shadow-[inset_0_1px_0_rgb(255_255_255/0.06)]">
+                <ExerciseSuggestionGroups
+                  recentSuggestions={recentSuggestions}
+                  popularSuggestions={popularSuggestions}
+                  onChoose={chooseSuggestion}
+                />
+              </div>
               <CreateExerciseButton
                 query={query}
                 onClick={openExerciseCreator}
@@ -376,7 +378,7 @@ function ExerciseCategoryFilters({
 }) {
   return (
     <div
-      className="flex gap-1 overflow-x-auto border-b border-border/60 px-4 py-3 [&::-webkit-scrollbar]:hidden"
+      className="mx-4 mb-2 flex gap-1 overflow-x-auto rounded-xl border border-foreground/10 bg-foreground/5 p-1.5 shadow-[inset_0_1px_0_rgb(255_255_255/0.06)] [&::-webkit-scrollbar]:hidden"
       aria-label="Filter exercises by type"
       role="group"
     >
@@ -385,9 +387,9 @@ function ExerciseCategoryFilters({
         onClick={() => onChange(null)}
         aria-pressed={activeCategory === null}
         className={cn(
-          "min-h-11 shrink-0 rounded-lg px-3 text-[14px] font-medium transition-colors",
+          "min-h-11 shrink-0 appearance-none rounded-lg border-0 px-3 text-[14px] font-medium transition-colors",
           activeCategory === null
-            ? "bg-muted text-foreground"
+            ? "bg-foreground text-background shadow-sm"
             : "text-muted-foreground active:bg-muted/60 active:text-foreground"
         )}
       >
@@ -402,9 +404,9 @@ function ExerciseCategoryFilters({
             onClick={() => onChange(active ? null : category)}
             aria-pressed={active}
             className={cn(
-              "min-h-11 shrink-0 rounded-lg px-3 text-[14px] font-medium transition-colors",
+              "min-h-11 shrink-0 appearance-none rounded-lg border-0 px-3 text-[14px] font-medium transition-colors",
               active
-                ? "bg-muted text-foreground"
+                ? "bg-foreground text-background shadow-sm"
                 : "text-muted-foreground active:bg-muted/60 active:text-foreground"
             )}
           >
@@ -436,7 +438,7 @@ function ExerciseSearchResult({
         aria-label={
           added ? `${exercise.name}, already added` : `Add ${exercise.name}`
         }
-        className="flex min-w-0 flex-1 items-center gap-3 px-3 py-3 text-left transition-colors active:bg-muted/55 disabled:cursor-default"
+        className="flex min-w-0 flex-1 appearance-none items-center gap-3 border-0 bg-transparent! bg-none! px-3 py-3 text-left shadow-none! transition-colors active:bg-muted/55! disabled:cursor-default"
       >
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center gap-1.5">
@@ -472,7 +474,7 @@ function ExerciseSearchResult({
           type="button"
           onClick={onEdit}
           aria-label={`Edit ${exercise.name}`}
-          className="flex h-11 w-11 shrink-0 items-center justify-center text-muted-foreground transition-colors active:bg-muted/55 active:text-foreground"
+          className="flex h-11 w-11 shrink-0 appearance-none items-center justify-center border-0 bg-transparent text-muted-foreground transition-colors active:bg-muted/55 active:text-foreground"
         >
           <PencilSimple size={15} weight="bold" />
         </button>

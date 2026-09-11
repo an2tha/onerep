@@ -133,6 +133,14 @@ final class WorkoutSessionManager: NSObject, ObservableObject {
         }
     }
 
+    /// Abort collection without creating a Health workout or sending a finish event.
+    func discard() {
+        stopTicking()
+        session?.end()
+        builder?.discardWorkout()
+        reset()
+    }
+
     private func reset() {
         session = nil
         builder = nil
@@ -191,6 +199,7 @@ extension WorkoutSessionManager: HKWorkoutSessionDelegate {
         date: Date
     ) {
         Task { @MainActor in
+            guard self.session === workoutSession else { return }
             isPaused = toState == .paused
             isRunning = toState == .running || toState == .paused
         }
@@ -226,6 +235,7 @@ extension WorkoutSessionManager: HKLiveWorkoutBuilderDelegate {
                 let average = statistics.averageQuantity()?.doubleValue(for: unit)
                 let maximum = statistics.maximumQuantity()?.doubleValue(for: unit)
                 Task { @MainActor in
+                    guard self.builder === builder else { return }
                     self.heartRate = Int(value ?? 0)
                     self.averageHeartRate = Int(average ?? 0)
                     self.maxHeartRate = Int(maximum ?? 0)

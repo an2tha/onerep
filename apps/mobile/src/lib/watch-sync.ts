@@ -38,7 +38,7 @@ export type WatchAvailability = {
 }
 
 export type EnduranceWatchCommand = {
-  command: "start" | "pause" | "resume" | "end"
+  command: "start" | "pause" | "resume" | "end" | "discard"
   sessionId: string
   sport: "run" | "ride" | "swim"
   environment: "outdoor" | "indoor"
@@ -66,8 +66,8 @@ export type WatchAction =
         activeCalories?: number
         averageHeartRate?: number
         endedAt?: number
+      }
     }
-  }
   | { action: "enduranceMetrics"; payload: EnduranceWatchMetrics }
   | {
       action: "enduranceControl"

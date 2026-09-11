@@ -10,6 +10,7 @@ import {
   ArrowCounterClockwise,
   ArrowsOut,
   CheckCircle,
+  Info,
   Minus,
   Plus,
   X,
@@ -60,6 +61,7 @@ export function FocusWorkoutView({
   onAddSet,
   onSkipSet,
   onUncompleteSet,
+  onShowInstructions,
   onExpand,
   onEnd,
 }: {
@@ -85,6 +87,7 @@ export function FocusWorkoutView({
   onAddSet: () => void
   onSkipSet: () => void
   onUncompleteSet: (index: number) => void
+  onShowInstructions: () => void
   onExpand: () => void
   onEnd: () => void
 }) {
@@ -143,9 +146,20 @@ export function FocusWorkoutView({
         </button>
       </div>
 
-      <h2 className="mt-8 line-clamp-2 flex h-[4.4rem] max-w-[20ch] items-center justify-center text-[1.6rem] leading-tight font-semibold tracking-tight">
-        {exerciseName}
-      </h2>
+      <div className="mt-8 flex h-[4.4rem] flex-col items-center justify-center gap-1">
+        <h2 className="line-clamp-2 max-w-[20ch] text-[1.6rem] leading-tight font-semibold tracking-tight">
+          {exerciseName}
+        </h2>
+        <button
+          type="button"
+          onClick={onShowInstructions}
+          aria-label={`How to perform ${exerciseName}`}
+          className="motion-tactile inline-flex min-h-8 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium text-muted-foreground active:bg-muted/60 active:text-foreground"
+        >
+          <Info size={15} weight="bold" />
+          How to
+        </button>
+      </div>
 
       <div
         className="relative mt-6 shrink-0"
