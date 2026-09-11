@@ -102,11 +102,9 @@ public class WatchSyncPlugin: CAPPlugin, CAPBridgedPlugin {
         ]
 
         var context = session.applicationContext
-        if command == "end" {
-            context.removeValue(forKey: "activeEndurance")
-        } else {
-            context["activeEndurance"] = payload
-        }
+        // Keep terminal commands in the latest context too, so an offline watch
+        // receives the stop instead of retaining a stale running session.
+        context["activeEndurance"] = payload
 
         let stored = (try? session.updateApplicationContext(context)) != nil
         if session.isReachable {

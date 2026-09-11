@@ -1,4 +1,4 @@
-import { Timer, X } from "@phosphor-icons/react"
+import { MagnifyingGlass, Timer, X } from "@phosphor-icons/react"
 import { useEffect, useState } from "react"
 import { createPortal } from "react-dom"
 
@@ -38,7 +38,7 @@ function ExerciseSuggestionSection<T extends ExerciseSuggestionItem>({
               key={exercise.id}
               type="button"
               onClick={() => onChoose(exercise)}
-              className="flex min-h-11 items-center border border-border px-3 text-[13px] font-semibold text-foreground transition-colors active:bg-muted"
+              className="flex min-h-11 appearance-none items-center border border-border bg-transparent px-3 text-[13px] font-semibold text-foreground transition-colors active:bg-muted"
             >
               {exercise.name}
             </button>
@@ -50,16 +50,16 @@ function ExerciseSuggestionSection<T extends ExerciseSuggestionItem>({
 
   return (
     <div className="w-full">
-      <p className="border-b border-border/60 px-1 pb-2 text-[14px] font-semibold text-foreground">
+      <p className="px-2 pb-2 text-[13px] font-semibold text-muted-foreground">
         {label}
       </p>
-      <div className="divide-y divide-border/50">
+      <div className="overflow-hidden rounded-xl border border-foreground/10 bg-background/35 divide-y divide-foreground/8">
         {suggestions.map((exercise) => (
           <button
             key={exercise.id}
             type="button"
             onClick={() => onChoose(exercise)}
-            className="flex min-h-[56px] w-full min-w-0 items-center gap-3 px-1 text-left transition-colors active:bg-muted/60"
+            className="flex min-h-[60px] w-full min-w-0 appearance-none items-center gap-3 border-0 border-foreground/8! bg-transparent! bg-none! px-3 py-2 text-left shadow-none! transition-colors active:bg-foreground/8!"
           >
             <span className="min-w-0 flex-1">
               <span className="block truncate text-[15px] font-medium text-foreground">
@@ -73,8 +73,8 @@ function ExerciseSuggestionSection<T extends ExerciseSuggestionItem>({
                 </span>
               )}
             </span>
-            <span className="shrink-0 text-[13px] font-medium text-muted-foreground">
-              Search
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-foreground/7 text-muted-foreground">
+              <MagnifyingGlass size={14} weight="bold" aria-hidden />
             </span>
           </button>
         ))}

@@ -1,10 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useNavigate, useSearchParams } from "react-router"
 import { useMutation, useQuery } from "convex/react"
 import {
   ArrowLeft,
   CaretRight,
-  Crosshair,
   Flag,
   Fire,
   Heart,
@@ -16,6 +15,9 @@ import {
 } from "@phosphor-icons/react"
 import { PrimaryButton, toast } from "@repo/ui"
 import { api } from "../../../../convex/_generated/api"
+import { EnduranceRouteMap } from "@/components/endurance-route-map"
+import { ReactiveOrbField } from "@/components/reactive-orb-field"
+import "@/styles/endurance-workout.css"
 import { EnduranceHeartRateChart } from "@/components/endurance-heart-rate-chart"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { saveWorkoutToHealth } from "@/lib/health-provider"
@@ -43,12 +45,7 @@ import {
 type Sport = "run" | "ride" | "swim"
 type SessionStatus = "recording" | "paused"
 type GpsState =
-  | "locating"
-  | "locked"
-  | "unavailable"
-  | "denied"
-  | "paused"
-  | "indoor"
+  "locating" | "locked" | "unavailable" | "denied" | "paused" | "indoor"
 
 type RoutePoint = {
   latitude: number
@@ -211,140 +208,6 @@ function defaultTitle(sport: Sport) {
   return `${time} ${SPORT_META[sport].label.toLowerCase()}`
 }
 
-function projectRoute(points: RoutePoint[]) {
-  if (points.length < 2) return ""
-  const latitudes = points.map((point) => point.latitude)
-  const longitudes = points.map((point) => point.longitude)
-  const minLatitude = Math.min(...latitudes)
-  const maxLatitude = Math.max(...latitudes)
-  const minLongitude = Math.min(...longitudes)
-  const maxLongitude = Math.max(...longitudes)
-  const latitudeSpan = Math.max(maxLatitude - minLatitude, 0.00001)
-  const longitudeSpan = Math.max(maxLongitude - minLongitude, 0.00001)
-  return points
-    .map((point, index) => {
-      const x = 10 + ((point.longitude - minLongitude) / longitudeSpan) * 80
-      const y = 90 - ((point.latitude - minLatitude) / latitudeSpan) * 80
-      return `${index === 0 ? "M" : "L"}${x.toFixed(2)} ${y.toFixed(2)}`
-    })
-    .join(" ")
-}
-
-function RouteCanvas({
-  points,
-  gpsState,
-}: {
-  points: RoutePoint[]
-  gpsState: GpsState
-}) {
-  const route = useMemo(() => projectRoute(points), [points])
-  const locating = gpsState === "locating"
-  const emptyCopy = {
-    locating: {
-      title: "Finding your position",
-      body: "Keep OneRep open while GPS acquires a signal.",
-    },
-    locked: {
-      title: "GPS locked",
-      body: "Start moving and your route will appear here.",
-    },
-    unavailable: {
-      title: "GPS unavailable",
-      body: "Check your connection and try locating again.",
-    },
-    denied: {
-      title: "Location access is off",
-      body: "Allow location access to record distance and your route.",
-    },
-    paused: {
-      title: "Workout paused",
-      body: "Resume when you're ready to continue tracking.",
-    },
-    indoor: {
-      title: "Indoor workout",
-      body: "Timing and laps are active. GPS is off.",
-    },
-  }[gpsState]
-  return (
-    <div className="relative h-full min-h-[300px] overflow-hidden bg-[#dce4d9] text-[#18231b] dark:bg-[#17201a] dark:text-[#edf3eb]">
-      <svg
-        viewBox="0 0 100 100"
-        preserveAspectRatio="none"
-        className="absolute inset-0 h-full w-full opacity-45"
-        aria-hidden="true"
-      >
-        <path
-          d="M-8 20 C14 4 28 11 38 24 S61 47 110 17 M-12 36 C15 17 31 24 43 39 S72 57 108 35 M-9 83 C18 59 35 65 51 78 S78 92 112 66"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="0.32"
-        />
-        <path
-          d="M8 0 C17 29 8 48 25 100 M73 -8 C61 20 75 39 64 61 S53 89 59 108 M91 -5 C78 18 91 40 83 58 S68 83 77 106"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="0.22"
-          strokeDasharray="1.2 1.8"
-        />
-      </svg>
-
-      {route ? (
-        <svg
-          viewBox="0 0 100 100"
-          preserveAspectRatio="none"
-          className="absolute inset-0 h-full w-full p-8"
-          role="img"
-          aria-label={`GPS route with ${points.length} recorded points`}
-        >
-          <path
-            d={route}
-            fill="none"
-            stroke="rgba(255,255,255,.88)"
-            strokeWidth="3.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            vectorEffect="non-scaling-stroke"
-          />
-          <path
-            d={route}
-            fill="none"
-            stroke="var(--accent-progress)"
-            strokeWidth="2.4"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            vectorEffect="non-scaling-stroke"
-          />
-        </svg>
-      ) : (
-        <div className="absolute inset-0 flex flex-col items-center justify-center px-8 text-center">
-          {gpsState !== "indoor" && (
-            <span className="relative flex size-20 items-center justify-center rounded-full border border-current/20 bg-background/70">
-              <span
-                className={cn(
-                  "absolute size-12 rounded-full border border-current/25",
-                  locating && "animate-ping"
-                )}
-              />
-              <Crosshair size={26} weight="bold" />
-            </span>
-          )}
-          <p
-            className={cn(
-              "text-[14px] font-bold",
-              gpsState !== "indoor" && "mt-4"
-            )}
-          >
-            {emptyCopy.title}
-          </p>
-          <p className="mt-1 max-w-[30ch] text-[12px] leading-5 opacity-65">
-            {emptyCopy.body}
-          </p>
-        </div>
-      )}
-    </div>
-  )
-}
-
 function GpsStatus({ state }: { state: GpsState }) {
   const label = {
     locating: "Acquiring GPS",
@@ -357,7 +220,7 @@ function GpsStatus({ state }: { state: GpsState }) {
 
   return (
     <p
-      className="flex shrink-0 items-center gap-2.5 rounded-[12px] border border-[#353a36] bg-[#111411] px-3.5 py-2 text-[13px] font-extrabold tracking-[-0.02em] text-[#f5f7f4] shadow-[0_8px_24px_rgba(0,0,0,0.18)]"
+      className="endurance-glass flex shrink-0 items-center gap-2.5 rounded-[12px] border px-3.5 py-2 text-[13px] font-extrabold tracking-[-0.02em] text-foreground"
       role="status"
       aria-live="polite"
     >
@@ -368,11 +231,11 @@ function GpsStatus({ state }: { state: GpsState }) {
             ? "bg-emerald-500"
             : state === "indoor"
               ? "bg-[#f5f7f4]"
-            : state === "locating"
-              ? "animate-pulse bg-amber-400"
-              : state === "paused"
-                ? "bg-zinc-500"
-                : "bg-red-500"
+              : state === "locating"
+                ? "animate-pulse bg-amber-400"
+                : state === "paused"
+                  ? "bg-zinc-500"
+                  : "bg-red-500"
         )}
       />
       {label}
@@ -393,11 +256,8 @@ export default function ActiveEnduranceWorkout() {
     () => loadSession() ?? createSession(initialSport, initialEnvironment)
   )
   const [now, setNow] = useState(Date.now)
-  const [gpsState, setGpsState] = useState<
-    Exclude<GpsState, "paused" | "indoor">
-  >(
-    "locating"
-  )
+  const [gpsState, setGpsState] =
+    useState<Exclude<GpsState, "paused" | "indoor">>("locating")
   const [gpsAttempt, setGpsAttempt] = useState(0)
   const [leaveOpen, setLeaveOpen] = useState(false)
   const [finishOpen, setFinishOpen] = useState(false)
@@ -408,6 +268,7 @@ export default function ActiveEnduranceWorkout() {
   const [watchContributed, setWatchContributed] = useState(false)
   const [title, setTitle] = useState(() => defaultTitle(session.sport))
   const [saving, setSaving] = useState(false)
+  const endedRef = useRef(false)
   const preferences = useQuery(api.users.users.getPreferences)
   const recordWorkout = useMutation(
     api.logs.healthWorkouts.recordEnduranceWorkout
@@ -431,8 +292,12 @@ export default function ActiveEnduranceWorkout() {
 
     void watchAvailability()
       .then((availability) => {
-        if (disposed) return
-        if (!availability.supported || !availability.paired || !availability.installed) {
+        if (disposed || endedRef.current) return
+        if (
+          !availability.supported ||
+          !availability.paired ||
+          !availability.installed
+        ) {
           setWatchState("unavailable")
           return
         }
@@ -444,7 +309,8 @@ export default function ActiveEnduranceWorkout() {
           environment: session.environment,
           startedAt: session.startedAt,
         }).then((delivery) => {
-          if (!disposed) setWatchState(delivery.reachable ? "connected" : "waiting")
+          if (!disposed)
+            setWatchState(delivery.reachable ? "connected" : "waiting")
         })
       })
       .catch(() => {
@@ -452,6 +318,7 @@ export default function ActiveEnduranceWorkout() {
       })
 
     void onWatchAction((event) => {
+      if (disposed || endedRef.current) return
       if (
         (event.action === "enduranceMetrics" ||
           event.action === "enduranceFinished") &&
@@ -502,7 +369,12 @@ export default function ActiveEnduranceWorkout() {
               ? { maxHeartRateBpm: Math.round(payload.maxHeartRateBpm) }
               : {}),
             ...(typeof payload.activeCalories === "number"
-              ? { activeCalories: Math.max(0, Math.round(payload.activeCalories)) }
+              ? {
+                  activeCalories: Math.max(
+                    0,
+                    Math.round(payload.activeCalories)
+                  ),
+                }
               : {}),
             heartRateSamples:
               recoveredSamples.length > 0
@@ -574,7 +446,8 @@ export default function ActiveEnduranceWorkout() {
   ])
 
   useEffect(() => {
-    safeLocalStorageSet(ACTIVE_ENDURANCE_KEY, JSON.stringify(session))
+    if (!endedRef.current)
+      safeLocalStorageSet(ACTIVE_ENDURANCE_KEY, JSON.stringify(session))
   }, [session])
 
   useEffect(() => {
@@ -593,7 +466,11 @@ export default function ActiveEnduranceWorkout() {
     const maximumSpeed = session.sport === "ride" ? 35 : 15
     const watchId = navigator.geolocation.watchPosition(
       ({ coords, timestamp }) => {
-        if (!Number.isFinite(coords.latitude) || !Number.isFinite(coords.longitude)) {
+        if (endedRef.current) return
+        if (
+          !Number.isFinite(coords.latitude) ||
+          !Number.isFinite(coords.longitude)
+        ) {
           return
         }
         // A coarse first fix is still a real lock. Dropping it before updating
@@ -610,7 +487,10 @@ export default function ActiveEnduranceWorkout() {
         setSession((current) => {
           const previous = latestPointRef.current
           if (previous) {
-            const seconds = Math.max(0.1, (point.timestamp - previous.timestamp) / 1_000)
+            const seconds = Math.max(
+              0.1,
+              (point.timestamp - previous.timestamp) / 1_000
+            )
             const segment = distanceBetween(previous, point)
             if (segment / seconds > maximumSpeed) return current
             const noiseFloor = Math.max(
@@ -751,6 +631,7 @@ export default function ActiveEnduranceWorkout() {
           })),
         })
       }
+      endedRef.current = true
       safeLocalStorageRemove(ACTIVE_ENDURANCE_KEY)
       hapticSelection()
       toast.success(`${meta.label} saved.`)
@@ -762,8 +643,10 @@ export default function ActiveEnduranceWorkout() {
   }
 
   function discard() {
+    if (endedRef.current) return
+    endedRef.current = true
     void commandEnduranceWatch({
-      command: "end",
+      command: "discard",
       sessionId: session.id,
       sport: session.sport,
       environment: session.environment,
@@ -775,32 +658,37 @@ export default function ActiveEnduranceWorkout() {
   }
 
   return (
-    <div className="min-h-svh bg-background text-foreground lg:grid lg:h-svh lg:grid-cols-[minmax(0,1.35fr)_minmax(390px,0.65fr)] lg:overflow-hidden">
-      <section className="relative h-[46svh] min-h-[330px] lg:h-full">
-        <RouteCanvas
-          points={session.points}
-          gpsState={
-            session.environment === "indoor"
-              ? "indoor"
-              : session.status === "paused"
-                ? "paused"
-                : gpsState
-          }
-        />
+    <div className="active-workout-atmosphere endurance-workout min-h-svh bg-background text-foreground lg:grid lg:h-svh lg:grid-cols-[minmax(0,1.35fr)_minmax(390px,0.65fr)] lg:overflow-hidden">
+      <ReactiveOrbField className="active-workout-wash" />
+      <section className="relative z-[1] h-[46svh] min-h-[330px] lg:h-full">
+        {session.environment === "outdoor" ? (
+          <EnduranceRouteMap points={session.points} />
+        ) : (
+          <div className="flex h-full flex-col items-center justify-center px-8 text-center">
+            <p className="text-xl font-bold">
+              Indoor {meta.label.toLowerCase()}
+            </p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Timing and laps are active. GPS is off.
+            </p>
+          </div>
+        )}
         <button
           type="button"
           onClick={() => setLeaveOpen(true)}
           aria-label="Leave active workout"
-          className="motion-tactile absolute top-[max(1rem,env(safe-area-inset-top))] left-4 flex size-11 items-center justify-center rounded-full border border-black/10 bg-background/85 text-foreground backdrop-blur-md"
+          className="motion-tactile endurance-glass absolute top-[max(1rem,env(safe-area-inset-top))] left-4 flex size-11 items-center justify-center rounded-full text-foreground"
         >
           <ArrowLeft size={19} weight="bold" />
         </button>
       </section>
 
-      <main className="relative z-10 -mt-4 min-h-[54svh] rounded-t-[16px] border-t border-border bg-background px-5 pt-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] lg:mt-0 lg:flex lg:min-h-0 lg:flex-col lg:justify-center lg:rounded-none lg:border-t-0 lg:border-l lg:px-10">
+      <main className="endurance-glass relative z-10 mt-0 min-h-[54svh] rounded-t-[16px] border-t border-border px-5 pt-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] lg:mt-0 lg:flex lg:min-h-0 lg:overflow-y-auto lg:flex-col lg:justify-center lg:rounded-none lg:border-t-0 lg:border-l lg:px-10">
         <header className="flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-[16px] font-bold tracking-tight">{meta.label}</h1>
+            <h1 className="text-[16px] font-bold tracking-tight">
+              {meta.label}
+            </h1>
             {session.laps.length > 0 && (
               <p className="mt-0.5 text-[11px] font-semibold text-muted-foreground">
                 Lap {session.laps.length + 1}
@@ -820,24 +708,28 @@ export default function ActiveEnduranceWorkout() {
 
         {session.environment === "outdoor" &&
           (gpsState === "denied" || gpsState === "unavailable") && (
-          <div className="mt-4 flex items-center gap-3 border-y border-border py-3 text-[12px] leading-5 text-muted-foreground">
-            <WarningCircle size={18} className="mt-0.5 shrink-0" weight="bold" />
-            <p className="min-w-0 flex-1">
-              {gpsState === "denied"
-                ? "Allow location access in your browser settings, then try again. Timing continues."
-                : "GPS cannot get a position right now. Check your connection and try again."}
-            </p>
-            <button
-              type="button"
-              onClick={() => {
-                setGpsState("locating")
-                setGpsAttempt((attempt) => attempt + 1)
-              }}
-              className="motion-tactile shrink-0 rounded-[10px] border border-border px-3 py-2 font-bold text-foreground"
-            >
-              Try again
-            </button>
-          </div>
+            <div className="mt-4 flex items-center gap-3 border-y border-border py-3 text-[12px] leading-5 text-muted-foreground">
+              <WarningCircle
+                size={18}
+                className="mt-0.5 shrink-0"
+                weight="bold"
+              />
+              <p className="min-w-0 flex-1">
+                {gpsState === "denied"
+                  ? "Allow location access in your browser settings, then try again. Timing continues."
+                  : "GPS cannot get a position right now. Check your connection and try again."}
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setGpsState("locating")
+                  setGpsAttempt((attempt) => attempt + 1)
+                }}
+                className="motion-tactile shrink-0 rounded-[10px] border border-border px-3 py-2 font-bold text-foreground"
+              >
+                Try again
+              </button>
+            </div>
           )}
 
         <section className="mt-8 lg:mt-12" aria-label="Live workout statistics">
@@ -950,7 +842,11 @@ export default function ActiveEnduranceWorkout() {
           <button
             type="button"
             onClick={session.status === "recording" ? pause : resume}
-            aria-label={session.status === "recording" ? "Pause workout" : "Resume workout"}
+            aria-label={
+              session.status === "recording"
+                ? "Pause workout"
+                : "Resume workout"
+            }
             className="motion-tactile flex size-[78px] items-center justify-center rounded-full bg-foreground text-background outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4"
           >
             {session.status === "recording" ? (
@@ -1037,7 +933,8 @@ export default function ActiveEnduranceWorkout() {
       {finishOpen && (
         <MobileSheet
           ariaLabel="Finish endurance workout"
-          onClose={() => setFinishOpen(false)}
+          onClose={() => { if (!saving) setFinishOpen(false) }}
+          closeOnBackdrop={!saving}
           panelClassName="mx-auto w-full sm:max-w-[400px]"
           overlayClassName="bg-black/65"
         >
@@ -1098,7 +995,15 @@ export default function ActiveEnduranceWorkout() {
             </div>
             <button
               type="button"
-              onClick={() => navigate("/endurance")}
+              onClick={() => {
+                if (session.status === "recording") {
+                  safeLocalStorageSet(ACTIVE_ENDURANCE_KEY, JSON.stringify({
+                    ...session, status: "paused", pausedAt: Date.now(),
+                  }))
+                  pause()
+                }
+                navigate("/endurance")
+              }}
               className="motion-tactile mt-5 h-12 w-full rounded-[10px] bg-foreground text-[14px] font-bold text-background"
             >
               Save and leave
@@ -1108,7 +1013,7 @@ export default function ActiveEnduranceWorkout() {
               onClick={discard}
               className="motion-tactile mt-2 h-12 w-full rounded-[10px] text-[14px] font-bold text-destructive"
             >
-              Discard workout
+              Abort workout
             </button>
           </div>
         </MobileSheet>

@@ -2660,6 +2660,9 @@ function ActiveWorkoutSession() {
             onAddSet={addFocusSet}
             onSkipSet={skipFocusSet}
             onUncompleteSet={uncompleteFocusSet}
+            onShowInstructions={() => {
+              if (focusExerciseId) openExerciseDetail(focusExerciseId)
+            }}
             onExpand={() => {
               hapticSelection()
               setSimpleView(false)

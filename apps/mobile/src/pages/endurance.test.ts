@@ -75,8 +75,8 @@ describe("endurance tab", () => {
 
   test("active workout exposes GPS and live-stat states accessibly", () => {
     expect(ACTIVE_SOURCE).toContain('aria-label="Live workout statistics"')
-    expect(ACTIVE_SOURCE).toContain("GPS route with")
-    expect(ACTIVE_SOURCE).toContain("Location access is off")
+    expect(ACTIVE_SOURCE).toContain("EnduranceRouteMap")
+    expect(ACTIVE_SOURCE).toContain("Location off")
     expect(ACTIVE_SOURCE).toContain("GPS locked")
     expect(ACTIVE_SOURCE).toContain("coords.accuracy > 250")
     expect(ACTIVE_SOURCE).toContain("Try again")
