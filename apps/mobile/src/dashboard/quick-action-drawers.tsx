@@ -57,8 +57,7 @@ import { buildQuickRepeatFoods } from "@/lib/food-quick-repeat"
 import { useEnergyUnit, type EnergyUnit } from "@/lib/use-energy-unit"
 import { energyDisplay } from "@repo/ui"
 import { WATER_BG, WATER_COLOR } from "./constants"
-import { fmtWater } from "./helpers"
-import { flOzToMl, mlToFlOz } from "@/lib/measurement-system"
+import { formatWater, flOzToMl, mlToFlOz } from "@/lib/measurement-system"
 import { useWaterUnit } from "@/lib/use-water-unit"
 
 export type QuickActionId =
@@ -201,6 +200,7 @@ function WaterDrawer({
   // The custom field speaks the user's chosen water unit; storage stays ml
   // underneath.
   const waterUnit = useWaterUnit()
+  const fmtWater = (ml: number) => formatWater(ml, waterUnit)
   const imperialWater = waterUnit === "fl oz"
   const percent = Math.min(
     100,

@@ -86,6 +86,7 @@ import {
 import { useWaterUnit } from "@/lib/use-water-unit"
 import { mealTargetProgress } from "@/lib/meal-targets"
 import { formatFastDuration } from "@/lib/fasting"
+import { mealDefaultTime } from "@/lib/meal-times"
 import { useFastTimer } from "@/lib/use-fast-timer"
 import {
   buildSupplementDayPlan,
@@ -676,6 +677,7 @@ function CustomWaterSheet({
   // One fluid ounce per tap in fl-oz mode; 50 ml in metric. Unlabeled
   // otherwise, but the number should move by a unit the user can picture.
   const stepMl = flOz ? Math.round(flOzToMl(1)) : 50
+  const maxAmount = flOz ? Number(mlToFlOz(5000).toFixed(1)) : 5000
   function setClamped(next: number) {
     onAmountChange(Math.max(1, Math.min(5000, Math.round(next))))
   }
@@ -716,7 +718,7 @@ function CustomWaterSheet({
                   : "Custom water amount in milliliters"
               }
               min={1}
-              max={5000}
+              max={maxAmount}
               value={flOz ? Number(mlToFlOz(amount).toFixed(1)) : amount}
               onChange={(event) => {
                 const raw = Number(event.target.value)
@@ -4128,7 +4130,8 @@ export default function Nutrition() {
               <input
                 id="nutrition-log-time"
                 type="time"
-                value={logTime ?? foodLogTime()}
+                value={logTime ?? mealDefaultTime(defaultMeal()) ?? ""}
+                aria-description="Leave blank to use the selected meal's default time"
                 onChange={(event) => {
                   if (isFoodLogTime(event.target.value))
                     setLogTime(event.target.value)

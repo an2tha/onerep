@@ -120,13 +120,13 @@ private fun CalorieProgress(value: Int, goal: Int) {
     )
 }
 
-private fun formatWaterAmount(ml: Int, unit: String): String {
+private fun formatWaterAmount(ml: Int, unit: String, useLiters: Boolean): String {
     if (unit == "fl oz") {
         val value = ml / 29.5735
         val rounded = round(value * 10) / 10
         return if (rounded == rounded.toInt().toDouble()) "${rounded.toInt()} fl oz" else "$rounded fl oz"
     }
-    if (ml >= 1000) {
+    if (useLiters) {
         val liters = ml / 1000.0
         val rounded = round(liters * 100) / 100
         return if (rounded == rounded.toInt().toDouble()) "${rounded.toInt()} L" else "$rounded L"
@@ -136,7 +136,8 @@ private fun formatWaterAmount(ml: Int, unit: String): String {
 
 private fun waterSummary(snapshot: WidgetStore.Snapshot): String {
     val unit = if (snapshot.waterUnit == "fl oz") "fl oz" else "ml"
-    return "${formatWaterAmount(snapshot.waterMl, unit)} / ${formatWaterAmount(snapshot.waterGoalMl, unit)}"
+    val useLiters = unit == "ml" && max(snapshot.waterMl, snapshot.waterGoalMl) >= 1000
+    return "${formatWaterAmount(snapshot.waterMl, unit, useLiters)} / ${formatWaterAmount(snapshot.waterGoalMl, unit, useLiters)}"
 }
 
 @Composable

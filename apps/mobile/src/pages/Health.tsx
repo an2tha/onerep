@@ -10,7 +10,7 @@ import {
 import { useMutation, useQuery } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
 import { currentDateKey } from "@/lib/food-log"
-import { formatWeight } from "@/lib/exercise-display"
+import { formatBodyWeight as formatWeight } from "@/lib/exercise-display"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { isHealthSyncSupportedPlatform } from "@/lib/health-provider"
 import { hapticSelection } from "@/lib/haptics"
