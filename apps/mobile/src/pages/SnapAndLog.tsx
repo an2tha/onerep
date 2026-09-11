@@ -453,7 +453,14 @@ export default function SnapAndLog() {
       zxingRef.current = null
       setBarcodeScanning(false)
     }
-  }, [mode, cameraState, useNativeCapture, posthog, barcodeScanNonce])
+  }, [
+    mode,
+    cameraState,
+    useNativeCapture,
+    posthog,
+    barcodeScanNonce,
+    correctedForBarcode,
+  ])
 
   // ── Snap & AI capture ─────────────────────────────────────────────────────
 

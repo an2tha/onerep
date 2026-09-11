@@ -14,7 +14,7 @@ import {
 import { DialCustomMetrics } from "@/components/dial-custom-metrics"
 import { TrackSomethingNew } from "@/components/track-something-new"
 import { useWeightUnit } from "@/lib/use-weight-unit"
-import { formatWeight as formatDisplayWeight } from "@/lib/exercise-display"
+import { formatBodyWeight as formatDisplayWeight } from "@/lib/exercise-display"
 
 function formatPercent(value: number) {
   return `${value.toFixed(1)}%`

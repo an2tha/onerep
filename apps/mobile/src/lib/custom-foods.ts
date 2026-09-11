@@ -314,7 +314,7 @@ export function customFoodDraftFromDatabaseFood(food: {
     brand: food.brand ?? "",
     barcode: food.code ?? "",
     servingLabel: food.servingLabel || "100 g",
-    servingGrams: servingGrams !== null ? String(Math.round(servingGrams)) : "",
+    servingGrams: servingGrams !== null ? String(servingGrams) : "",
     nutrients: {
       ...base.nutrients,
       calories: String(Math.round(food.calories * basis)),
