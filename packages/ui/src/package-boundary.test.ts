@@ -64,6 +64,8 @@ describe("@repo/ui package boundary", () => {
       // The panel itself is grouped-list primitives from @repo/ui.
       "api-keys-section.tsx",
       "auth-guard.tsx",
+      // Gates app routes using a Convex preference; contains no shared UI.
+      "experimental-feature-guard.tsx",
       // The payment UI seam. index.tsx is a gitignored re-export swapped by
       // scripts/ensure-billing-provider.mjs: private builds get the checkout
       // in _private/payment-ui.tsx, open clones get a copy of index.stub.tsx.
