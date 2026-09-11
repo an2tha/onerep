@@ -1116,6 +1116,7 @@ export default function LegacyApp() {
     selectedDate,
     supplementEntries,
     waterEntries,
+    waterUnit,
     workoutLogs,
     energyUnit,
   ])
