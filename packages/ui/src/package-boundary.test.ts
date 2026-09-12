@@ -199,6 +199,8 @@ describe("@repo/ui package boundary", () => {
       // arrives through Convex queries and the elapsed helper lives in the
       // app's workout-logging lib.
       "endurance-heart-rate-chart.tsx",
+      // Owns the live workout GPS route and imperative Leaflet map lifecycle.
+      "endurance-route-map.tsx",
     ])
     const unexpected = sourceFiles(mobileComponents)
       .map((path) => relative(mobileComponents, path))
