@@ -88,6 +88,7 @@ import {
   clearOptimisticWaterUnit,
   useWaterUnit,
 } from "@/lib/use-water-unit"
+import { oneGlassWaterMl } from "@/lib/water-amounts"
 import { mealTargetProgress } from "@/lib/meal-targets"
 import { formatFastDuration } from "@/lib/fasting"
 import { useFastTimer } from "@/lib/use-fast-timer"
@@ -138,7 +139,6 @@ type GoalOverride = {
 
 type GoalField = keyof GoalOverride
 
-const QUICK_WATER = [250]
 const FAST_RING_R = 33
 const FAST_RING_C = 2 * Math.PI * FAST_RING_R
 const GOAL_FIELDS: {
@@ -2152,6 +2152,10 @@ export default function Nutrition() {
   // measurement system — the Settings row picks it.
   const waterUnit = useWaterUnit()
   const fmtWater = makeWaterFormatter(waterUnit)
+  // One tap is the standard glass, said in the unit the card draws with:
+  // 250 ml, or the round 8 fl oz it stands in for.
+  const oneGlassMl = oneGlassWaterMl(waterUnit)
+  const quickWaterAmounts = [oneGlassMl]
   const navigate = useSmoothNavigate()
   const nutritionHeaderRef = useTourAnchor("nutrition-header")
   const [searchParams, setSearchParams] = useSearchParams()
@@ -3349,13 +3353,13 @@ export default function Nutrition() {
                   <p className="app-section-title">Water</p>
                   <button
                     type="button"
-                    onClick={() => void addWater(250)}
+                    onClick={() => void addWater(oneGlassMl)}
                     disabled={loggingWaterAmount !== null}
                     className="native-toolbar-button h-11 border border-border bg-card px-3"
                   >
-                    {loggingWaterAmount === 250
+                    {loggingWaterAmount === oneGlassMl
                       ? "Adding..."
-                      : `+${fmtWater(250)}`}
+                      : `+${fmtWater(oneGlassMl)}`}
                   </button>
                 </div>
                 {waterEntries.length > 0 ? (
@@ -3879,7 +3883,7 @@ export default function Nutrition() {
                     animateChanges
                   />
                   <div className="mt-3 grid grid-cols-2 gap-2.5">
-                    {QUICK_WATER.map((amount) => (
+                    {quickWaterAmounts.map((amount) => (
                       <button
                         key={amount}
                         type="button"
