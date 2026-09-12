@@ -43,7 +43,7 @@ Run the Android journal JVM tests from `apps/mobile/android`, using JDK 21:
 ./gradlew :app:testDebugUnitTest --tests '*EnduranceJournalTest'
 ```
 
-These tests and native builds do **not** validate OS delivery of locations on a locked physical device. Endurance remains beta until the following device checks pass on iOS and Android:
+Endurance is released from beta. These tests and native builds do **not** validate OS delivery of locations on a locked physical device, so the following checks remain part of release validation on iOS and Android:
 
 1. Start a workout with precise location enabled; compare the foreground route with a known walking route.
 2. Lock the screen for at least ten minutes while moving, then reopen. Verify distance and intermediate geometry include that interval without duplicate points or a straight shortcut.

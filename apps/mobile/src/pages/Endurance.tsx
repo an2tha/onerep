@@ -132,7 +132,11 @@ function formatDuration(seconds: number) {
   return remainder === 0 ? `${hours}h` : `${hours}h ${remainder}m`
 }
 
-function formatDistance(meters: number, sport: Sport | undefined, unit: DistanceUnit) {
+function formatDistance(
+  meters: number,
+  sport: Sport | undefined,
+  unit: DistanceUnit
+) {
   if (sport === "swim" && unit === "km" && meters < 10_000) {
     return `${Math.round(meters).toLocaleString()} m`
   }
@@ -218,9 +222,7 @@ export default function Endurance() {
       0
     ) / 60
   )
-  const {
-    system: measurementSystem,
-  } = useMeasurementSystem()
+  const { system: measurementSystem } = useMeasurementSystem()
   const distanceUnit = distanceUnitForSystem(measurementSystem)
   const weekDistance = Number(
     (
@@ -250,7 +252,8 @@ export default function Endurance() {
       target: goals?.distanceMeters
         ? Number(
             (
-              goals.distanceMeters / (distanceUnit === "mi" ? METERS_PER_MILE : 1_000)
+              goals.distanceMeters /
+              (distanceUnit === "mi" ? METERS_PER_MILE : 1_000)
             ).toFixed(1)
           )
         : undefined,
@@ -300,12 +303,7 @@ export default function Endurance() {
       <ReactiveOrbField className="endurance-hero-wash" />
       <main className="app-page pb-28">
         <header className="app-header flex items-center justify-between gap-3">
-          <h1 className="app-title flex items-center gap-2">
-            Endurance
-            <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
-              Beta
-            </span>
-          </h1>
+          <h1 className="app-title">Endurance</h1>
           <button
             type="button"
             onClick={() => setGoalsOpen(true)}
@@ -772,7 +770,8 @@ function EnduranceGoalsSheet({
     setDistance(
       goals?.distanceMeters
         ? String(
-            goals.distanceMeters / (distanceUnit === "mi" ? METERS_PER_MILE : 1_000)
+            goals.distanceMeters /
+              (distanceUnit === "mi" ? METERS_PER_MILE : 1_000)
           )
         : ""
     )
@@ -790,7 +789,8 @@ function EnduranceGoalsSheet({
         ...(distanceValue
           ? {
               distanceMeters:
-                distanceValue * (distanceUnit === "mi" ? METERS_PER_MILE : 1_000),
+                distanceValue *
+                (distanceUnit === "mi" ? METERS_PER_MILE : 1_000),
             }
           : {}),
         ...(durationMinutes ? { durationMinutes } : {}),

@@ -68,7 +68,6 @@ import OAuthConsent from "./pages/OAuthConsent.tsx"
 import Workouts from "./pages/Workouts.tsx"
 import HikingTrails, { SharedHikingTrail } from "./pages/HikingTrails.tsx"
 import Endurance from "./pages/Endurance.tsx"
-import { ExperimentalFeatureGuard } from "./components/experimental-feature-guard.tsx"
 import ActiveEnduranceWorkout from "./pages/ActiveEnduranceWorkout.tsx"
 import NewPreset from "./pages/NewPreset.tsx"
 import ActiveWorkout from "./pages/ActiveWorkout.tsx"
@@ -221,13 +220,7 @@ function PwaLifecycle() {
 }
 
 type RouteTransitionKind =
-  | "tab"
-  | "push"
-  | "back"
-  | "task"
-  | "task-back"
-  | "replace"
-  | "replace-slow"
+  "tab" | "push" | "back" | "task" | "task-back" | "replace" | "replace-slow"
 
 function classifyRouteTransition(
   fromPathname: string,
@@ -243,7 +236,8 @@ function classifyRouteTransition(
   }
   if (motion === "back") return { kind: "back", direction: "right" }
   if (isTaskRoute(toPathname)) return { kind: "task", direction: "up" }
-  if (toPathname === "/settings") return { kind: "replace-slow", direction: "up" }
+  if (toPathname === "/settings")
+    return { kind: "replace-slow", direction: "up" }
 
   const fromTab = PRIMARY_TAB_ORDER.indexOf(fromPathname)
   const toTab = PRIMARY_TAB_ORDER.indexOf(toPathname)
@@ -587,7 +581,11 @@ function NavSync() {
     // A leftward drag on a slide-to-delete row near the right edge is a
     // delete, not a forward navigation; let the row own it.
     // Maps also own edge drags so panning cannot navigate away from a hike.
-    if ((event.target as HTMLElement).closest?.("[data-slide-delete], .leaflet-container")) {
+    if (
+      (event.target as HTMLElement).closest?.(
+        "[data-slide-delete], .leaflet-container"
+      )
+    ) {
       touchStartX.current = null
       touchStartY.current = null
       return
@@ -830,29 +828,35 @@ const router = createBrowserRouter([
         element: (
           <AuthGuard>
             <ErrorBoundary label="Endurance">
-              <ExperimentalFeatureGuard>
-                <Endurance />
-              </ExperimentalFeatureGuard>
+              <Endurance />
             </ErrorBoundary>
           </AuthGuard>
         ),
       },
       {
         path: "/endurance/trails",
-        element: <AuthGuard><ErrorBoundary label="Hiking trails"><HikingTrails /></ErrorBoundary></AuthGuard>,
+        element: (
+          <AuthGuard>
+            <ErrorBoundary label="Hiking trails">
+              <HikingTrails />
+            </ErrorBoundary>
+          </AuthGuard>
+        ),
       },
       {
         path: "/trails/:token",
-        element: <ErrorBoundary label="Shared hiking trail"><SharedHikingTrail /></ErrorBoundary>,
+        element: (
+          <ErrorBoundary label="Shared hiking trail">
+            <SharedHikingTrail />
+          </ErrorBoundary>
+        ),
       },
       {
         path: "/endurance/active",
         element: (
           <AuthGuard>
             <ErrorBoundary label="Active Endurance Workout">
-              <ExperimentalFeatureGuard>
-                <ActiveEnduranceWorkout />
-              </ExperimentalFeatureGuard>
+              <ActiveEnduranceWorkout />
             </ErrorBoundary>
           </AuthGuard>
         ),

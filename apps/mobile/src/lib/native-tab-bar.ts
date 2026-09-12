@@ -11,10 +11,8 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Capacitor, registerPlugin } from "@capacitor/core"
 import type { PluginListenerHandle } from "@capacitor/core"
-import { useQuery } from "convex/react"
 import { logDevWarn } from "@/lib/utils"
 import { activeTabPath, isTabActive } from "@/components/bottom-bar"
-import { api } from "../../../../convex/_generated/api"
 
 type NativeTabBarItem = {
   id: string
@@ -51,12 +49,6 @@ const BASE_NATIVE_TAB_ITEMS: NativeTabBarItem[] = [
   { id: "/coach", symbol: "sparkles", label: "Coach", prominent: true },
   { id: "/settings", symbol: "gearshape.fill", label: "Settings" },
 ]
-
-function getNativeTabItems(experimentalFeaturesEnabled: boolean) {
-  return BASE_NATIVE_TAB_ITEMS.filter(
-    (item) => item.id !== "/endurance" || experimentalFeaturesEnabled
-  )
-}
 
 /**
  * Settings is not a web tab — on the desktop it lives in the sidebar's profile
@@ -141,16 +133,7 @@ export function useNativeTabBar({
     onSelectRef.current = onSelect
   }, [onSelect])
 
-  const preferences = useQuery(
-    api.users.users.getPreferences,
-    supported ? {} : "skip"
-  )
-  const experimentalFeaturesEnabled =
-    preferences?.experimentalFeaturesEnabled ?? false
-  const nativeTabItems = useMemo(
-    () => getNativeTabItems(experimentalFeaturesEnabled),
-    [experimentalFeaturesEnabled]
-  )
+  const nativeTabItems = BASE_NATIVE_TAB_ITEMS
 
   // Build the bar once and subscribe to taps.
   const initialSelectionRef = useRef(nativeSelection(pathname))

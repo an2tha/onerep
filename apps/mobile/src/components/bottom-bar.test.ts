@@ -65,11 +65,11 @@ describe("bottom bar accessibility contract", () => {
     }
 
     expect(SOURCE).toContain("label: t(labelKey)")
-    expect(SOURCE).toContain("experimentalFeaturesEnabled")
-    expect(SOURCE).toContain("Beta")
+    expect(SOURCE).not.toContain("experimentalFeaturesEnabled")
+    expect(SOURCE).not.toContain("Beta")
   })
 
-  test("endurance is gated by experimental features in native navigation", () => {
+  test("endurance is always available in native navigation", () => {
     const nativeTabs = readFileSync(
       new URL("../lib/native-tab-bar.ts", import.meta.url),
       "utf8"
@@ -78,8 +78,8 @@ describe("bottom bar accessibility contract", () => {
     expect(nativeTabs).toContain(
       '{ id: "/endurance", symbol: "bicycle", label: "Endurance" }'
     )
-    expect(nativeTabs).toContain("experimentalFeaturesEnabled")
-    expect(nativeTabs).toContain("getNativeTabItems")
+    expect(nativeTabs).not.toContain("experimentalFeaturesEnabled")
+    expect(nativeTabs).not.toContain("getNativeTabItems")
   })
 
   test("coach keeps a native-safe icon with an iOS fallback", () => {
@@ -115,7 +115,9 @@ describe("bottom bar accessibility contract", () => {
     }
 
     const drawn = quotedStrings(
-      tabs.match(/const BASE_TABS(?::[^=]+)? = \[([\s\S]*?)\](?: as const)?/)?.[1] ?? ""
+      tabs.match(
+        /const BASE_TABS(?::[^=]+)? = \[([\s\S]*?)\](?: as const)?/
+      )?.[1] ?? ""
     ).filter((value) => value.startsWith("/"))
     const slideOrder = quotedStrings(
       navigation.match(/PRIMARY_TAB_ORDER = \[([\s\S]*?)\]/)?.[1] ?? ""

@@ -1,10 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { readFileSync } from "node:fs"
 
-const SOURCE = readFileSync(
-  new URL("./Endurance.tsx", import.meta.url),
-  "utf8"
-)
+const SOURCE = readFileSync(new URL("./Endurance.tsx", import.meta.url), "utf8")
 const ACTIVE_SOURCE = readFileSync(
   new URL("./ActiveEnduranceWorkout.tsx", import.meta.url),
   "utf8"
@@ -22,7 +19,10 @@ const WATCH_SYNC_SOURCE = readFileSync(
   "utf8"
 )
 const WATCH_MANAGER_SOURCE = readFileSync(
-  new URL("../../ios/App/OneRepWatch/WorkoutSessionManager.swift", import.meta.url),
+  new URL(
+    "../../ios/App/OneRepWatch/WorkoutSessionManager.swift",
+    import.meta.url
+  ),
   "utf8"
 )
 const APPLE_HEALTH_SOURCE = readFileSync(
@@ -38,9 +38,9 @@ const ANDROID_HEALTH_SOURCE = readFileSync(
 )
 
 describe("endurance tab", () => {
-  test("is presented as a beta section", () => {
-    expect(SOURCE).toContain("Beta")
-    expect(SOURCE).not.toContain("experimentalFeaturesEnabled")
+  test("is presented as a released section", () => {
+    expect(SOURCE).not.toContain("Beta")
+    expect(SOURCE).not.toContain("ExperimentalFeatureGuard")
   })
 
   test("uses the shared hold-to-start training hero", () => {
@@ -93,8 +93,12 @@ describe("endurance tab", () => {
 
   test("native apps request foreground location access", () => {
     expect(IOS_INFO).toContain("NSLocationWhenInUseUsageDescription")
-    expect(ANDROID_MANIFEST).toContain("android.permission.ACCESS_COARSE_LOCATION")
-    expect(ANDROID_MANIFEST).toContain("android.permission.ACCESS_FINE_LOCATION")
+    expect(ANDROID_MANIFEST).toContain(
+      "android.permission.ACCESS_COARSE_LOCATION"
+    )
+    expect(ANDROID_MANIFEST).toContain(
+      "android.permission.ACCESS_FINE_LOCATION"
+    )
   })
 
   test("streams watch heart rate and calories into a recoverable graph", () => {
@@ -109,7 +113,9 @@ describe("endurance tab", () => {
   })
 
   test("exports activity-aware endurance sessions to native fitness stores", () => {
-    expect(APPLE_HEALTH_SOURCE).toContain('case "run": configuration.activityType = .running')
+    expect(APPLE_HEALTH_SOURCE).toContain(
+      'case "run": configuration.activityType = .running'
+    )
     expect(APPLE_HEALTH_SOURCE).toContain("HKMetadataKeyWorkoutBrandName")
     expect(ANDROID_HEALTH_SOURCE).toContain(
       "ExerciseSessionRecord.EXERCISE_TYPE_RUNNING_TREADMILL"
