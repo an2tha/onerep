@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 import { ArrowCounterClockwise, PintGlass, Plus } from "@phosphor-icons/react"
 import { useQuery } from "convex/react"
-import { Card, useReplayKey, tint } from "@repo/ui"
+import { Card, useReplayKey, tint, toast } from "@repo/ui"
 import { api } from "../../../../convex/_generated/api"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { useSmoothNavigate } from "@/lib/navigation"
@@ -19,41 +19,36 @@ import { WATER_BG, WATER_COLOR } from "./constants"
 import { formatWater } from "@/lib/measurement-system"
 import { useWaterUnit } from "@/lib/use-water-unit"
 
+import { reconcilePendingWater, type PendingWaterEntry } from "@/lib/pending-water"
+
 type WaterEntry = { id: string; amountMl: number; loggedAt: string }
 
-/**
- * The day's water, plus a stand-in for anything queued but not yet synced.
- *
- * Glass taps set an *absolute* target rather than adding a fixed amount, so
- * each tap has to compute against a total that already includes the last one.
- * Two windows break that: an unresolved query reads as an empty day (the tile
- * paints before the query lands, so the very first tap can land on top of
- * water that is still arriving), and an offline mutation resolves as soon as
- * the job is queued, long before the subscription moves. `pendingMl` covers
- * both and drains as the server total catches up.
- */
-function useWaterDay(rawEntries: WaterEntry[] | undefined) {
-  const entries = (rawEntries ?? []) as WaterEntry[]
-  const serverTotalMl = entries.reduce((sum, entry) => sum + entry.amountMl, 0)
-  const [pendingMl, setPendingMl] = useState(0)
-  const lastServerTotalMl = useRef(serverTotalMl)
+/** Keep queued entries by date and reconcile only their own server IDs. */
+function useWaterDay(dateKey: string, rawEntries: WaterEntry[] | undefined) {
+  const entries = rawEntries ?? []
+  const [pending, setPending] = useState<PendingWaterEntry[]>([])
+  const remaining = reconcilePendingWater(pending, dateKey, entries)
+  const pendingMl = remaining
+    .filter((entry) => entry.date === dateKey)
+    .reduce((sum, entry) => sum + entry.amountMl, 0)
 
   useEffect(() => {
-    const advanced = serverTotalMl - lastServerTotalMl.current
-    lastServerTotalMl.current = serverTotalMl
-    if (advanced > 0) {
-      setPendingMl((pending) => Math.max(0, pending - advanced))
-    }
-  }, [serverTotalMl])
+    if (!rawEntries) return
+    setPending((previous) => {
+      const next = reconcilePendingWater(previous, dateKey, rawEntries)
+      return next.length === previous.length ? previous : next
+    })
+  }, [dateKey, rawEntries])
 
   return {
     entries,
-    // An unresolved day is not an empty day: taps wait for the query.
     loaded: rawEntries !== undefined,
     pendingMl,
-    totalMl: serverTotalMl + pendingMl,
-    queuePending: (amountMl: number) =>
-      setPendingMl((pending) => pending + amountMl),
+    totalMl: entries.reduce((sum, entry) => sum + entry.amountMl, 0) + pendingMl,
+    queuePending: (entry: WaterEntry) =>
+      setPending((previous) => [...previous, { ...entry, date: dateKey }]),
+    clearPending: (id: string) =>
+      setPending((previous) => previous.filter((entry) => entry.id !== id)),
   }
 }
 
@@ -81,8 +76,8 @@ export function WaterWidget({ dateKey }: { dateKey: string }) {
     "logs.water.removeEntry"
   )
 
-  const { entries, loaded, pendingMl, totalMl, queuePending } =
-    useWaterDay(rawEntries)
+  const { entries, loaded, pendingMl, totalMl, queuePending, clearPending } =
+    useWaterDay(dateKey, rawEntries)
   const mlPerGlass = waterGlassTargetMl(goalMl, 1)
   const filledCount = filledWaterGlassCount(totalMl, goalMl)
   const rain = useReplayKey(1100)
@@ -94,9 +89,12 @@ export function WaterWidget({ dateKey }: { dateKey: string }) {
       amountMl,
       loggedAt: new Date().toISOString(),
     }
-    queuePending(amountMl)
+    queuePending(entry)
     announceOrbActivity("log")
-    void addWaterEntry({ date: dateKey, entry })
+    void addWaterEntry({ date: dateKey, entry }).catch(() => {
+      clearPending(entry.id)
+      toast.error("Could not save your water entry")
+    })
   }
 
   function addGlass() {
@@ -209,8 +207,8 @@ export function WaterSmall({
     api.logs.water.removeEntry,
     "logs.water.removeEntry"
   )
-  const { entries, loaded, pendingMl, totalMl, queuePending } =
-    useWaterDay(rawEntries)
+  const { entries, loaded, pendingMl, totalMl, queuePending, clearPending } =
+    useWaterDay(dateKey, rawEntries)
   const filledCount = filledWaterGlassCount(totalMl, goalMl)
   const previewFilledCount =
     hoveredGlass === null
@@ -224,9 +222,12 @@ export function WaterSmall({
       amountMl,
       loggedAt: new Date().toISOString(),
     }
-    queuePending(amountMl)
+    queuePending(entry)
     announceOrbActivity("log")
-    void addWaterEntry({ date: dateKey, entry })
+    void addWaterEntry({ date: dateKey, entry }).catch(() => {
+      clearPending(entry.id)
+      toast.error("Could not save your water entry")
+    })
   }
 
   function fillToGlass(index: number) {
