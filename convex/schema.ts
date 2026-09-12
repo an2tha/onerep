@@ -1,9 +1,36 @@
+import { trailPointValidator } from "./lib/trailGeometry";
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import { billingPlatform, billingState } from "./billing/types";
 import { nutrientProfileValidator } from "./lib/nutritionValues";
 
 export default defineSchema({
+  // Each trace is capped at 4,000 points by its mutation, separate from list summaries.
+  hikingTrails: defineTable({
+    userId: v.string(),
+    name: v.string(),
+    description: v.string(),
+    distanceMeters: v.number(),
+    shareToken: v.optional(v.string()),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_shareToken", ["shareToken"]),
+  hikingTrailRoutes: defineTable({
+    userId: v.string(),
+    trailId: v.id("hikingTrails"),
+    points: v.array(trailPointValidator),
+  })
+    .index("by_trailId", ["trailId"])
+    .index("by_userId", ["userId"]),
+  healthWorkoutRoutes: defineTable({
+    userId: v.string(),
+    workoutId: v.id("healthWorkouts"),
+    points: v.array(trailPointValidator),
+    elevationGainMeters: v.number(),
+  })
+    .index("by_workoutId", ["workoutId"])
+    .index("by_userId", ["userId"]),
+
   // ── User preferences (settings) ───────────────────────────────────────────
   userPreferences: defineTable({
     userId: v.string(),
@@ -34,6 +61,34 @@ export default defineSchema({
     ),
     enduranceGoals: v.optional(
       v.object({
+        hike: v.optional(
+          v.object({
+            distanceMeters: v.optional(v.number()),
+            durationMinutes: v.optional(v.number()),
+            sessions: v.optional(v.number()),
+          }),
+        ),
+        walk: v.optional(
+          v.object({
+            distanceMeters: v.optional(v.number()),
+            durationMinutes: v.optional(v.number()),
+            sessions: v.optional(v.number()),
+          }),
+        ),
+        trail_run: v.optional(
+          v.object({
+            distanceMeters: v.optional(v.number()),
+            durationMinutes: v.optional(v.number()),
+            sessions: v.optional(v.number()),
+          }),
+        ),
+        row: v.optional(
+          v.object({
+            distanceMeters: v.optional(v.number()),
+            durationMinutes: v.optional(v.number()),
+            sessions: v.optional(v.number()),
+          }),
+        ),
         run: v.optional(
           v.object({
             distanceMeters: v.optional(v.number()),

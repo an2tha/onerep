@@ -216,6 +216,10 @@ const enduranceSportValidator = v.union(
   v.literal("run"),
   v.literal("ride"),
   v.literal("swim"),
+  v.literal("hike"),
+  v.literal("walk"),
+  v.literal("trail_run"),
+  v.literal("row"),
 );
 
 export const setEnduranceGoals = mutation({

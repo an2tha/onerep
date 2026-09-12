@@ -1,3 +1,4 @@
+import { trailPointValidator, validateTrailPoints } from "../lib/trailGeometry";
 import { v } from "convex/values";
 import { mutation, query } from "../_generated/server";
 import type { MutationCtx } from "../_generated/server";
@@ -48,6 +49,7 @@ const PROVIDER_LABELS: Record<StoredHealthProvider, string> = {
  */
 const LINKABLE_ACTIVITY_TYPES = new Set([
   "running",
+  "trail_running",
   "walking",
   "cycling",
   "swimming",
@@ -269,6 +271,10 @@ const enduranceSportValidator = v.union(
   v.literal("run"),
   v.literal("ride"),
   v.literal("swim"),
+  v.literal("hike"),
+  v.literal("walk"),
+  v.literal("trail_run"),
+  v.literal("row"),
 );
 
 const heartRateSampleValidator = v.object({
@@ -281,9 +287,7 @@ export const recordEnduranceWorkout = mutation({
   args: {
     externalId: v.string(),
     sport: enduranceSportValidator,
-    environment: v.optional(
-      v.union(v.literal("outdoor"), v.literal("indoor")),
-    ),
+    environment: v.optional(v.union(v.literal("outdoor"), v.literal("indoor"))),
     date: v.string(),
     startedAt: v.number(),
     endedAt: v.number(),
@@ -294,6 +298,8 @@ export const recordEnduranceWorkout = mutation({
     avgHeartRateBpm: v.optional(v.number()),
     maxHeartRateBpm: v.optional(v.number()),
     activeEnergyKcal: v.optional(v.number()),
+    routePoints: v.optional(v.array(trailPointValidator)),
+    elevationGainMeters: v.optional(v.number()),
     heartRateSamples: v.optional(v.array(heartRateSampleValidator)),
   },
   handler: async (ctx, args) => {
@@ -321,7 +327,8 @@ export const recordEnduranceWorkout = mutation({
           args.maxHeartRateBpm < 30 ||
           args.maxHeartRateBpm > 240)) ||
       (args.activeEnergyKcal !== undefined &&
-        (!Number.isFinite(args.activeEnergyKcal) || args.activeEnergyKcal < 0)) ||
+        (!Number.isFinite(args.activeEnergyKcal) ||
+          args.activeEnergyKcal < 0)) ||
       (args.heartRateSamples?.length ?? 0) > 900 ||
       args.heartRateSamples?.some(
         (sample) =>
@@ -335,7 +342,18 @@ export const recordEnduranceWorkout = mutation({
       throw new Error("Invalid workout summary");
     }
 
+    if (args.routePoints) validateTrailPoints(args.routePoints);
+    if (
+      args.elevationGainMeters !== undefined &&
+      (!Number.isFinite(args.elevationGainMeters) ||
+        args.elevationGainMeters < 0)
+    )
+      throw new Error("Invalid elevation gain");
     const activity = {
+      hike: { type: "hiking", name: "Hike" },
+      walk: { type: "walking", name: "Walk" },
+      trail_run: { type: "trail_running", name: "Trail run" },
+      row: { type: "rowing", name: "Row" },
       run: { type: "running", name: "Run" },
       ride: { type: "cycling", name: "Ride" },
       swim: { type: "swimming", name: "Swim" },
@@ -382,6 +400,20 @@ export const recordEnduranceWorkout = mutation({
       });
     }
 
+    if (args.routePoints) {
+      const existingRoute = await ctx.db
+        .query("healthWorkoutRoutes")
+        .withIndex("by_workoutId", (q) => q.eq("workoutId", workoutId))
+        .unique();
+      const route = {
+        userId: user._id,
+        workoutId,
+        points: args.routePoints,
+        elevationGainMeters: args.elevationGainMeters ?? 0,
+      };
+      if (existingRoute) await ctx.db.replace(existingRoute._id, route);
+      else await ctx.db.insert("healthWorkoutRoutes", route);
+    }
     if (args.heartRateSamples && args.heartRateSamples.length > 0) {
       const existingSeries = await ctx.db
         .query("healthWorkoutHeartRateSeries")
@@ -815,5 +847,19 @@ export const recordSyncError = mutation({
       lastSyncError: args.message.slice(0, 200),
     });
     return { ok: true };
+  },
+});
+
+export const getRoute = query({
+  args: { workoutId: v.id("healthWorkouts") },
+  handler: async (ctx, { workoutId }) => {
+    const user = await safeGetAuthUser(ctx);
+    if (!user) return null;
+    const workout = await ctx.db.get(workoutId);
+    if (workout?.userId !== user._id) return null;
+    return await ctx.db
+      .query("healthWorkoutRoutes")
+      .withIndex("by_workoutId", (q) => q.eq("workoutId", workoutId))
+      .unique();
   },
 });

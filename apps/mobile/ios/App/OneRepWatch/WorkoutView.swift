@@ -189,6 +189,10 @@ struct WorkoutView: View {
 
     private func activity(for sport: String) -> HKWorkoutActivityType {
         switch sport {
+        case "hike": return .hiking
+        case "walk": return .walking
+        case "trail_run": return .running
+        case "row": return .rowing
         case "ride": return .cycling
         case "swim": return .swimming
         default: return .running

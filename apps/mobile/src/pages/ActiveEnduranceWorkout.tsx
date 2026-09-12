@@ -1,4 +1,29 @@
-import { useEffect, useRef, useState } from "react"
+import { App as CapacitorApp } from "@capacitor/app"
+import {
+  hasNativeEndurance,
+  isNativeEnduranceShell,
+  nativeRecorder,
+  resetNativeEndurance,
+  NativeEnduranceRecorder,
+} from "@/lib/native-endurance"
+import {
+  acceptGpsPoint,
+  distanceToTrail,
+  appendRoutePoint,
+  elevationStep,
+} from "@/lib/hiking-tracking"
+import {
+  validateTrailPoints,
+  type TrailPoint,
+} from "../../../../convex/lib/trailGeometry"
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type SetStateAction,
+} from "react"
 import { useNavigate, useSearchParams } from "react-router"
 import { useMutation, useQuery } from "convex/react"
 import {
@@ -33,6 +58,7 @@ import { useMeasurementSystem } from "@/lib/use-measurement-system"
 import { hapticMedium, hapticSelection, hapticTap } from "@/lib/haptics"
 import {
   ACTIVE_ENDURANCE_KEY,
+  SELECTED_TRAIL_KEY,
   type EnduranceEnvironment,
   type EnduranceHeartRateSample,
 } from "@/lib/endurance-workout"
@@ -50,7 +76,7 @@ import {
   safeLocalStorageSet,
 } from "@/lib/utils"
 
-type Sport = "run" | "ride" | "swim"
+type Sport = "run" | "ride" | "swim" | "hike" | "walk" | "trail_run" | "row"
 type SessionStatus = "recording" | "paused"
 type GpsState =
   "locating" | "locked" | "unavailable" | "denied" | "paused" | "indoor"
@@ -60,6 +86,8 @@ type RoutePoint = {
   longitude: number
   altitude: number | null
   accuracy?: number
+  altitudeAccuracy?: number | null
+  segmentStart?: boolean
   timestamp: number
 }
 
@@ -70,6 +98,11 @@ type EnduranceLap = {
 
 type EnduranceSession = {
   version: 1
+  title?: string
+  nativeCursor?: number
+  nativeLastPoint?: RoutePoint | null
+  nativeElevationAnchor?: number | null
+  plannedTrail?: { name: string; points: TrailPoint[] }
   id: string
   sport: Sport
   environment: EnduranceEnvironment
@@ -92,6 +125,10 @@ const MAX_ROUTE_POINTS = 4_000
 const MAX_HEART_RATE_SAMPLES = 900
 
 const SPORT_META = {
+  hike: { label: "Hike", metric: "Avg pace" },
+  walk: { label: "Walk", metric: "Avg pace" },
+  trail_run: { label: "Trail run", metric: "Avg pace" },
+  row: { label: "Row", metric: "Avg pace" },
   run: {
     label: "Run",
     metric: "Avg pace",
@@ -107,7 +144,9 @@ const SPORT_META = {
 } as const
 
 function isSport(value: string | null): value is Sport {
-  return value === "run" || value === "ride" || value === "swim"
+  return ["run", "ride", "swim", "hike", "walk", "trail_run", "row"].includes(
+    value ?? ""
+  )
 }
 
 function isEnvironment(value: string | null): value is EnduranceEnvironment {
@@ -136,7 +175,10 @@ function createSession(
 
 function loadSession(): EnduranceSession | null {
   const raw = safeLocalStorageGet(ACTIVE_ENDURANCE_KEY)
-  if (!raw) return null
+  return raw ? decodeSession(raw) : null
+}
+
+function decodeSession(raw: string): EnduranceSession | null {
   try {
     const value = JSON.parse(raw) as Partial<EnduranceSession>
     if (
@@ -166,22 +208,6 @@ function loadSession(): EnduranceSession | null {
   } catch {
     return null
   }
-}
-
-function radians(value: number) {
-  return (value * Math.PI) / 180
-}
-
-function distanceBetween(a: RoutePoint, b: RoutePoint) {
-  const earthRadius = 6_371_000
-  const latitudeDelta = radians(b.latitude - a.latitude)
-  const longitudeDelta = radians(b.longitude - a.longitude)
-  const value =
-    Math.sin(latitudeDelta / 2) ** 2 +
-    Math.cos(radians(a.latitude)) *
-      Math.cos(radians(b.latitude)) *
-      Math.sin(longitudeDelta / 2) ** 2
-  return earthRadius * 2 * Math.atan2(Math.sqrt(value), Math.sqrt(1 - value))
 }
 
 function elapsedSeconds(session: EnduranceSession, now: number) {
@@ -264,9 +290,43 @@ export default function ActiveEnduranceWorkout() {
   const initialEnvironment = isEnvironment(requestedEnvironment)
     ? requestedEnvironment
     : "outdoor"
-  const [session, setSession] = useState<EnduranceSession>(
-    () => loadSession() ?? createSession(initialSport, initialEnvironment)
+  const [session, renderSession] = useState<EnduranceSession>(() => {
+    const saved = loadSession()
+    if (saved) return saved
+    const fresh = createSession(initialSport, initialEnvironment)
+    if (searchParams.get("trail") === "selected" && initialSport === "hike") {
+      try {
+        const trail = JSON.parse(
+          safeLocalStorageGet(SELECTED_TRAIL_KEY) ?? "null"
+        )
+        if (trail && typeof trail.name === "string") {
+          validateTrailPoints(trail.points)
+          fresh.plannedTrail = {
+            name: trail.name.slice(0, 120),
+            points: trail.points,
+          }
+        }
+      } catch {
+        /* A stale trail draft must not prevent recording. */
+      }
+    }
+    return fresh
+  })
+  const sessionRef = useRef(session)
+  const setSession = useCallback((update: SetStateAction<EnduranceSession>) => {
+    const next =
+      typeof update === "function" ? update(sessionRef.current) : update
+    sessionRef.current = next
+    renderSession(next)
+  }, [])
+  const nativeAvailable = hasNativeEndurance()
+  const usesNativeGps = nativeAvailable && session.environment === "outdoor"
+  const nativeRef = useRef<NativeEnduranceRecorder<EnduranceSession> | null>(
+    null
   )
+  const [nativeReady, setNativeReady] = useState(!nativeAvailable)
+  const [nativeBusy, setNativeBusy] = useState(false)
+  const [nativeError, setNativeError] = useState("")
   const [now, setNow] = useState(Date.now)
   const [gpsState, setGpsState] =
     useState<Exclude<GpsState, "paused" | "indoor">>("locating")
@@ -278,8 +338,12 @@ export default function ActiveEnduranceWorkout() {
     "checking" | "connected" | "waiting" | "unavailable"
   >("checking")
   const [watchContributed, setWatchContributed] = useState(false)
-  const [title, setTitle] = useState(() => defaultTitle(session.sport))
+  const [title, setTitle] = useState(
+    () =>
+      session.title ?? session.plannedTrail?.name ?? defaultTitle(session.sport)
+  )
   const [saving, setSaving] = useState(false)
+  const [storageError, setStorageError] = useState(false)
   const endedRef = useRef(false)
   const preferences = useQuery(api.users.users.getPreferences)
   const { system: measurementSystem } = useMeasurementSystem()
@@ -287,10 +351,16 @@ export default function ActiveEnduranceWorkout() {
   const recordWorkout = useMutation(
     api.logs.healthWorkouts.recordEnduranceWorkout
   )
-  const latestPointRef = useRef<RoutePoint | null>(
-    session.points.at(-1) ?? null
-  )
+  const latestPointRef = useRef<RoutePoint | null>(null)
+  const elevationAnchor = useRef<number | null>(null)
+  const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null)
 
+  const trailOffset = useMemo(() => {
+    const last = session.points.at(-1)
+    return last && session.plannedTrail
+      ? distanceToTrail(last, session.plannedTrail.points)
+      : null
+  }, [session.points, session.plannedTrail])
   const elapsed = elapsedSeconds(session, now)
   const meta = SPORT_META[session.sport]
   const averageMetric =
@@ -301,6 +371,128 @@ export default function ActiveEnduranceWorkout() {
   const currentLapElapsed = Math.max(0, elapsed - previousLapElapsed)
 
   useEffect(() => {
+    if (!nativeAvailable) return
+    let disposed = false
+    let recorder: NativeEnduranceRecorder<EnduranceSession> | null = null
+    let attached = false
+    let listener: { remove(): Promise<void> } | undefined
+    const reportError = (error: unknown) => {
+      if (!disposed)
+        setNativeError(
+          error instanceof Error
+            ? error.message
+            : "Native route recording failed. Retry to recover your route."
+        )
+    }
+    setNativeReady(false)
+    setNativeBusy(true)
+    const sync = () => {
+      if (attached && document.visibilityState === "visible" && recorder)
+        void recorder
+          .sync()
+          .then(() => {
+            if (disposed) return
+            const last = sessionRef.current.nativeLastPoint
+            if (last) {
+              setGpsAccuracy(last.accuracy ?? null)
+              setGpsState(
+                Date.now() - last.timestamp < 30000 ? "locked" : "locating"
+              )
+            }
+          })
+          .catch(reportError)
+    }
+    void (async () => {
+      const stored = await nativeRecorder.getState()
+      if (disposed) return
+      if (!stored.active && sessionRef.current.environment === "indoor") {
+        setNativeReady(true)
+        return
+      }
+      recorder = new NativeEnduranceRecorder<EnduranceSession>(
+        nativeRecorder,
+        () => sessionRef.current,
+        setSession,
+        decodeSession,
+        (message) => {
+          if (!disposed) setNativeError(message)
+        }
+      )
+      nativeRef.current = recorder
+      await recorder.attach()
+      if (disposed) return
+      attached = true
+      const recovered = sessionRef.current
+      setTitle(
+        recovered.title ??
+          recovered.plannedTrail?.name ??
+          defaultTitle(recovered.sport)
+      )
+      setNativeReady(true)
+      sync()
+    })()
+      .catch((error) => {
+        if (!disposed) {
+          setSession((current) => ({
+            ...current,
+            status: "paused",
+            pausedAt: current.pausedAt ?? Date.now(),
+          }))
+          reportError(error)
+        }
+      })
+      .finally(() => {
+        if (!disposed) setNativeBusy(false)
+      })
+    const timer = window.setInterval(sync, 5000)
+    document.addEventListener("visibilitychange", sync)
+    void CapacitorApp.addListener("appStateChange", ({ isActive }) => {
+      if (isActive) sync()
+    }).then((handle) => {
+      if (disposed) void handle.remove()
+      else listener = handle
+    })
+    return () => {
+      disposed = true
+      recorder?.detach()
+      if (nativeRef.current === recorder) nativeRef.current = null
+      window.clearInterval(timer)
+      document.removeEventListener("visibilitychange", sync)
+      void listener?.remove()
+    }
+  }, [nativeAvailable, gpsAttempt, setSession])
+
+  // Browsers cannot collect GPS while suspended. Pause honestly instead of inflating elapsed time.
+  useEffect(() => {
+    if (usesNativeGps || session.environment === "indoor") return
+    const onVisibility = () => {
+      if (
+        document.visibilityState === "hidden" &&
+        sessionRef.current.status === "recording"
+      ) {
+        const next: EnduranceSession = {
+          ...sessionRef.current,
+          status: "paused",
+          pausedAt: Date.now(),
+        }
+        safeLocalStorageSet(ACTIVE_ENDURANCE_KEY, JSON.stringify(next))
+        setSession(next)
+        latestPointRef.current = null
+        void commandEnduranceWatch({
+          command: "pause",
+          sessionId: next.id,
+          sport: next.sport,
+          environment: next.environment,
+          startedAt: next.startedAt,
+        })
+      }
+    }
+    document.addEventListener("visibilitychange", onVisibility)
+    return () => document.removeEventListener("visibilitychange", onVisibility)
+  }, [usesNativeGps, session.environment, setSession])
+
+  useEffect(() => {
+    if (nativeAvailable && !nativeReady) return
     let disposed = false
     let remove: (() => void) | undefined
 
@@ -404,7 +596,12 @@ export default function ActiveEnduranceWorkout() {
               : {}),
           }
         })
-        if (event.action === "enduranceFinished") setFinishOpen(true)
+        if (event.action === "enduranceFinished") {
+          void nativeRef.current
+            ?.control("stop")
+            .catch((error) => setNativeError(String(error)))
+          setFinishOpen(true)
+        }
         return
       }
 
@@ -412,6 +609,14 @@ export default function ActiveEnduranceWorkout() {
         event.action === "enduranceControl" &&
         event.payload.sessionId === session.id
       ) {
+        if (nativeRef.current) {
+          const command = event.payload.command
+          void nativeRef.current
+            .control(command === "end" ? "stop" : command)
+            .catch((error) => setNativeError(String(error)))
+          if (command === "end") setFinishOpen(true)
+          return
+        }
         if (event.payload.command === "end") {
           setSession((current) => ({
             ...current,
@@ -457,11 +662,15 @@ export default function ActiveEnduranceWorkout() {
     session.sport,
     session.startedAt,
     session.status,
+    nativeAvailable,
+    nativeReady,
   ])
 
   useEffect(() => {
     if (!endedRef.current)
-      safeLocalStorageSet(ACTIVE_ENDURANCE_KEY, JSON.stringify(session))
+      setStorageError(
+        !safeLocalStorageSet(ACTIVE_ENDURANCE_KEY, JSON.stringify(session))
+      )
   }, [session])
 
   useEffect(() => {
@@ -470,6 +679,7 @@ export default function ActiveEnduranceWorkout() {
   }, [])
 
   useEffect(() => {
+    if (usesNativeGps || (nativeAvailable && !nativeReady)) return
     if (session.status !== "recording") return
     if (session.environment === "indoor") return
     if (!("geolocation" in navigator)) {
@@ -477,60 +687,64 @@ export default function ActiveEnduranceWorkout() {
       return
     }
     setGpsState("locating")
-    const maximumSpeed = session.sport === "ride" ? 35 : 15
+    let cancelled = false
+    latestPointRef.current = null
+    elevationAnchor.current = null
+    const maximumSpeed =
+      session.sport === "ride"
+        ? 35
+        : session.sport === "hike" || session.sport === "walk"
+          ? 5
+          : 15
     const watchId = navigator.geolocation.watchPosition(
       ({ coords, timestamp }) => {
-        if (endedRef.current) return
+        if (endedRef.current || cancelled) return
         if (
           !Number.isFinite(coords.latitude) ||
           !Number.isFinite(coords.longitude)
-        ) {
+        )
+          return
+        setGpsAccuracy(coords.accuracy)
+        // Coarse fixes can locate the user, but do not count toward the route.
+        if (coords.accuracy > 250) {
+          setGpsState("locating")
           return
         }
-        // A coarse first fix is still a real lock. Dropping it before updating
-        // the status left indoor and desktop sessions acquiring indefinitely.
-        setGpsState("locked")
-        if (coords.accuracy > 250) return
-        const point: RoutePoint = {
-          latitude: coords.latitude,
-          longitude: coords.longitude,
-          altitude: coords.altitude,
-          accuracy: coords.accuracy,
-          timestamp,
-        }
-        setSession((current) => {
-          const previous = latestPointRef.current
-          if (previous) {
-            const seconds = Math.max(
-              0.1,
-              (point.timestamp - previous.timestamp) / 1_000
-            )
-            const segment = distanceBetween(previous, point)
-            if (segment / seconds > maximumSpeed) return current
-            const noiseFloor = Math.max(
-              2,
-              Math.min(
-                10,
-                ((previous.accuracy ?? 20) + (point.accuracy ?? 20)) * 0.12
-              )
-            )
-            if (segment < noiseFloor && seconds < 8) return current
-          }
-          const segment = previous ? distanceBetween(previous, point) : 0
-          const elevationGain =
-            previous?.altitude != null && point.altitude != null
-              ? Math.max(0, point.altitude - previous.altitude)
-              : 0
-          latestPointRef.current = point
-          return {
-            ...current,
-            points: [...current.points, point].slice(-MAX_ROUTE_POINTS),
-            distanceMeters: current.distanceMeters + segment,
-            elevationGainMeters: current.elevationGainMeters + elevationGain,
-          }
-        })
+        setGpsState(coords.accuracy <= 50 ? "locked" : "locating")
+        const accepted = acceptGpsPoint(
+          latestPointRef.current,
+          {
+            latitude: coords.latitude,
+            longitude: coords.longitude,
+            altitude: coords.altitude,
+            altitudeAccuracy: coords.altitudeAccuracy,
+            accuracy: coords.accuracy,
+            timestamp,
+          },
+          maximumSpeed
+        )
+        if (!accepted) return
+        const elevation = elevationStep(elevationAnchor.current, accepted.point)
+        elevationAnchor.current = elevation.anchor
+        latestPointRef.current = accepted.point
+        setSession((current) =>
+          current.status !== "recording"
+            ? current
+            : {
+                ...current,
+                points: appendRoutePoint(
+                  current.points,
+                  accepted.point,
+                  MAX_ROUTE_POINTS
+                ),
+                distanceMeters: current.distanceMeters + accepted.distance,
+                elevationGainMeters:
+                  current.elevationGainMeters + elevation.gain,
+              }
+        )
       },
       (error) => {
+        if (cancelled) return
         if (error.code === error.PERMISSION_DENIED) {
           setGpsState("denied")
         } else if (error.code === error.TIMEOUT) {
@@ -541,10 +755,36 @@ export default function ActiveEnduranceWorkout() {
       },
       { enableHighAccuracy: true, maximumAge: 5_000, timeout: 30_000 }
     )
-    return () => navigator.geolocation.clearWatch(watchId)
-  }, [gpsAttempt, session.environment, session.sport, session.status])
+    return () => {
+      cancelled = true
+      navigator.geolocation.clearWatch(watchId)
+    }
+  }, [
+    gpsAttempt,
+    session.environment,
+    session.sport,
+    session.status,
+    usesNativeGps,
+    nativeAvailable,
+    nativeReady,
+  ])
 
-  function pause() {
+  async function pause() {
+    if (usesNativeGps && nativeRef.current) {
+      setNativeBusy(true)
+      try {
+        await nativeRef.current.control("pause")
+      } catch (error) {
+        setNativeError(
+          error instanceof Error
+            ? error.message
+            : "Couldn't pause native tracking."
+        )
+        return false
+      } finally {
+        setNativeBusy(false)
+      }
+    }
     hapticMedium()
     latestPointRef.current = null
     void commandEnduranceWatch({
@@ -559,9 +799,25 @@ export default function ActiveEnduranceWorkout() {
       status: "paused",
       pausedAt: Date.now(),
     }))
+    return true
   }
 
-  function resume() {
+  async function resume() {
+    if (usesNativeGps && nativeRef.current) {
+      setNativeBusy(true)
+      try {
+        await nativeRef.current.control("resume")
+      } catch (error) {
+        setNativeError(
+          error instanceof Error
+            ? error.message
+            : "Couldn't resume native tracking."
+        )
+        return
+      } finally {
+        setNativeBusy(false)
+      }
+    }
     hapticMedium()
     latestPointRef.current = null
     void commandEnduranceWatch({
@@ -600,6 +856,10 @@ export default function ActiveEnduranceWorkout() {
     if (saving) return
     setSaving(true)
     try {
+      const session =
+        usesNativeGps && nativeRef.current
+          ? await nativeRef.current.control("stop")
+          : sessionRef.current
       const endedAt = Date.now()
       void commandEnduranceWatch({
         command: "end",
@@ -618,6 +878,19 @@ export default function ActiveEnduranceWorkout() {
         durationSeconds: elapsedSeconds(session, endedAt),
         totalDistanceMeters: session.distanceMeters,
         hasRoute: session.points.length > 1,
+        ...(session.points.length > 1
+          ? {
+              routePoints: session.points.map(
+                ({ latitude, longitude, altitude, segmentStart }) => ({
+                  latitude,
+                  longitude,
+                  altitude,
+                  ...(segmentStart ? { segmentStart } : {}),
+                })
+              ),
+            }
+          : {}),
+        elevationGainMeters: session.elevationGainMeters,
         routeName: title,
         ...(session.averageHeartRateBpm
           ? { avgHeartRateBpm: session.averageHeartRateBpm }
@@ -645,6 +918,7 @@ export default function ActiveEnduranceWorkout() {
           })),
         })
       }
+      if (usesNativeGps && nativeRef.current) await nativeRef.current.clear()
       endedRef.current = true
       safeLocalStorageRemove(ACTIVE_ENDURANCE_KEY)
       hapticSelection()
@@ -656,8 +930,23 @@ export default function ActiveEnduranceWorkout() {
     }
   }
 
-  function discard() {
+  async function discard() {
     if (endedRef.current) return
+    if (nativeAvailable) {
+      setNativeBusy(true)
+      try {
+        await resetNativeEndurance(nativeRecorder)
+      } catch (error) {
+        setNativeError(
+          error instanceof Error
+            ? error.message
+            : "Couldn't stop recording. Retry before discarding."
+        )
+        return
+      } finally {
+        setNativeBusy(false)
+      }
+    }
     endedRef.current = true
     void commandEnduranceWatch({
       command: "discard",
@@ -676,7 +965,10 @@ export default function ActiveEnduranceWorkout() {
       <ReactiveOrbField className="active-workout-wash" />
       <section className="relative z-[1] h-[46svh] min-h-[330px] lg:h-full">
         {session.environment === "outdoor" ? (
-          <EnduranceRouteMap points={session.points} />
+          <EnduranceRouteMap
+            points={session.points}
+            plannedPoints={session.plannedTrail?.points}
+          />
         ) : (
           <div className="flex h-full flex-col items-center justify-center px-8 text-center">
             <p className="text-xl font-bold">
@@ -697,7 +989,70 @@ export default function ActiveEnduranceWorkout() {
         </button>
       </section>
 
-      <main className="endurance-glass relative z-10 mt-0 min-h-[54svh] rounded-t-[16px] border-t border-border px-5 pt-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] lg:mt-0 lg:flex lg:min-h-0 lg:overflow-y-auto lg:flex-col lg:justify-center lg:rounded-none lg:border-t-0 lg:border-l lg:px-10">
+      <main className="endurance-glass relative z-10 mt-0 min-h-[54svh] rounded-t-[16px] border-t border-border px-5 pt-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] lg:mt-0 lg:flex lg:min-h-0 lg:flex-col lg:justify-center lg:overflow-y-auto lg:rounded-none lg:border-t-0 lg:border-l lg:px-10">
+        {session.environment === "outdoor" && session.sport === "hike" && (
+          <div className="mb-4 rounded-xl border border-border bg-background p-4 text-sm">
+            {session.plannedTrail && (
+              <p className="mb-2 font-semibold">
+                Following {session.plannedTrail.name} · purple dashed route
+              </p>
+            )}
+            {trailOffset != null && trailOffset > 50 && (
+              <p role="status" className="mb-2 font-semibold">
+                About {Math.round(trailOffset)} m from the planned trail. Check
+                the map to rejoin it.
+              </p>
+            )}
+
+            <p className="text-muted-foreground">
+              {gpsAccuracy == null
+                ? "Waiting for a precise location…"
+                : `GPS accuracy ±${Math.round(gpsAccuracy)} m${gpsAccuracy > 50 ? " · Waiting for a better signal before recording points" : ""}`}
+            </p>
+          </div>
+        )}
+
+        {session.environment === "outdoor" && (
+          <div className="mb-4 rounded-xl border border-border p-4 text-sm">
+            <p className="font-semibold">
+              {usesNativeGps
+                ? nativeReady
+                  ? "Native background GPS"
+                  : "Preparing native GPS…"
+                : "Foreground GPS"}
+            </p>
+            <p className="mt-1 text-muted-foreground">
+              {usesNativeGps
+                ? "Your route is recorded on this device with the screen locked or another app open. Pause or finish to stop location tracking."
+                : isNativeEnduranceShell()
+                  ? "Update the native app for background tracking. This version pauses outdoor workouts when the app is hidden."
+                  : "Keep this page visible while recording. Outdoor workouts pause automatically when you switch away."}
+            </p>
+            {nativeError && (
+              <p role="alert" className="mt-2">
+                {nativeError}
+              </p>
+            )}
+            {nativeAvailable && !nativeReady && !nativeBusy && (
+              <button
+                type="button"
+                onClick={() => setGpsAttempt((attempt) => attempt + 1)}
+                className="mt-3 min-h-11 rounded-lg border border-border px-4 font-semibold"
+              >
+                Retry native tracking
+              </button>
+            )}
+          </div>
+        )}
+        {storageError && (
+          <p
+            role="alert"
+            className="mb-4 rounded-xl border border-border p-4 text-sm"
+          >
+            Device backup is unavailable. Keep this screen open and finish the
+            workout to save it to your account.
+          </p>
+        )}
         <header className="flex items-center justify-between gap-4">
           <div>
             <h1 className="text-[16px] font-bold tracking-tight">
@@ -875,7 +1230,11 @@ export default function ActiveEnduranceWorkout() {
 
           <button
             type="button"
-            disabled={session.status === "recording"}
+            disabled={
+              session.status === "recording" ||
+              nativeBusy ||
+              (usesNativeGps && !nativeReady)
+            }
             onClick={() => setFinishOpen(true)}
             className="motion-tactile flex min-h-12 items-center justify-center gap-2 rounded-[12px] border border-border text-[13px] font-bold disabled:cursor-not-allowed disabled:opacity-35"
           >
@@ -950,7 +1309,9 @@ export default function ActiveEnduranceWorkout() {
       {finishOpen && (
         <MobileSheet
           ariaLabel="Finish endurance workout"
-          onClose={() => { if (!saving) setFinishOpen(false) }}
+          onClose={() => {
+            if (!saving) setFinishOpen(false)
+          }}
           closeOnBackdrop={!saving}
           panelClassName="mx-auto w-full sm:max-w-[400px]"
           overlayClassName="bg-black/65"
@@ -974,14 +1335,20 @@ export default function ActiveEnduranceWorkout() {
               <input
                 value={title}
                 maxLength={120}
-                onChange={(event) => setTitle(event.target.value)}
+                onChange={(event) => {
+                  setTitle(event.target.value)
+                  setSession((current) => ({
+                    ...current,
+                    title: event.target.value,
+                  }))
+                }}
                 className="mt-2 h-12 w-full rounded-[10px] border border-border bg-background px-3 text-[15px] font-semibold outline-none focus:border-foreground focus:ring-2 focus:ring-foreground/15"
               />
             </label>
 
             <PrimaryButton
               onClick={() => void finish()}
-              disabled={saving}
+              disabled={saving || nativeBusy}
               className="mt-5 h-12 w-full"
             >
               {saving ? "Saving activity…" : "Save activity"}
@@ -1012,13 +1379,13 @@ export default function ActiveEnduranceWorkout() {
             </div>
             <button
               type="button"
-              onClick={() => {
-                if (session.status === "recording") {
-                  safeLocalStorageSet(ACTIVE_ENDURANCE_KEY, JSON.stringify({
-                    ...session, status: "paused", pausedAt: Date.now(),
-                  }))
-                  pause()
-                }
+              disabled={nativeBusy}
+              onClick={async () => {
+                if (
+                  sessionRef.current.status === "recording" &&
+                  !(await pause())
+                )
+                  return
                 navigate("/endurance")
               }}
               className="motion-tactile mt-5 h-12 w-full rounded-[10px] bg-foreground text-[14px] font-bold text-background"
@@ -1027,6 +1394,7 @@ export default function ActiveEnduranceWorkout() {
             </button>
             <button
               type="button"
+              disabled={nativeBusy}
               onClick={discard}
               className="motion-tactile mt-2 h-12 w-full rounded-[10px] text-[14px] font-bold text-destructive"
             >

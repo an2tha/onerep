@@ -1,3 +1,4 @@
+import { clearNativeEnduranceOnSignOut } from "@/lib/native-endurance"
 import { Capacitor } from "@capacitor/core"
 import { useEffect, useState } from "react"
 import {
@@ -178,5 +179,6 @@ export function useSocialProviders() {
 }
 
 export async function signOutApp() {
+  await clearNativeEnduranceOnSignOut()
   await authClient.signOut({})
 }

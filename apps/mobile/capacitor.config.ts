@@ -6,6 +6,8 @@ dotenvConfig({ quiet: true })
 const config: CapacitorConfig = {
   appId: "com.ananthh.onerep",
   appName: "OneRep",
+  // Identify the native app when requesting OpenStreetMap tiles.
+  appendUserAgent: "OneRep (+https://onerep.life)",
   webDir: "dist",
   server: {
     hostname: "localhost",

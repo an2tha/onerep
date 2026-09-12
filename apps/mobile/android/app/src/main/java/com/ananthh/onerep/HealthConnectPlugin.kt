@@ -1160,6 +1160,10 @@ class HealthConnectPlugin : Plugin() {
         val sport = call.getString("sport") ?: "strength"
         val environment = call.getString("environment") ?: "indoor"
         val exerciseType = when (sport) {
+            "hike" -> ExerciseSessionRecord.EXERCISE_TYPE_HIKING
+            "walk" -> ExerciseSessionRecord.EXERCISE_TYPE_WALKING
+            "trail_run" -> ExerciseSessionRecord.EXERCISE_TYPE_RUNNING
+            "row" -> ExerciseSessionRecord.EXERCISE_TYPE_ROWING
             "run" -> if (environment == "indoor") {
                 ExerciseSessionRecord.EXERCISE_TYPE_RUNNING_TREADMILL
             } else {

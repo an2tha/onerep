@@ -58,6 +58,8 @@
             </intent-filter>
         </activity-alias>
 
+        <service android:name=".EnduranceLocationService" android:exported="false" android:foregroundServiceType="location" android:stopWithTask="false" />
+
         <!-- Home-screen widgets. -->
         <receiver
             android:name=".QuickActionsWidgetReceiver"
@@ -129,6 +131,8 @@
 
     <!-- Local notifications: rest timers, daily reminders, check-ins. Required on API 33+. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
     <!-- Rest alerts schedule with allowWhileIdle; without exact alarms they slip by minutes. -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />

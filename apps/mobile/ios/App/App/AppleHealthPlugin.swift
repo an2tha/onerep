@@ -735,6 +735,10 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
         let configuration = HKWorkoutConfiguration()
         switch sport {
         case "run": configuration.activityType = .running
+        case "hike": configuration.activityType = .hiking
+        case "walk": configuration.activityType = .walking
+        case "trail_run": configuration.activityType = .running
+        case "row": configuration.activityType = .rowing
         case "ride": configuration.activityType = .cycling
         case "swim": configuration.activityType = .swimming
         default: configuration.activityType = .traditionalStrengthTraining
@@ -762,7 +766,7 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
                 end: end
             ))
         }
-        if let distance = call.getDouble("distanceMeters"), distance > 0 {
+        if let distance = call.getDouble("distanceMeters"), distance > 0, sport != "row" {
             let identifier: HKQuantityTypeIdentifier = sport == "ride"
                 ? .distanceCycling
                 : sport == "swim" ? .distanceSwimming : .distanceWalkingRunning

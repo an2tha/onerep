@@ -1,3 +1,4 @@
+import { EnduranceRouteMap } from "@/components/endurance-route-map"
 import {
   useEffect,
   useMemo,
@@ -7,6 +8,9 @@ import {
 } from "react"
 import {
   Bicycle,
+  Mountains,
+  PersonSimpleWalk,
+  Boat,
   CaretRight,
   Clock,
   Fire,
@@ -43,7 +47,7 @@ import {
   type EnduranceEnvironment,
 } from "@/lib/endurance-workout"
 
-type Sport = "run" | "ride" | "swim"
+type Sport = "run" | "ride" | "swim" | "hike" | "walk" | "trail_run" | "row"
 type EnduranceGoal = {
   distanceMeters?: number
   durationMinutes?: number
@@ -59,6 +63,25 @@ const HERO_SATELLITES = [
 ] as const
 
 const SPORT_META = {
+  hike: {
+    label: "Hike",
+    activityLabel: "Hiking",
+    verb: "hike",
+    Icon: Mountains,
+  },
+  walk: {
+    label: "Walk",
+    activityLabel: "Walking",
+    verb: "walk",
+    Icon: PersonSimpleWalk,
+  },
+  trail_run: {
+    label: "Trail run",
+    activityLabel: "Trail running",
+    verb: "run trails",
+    Icon: PersonSimpleRun,
+  },
+  row: { label: "Row", activityLabel: "Rowing", verb: "row", Icon: Boat },
   run: {
     label: "Run",
     activityLabel: "Running",
@@ -84,6 +107,10 @@ const SPORT_META = {
 
 function sportForActivity(activityType: string): Sport | null {
   const normalized = activityType.toLowerCase()
+  if (normalized.includes("trail")) return "trail_run"
+  if (normalized.includes("hik")) return "hike"
+  if (normalized.includes("walk")) return "walk"
+  if (normalized.includes("row")) return "row"
   if (normalized.includes("run")) return "run"
   if (normalized.includes("cycl") || normalized.includes("bike")) return "ride"
   if (normalized.includes("swim")) return "swim"
@@ -175,6 +202,12 @@ export default function Endurance() {
     api.logs.healthWorkouts.getHeartRateSeries,
     selectedActivityId ? { workoutId: selectedActivityId } : "skip"
   )
+  const selectedRoute = useQuery(
+    api.logs.healthWorkouts.getRoute,
+    selectedActivityId ? { workoutId: selectedActivityId } : "skip"
+  )
+  const createTrail = useMutation(api.hikingTrails.create)
+  const [savingTrail, setSavingTrail] = useState(false)
   const weekStart = startOfWeek(new Date())
   const weekActivities = sportActivities.filter(
     (activity) => activity.startedAt >= weekStart
@@ -198,8 +231,7 @@ export default function Endurance() {
     ).toFixed(1)
   )
   const goals = preferences?.enduranceGoals?.[sport] as
-    | EnduranceGoal
-    | undefined
+    EnduranceGoal | undefined
   const configuredGoalCount = [
     goals?.distanceMeters,
     goals?.durationMinutes,
@@ -289,7 +321,7 @@ export default function Endurance() {
           aria-labelledby="endurance-hero-title"
         >
           <div
-            className="mx-auto flex min-h-11 items-center justify-center gap-1 rounded-[12px] border border-border/70 bg-background/35 p-1"
+            className="mx-auto flex min-h-11 max-w-full flex-wrap items-center justify-center gap-1 rounded-[12px] border border-border/70 bg-background/35 p-1"
             aria-label="Activity type"
           >
             {(Object.keys(SPORT_META) as Sport[]).map((option) => {
@@ -315,6 +347,16 @@ export default function Endurance() {
             })}
           </div>
 
+          {sport === "hike" && (
+            <button
+              type="button"
+              onClick={() => navigate("/endurance/trails")}
+              className="mx-auto mt-4 flex min-h-11 items-center gap-2 rounded-[10px] border border-border px-4 font-semibold"
+            >
+              <Mountains size={20} /> Plan & explore your trails{" "}
+              <CaretRight size={16} />
+            </button>
+          )}
           {!activeSport && (
             <div
               className="mx-auto mt-3 flex items-center rounded-[10px] bg-muted/55 p-1"
@@ -393,10 +435,7 @@ export default function Endurance() {
                 </div>
               )
             })}
-            <div
-              className="absolute z-10"
-              style={{ left: 140 - 84, top: 0 }}
-            >
+            <div className="absolute z-10" style={{ left: 140 - 84, top: 0 }}>
               <HoldToStartDial
                 label={
                   activeSport
@@ -436,7 +475,9 @@ export default function Endurance() {
             onClick={() => setGoalsOpen(true)}
             className="motion-tactile mt-3 h-11 w-full rounded-[18px] text-[14px] font-semibold text-muted-foreground transition-colors active:bg-muted/35 active:text-foreground"
           >
-            {configuredGoalCount === 0 ? "Set weekly goals" : "Edit weekly goals"}
+            {configuredGoalCount === 0
+              ? "Set weekly goals"
+              : "Edit weekly goals"}
           </button>
         </section>
 
@@ -486,38 +527,38 @@ export default function Endurance() {
                       className="shrink-0 text-muted-foreground"
                     />
                     <div className="min-w-0 flex-1">
-                    <div className="flex items-baseline justify-between gap-3">
-                      <p className="truncate text-[15px] font-semibold">
-                        {activity.routeName ||
-                          activity.activityName ||
-                          SPORT_META[sport].activityLabel}
-                      </p>
-                      <time className="shrink-0 text-[12px] text-muted-foreground">
-                        {formatDate(activity.startedAt)}
-                      </time>
-                    </div>
-                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-muted-foreground">
-                      <span className="inline-flex items-center gap-1">
+                      <div className="flex items-baseline justify-between gap-3">
+                        <p className="truncate text-[15px] font-semibold">
+                          {activity.routeName ||
+                            activity.activityName ||
+                            SPORT_META[sport].activityLabel}
+                        </p>
+                        <time className="shrink-0 text-[12px] text-muted-foreground">
+                          {formatDate(activity.startedAt)}
+                        </time>
+                      </div>
+                      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-muted-foreground">
+                        <span className="inline-flex items-center gap-1">
                           <Clock size={13} />{" "}
                           {formatDuration(activity.durationSeconds)}
-                      </span>
-                      {activity.totalDistanceMeters != null && (
-                        <span className="inline-flex items-center gap-1 tabular-nums">
-                          <MapPin size={13} />{" "}
-                          {formatDistance(
-                            activity.totalDistanceMeters,
-                            sport,
-                            distanceUnit
-                          )}
                         </span>
-                      )}
-                      {activity.avgHeartRateBpm != null && (
-                        <span className="inline-flex items-center gap-1 tabular-nums">
-                          <Heartbeat size={13} />{" "}
-                          {Math.round(activity.avgHeartRateBpm)} bpm
-                        </span>
-                      )}
-                    </div>
+                        {activity.totalDistanceMeters != null && (
+                          <span className="inline-flex items-center gap-1 tabular-nums">
+                            <MapPin size={13} />{" "}
+                            {formatDistance(
+                              activity.totalDistanceMeters,
+                              sport,
+                              distanceUnit
+                            )}
+                          </span>
+                        )}
+                        {activity.avgHeartRateBpm != null && (
+                          <span className="inline-flex items-center gap-1 tabular-nums">
+                            <Heartbeat size={13} />{" "}
+                            {Math.round(activity.avgHeartRateBpm)} bpm
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <CaretRight
                       size={15}
@@ -562,6 +603,49 @@ export default function Endurance() {
                 selectedActivity.activityName ||
                 SPORT_META[selectedActivity.sport].activityLabel}
             </h2>
+            {selectedRoute && (
+              <div className="mt-5">
+                <div className="relative isolate h-80 overflow-hidden rounded-xl border border-border">
+                  <EnduranceRouteMap
+                    points={selectedRoute.points}
+                    tracking={false}
+                  />
+                </div>
+                <p className="mt-3 text-sm text-muted-foreground">
+                  {Math.round(selectedRoute.elevationGainMeters)} m elevation
+                  gain
+                </p>
+                <button
+                  type="button"
+                  disabled={savingTrail}
+                  className="mt-3 min-h-11 rounded-[10px] border border-border px-4 text-sm font-semibold disabled:opacity-40"
+                  onClick={async () => {
+                    setSavingTrail(true)
+                    try {
+                      await createTrail({
+                        name:
+                          selectedActivity.routeName ||
+                          selectedActivity.activityName ||
+                          "Recorded trail",
+                        description: "",
+                        points: selectedRoute.points,
+                      })
+                      toast.success("Route saved as a private hiking trail.")
+                      setSelectedActivityId(null)
+                      navigate("/endurance/trails")
+                    } catch {
+                      toast.error("Couldn't save this trail. Try again.")
+                    } finally {
+                      setSavingTrail(false)
+                    }
+                  }}
+                >
+                  {savingTrail
+                    ? "Saving trail…"
+                    : "Save route as a hiking trail"}
+                </button>
+              </div>
+            )}
 
             <div className="mt-5 grid grid-cols-2 border-y border-border">
               <WorkoutMetric
