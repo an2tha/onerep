@@ -50,3 +50,20 @@ target_link_libraries(needlejni PRIVATE
   log
   "-Wl,--start-group" needle c++_static "-Wl,--end-group"
 )
+
+# Android 15+ devices can run with 16 KB pages, and Play requires new uploads
+# targeting Android 15+ to ship 16 KB-aligned shared libraries. The NDK still
+# defaults its LOAD segments to 4 KB, so every .so built here needs the page
+# size named explicitly or the install-time ELF check fails:
+#
+#   lib/arm64-v8a/libneedlejni.so: LOAD segment not aligned
+#
+# Only this target is built by the project. The other libraries that check
+# flags (libdatastore_shared_counter, libsurface_util_jni,
+# libimage_processing_util_jni, libandroidx.graphics.path) ship inside
+# dependency AARs, so those are fixed by upgrading the dependencies rather
+# than by anything in this file.
+target_link_options(needlejni PRIVATE
+  "-Wl,-z,max-page-size=16384"
+  "-Wl,-z,common-page-size=16384"
+)
