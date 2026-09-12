@@ -24,9 +24,18 @@ const LOCAL_STORAGE_PREFIXES_TO_CLEAR = [
  * `onerep:` also holds account-shaped state — the offline mutation queue, the
  * coach conversation, in-progress workout and fasting drafts, onboarding
  * answers — and that must not survive a sign-out, because the next account on
- * the same device would inherit it. Units, haptics, language, consent, and the
- * layout the user has arranged are the opposite: they were chosen for the
- * device, and a session that ends is no reason to make someone set them again.
+ * the same device would inherit it. Units, haptics, language, and the layout
+ * the user has arranged are the opposite: they were chosen for the device, and
+ * a session that ends is no reason to make someone set them again.
+ *
+ * Analytics consent is the exception that proves the rule: it is a preference
+ * *about the account*, not about the phone, because it decides whether the next
+ * account to sign in here gets captured. It lives in the account's
+ * `privacySettings`, with `onerep:analytics-enabled` as the boot-time cache
+ * `main.tsx` reads before any query lands. That cache is deliberately absent
+ * from the list below so it dies with the session it was cached for; the
+ * `AnalyticsConsentSync` shell component re-primes it from the account's saved
+ * value on the next launch.
  *
  * Add new device-level preferences here. Anything under a cleared prefix that
  * is not listed is treated as account state and removed.
@@ -34,7 +43,6 @@ const LOCAL_STORAGE_PREFIXES_TO_CLEAR = [
 const DEVICE_LOCAL_KEY_PREFIXES = [
   "onerep:active-superset-tip-hidden",
   "onerep:active-workout-simple-view",
-  "onerep:analytics-enabled",
   "onerep:coach-model:",
   "onerep:coach-onboarding-seen",
   "onerep:energy-unit",

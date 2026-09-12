@@ -98,7 +98,6 @@ describe("auth session helpers", () => {
       ["onerep:rest-bell-enabled", "true"],
       ["onerep:rest-vibration-enabled", "true"],
       ["onerep:ui-language", "en"],
-      ["onerep:analytics-enabled", "true"],
       ["onerep:server-override", "{}"],
       ["onerep:ota:pending-bundle", "{}"],
       ["onerep:quick-add-hint-seen", "1"],
@@ -131,6 +130,9 @@ describe("auth session helpers", () => {
       "onerep:pending-verification-email",
       "onerep:recent-food-searches:v1",
       "onerep:celebrated:workout:2026-09-12",
+      // Consent is about the account, not the phone: keeping this would let the
+      // first account's choice opt the next one into capture.
+      "onerep:analytics-enabled",
       "convex:auth",
     ]
     for (const key of accountState) localStorage.setItem(key, "value")

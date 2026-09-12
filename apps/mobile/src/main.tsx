@@ -31,6 +31,7 @@ import {
 } from "@/lib/auth-session"
 import { WidgetDataSync } from "@/components/widget-data-sync"
 import { HealthSync } from "@/components/health-sync"
+import { AnalyticsConsentSync } from "@/components/analytics-consent-sync"
 import { CoachPushRegistration } from "@/components/coach-push-registration"
 import { MealCategorySync } from "@/components/meal-category-sync"
 import { RetentionTracking } from "@/components/retention-tracking"
@@ -1372,6 +1373,7 @@ createRoot(document.getElementById("root")!).render(
             <OfflineSyncIndicator />
             <WidgetDataSync />
             <HealthSync />
+            <AnalyticsConsentSync />
             <CoachPushRegistration />
             <MealCategorySync />
             <RetentionTracking />
