@@ -33,6 +33,8 @@
 		A1B2C0110000000000000011 /* OneRep Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = A1B2C0020000000000000002 /* OneRep Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		A1B2C0150000000000000015 /* WatchSyncPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C0140000000000000014 /* WatchSyncPlugin.swift */; };
 		A1B2C0200000000000000020 /* BillingPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C0210000000000000021 /* BillingPlugin.swift */; };
+		EAD100000000000000000000 /* EnduranceJournal.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAD000000000000000000000 /* EnduranceJournal.swift */; };
+		EAD100000000000000000001 /* EnduranceLocationPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAD000000000000000000001 /* EnduranceLocationPlugin.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -108,6 +110,8 @@
 		A1B2C0020000000000000002 /* OneRep Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "OneRep Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		A1B2C0140000000000000014 /* WatchSyncPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchSyncPlugin.swift; sourceTree = "<group>"; };
 		A1B2C0210000000000000021 /* BillingPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BillingPlugin.swift; sourceTree = "<group>"; };
+		EAD000000000000000000000 /* EnduranceJournal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnduranceJournal.swift; sourceTree = "<group>"; };
+		EAD000000000000000000001 /* EnduranceLocationPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnduranceLocationPlugin.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -195,6 +199,8 @@
 			isa = PBXGroup;
 			children = (
 				A1B2C0140000000000000014 /* WatchSyncPlugin.swift */,
+				EAD000000000000000000001 /* EnduranceLocationPlugin.swift */,
+				EAD000000000000000000000 /* EnduranceJournal.swift */,
 				184AF336302398D2009D4737 /* PosePipeline.swift */,
 				184AF327302395E5009D4737 /* NativePoseEstimation.swift */,
 				1878F2C0300544250012B825 /* SceneDelegate.swift */,
@@ -398,6 +404,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				A1B2C0150000000000000015 /* WatchSyncPlugin.swift in Sources */,
+				EAD100000000000000000001 /* EnduranceLocationPlugin.swift in Sources */,
+				EAD100000000000000000000 /* EnduranceJournal.swift in Sources */,
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 				184AF328302395EA009D4737 /* NativePoseEstimation.swift in Sources */,
 				184AF337302398D4009D4737 /* PosePipeline.swift in Sources */,

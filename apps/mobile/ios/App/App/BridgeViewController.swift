@@ -5,6 +5,7 @@ class BridgeViewController: CAPBridgeViewController {
     override open func capacitorDidLoad() {
         super.capacitorDidLoad()
         bridge?.registerPluginInstance(AppleHealthPlugin())
+        bridge?.registerPluginInstance(EnduranceLocationPlugin())
         bridge?.registerPluginInstance(WorkoutLiveActivityPlugin())
         bridge?.registerPluginInstance(NativeTabBarPlugin())
         bridge?.registerPluginInstance(OtaTrustPlugin())

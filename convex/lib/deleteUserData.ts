@@ -156,6 +156,9 @@ export async function deleteUserDataBatch(
     ["diaryShares", "by_inviteeUserId_and_status", "inviteeUserId"],
     ["diaryShares", "by_ownerUserId", "ownerUserId"],
   // Health, nutrition, training, Coach, and onboarding state.
+    ["hikingTrailRoutes", "by_userId"],
+    ["hikingTrails", "by_userId"],
+    ["healthWorkoutRoutes", "by_userId"],
     ["healthWorkoutHeartRateSeries", "by_userId"],
     ["healthWorkouts", "by_userId_and_externalId"],
     ["healthMetrics", "by_userId"],

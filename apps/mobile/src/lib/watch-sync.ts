@@ -46,7 +46,7 @@ export type WatchAvailability = {
 export type EnduranceWatchCommand = {
   command: "start" | "pause" | "resume" | "end" | "discard"
   sessionId: string
-  sport: "run" | "ride" | "swim"
+  sport: "run" | "ride" | "swim" | "hike" | "walk" | "trail_run" | "row"
   environment: "outdoor" | "indoor"
   startedAt: number
 }

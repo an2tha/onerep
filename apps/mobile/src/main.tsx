@@ -66,6 +66,7 @@ import ResetPassword from "./pages/ResetPassword.tsx"
 import VerifyEmailRequired from "./pages/VerifyEmailRequired.tsx"
 import OAuthConsent from "./pages/OAuthConsent.tsx"
 import Workouts from "./pages/Workouts.tsx"
+import HikingTrails, { SharedHikingTrail } from "./pages/HikingTrails.tsx"
 import Endurance from "./pages/Endurance.tsx"
 import { ExperimentalFeatureGuard } from "./components/experimental-feature-guard.tsx"
 import ActiveEnduranceWorkout from "./pages/ActiveEnduranceWorkout.tsx"
@@ -585,7 +586,8 @@ function NavSync() {
     const touch = event.touches[0]
     // A leftward drag on a slide-to-delete row near the right edge is a
     // delete, not a forward navigation; let the row own it.
-    if ((event.target as HTMLElement).closest?.("[data-slide-delete]")) {
+    // Maps also own edge drags so panning cannot navigate away from a hike.
+    if ((event.target as HTMLElement).closest?.("[data-slide-delete], .leaflet-container")) {
       touchStartX.current = null
       touchStartY.current = null
       return
@@ -834,6 +836,14 @@ const router = createBrowserRouter([
             </ErrorBoundary>
           </AuthGuard>
         ),
+      },
+      {
+        path: "/endurance/trails",
+        element: <AuthGuard><ErrorBoundary label="Hiking trails"><HikingTrails /></ErrorBoundary></AuthGuard>,
+      },
+      {
+        path: "/trails/:token",
+        element: <ErrorBoundary label="Shared hiking trail"><SharedHikingTrail /></ErrorBoundary>,
       },
       {
         path: "/endurance/active",

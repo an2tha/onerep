@@ -57,7 +57,7 @@ export type HealthWorkoutSave = {
   startedAt: number
   endedAt: number
   title: string
-  sport?: "run" | "ride" | "swim" | "strength"
+  sport?: "run" | "ride" | "swim" | "hike" | "walk" | "trail_run" | "row" | "strength"
   environment?: "outdoor" | "indoor"
   distanceMeters?: number
   activeEnergyKcal?: number

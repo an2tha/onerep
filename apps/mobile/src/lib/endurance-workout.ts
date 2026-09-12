@@ -1,6 +1,7 @@
 import { safeLocalStorageGet } from "@/lib/utils"
 
-export type EnduranceSport = "run" | "ride" | "swim"
+export type EnduranceSport =
+  "run" | "ride" | "swim" | "hike" | "walk" | "trail_run" | "row"
 export type EnduranceEnvironment = "outdoor" | "indoor"
 export type EnduranceHeartRateSample = {
   elapsedSeconds: number
@@ -14,10 +15,14 @@ export function getActiveEnduranceSport(): EnduranceSport | null {
   if (!raw) return null
   try {
     const sport = (JSON.parse(raw) as { sport?: unknown }).sport
-    return sport === "run" || sport === "ride" || sport === "swim"
-      ? sport
+    return ["run", "ride", "swim", "hike", "walk", "trail_run", "row"].includes(
+      String(sport)
+    )
+      ? (sport as EnduranceSport)
       : null
   } catch {
     return null
   }
 }
+
+export const SELECTED_TRAIL_KEY = "onerep:selected-hiking-trail:v1"
