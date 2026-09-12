@@ -18,7 +18,42 @@ const LOCAL_STORAGE_PREFIXES_TO_CLEAR = [
   "onerep-auth_",
   "better-auth_",
 ]
-const LOCAL_STORAGE_KEYS_TO_CLEAR = new Set(["theme"])
+/**
+ * Keys that describe *this phone* rather than the account that signed out.
+ *
+ * `onerep:` also holds account-shaped state — the offline mutation queue, the
+ * coach conversation, in-progress workout and fasting drafts, onboarding
+ * answers — and that must not survive a sign-out, because the next account on
+ * the same device would inherit it. Units, haptics, language, consent, and the
+ * layout the user has arranged are the opposite: they were chosen for the
+ * device, and a session that ends is no reason to make someone set them again.
+ *
+ * Add new device-level preferences here. Anything under a cleared prefix that
+ * is not listed is treated as account state and removed.
+ */
+const DEVICE_LOCAL_KEY_PREFIXES = [
+  "onerep:active-superset-tip-hidden",
+  "onerep:active-workout-simple-view",
+  "onerep:analytics-enabled",
+  "onerep:coach-model:",
+  "onerep:coach-onboarding-seen",
+  "onerep:energy-unit",
+  "onerep:haptics-",
+  "onerep:measurement-system",
+  "onerep:ota:",
+  "onerep:prelogin-onboarding-seen",
+  "onerep:preset-superset-tip-hidden",
+  "onerep:quick-add-fab-pos",
+  "onerep:quick-add-hint-seen",
+  "onerep:rest-bell-enabled",
+  "onerep:rest-vibration-enabled",
+  "onerep:server-override",
+  "onerep:ui-language",
+  "onerep:water-unit",
+  "onerep:weight-unit",
+  "theme",
+]
+
 const AUTH_REDIRECT_COOLDOWN_MS = 2_000
 const APP_ORIGIN_FOR_PATHS = "https://app.onerep.local"
 
@@ -41,13 +76,22 @@ export function isUnauthenticatedError(error: unknown) {
   return /\bUnauthenticated\b/i.test(text)
 }
 
+function isDeviceLocalKey(key: string) {
+  return DEVICE_LOCAL_KEY_PREFIXES.some((prefix) => key.startsWith(prefix))
+}
+
+/**
+ * Drops the account's cached state: auth tokens, the Convex cache, and the keys
+ * that hold what the previous account was doing. Device preferences survive —
+ * see DEVICE_LOCAL_KEY_PREFIXES.
+ */
 export function clearLocalStorageCache() {
   const storage = browserLocalStorage()
   if (!storage) return
 
   for (const key of safeStorageKeys(storage)) {
+    if (isDeviceLocalKey(key)) continue
     if (
-      LOCAL_STORAGE_KEYS_TO_CLEAR.has(key) ||
       LOCAL_STORAGE_PREFIXES_TO_CLEAR.some((prefix) => key.startsWith(prefix))
     ) {
       try {

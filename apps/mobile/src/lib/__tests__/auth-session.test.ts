@@ -66,11 +66,11 @@ describe("auth session helpers", () => {
     expect(isUnauthenticatedError(new Error("Network error"))).toBe(false)
   })
 
-  test("clears app-owned local storage keys only", () => {
+  test("clears app-owned account state and leaves other keys alone", () => {
     localStorage.setItem("onerep:offline-mutation-queue:v1", "[]")
     localStorage.setItem("onerep_custom_meal_categories", "[]")
     localStorage.setItem("convex:auth", "token")
-    localStorage.setItem("theme", "dark")
+    localStorage.setItem("onerep-auth_session", "token")
     localStorage.setItem("external:keep", "value")
 
     clearLocalStorageCache()
@@ -78,8 +78,68 @@ describe("auth session helpers", () => {
     expect(localStorage.getItem("onerep:offline-mutation-queue:v1")).toBeNull()
     expect(localStorage.getItem("onerep_custom_meal_categories")).toBeNull()
     expect(localStorage.getItem("convex:auth")).toBeNull()
-    expect(localStorage.getItem("theme")).toBeNull()
+    expect(localStorage.getItem("onerep-auth_session")).toBeNull()
     expect(localStorage.getItem("external:keep")).toBe("value")
+  })
+
+  test("keeps device preferences through a failed session", () => {
+    // Everything chosen for *this phone*. A transient Unauthenticated error
+    // used to take all of it: the sign-out that follows is no reason to make
+    // someone pick their units, language, and haptics again.
+    const devicePreferences: [string, string][] = [
+      ["theme", "dark"],
+      ["onerep:measurement-system", "imperial"],
+      ["onerep:water-unit:pref1", "fl oz"],
+      ["onerep:water-unit-explicit:pref1", "1"],
+      ["onerep:energy-unit", "Cal"],
+      ["onerep:weight-unit", "lbs"],
+      ["onerep:haptics-enabled", "true"],
+      ["onerep:haptics-strength", "strong"],
+      ["onerep:rest-bell-enabled", "true"],
+      ["onerep:rest-vibration-enabled", "true"],
+      ["onerep:ui-language", "en"],
+      ["onerep:analytics-enabled", "true"],
+      ["onerep:server-override", "{}"],
+      ["onerep:ota:pending-bundle", "{}"],
+      ["onerep:quick-add-hint-seen", "1"],
+      ["onerep:prelogin-onboarding-seen", "true"],
+    ]
+    for (const [key, value] of devicePreferences) {
+      localStorage.setItem(key, value)
+    }
+
+    clearUnauthenticatedLocalState()
+
+    for (const [key, value] of devicePreferences) {
+      expect(localStorage.getItem(key)).toBe(value)
+    }
+  })
+
+  test("still drops what the next sign-in must not inherit", () => {
+    const accountState = [
+      "onerep:offline-mutation-queue:v1",
+      "onerep:offline-owner:v1",
+      "onerep:coach-conversation:v1",
+      "onerep:active-workout-draft:v1:1",
+      "onerep:active-rest-timer:v1:1",
+      "onerep:retro-workout-draft:v1:1",
+      "onerep:active-endurance-workout:v1",
+      "onerep:aborted-workout-slot",
+      "onerep:fasting:active:v1",
+      "onerep:setup-preferences",
+      "onerep:onboarding-draft:v2",
+      "onerep:pending-verification-email",
+      "onerep:recent-food-searches:v1",
+      "onerep:celebrated:workout:2026-09-12",
+      "convex:auth",
+    ]
+    for (const key of accountState) localStorage.setItem(key, "value")
+
+    clearUnauthenticatedLocalState()
+
+    for (const key of accountState) {
+      expect(localStorage.getItem(key)).toBeNull()
+    }
   })
 
   test("marks intro as seen after unauthenticated cleanup", () => {
