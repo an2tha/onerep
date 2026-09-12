@@ -41,7 +41,7 @@ import { FastingSheet } from "@/components/fasting-sheet"
 import { useBottomBarAction } from "@/components/bottom-bar"
 import { ReactiveOrbField } from "@/components/reactive-orb-field"
 import { TourAnchor, useTourAnchor } from "@/components/walkthrough/tour-anchor"
-import { DateSelectorButton } from "@repo/ui"
+import { DateSelectorButton, SegmentedControl } from "@repo/ui"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { announceOrbActivity } from "@/lib/orb-activity"
 import { updateOneRepWidgets } from "@/lib/home-widgets"
@@ -83,7 +83,11 @@ import {
   mlToFlOz,
   type WaterUnit,
 } from "@/lib/measurement-system"
-import { useWaterUnit } from "@/lib/use-water-unit"
+import {
+  cacheWaterUnit,
+  clearOptimisticWaterUnit,
+  useWaterUnit,
+} from "@/lib/use-water-unit"
 import { mealTargetProgress } from "@/lib/meal-targets"
 import { formatFastDuration } from "@/lib/fasting"
 import { useFastTimer } from "@/lib/use-fast-timer"
@@ -2282,6 +2286,10 @@ export default function Nutrition() {
     api.users.users.setWaterGoal,
     "users.users.setWaterGoal"
   )
+  const setWaterUnit = useOfflineMutation(
+    api.users.users.setWaterUnit,
+    "users.users.setWaterUnit"
+  )
   const saveCustomGoals = useOfflineMutation(
     api.users.users.setCustomGoals,
     "users.users.setCustomGoals"
@@ -2665,6 +2673,21 @@ export default function Nutrition() {
       return true
     } finally {
       setSavingWaterGoal(false)
+    }
+  }
+
+  /**
+   * The card's ml/fl oz switch. Same path as the Settings row: the account
+   * preference is the durable copy, the cache is written optimistically so the
+   * number flips instantly and offline, and a rejected write is rolled back.
+   */
+  async function chooseWaterUnit(unit: WaterUnit) {
+    cacheWaterUnit(unit, true, preferences?._id ?? null, true)
+    try {
+      await setWaterUnit({ unit })
+    } catch {
+      clearOptimisticWaterUnit(preferences?._id ?? null)
+      toast.error("Could not save your water unit")
     }
   }
 
@@ -3685,7 +3708,11 @@ export default function Nutrition() {
               </div>
             )}
 
-            <section className="mt-7 grid gap-6 md:grid-cols-[1fr_0.82fr]">
+            {/* minmax(0, ...) on both tracks: a truncating row still reports
+                its unwrapped text as the item's min-content, and a bare 1fr
+                track grows the whole column past the viewport instead of
+                letting that row truncate. */}
+            <section className="mt-7 grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,0.82fr)]">
               <div
                 className="progress-tab-enter border-y border-border py-4"
                 style={{ animationDelay: "120ms" }}
@@ -3816,14 +3843,31 @@ export default function Nutrition() {
                   )}
                   <div className="relative z-10 mb-3 flex items-center justify-between gap-3">
                     <p className="app-section-title">Water</p>
-                    <button
-                      type="button"
-                      onClick={() => setWaterGoalOpen(true)}
-                      className="native-toolbar-button px-0 text-muted-foreground"
-                      aria-label="Edit water goal"
-                    >
-                      <PencilSimple size={17} weight="bold" />
-                    </button>
+                    <div className="flex items-center gap-1">
+                      {/* Water's unit belongs next to the number it formats —
+                          the Settings row is the durable home, this is the one
+                          people can actually reach while pouring. */}
+                      <SegmentedControl
+                        onInteract={hapticSelection}
+                        label="Water unit"
+                        value={waterUnit}
+                        onChange={(value) => {
+                          void chooseWaterUnit(value as WaterUnit)
+                        }}
+                        options={[
+                          { value: "ml", label: "ml" },
+                          { value: "fl oz", label: "fl oz" },
+                        ]}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setWaterGoalOpen(true)}
+                        className="native-toolbar-button px-0 text-muted-foreground"
+                        aria-label="Edit water goal"
+                      >
+                        <PencilSimple size={17} weight="bold" />
+                      </button>
+                    </div>
                   </div>
                   <ProgressLine
                     label="Hydration"

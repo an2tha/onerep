@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { ArrowCounterClockwise, PintGlass, Plus } from "@phosphor-icons/react"
 import { useQuery } from "convex/react"
 import { Card, useReplayKey, tint } from "@repo/ui"
@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils"
 import { announceOrbActivity } from "@/lib/orb-activity"
 import {
   filledWaterGlassCount,
+  nextGlassAmount,
   waterAmountNeededForGlass,
   WATER_GLASS_COUNT,
   waterGlassTargetMl,
@@ -19,6 +20,42 @@ import { formatWater } from "@/lib/measurement-system"
 import { useWaterUnit } from "@/lib/use-water-unit"
 
 type WaterEntry = { id: string; amountMl: number; loggedAt: string }
+
+/**
+ * The day's water, plus a stand-in for anything queued but not yet synced.
+ *
+ * Glass taps set an *absolute* target rather than adding a fixed amount, so
+ * each tap has to compute against a total that already includes the last one.
+ * Two windows break that: an unresolved query reads as an empty day (the tile
+ * paints before the query lands, so the very first tap can land on top of
+ * water that is still arriving), and an offline mutation resolves as soon as
+ * the job is queued, long before the subscription moves. `pendingMl` covers
+ * both and drains as the server total catches up.
+ */
+function useWaterDay(rawEntries: WaterEntry[] | undefined) {
+  const entries = (rawEntries ?? []) as WaterEntry[]
+  const serverTotalMl = entries.reduce((sum, entry) => sum + entry.amountMl, 0)
+  const [pendingMl, setPendingMl] = useState(0)
+  const lastServerTotalMl = useRef(serverTotalMl)
+
+  useEffect(() => {
+    const advanced = serverTotalMl - lastServerTotalMl.current
+    lastServerTotalMl.current = serverTotalMl
+    if (advanced > 0) {
+      setPendingMl((pending) => Math.max(0, pending - advanced))
+    }
+  }, [serverTotalMl])
+
+  return {
+    entries,
+    // An unresolved day is not an empty day: taps wait for the query.
+    loaded: rawEntries !== undefined,
+    pendingMl,
+    totalMl: serverTotalMl + pendingMl,
+    queuePending: (amountMl: number) =>
+      setPendingMl((pending) => pending + amountMl),
+  }
+}
 
 /**
  * Eight glasses, tappable in either direction. Tapping an empty one fills the
@@ -44,8 +81,8 @@ export function WaterWidget({ dateKey }: { dateKey: string }) {
     "logs.water.removeEntry"
   )
 
-  const entries = (rawEntries ?? []) as WaterEntry[]
-  const totalMl = entries.reduce((s, e) => s + e.amountMl, 0)
+  const { entries, loaded, pendingMl, totalMl, queuePending } =
+    useWaterDay(rawEntries)
   const mlPerGlass = waterGlassTargetMl(goalMl, 1)
   const filledCount = filledWaterGlassCount(totalMl, goalMl)
   const rain = useReplayKey(1100)
@@ -57,6 +94,7 @@ export function WaterWidget({ dateKey }: { dateKey: string }) {
       amountMl,
       loggedAt: new Date().toISOString(),
     }
+    queuePending(amountMl)
     announceOrbActivity("log")
     void addWaterEntry({ date: dateKey, entry })
   }
@@ -66,15 +104,13 @@ export function WaterWidget({ dateKey }: { dateKey: string }) {
     // its time, the hand cannot.
     rain.replay()
     hapticRain()
-    if (filledCount >= WATER_GLASS_COUNT) {
-      addWater(mlPerGlass)
-      return
-    }
-    addWater(waterAmountNeededForGlass(totalMl, goalMl, filledCount + 1))
+    addWater(nextGlassAmount(totalMl, goalMl, filledCount))
   }
 
   function removeLastEntry() {
-    if (entries.length === 0) return
+    // A queued entry has no server row yet, so "newest loggedAt" would pick
+    // the wrong one to undo. Wait for the day to settle instead.
+    if (!loaded || pendingMl > 0 || entries.length === 0) return
     const newest = [...entries].sort((a, b) =>
       b.loggedAt.localeCompare(a.loggedAt)
     )[0]
@@ -125,7 +161,7 @@ export function WaterWidget({ dateKey }: { dateKey: string }) {
           />
         </span>
 
-        {totalMl > 0 && (
+        {totalMl > 0 && pendingMl === 0 && (
           <button
             type="button"
             onClick={removeLastEntry}
@@ -138,9 +174,10 @@ export function WaterWidget({ dateKey }: { dateKey: string }) {
         <button
           type="button"
           onClick={addGlass}
+          disabled={!loaded}
           aria-label={`Add ${fmtWater(mlPerGlass)} of water`}
           className={cn(
-            "motion-tactile flex size-11 shrink-0 items-center justify-center rounded-full",
+            "motion-tactile flex size-11 shrink-0 items-center justify-center rounded-full disabled:opacity-40",
             rain.active && "water-add-splash"
           )}
           style={{ backgroundColor: WATER_BG, color: WATER_COLOR }}
@@ -164,7 +201,6 @@ export function WaterSmall({
   const waterUnit = useWaterUnit()
   const fmtWater = (ml: number) => formatWater(ml, waterUnit)
   const rawEntries = useQuery(api.logs.water.getDay, { date: dateKey })
-  const entries = (rawEntries ?? []) as WaterEntry[]
   const addWaterEntry = useOfflineMutation(
     api.logs.water.addEntry,
     "logs.water.addEntry"
@@ -173,7 +209,8 @@ export function WaterSmall({
     api.logs.water.removeEntry,
     "logs.water.removeEntry"
   )
-  const totalMl = entries.reduce((s, e) => s + e.amountMl, 0)
+  const { entries, loaded, pendingMl, totalMl, queuePending } =
+    useWaterDay(rawEntries)
   const filledCount = filledWaterGlassCount(totalMl, goalMl)
   const previewFilledCount =
     hoveredGlass === null
@@ -187,6 +224,7 @@ export function WaterSmall({
       amountMl,
       loggedAt: new Date().toISOString(),
     }
+    queuePending(amountMl)
     announceOrbActivity("log")
     void addWaterEntry({ date: dateKey, entry })
   }
@@ -196,7 +234,8 @@ export function WaterSmall({
   }
 
   function removeLastGlass() {
-    if (entries.length === 0) return
+    // Same as the row tile: an unsynced entry has no server id to remove.
+    if (!loaded || pendingMl > 0 || entries.length === 0) return
     const newest = [...entries].sort((a, b) =>
       b.loggedAt.localeCompare(a.loggedAt)
     )[0]
@@ -226,12 +265,13 @@ export function WaterSmall({
               return (
                 <button
                   key={i}
+                  disabled={!loaded}
                   onClick={filled ? removeLastGlass : () => fillToGlass(i)}
                   onPointerEnter={() => setHoveredGlass(i)}
                   onFocus={() => setHoveredGlass(i)}
                   onBlur={() => setHoveredGlass(null)}
                   className={cn(
-                    "flex h-6 items-center justify-center rounded transition-all active:scale-[0.985]",
+                    "flex h-6 items-center justify-center rounded transition-all active:scale-[0.985] disabled:opacity-40",
                     previewFilled ? "" : "bg-muted/25 active:bg-muted/50"
                   )}
                   style={

@@ -1935,6 +1935,9 @@ export default function Settings({
                     />
                   </SettingsRow>
                   <SettingsRow label="Water" detail="Daily hydration target">
+                    {/* The fluid-ounce ceiling is derived from the metric one:
+                        170 fl oz is 5,027 ml, which round-trips past the
+                        canonical 5,000 ml maximum the metric side enforces. */}
                     <NumberStepper
                       onInteract={hapticTap}
                       value={
@@ -1951,7 +1954,11 @@ export default function Settings({
                       }
                       suffix={waterUnit === "fl oz" ? "fl oz" : "ml"}
                       min={waterUnit === "fl oz" ? 17 : 500}
-                      max={waterUnit === "fl oz" ? 170 : 5000}
+                      max={
+                        waterUnit === "fl oz"
+                          ? Math.floor(5000 / flOzToMl(1))
+                          : 5000
+                      }
                       step={waterUnit === "fl oz" ? 8 : 250}
                       label="Water"
                     />
