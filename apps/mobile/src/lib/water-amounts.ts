@@ -1,7 +1,37 @@
+import { flOzToMl } from "./measurement-system"
 import { browserLocalStorage } from "./utils"
+import type { WaterUnit } from "./use-water-unit"
 
 export const CUSTOM_WATER_MIN_ML = 50
 export const CUSTOM_WATER_MAX_ML = 3000
+
+/**
+ * The standard one-tap pours.
+ *
+ * 250 ml is 8.5 fl oz, and a control offering "+8.5 fl oz" is asking the user
+ * to do the arithmetic the unit was meant to save them. In fl oz the pour is the
+ * round number instead; storage stays millilitres either way, so a logged entry
+ * is the same kind of number whichever unit drew the button.
+ */
+export const ONE_GLASS_ML = 250
+const ONE_GLASS_FL_OZ = 8
+
+export function oneGlassWaterMl(unit: WaterUnit): number {
+  return unit === "fl oz" ? Math.round(flOzToMl(ONE_GLASS_FL_OZ)) : ONE_GLASS_ML
+}
+
+/**
+ * A quick-add chip row: the millilitre sizes, or the round ounce sizes they
+ * stand in for. Always returns millilitres, ready to log.
+ */
+export function waterPoursMl(
+  unit: WaterUnit,
+  metricMl: readonly number[],
+  imperialFlOz: readonly number[]
+): number[] {
+  if (unit !== "fl oz") return [...metricMl]
+  return imperialFlOz.map((flOz) => Math.round(flOzToMl(flOz)))
+}
 const RECENT_WATER_AMOUNTS_KEY = "onerep:recent-water-amounts:v1"
 const MAX_RECENT_WATER_AMOUNTS = 5
 

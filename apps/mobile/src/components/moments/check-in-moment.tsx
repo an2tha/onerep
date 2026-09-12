@@ -9,6 +9,7 @@ import { createClientId, logDevWarn } from "@/lib/utils"
 import { announceOrbActivity } from "@/lib/orb-activity"
 import { formatWater } from "@/lib/measurement-system"
 import { useWaterUnit } from "@/lib/use-water-unit"
+import { waterPoursMl } from "@/lib/water-amounts"
 import type { FoodLogEntry } from "@/lib/food-log"
 import type { SourceWorkoutLog } from "@/lib/moment-quick-log"
 import { QuickFoodStep } from "@/components/moments/quick-food-step"
@@ -19,6 +20,7 @@ export type CheckInVariant = "missed-log" | "training-lapse"
 
 /** The two amounts worth a chip. Anything finer belongs on the water screen. */
 const WATER_CHIPS_ML = [250, 500]
+const WATER_CHIPS_FL_OZ = [8, 16]
 
 type Answer = {
   id: string
@@ -160,6 +162,7 @@ export function CheckInMoment({
   const [busy, setBusy] = useState(false)
   const waterUnit = useWaterUnit()
   const fmtWater = (amountMl: number) => formatWater(amountMl, waterUnit)
+  const waterChips = waterPoursMl(waterUnit, WATER_CHIPS_ML, WATER_CHIPS_FL_OZ)
 
   const markRestDays = useMutation(api.logs.restDays.mark)
   const unmarkRestDays = useMutation(api.logs.restDays.unmark)
@@ -394,7 +397,7 @@ export function CheckInMoment({
             Or drink something, while you are here
           </p>
           <div className="flex flex-wrap gap-1.5">
-            {WATER_CHIPS_ML.map((amountMl) => (
+            {waterChips.map((amountMl) => (
               <Chip
                 key={amountMl}
                 icon={<Drop size={13} weight="bold" />}

@@ -59,6 +59,7 @@ import { energyDisplay } from "@repo/ui"
 import { WATER_BG, WATER_COLOR } from "./constants"
 import { formatWater, flOzToMl, mlToFlOz } from "@/lib/measurement-system"
 import { useWaterUnit } from "@/lib/use-water-unit"
+import { oneGlassWaterMl, waterPoursMl } from "@/lib/water-amounts"
 
 export type QuickActionId =
   | "workout"
@@ -147,7 +148,9 @@ function macroLine(
 
 type WaterEntry = { id: string; amountMl: number; loggedAt: string }
 
-const WATER_CHIPS = [150, 330, 500, 750]
+/** Metric chip sizes, and the round fl-oz sizes they stand in for. */
+const WATER_CHIPS_ML = [150, 330, 500, 750]
+const WATER_CHIPS_FL_OZ = [5, 8, 12, 16]
 const WATER_CUSTOM_MAX = 3000
 
 /**
@@ -202,6 +205,8 @@ function WaterDrawer({
   const waterUnit = useWaterUnit()
   const fmtWater = (ml: number) => formatWater(ml, waterUnit)
   const imperialWater = waterUnit === "fl oz"
+  const oneGlassMl = oneGlassWaterMl(waterUnit)
+  const waterChips = waterPoursMl(waterUnit, WATER_CHIPS_ML, WATER_CHIPS_FL_OZ)
   const percent = Math.min(
     100,
     Math.round((totalMl / Math.max(1, goalMl)) * 100)
@@ -304,14 +309,14 @@ function WaterDrawer({
       <div className="grid grid-cols-2 gap-2">
         <button
           type="button"
-          onClick={() => add(250)}
+          onClick={() => add(oneGlassMl)}
           className="motion-tactile col-span-2 flex min-h-14 items-center justify-center gap-2 rounded-2xl text-[17px] font-bold"
           style={{ backgroundColor: WATER_BG, color: WATER_COLOR }}
         >
           <PintGlass size={19} weight="bold" />
-          Add {fmtWater(250)}
+          Add {fmtWater(oneGlassMl)}
         </button>
-        {WATER_CHIPS.map((ml) => (
+        {waterChips.map((ml) => (
           <button
             key={ml}
             type="button"

@@ -1,8 +1,11 @@
 import { describe, expect, test } from "bun:test"
+import { formatWater } from "../measurement-system"
 import {
   clearRecentWaterAmounts,
   fmtMl,
   nextRecentWaterAmounts,
+  oneGlassWaterMl,
+  waterPoursMl,
   normalizeRecentWaterAmounts,
   readRecentWaterAmounts,
   rememberRecentWaterAmount,
@@ -90,6 +93,39 @@ describe("validateCustomWaterAmount", () => {
       amountMl: 3000,
       error: null,
     })
+  })
+})
+
+describe("one-tap pour sizes", () => {
+  test("keeps 250 ml for metric and a round 8 fl oz for fluid ounces", () => {
+    expect(oneGlassWaterMl("ml")).toBe(250)
+    // 250 ml is 8.45 fl oz: a control that offers that is asking the user to
+    // round, so the fl-oz side pours the round number instead.
+    expect(oneGlassWaterMl("fl oz")).toBe(237)
+    expect(oneGlassWaterMl("fl oz")).not.toBe(250)
+  })
+
+  test("offers round fluid ounces for a chip row, still logged as ml", () => {
+    const metric = waterPoursMl("ml", [150, 330, 500, 750], [5, 8, 12, 16])
+    expect(metric).toEqual([150, 330, 500, 750])
+
+    const imperial = waterPoursMl("fl oz", [150, 330, 500, 750], [5, 8, 12, 16])
+    expect(imperial).toEqual([148, 237, 355, 473])
+    for (const [amountMl, flOz] of [
+      [148, 5],
+      [237, 8],
+      [355, 12],
+      [473, 16],
+    ] as const) {
+      expect(formatWater(amountMl, "fl oz")).toBe(`${flOz} fl oz`)
+    }
+  })
+
+  test("returns a copy for metric so callers cannot mutate the chip list", () => {
+    const metric = [150, 330]
+    const pours = waterPoursMl("ml", metric, [5, 8])
+    expect(pours).toEqual(metric)
+    expect(pours).not.toBe(metric)
   })
 })
 
