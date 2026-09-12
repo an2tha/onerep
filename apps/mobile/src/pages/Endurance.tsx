@@ -32,6 +32,13 @@ import { hapticSelection } from "@/lib/haptics"
 import { cn } from "@/lib/utils"
 import { useSmoothNavigate } from "@/lib/navigation"
 import {
+  distanceUnitForSystem,
+  formatDistanceForUnit,
+  METERS_PER_MILE,
+  type DistanceUnit,
+} from "@/lib/measurement-system"
+import { useMeasurementSystem } from "@/lib/use-measurement-system"
+import {
   getActiveEnduranceSport,
   type EnduranceEnvironment,
 } from "@/lib/endurance-workout"
@@ -98,15 +105,11 @@ function formatDuration(seconds: number) {
   return remainder === 0 ? `${hours}h` : `${hours}h ${remainder}m`
 }
 
-function formatDistance(meters: number, sport?: Sport) {
-  if (sport === "swim" && meters < 10_000) {
+function formatDistance(meters: number, sport: Sport | undefined, unit: DistanceUnit) {
+  if (sport === "swim" && unit === "km" && meters < 10_000) {
     return `${Math.round(meters).toLocaleString()} m`
   }
-  const kilometres = meters / 1_000
-  return `${kilometres.toLocaleString(undefined, {
-    minimumFractionDigits: kilometres < 10 ? 1 : 0,
-    maximumFractionDigits: 1,
-  })} km`
+  return formatDistanceForUnit(meters, unit)
 }
 
 function formatDate(timestamp: number) {
@@ -182,12 +185,16 @@ export default function Endurance() {
       0
     ) / 60
   )
-  const weekDistanceKm = Number(
+  const {
+    system: measurementSystem,
+  } = useMeasurementSystem()
+  const distanceUnit = distanceUnitForSystem(measurementSystem)
+  const weekDistance = Number(
     (
       weekActivities.reduce(
         (total, activity) => total + (activity.totalDistanceMeters ?? 0),
         0
-      ) / 1_000
+      ) / (distanceUnit === "mi" ? METERS_PER_MILE : 1_000)
     ).toFixed(1)
   )
   const goals = preferences?.enduranceGoals?.[sport] as
@@ -207,11 +214,15 @@ export default function Endurance() {
   const heroStats = [
     {
       name: "Distance",
-      value: weekDistanceKm,
+      value: weekDistance,
       target: goals?.distanceMeters
-        ? Number((goals.distanceMeters / 1_000).toFixed(1))
+        ? Number(
+            (
+              goals.distanceMeters / (distanceUnit === "mi" ? METERS_PER_MILE : 1_000)
+            ).toFixed(1)
+          )
         : undefined,
-      suffix: "km",
+      suffix: distanceUnit,
       color: APP_ACCENT_COLORS.progress,
     },
     {
@@ -493,7 +504,11 @@ export default function Endurance() {
                       {activity.totalDistanceMeters != null && (
                         <span className="inline-flex items-center gap-1 tabular-nums">
                           <MapPin size={13} />{" "}
-                          {formatDistance(activity.totalDistanceMeters, sport)}
+                          {formatDistance(
+                            activity.totalDistanceMeters,
+                            sport,
+                            distanceUnit
+                          )}
                         </span>
                       )}
                       {activity.avgHeartRateBpm != null && (
@@ -525,6 +540,7 @@ export default function Endurance() {
           onSave={async (nextGoals) => {
             await saveGoals({ sport, ...nextGoals })
           }}
+          measurementSystem={measurementSystem}
           onClose={() => setGoalsOpen(false)}
         />
       )}
@@ -559,7 +575,8 @@ export default function Endurance() {
                     ? "—"
                     : formatDistance(
                         selectedActivity.totalDistanceMeters,
-                        selectedActivity.sport
+                        selectedActivity.sport,
+                        distanceUnit
                       )
                 }
               />
@@ -650,35 +667,48 @@ function EnduranceGoalsSheet({
   goals,
   onSportChange,
   onSave,
+  measurementSystem,
   onClose,
 }: {
   sport: Sport
   goals: EnduranceGoal | undefined
   onSportChange: (sport: Sport) => void
   onSave: (goals: EnduranceGoal) => Promise<void>
+  measurementSystem: "metric" | "imperial"
   onClose: () => void
 }) {
+  const distanceUnit = distanceUnitForSystem(measurementSystem)
   const [distance, setDistance] = useState("")
   const [duration, setDuration] = useState("")
+
   const [sessions, setSessions] = useState("")
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     setDistance(
-      goals?.distanceMeters ? String(goals.distanceMeters / 1_000) : ""
+      goals?.distanceMeters
+        ? String(
+            goals.distanceMeters / (distanceUnit === "mi" ? METERS_PER_MILE : 1_000)
+          )
+        : ""
     )
     setDuration(goals?.durationMinutes ? String(goals.durationMinutes) : "")
     setSessions(goals?.sessions ? String(goals.sessions) : "")
-  }, [goals, sport])
+  }, [goals, sport, distanceUnit])
 
   async function save() {
-    const distanceKm = numberOrUndefined(distance)
+    const distanceValue = numberOrUndefined(distance)
     const durationMinutes = numberOrUndefined(duration)
     const sessionCount = numberOrUndefined(sessions)
     setSaving(true)
     try {
       await onSave({
-        ...(distanceKm ? { distanceMeters: distanceKm * 1_000 } : {}),
+        ...(distanceValue
+          ? {
+              distanceMeters:
+                distanceValue * (distanceUnit === "mi" ? METERS_PER_MILE : 1_000),
+            }
+          : {}),
         ...(durationMinutes ? { durationMinutes } : {}),
         ...(sessionCount ? { sessions: Math.round(sessionCount) } : {}),
       })
@@ -734,9 +764,9 @@ function EnduranceGoalsSheet({
         <div className="mt-6 divide-y divide-border border-y border-border">
           <GoalField
             label="Distance"
-            detail="Kilometres per week"
+            detail={`${distanceUnit === "mi" ? "Miles" : "Kilometres"} per week`}
             value={distance}
-            suffix="km"
+            suffix={distanceUnit}
             step="0.1"
             onChange={setDistance}
           />

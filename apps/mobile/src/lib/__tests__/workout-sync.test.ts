@@ -1,6 +1,8 @@
-import { describe, test, expect } from "bun:test"
+import { describe, test, expect, beforeEach } from "bun:test"
 import {
   emptyRoutine,
+  formatCardioDistance,
+  formatCardioPace,
   movePresetById,
   normalizePresetCard,
   normalizeRoutine,
@@ -8,6 +10,26 @@ import {
   scheduleRoutinePayload,
   todayIso,
 } from "../workout-sync"
+import { writeMeasurementSystem } from "../measurement-system"
+
+class MemoryStorage {
+  private map = new Map<string, string>()
+  getItem(key: string) {
+    return this.map.get(key) ?? null
+  }
+  setItem(key: string, value: string) {
+    this.map.set(key, value)
+  }
+  removeItem(key: string) {
+    this.map.delete(key)
+  }
+}
+
+;(globalThis as Record<string, unknown>).localStorage = new MemoryStorage()
+
+beforeEach(() => {
+  writeMeasurementSystem("metric")
+})
 
 describe("todayIso", () => {
   test("returns a string in YYYY-MM-DD format", () => {
@@ -233,5 +255,18 @@ describe("schedule routine persistence", () => {
       primary: { ...emptyRoutine(), Mon: "push" },
       secondary: { ...emptyRoutine(), Mon: "cardio" },
     })
+  })
+})
+
+describe("workout-sync default distance units", () => {
+  test("uses the metric system when a unit is omitted", () => {
+    expect(formatCardioDistance(1_000)).toBe("1.00 km")
+    expect(formatCardioPace(300)).toBe("5:00/km")
+  })
+
+  test("uses the imperial system when a unit is omitted", () => {
+    writeMeasurementSystem("imperial")
+    expect(formatCardioDistance(1_609.344)).toBe("1.00 mi")
+    expect(formatCardioPace(300)).toBe("8:03/mi")
   })
 })

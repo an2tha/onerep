@@ -1,5 +1,8 @@
+import { distanceUnitForSystem, currentMeasurementSystem } from "@/lib/measurement-system"
+
 export type WorkoutFocus = "strength" | "cardio" | "mobility"
 export type CardioDistanceUnit = "km" | "mi"
+
 /** Mirrors `CardioSourceProvider` in packages/models/src/workoutLogs.ts. */
 export type CardioSourceProvider =
   | "manual"
@@ -131,7 +134,7 @@ export function formatCardioDuration(seconds?: number | null): string | null {
 
 export function formatCardioDistance(
   meters?: number | null,
-  unit: CardioDistanceUnit = "km"
+  unit: CardioDistanceUnit = distanceUnitForSystem(currentMeasurementSystem())
 ): string | null {
   if (!meters || meters <= 0) return null
   const value = cardioMetersToDistance(meters, unit)
@@ -140,7 +143,7 @@ export function formatCardioDistance(
 
 export function formatCardioPace(
   paceSecondsPerKm?: number | null,
-  unit: CardioDistanceUnit = "km"
+  unit: CardioDistanceUnit = distanceUnitForSystem(currentMeasurementSystem())
 ): string | null {
   if (!paceSecondsPerKm || paceSecondsPerKm <= 0) return null
   const secondsPerUnit =
@@ -179,7 +182,8 @@ export function hasCardioDetails(cardio?: CardioWorkoutDetails | null) {
 
 export function compactCardioSummary(
   cardio?: CardioWorkoutDetails | null,
-  unit: CardioDistanceUnit = cardio?.distanceUnit ?? "km"
+  unit: CardioDistanceUnit =
+    cardio?.distanceUnit ?? distanceUnitForSystem(currentMeasurementSystem())
 ) {
   if (!cardio || !hasCardioDetails(cardio)) return "Cardio details"
   const pace = cardio.paceSecondsPerKm
