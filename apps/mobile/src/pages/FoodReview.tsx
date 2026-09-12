@@ -2,7 +2,6 @@ import { foodLogTimestampForMeal, isFoodLogDate } from "@/lib/food-log-context"
 import { useEffect, useRef, useState } from "react"
 import { Warning } from "@phosphor-icons/react"
 import { useLocation, useParams, useSearchParams } from "react-router"
-import { usePostHog } from "@posthog/react"
 import { captureFeatureUsage } from "@/lib/analytics"
 import { useQuery } from "convex/react"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
@@ -34,7 +33,6 @@ type FoodReviewLocationState = {
 
 export default function FoodReview() {
   const navigate = useSmoothNavigate()
-  const posthog = usePostHog()
   const { id } = useParams<{ id: string }>()
   const location = useLocation()
   const stateItem = (location.state as FoodReviewLocationState)?.item
@@ -128,7 +126,7 @@ export default function FoodReview() {
     try {
       await addFoodEntry({ date, entry })
       announceOrbActivity("log")
-      captureFeatureUsage(posthog, "food_logged", {
+      captureFeatureUsage("food_logged", {
         item_count: 1,
         source: "search_review_page",
       })

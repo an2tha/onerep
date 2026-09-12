@@ -2,7 +2,6 @@ import { ActiveRouteOnly } from "@/lib/route-activity"
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { readCachedWeightUnit } from "@/lib/use-weight-unit"
 import { useParams, useSearchParams } from "react-router"
-import { usePostHog } from "@posthog/react"
 import { captureFeatureUsage, durationBucket } from "@/lib/analytics"
 import { useAction, useQuery, useMutation } from "convex/react"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
@@ -442,7 +441,6 @@ function ActiveWorkoutSession() {
   const isMobile = useIsMobile(767)
   const routeParams = useParams<{ presetId?: string; date?: string }>()
   const navigate = useSmoothNavigate()
-  const posthog = usePostHog()
   const [searchParams, setSearchParams] = useSearchParams()
 
   // ── Retro mode ────────────────────────────────────────────────────────────
@@ -1426,11 +1424,11 @@ function ActiveWorkoutSession() {
 
   useEffect(() => {
     if (isInitialized && !isRetro) {
-      captureFeatureUsage(posthog, "workout_started", {
+      captureFeatureUsage("workout_started", {
         has_preset: Boolean(presetId),
       })
     }
-  }, [isInitialized, isRetro, presetId, posthog])
+  }, [isInitialized, isRetro, presetId])
 
   /**
    * Turns a spoken or typed recap into exercises appended to the session.
@@ -1631,7 +1629,7 @@ function ActiveWorkoutSession() {
         throw new Error("Coach couldn't turn that into a usable exercise plan.")
       }
 
-      captureFeatureUsage(posthog, "active_workout_coach_asked", {
+      captureFeatureUsage("active_workout_coach_asked", {
         exercise_count: draft.exercises.length,
         has_active_workout: uniqueExerciseIds.length > 0,
         has_source_exercise: Boolean(aiSheetTarget?.exerciseName),
@@ -1709,7 +1707,7 @@ function ActiveWorkoutSession() {
           return next
         })
 
-        captureFeatureUsage(posthog, "active_workout_ai_changed", {
+        captureFeatureUsage("active_workout_ai_changed", {
           mode,
           matched_count: 1,
           unmatched_count: resolved.length - 1,
@@ -1799,7 +1797,7 @@ function ActiveWorkoutSession() {
         setExerciseLookup((prev) => ({ ...prev, ...nextExerciseLookup }))
       }
 
-      captureFeatureUsage(posthog, "active_workout_ai_changed", {
+      captureFeatureUsage("active_workout_ai_changed", {
         mode,
         matched_count: nextItems.length,
         unmatched_count: unmatched.length,
@@ -2132,7 +2130,7 @@ function ActiveWorkoutSession() {
             date: retroDate,
           }).catch(reportOfflineMutationError)
         }
-        captureFeatureUsage(posthog, "workout_logged_retro", {
+        captureFeatureUsage("workout_logged_retro", {
           mode: retroMode,
           source: healthWorkoutParam
             ? "apple_health"
@@ -2164,7 +2162,7 @@ function ActiveWorkoutSession() {
         exercises,
         durationSeconds: elapsed,
       })
-      captureFeatureUsage(posthog, "workout_completed", {
+      captureFeatureUsage("workout_completed", {
         has_preset: Boolean(presetId),
         duration_bucket: durationBucket(elapsed),
         item_count: exercises.length,

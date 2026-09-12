@@ -19,8 +19,6 @@ import {
 } from "react-router"
 import { RouterProvider } from "react-router/dom"
 import { useConvexAuth } from "convex/react"
-import posthog from "posthog-js"
-import { PostHogProvider, usePostHog } from "@posthog/react"
 import { captureFeatureUsage, routePattern, trackUmami } from "@/lib/analytics"
 import { ConvexBetterAuthProvider } from "@convex-dev/better-auth/react"
 import { convexClient } from "@/lib/convex"
@@ -45,19 +43,6 @@ declare global {
   }
 }
 
-const posthogToken = import.meta.env.VITE_PUBLIC_POSTHOG_PROJECT_TOKEN
-if (posthogToken) {
-  posthog.init(posthogToken, {
-    api_host: import.meta.env.VITE_PUBLIC_POSTHOG_HOST,
-    defaults: "2026-01-30",
-    opt_out_capturing_by_default: true,
-  })
-  if (localStorage.getItem("onerep:analytics-enabled") === "true") {
-    posthog.opt_in_capturing()
-  } else {
-    posthog.opt_out_capturing()
-  }
-}
 import App from "./App.tsx"
 import ExerciseDetail from "./pages/ExerciseDetail.tsx"
 import EmailVerified from "./pages/EmailVerified.tsx"
@@ -686,7 +671,6 @@ function AuthCallback() {
   const navigate = useSmoothNavigate()
   const [searchParams] = useSearchParams()
   const convexAuth = useConvexAuth()
-  const posthog = usePostHog()
   const nextPath = safeAuthRedirectPath(searchParams.get("next"))
   const method = searchParams.get("method")
   const isNewUser = searchParams.get("new") === "1"
@@ -716,7 +700,6 @@ function AuthCallback() {
     if (method && !capturedRef.current) {
       capturedRef.current = true
       captureFeatureUsage(
-        posthog,
         isNewUser ? "user_signed_up" : "user_signed_in",
         { method }
       )
@@ -728,7 +711,6 @@ function AuthCallback() {
     method,
     navigate,
     nextPath,
-    posthog,
   ])
 
   return (
@@ -1362,7 +1344,6 @@ createRoot(document.getElementById("root")!).render(
       client={convexClient}
       authClient={providerAuthClient}
     >
-      <PostHogProvider client={posthog}>
         <ThemeProvider identities={PALETTES}>
           <PwaLifecycle />
           <ErrorBoundary label="the app">
@@ -1387,7 +1368,6 @@ createRoot(document.getElementById("root")!).render(
             />
           </ErrorBoundary>
         </ThemeProvider>
-      </PostHogProvider>
     </ConvexBetterAuthProvider>
   </StrictMode>
 )

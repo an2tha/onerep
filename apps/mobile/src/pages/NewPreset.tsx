@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from "react"
 import { readCachedWeightUnit } from "@/lib/use-weight-unit"
 import { useParams } from "react-router"
-import { usePostHog } from "@posthog/react"
 import { captureFeatureUsage } from "@/lib/analytics"
 import { useAction, useQuery } from "convex/react"
 import {
@@ -1282,7 +1281,6 @@ function PastePresetSheet({
 export default function NewPreset() {
   const { id: presetId } = useParams<{ id?: string }>()
   const navigate = useSmoothNavigate()
-  const posthog = usePostHog()
   const { requireAiAccess, aiAccessModal } = useAiFeatureGate()
 
   const presets = useQuery(api.logs.presets.list, {})
@@ -1433,7 +1431,7 @@ export default function NewPreset() {
       } else {
         await createPreset(input)
       }
-      captureFeatureUsage(posthog, "workout_preset_saved", {
+      captureFeatureUsage("workout_preset_saved", {
         is_edit: Boolean(presetId),
         item_count: items.length,
       })
@@ -1531,7 +1529,7 @@ export default function NewPreset() {
         setPresetName(nextName)
       }
 
-      captureFeatureUsage(posthog, "workout_preset_text_imported", {
+      captureFeatureUsage("workout_preset_text_imported", {
         mode,
         matched_count: nextItems.length,
         unmatched_count: unmatched.length,

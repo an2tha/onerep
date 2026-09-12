@@ -24,7 +24,6 @@ import { useQuery } from "convex/react"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { api } from "../../../../convex/_generated/api"
 import { FoodDetailSheet } from "@/components/food-detail-sheet"
-import { usePostHog } from "@posthog/react"
 import { captureFeatureUsage } from "@/lib/analytics"
 import {
   currentDateKey,
@@ -151,7 +150,6 @@ export default function SearchFoods() {
       { motion: "forward" }
     )
   const [searchParams] = useSearchParams()
-  const posthog = usePostHog()
 
   const inputRef = useRef<HTMLInputElement>(null)
   const latestSearchRequestRef = useRef(0)
@@ -402,7 +400,7 @@ export default function SearchFoods() {
       await addFoodEntry({ date, entry })
       announceOrbActivity("log")
 
-      captureFeatureUsage(posthog, "food_logged", {
+      captureFeatureUsage("food_logged", {
         item_count: 1,
         source: "search",
       })
@@ -436,7 +434,7 @@ export default function SearchFoods() {
       })
       await addFoodEntry({ date, entry })
       announceOrbActivity("log")
-      captureFeatureUsage(posthog, "food_logged", {
+      captureFeatureUsage("food_logged", {
         item_count: 1,
         source: "search_repeat",
       })
@@ -480,7 +478,7 @@ export default function SearchFoods() {
       })
       await addFoodEntry({ date, entry })
       announceOrbActivity("log")
-      captureFeatureUsage(posthog, "food_logged", {
+      captureFeatureUsage("food_logged", {
         item_count: 1,
         source: "search_custom",
       })

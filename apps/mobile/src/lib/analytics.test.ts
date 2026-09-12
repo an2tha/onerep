@@ -23,43 +23,11 @@ afterEach(() => {
   delete (globalThis as { window?: unknown }).window
 })
 
-describe("analytics consent boundary", () => {
-  test("suppresses calls while opted out or unset", () => {
-    const events: string[] = []
-    const client = { capture: (event: string) => events.push(event) }
-    const unset = { getItem: () => null }
-    const optedOut = { getItem: () => "false" }
-
-    expect(captureFeatureUsage(client, "feature_used", {}, unset)).toBe(false)
-    expect(captureFeatureUsage(client, "feature_used", {}, optedOut)).toBe(
-      false
-    )
-    expect(events).toEqual([])
-  })
-
-  test("captures only after explicit opt-in", () => {
-    const events: string[] = []
-    const client = { capture: (event: string) => events.push(event) }
-    const optedIn = { getItem: () => "true" }
-
-    expect(captureFeatureUsage(client, "feature_used", {}, optedIn)).toBe(true)
-    expect(events).toEqual(["feature_used"])
-  })
-
-  test("still counts the event in Umami while opted out of PostHog", () => {
+describe("feature usage", () => {
+  test("counts the event in Umami", () => {
     const tracked = stubUmami()
-    const events: string[] = []
-    const client = { capture: (event: string) => events.push(event) }
 
-    expect(
-      captureFeatureUsage(
-        client,
-        "feature_used",
-        { mode: "chat" },
-        { getItem: () => "false" }
-      )
-    ).toBe(false)
-    expect(events).toEqual([])
+    expect(captureFeatureUsage("feature_used", { mode: "chat" })).toBe(true)
     expect(tracked).toEqual([["feature_used", { mode: "chat" }]])
   })
 })

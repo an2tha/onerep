@@ -44,7 +44,6 @@ import {
 } from "@/lib/food-log-context"
 import { api } from "../../../../convex/_generated/api"
 import { convexClient } from "@/lib/convex"
-import { usePostHog } from "@posthog/react"
 import { captureFeatureUsage } from "@/lib/analytics"
 import { toast } from "@repo/ui"
 import { hapticMedium, hapticTap } from "@/lib/haptics"
@@ -149,7 +148,6 @@ type SnapPhase = "idle" | "uploading" | "results" | "error"
 
 export default function SnapAndLog() {
   const navigate = useSmoothNavigate()
-  const posthog = usePostHog()
   const { hasAiAccess, aiAccessLoading, requireAiAccess, aiAccessModal } =
     useAiFeatureGate()
   const [params] = useSearchParams()
@@ -421,7 +419,7 @@ export default function SnapAndLog() {
         setBarcodeScanning(false)
         const food = await getFoodByBarcode(code)
         if (food) {
-          captureFeatureUsage(posthog, "food_barcode_scanned", {
+          captureFeatureUsage("food_barcode_scanned", {
             success: true,
           })
           // Same correction overlay as the shutter path: a saved correction
@@ -457,7 +455,6 @@ export default function SnapAndLog() {
     mode,
     cameraState,
     useNativeCapture,
-    posthog,
     barcodeScanNonce,
     correctedForBarcode,
   ])
@@ -567,7 +564,7 @@ export default function SnapAndLog() {
       }
       const blob = await fetch(photo.webPath).then((res) => res.blob())
       if (mode === "snap") {
-        captureFeatureUsage(posthog, "food_snap_captured")
+        captureFeatureUsage("food_snap_captured")
         await processSnapBlob(blob)
       } else {
         setBarcodeScanning(true)
@@ -630,7 +627,7 @@ export default function SnapAndLog() {
       if (!photo.webPath) return
       const blob = await fetch(photo.webPath).then((res) => res.blob())
       if (mode === "snap") {
-        captureFeatureUsage(posthog, "food_snap_captured")
+        captureFeatureUsage("food_snap_captured")
         await processSnapBlob(blob)
       } else {
         setBarcodeScanning(true)
@@ -679,7 +676,6 @@ export default function SnapAndLog() {
     canvas.getContext("2d")?.drawImage(video, 0, 0)
 
     captureFeatureUsage(
-      posthog,
       mode === "barcode" ? "barcode_captured" : "food_snap_captured"
     )
     canvas.toBlob(
@@ -769,7 +765,7 @@ export default function SnapAndLog() {
       await addFoodEntry({ date, entry })
       announceOrbActivity("log")
 
-      captureFeatureUsage(posthog, "food_logged_from_camera", {
+      captureFeatureUsage("food_logged_from_camera", {
         item_count: 1,
         source: mode,
       })
@@ -831,7 +827,7 @@ export default function SnapAndLog() {
       )
       announceOrbActivity("log", Math.min(entries.length, 3))
 
-      captureFeatureUsage(posthog, "food_logged_from_camera", {
+      captureFeatureUsage("food_logged_from_camera", {
         item_count: entries.length,
         detected_count: snapReviewItems.length,
         source: "snap_review",

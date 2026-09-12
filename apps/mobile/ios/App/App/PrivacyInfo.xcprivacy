@@ -21,8 +21,7 @@
 	<!--
 		Empty on purpose rather than absent. A tracking domain listed here is
 		one iOS blocks when the user has denied tracking, and there are none:
-		analytics is self-hosted (Umami) or opt-in and first-party (PostHog),
-		and neither is used for advertising.
+		analytics is self-hosted (Umami) and is not used for advertising.
 	-->
 	<key>NSPrivacyTrackingDomains</key>
 	<array/>
@@ -138,31 +137,14 @@
 		</dict>
 
 		<!--
-			Screens opened and features used. Declared linked, which is the
-			pessimistic reading: the always-on counter is anonymous, but the
-			opt-in analytics ties the same events to a pseudonymous id, and a
-			manifest should describe the loudest thing the app can do.
+			Screens opened and features used. The always-on counter is anonymous
+			and is not tied to an account.
 		-->
 		<dict>
 			<key>NSPrivacyCollectedDataType</key>
 			<string>NSPrivacyCollectedDataTypeProductInteraction</string>
 			<key>NSPrivacyCollectedDataTypeLinked</key>
-			<true/>
-			<key>NSPrivacyCollectedDataTypeTracking</key>
 			<false/>
-			<key>NSPrivacyCollectedDataTypePurposes</key>
-			<array>
-				<string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
-				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
-			</array>
-		</dict>
-
-		<!-- The pseudonymous id opt-in analytics uses to join sessions. -->
-		<dict>
-			<key>NSPrivacyCollectedDataType</key>
-			<string>NSPrivacyCollectedDataTypeDeviceID</string>
-			<key>NSPrivacyCollectedDataTypeLinked</key>
-			<true/>
 			<key>NSPrivacyCollectedDataTypeTracking</key>
 			<false/>
 			<key>NSPrivacyCollectedDataTypePurposes</key>

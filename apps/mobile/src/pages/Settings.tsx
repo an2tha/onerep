@@ -102,9 +102,7 @@ function timeValueToMinutes(value: string): number | null {
 }
 
 import {
-  safeLocalStorageGet,
   safeLocalStorageRemove,
-  safeLocalStorageSet,
 } from "@/lib/utils"
 import { useSmoothNavigate } from "@/lib/navigation"
 import {
@@ -122,7 +120,6 @@ import {
 } from "@/lib/data-export"
 import { toast, useTheme } from "@repo/ui"
 import { Flavours } from "@/pages/Flavours"
-import posthog from "posthog-js"
 import { trackUmami } from "@/lib/analytics"
 import { convexClient } from "@/lib/convex"
 import {
@@ -614,10 +611,6 @@ export default function Settings({
     nudges: true,
     quietHours: { startMinutes: 21 * 60 + 30, endMinutes: 8 * 60 },
   })
-  const [analyticsEnabled, setAnalyticsEnabled] = useState(() => {
-    if (typeof window === "undefined") return false
-    return safeLocalStorageGet("onerep:analytics-enabled") === "true"
-  })
   const [personalizedInsightsEnabled, setPersonalizedInsightsEnabled] =
     useState(true)
   const [experimentalFeaturesState, setExperimentalFeaturesState] =
@@ -754,7 +747,6 @@ export default function Settings({
       })
     }
     if (preferences?.privacySettings) {
-      setAnalyticsEnabled(preferences.privacySettings.analyticsEnabled)
       setPersonalizedInsightsEnabled(
         preferences.privacySettings.personalizedInsightsEnabled
       )
@@ -1044,19 +1036,13 @@ export default function Settings({
   async function handleSavePrivacy() {
     await runSectionSave(async () => {
       await setPrivacySettings({
-        analyticsEnabled,
+        analyticsEnabled: false,
         personalizedInsightsEnabled,
       })
 
-      safeLocalStorageSet("onerep:analytics-enabled", String(analyticsEnabled))
-      // Fired before the opt-out so the last thing PostHog hears is the reason
-      // it is going quiet. Umami takes it either way — it is anonymous.
       trackUmami("privacy_settings_saved", {
-        analytics: analyticsEnabled,
         personalized_insights: personalizedInsightsEnabled,
       })
-      if (analyticsEnabled) posthog.opt_in_capturing()
-      else posthog.opt_out_capturing()
     }, "Privacy settings saved")
   }
 
@@ -1093,7 +1079,6 @@ export default function Settings({
       await signOutApp()
       safeLocalStorageRemove(PRELOGIN_SEEN_KEY)
       trackUmami("user_signed_out")
-      posthog.reset()
       navigate("/login", { replace: true })
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Log out failed")
@@ -1328,7 +1313,6 @@ export default function Settings({
   function handleClearLocalData() {
     hapticMedium()
     clearOfflineQueue()
-    safeLocalStorageRemove("onerep:analytics-enabled")
     setTheme("system")
     setOfflineQueueTotal(0)
     toast.success("Data on this device cleared")
@@ -1397,7 +1381,6 @@ export default function Settings({
       await signOutApp().catch(() => undefined)
 
       trackUmami("account_deleted")
-      posthog.reset()
       navigate("/login", { replace: true })
     } catch (error) {
       toast.error(
@@ -3080,22 +3063,11 @@ export default function Settings({
             {activeView === "privacy" && (
               <>
                 <SettingsSectionIntro>
-                  Control optional analytics, personalized recommendations, and
-                  this device’s sync state.
+                  Control personalized recommendations and this device’s sync
+                  state.
                 </SettingsSectionIntro>
                 <SettingsSectionLabel title="Privacy" />
                 <GroupedList label="Privacy controls">
-                  <SettingsRow
-                    label="Optional analytics"
-                    detail="Share anonymous feature-usage counts. Meal, workout, body, and Coach contents are never included. Basic usage measurement runs either way — see the privacy policy."
-                  >
-                    <CompactSwitch
-                      onInteract={hapticSelection}
-                      checked={analyticsEnabled}
-                      onChange={setAnalyticsEnabled}
-                      label="Analytics"
-                    />
-                  </SettingsRow>
                   <SettingsRow
                     label="Personalized insights"
                     detail="Use your logs for tailored coaching"

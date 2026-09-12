@@ -98,7 +98,6 @@ describe("auth session helpers", () => {
       ["onerep:rest-bell-enabled", "true"],
       ["onerep:rest-vibration-enabled", "true"],
       ["onerep:ui-language", "en"],
-      ["onerep:analytics-enabled", "true"],
       ["onerep:server-override", "{}"],
       ["onerep:ota:pending-bundle", "{}"],
       ["onerep:quick-add-hint-seen", "1"],

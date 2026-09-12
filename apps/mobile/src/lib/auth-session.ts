@@ -34,7 +34,6 @@ const LOCAL_STORAGE_PREFIXES_TO_CLEAR = [
 const DEVICE_LOCAL_KEY_PREFIXES = [
   "onerep:active-superset-tip-hidden",
   "onerep:active-workout-simple-view",
-  "onerep:analytics-enabled",
   "onerep:coach-model:",
   "onerep:coach-onboarding-seen",
   "onerep:energy-unit",

@@ -1,9 +1,3 @@
-export type AnalyticsClient = {
-  capture: (event: string, properties?: Record<string, unknown>) => unknown
-}
-
-type ConsentStore = { getItem: (key: string) => string | null }
-
 type UmamiClient = {
   track: (event: string, data?: Record<string, unknown>) => unknown
 }
@@ -11,17 +5,6 @@ type UmamiClient = {
 declare global {
   interface Window {
     umami?: UmamiClient
-  }
-}
-
-export function analyticsConsentEnabled(store?: ConsentStore) {
-  const consentStore =
-    store ?? (typeof window !== "undefined" ? window.localStorage : undefined)
-  if (!consentStore) return false
-  try {
-    return consentStore.getItem("onerep:analytics-enabled") === "true"
-  } catch {
-    return false
   }
 }
 
@@ -45,9 +28,9 @@ function sanitizeUmamiData(properties: Record<string, unknown>) {
 /**
  * Fire an anonymous Umami event.
  *
- * Deliberately not gated on the analytics toggle. Umami is cookieless, stores
+ * Umami is cookieless and stores
  * no identifier, and the privacy policy lists it as the non-optional usage
- * analytics that "runs on every visit" — the toggle governs PostHog, which is
+ * analytics that runs on every visit. The hard rule is that
  * the one that follows a person around. The price of that is a hard rule:
  * nothing identifying may be passed in `properties`. Counts, buckets, enums.
  *
@@ -91,19 +74,13 @@ export function routePattern(
 }
 
 /**
- * The single capture boundary: opt-out is enforced before touching PostHog,
- * while the anonymous Umami counter gets the event either way.
+ * The single feature-event boundary for anonymous Umami counts.
  */
 export function captureFeatureUsage(
-  client: AnalyticsClient | undefined,
   event: string,
-  properties?: Record<string, unknown>,
-  store?: ConsentStore
+  properties?: Record<string, unknown>
 ) {
-  trackUmami(event, properties)
-  if (!client || !analyticsConsentEnabled(store)) return false
-  client.capture(event, properties)
-  return true
+  return trackUmami(event, properties)
 }
 
 export function durationBucket(seconds: number) {

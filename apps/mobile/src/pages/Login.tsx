@@ -21,7 +21,6 @@ import {
 import { isNativeOAuthPlatform, openNativeOAuth } from "@/lib/native-oauth"
 import { hapticSelection } from "@/lib/haptics"
 import { useSmoothNavigate } from "@/lib/navigation"
-import { usePostHog } from "@posthog/react"
 import { captureFeatureUsage } from "@/lib/analytics"
 import {
   getAuthCallbackUrl,
@@ -104,7 +103,6 @@ function ModeTab({
 export default function Login() {
   const navigate = useSmoothNavigate()
   const [searchParams] = useSearchParams()
-  const posthog = usePostHog()
   const { isLoaded: authLoaded, isSignedIn } = useAppAuth()
   const convexAuth = useConvexAuth()
   const requestedMode =
@@ -415,7 +413,7 @@ export default function Login() {
           return
         }
 
-        captureFeatureUsage(posthog, "user_signed_in", { method: "email" })
+        captureFeatureUsage("user_signed_in", { method: "email" })
         setMessage("Sign-in accepted. Opening OneRep…")
         return
       } else {
@@ -434,7 +432,7 @@ export default function Login() {
           return
         }
 
-        captureFeatureUsage(posthog, "user_signed_up", { method: "email" })
+        captureFeatureUsage("user_signed_up", { method: "email" })
         // When the deployment does not require email verification, sign-up
         // returns an active session and the verify screen would be a dead end.
         const session = await authClient.getSession()

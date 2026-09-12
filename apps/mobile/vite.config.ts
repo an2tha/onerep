@@ -177,7 +177,6 @@ export default defineConfig(({ command, mode }) => {
             // thing that pulls three.js down.
             if (/node_modules\/three\//.test(id)) return "three"
             if (id.includes("@phosphor-icons")) return "icons"
-            if (id.includes("posthog")) return "analytics"
             return "vendor"
           },
         },
