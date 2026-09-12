@@ -75,9 +75,52 @@ export function applyMeasurementSystem(system: MeasurementSystem) {
   }
 }
 
+export type DistanceUnit = "km" | "mi"
+
 /** The cardio distance unit new workouts should start in. */
-export function distanceUnitForSystem(system: MeasurementSystem): "km" | "mi" {
+export function distanceUnitForSystem(system: MeasurementSystem): DistanceUnit {
   return system === "imperial" ? "mi" : "km"
+}
+
+export const METERS_PER_MILE = 1609.344
+
+/** Formats workout distance using the app-wide distance preference. */
+export function formatDistanceForUnit(meters: number, unit: DistanceUnit): string {
+  if (unit === "km" && meters < 1_000) return `${Math.round(meters)} m`
+  const value = unit === "mi" ? meters / METERS_PER_MILE : meters / 1_000
+  return `${value.toLocaleString(undefined, {
+    minimumFractionDigits: value < 10 ? 1 : 0,
+    maximumFractionDigits: 1,
+  })} ${unit}`
+}
+
+/** Formats running pace from its canonical seconds-per-kilometre value. */
+export function formatPaceForUnit(
+  paceSecondsPerKm: number,
+  unit: DistanceUnit
+): string {
+  const secondsPerUnit =
+    unit === "mi" ? paceSecondsPerKm * (METERS_PER_MILE / 1_000) : paceSecondsPerKm
+  const roundedSeconds = Math.max(0, Math.round(secondsPerUnit))
+  return `${Math.floor(roundedSeconds / 60)}:${String(roundedSeconds % 60).padStart(2, "0")} /${unit}`
+}
+
+/** Formats cycling speed using the app-wide distance preference. */
+export function formatSpeedForUnit(
+  meters: number,
+  durationSeconds: number,
+  unit: DistanceUnit
+): string {
+  const speed = meters / durationSeconds * (unit === "mi" ? 2.236936 : 3.6)
+  return `${speed.toFixed(1)} ${unit}/h`
+}
+
+/** Formats elevation using metres or feet with the same master preference. */
+export function formatElevationForSystem(
+  meters: number,
+  system: MeasurementSystem
+): string {
+  return `${Math.round(system === "imperial" ? meters * 3.28084 : meters)} ${system === "imperial" ? "ft" : "m"}`
 }
 
 /** The water goal's display unit for a system — the *default*, not the law. */
