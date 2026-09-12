@@ -77,8 +77,16 @@ cd android
 bash ./gradlew "$GRADLE_TASK"
 cd "$APP_DIR"
 
-APK="android/app/build/outputs/apk/release/app-release.apk"
-if [ -f "$APK" ]; then
+APK=""
+case "$GRADLE_TASK" in
+  assembleDebug)
+    APK="android/app/build/outputs/apk/debug/app-debug.apk"
+    ;;
+  assembleRelease)
+    APK="android/app/build/outputs/apk/release/app-release.apk"
+    ;;
+esac
+if [ -n "$APK" ] && [ -f "$APK" ]; then
   echo "==> APK ready: $APP_DIR/$APK"
   ls -lh "$APK" | awk '{print "    size:", $5}'
 fi
