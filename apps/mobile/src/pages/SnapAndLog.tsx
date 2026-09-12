@@ -35,6 +35,7 @@ import {
   type FoodLogEntry,
   type MealType,
   DEFAULT_MEAL_CATEGORIES,
+  stepFoodServingMultiplier,
 } from "@/lib/food-log"
 import {
   foodLogContextParams,
@@ -49,8 +50,11 @@ import { toast } from "@repo/ui"
 import { hapticMedium, hapticTap } from "@/lib/haptics"
 import { useEnergyUnit } from "@/lib/use-energy-unit"
 import { energyDisplay } from "@repo/ui"
-import type { FoodResult } from "@repo/models"
-import { foodCardMacros } from "@/lib/food-search-nutrition"
+import type { FoodDetail, FoodResult } from "@repo/models"
+import {
+  foodCardMacros,
+  foodServingGrams,
+} from "@/lib/food-search-nutrition"
 import {
   getFoodByBarcode,
   rankAndFilterFoodResults,
@@ -63,6 +67,7 @@ import {
   mapSnapDetectionsToReviewItems,
   scaleFoodForGrams,
   snapDetectionsFromAiResult,
+  snapNamedServing,
   snapPortionPresets,
   toConvexSafe,
   type SnapAiResult,
@@ -120,9 +125,9 @@ function isCancelledCapture(error: unknown) {
  * for any quantity they pick.
  */
 function withCorrectedMacros(
-  food: FoodResult,
+  food: FoodDetail,
   corrected: CustomFood
-): FoodResult {
+): FoodDetail {
   const per100 = corrected.servingGrams && corrected.servingGrams > 0
     ? 100 / corrected.servingGrams
     : 1
@@ -131,6 +136,10 @@ function withCorrectedMacros(
     name: corrected.name,
     brand: corrected.brand ?? food.brand,
     serving: corrected.servingLabel || food.serving,
+    // The correction carries its own serving. Keeping the catalogue's grams
+    // here would scale the user's numbers by the ratio between the two.
+    servingGrams: corrected.servingGrams ?? food.servingGrams,
+    servingLabel: corrected.servingLabel || food.servingLabel,
     calories: Math.round(corrected.nutrientsPerServing.calories * per100),
     protein: Math.round(corrected.nutrientsPerServing.protein * per100 * 10) / 10,
     carbs: Math.round(corrected.nutrientsPerServing.carbs * per100 * 10) / 10,
@@ -227,7 +236,7 @@ export default function SnapAndLog() {
 
   // Barcode results
   const [barcodeScanning, setBarcodeScanning] = useState(false)
-  const [barcodeResult, setBarcodeResult] = useState<FoodResult | null>(null)
+  const [barcodeResult, setBarcodeResult] = useState<FoodDetail | null>(null)
   const [barcodeError, setBarcodeError] = useState<string | null>(null)
   const [barcodeScanNonce, setBarcodeScanNonce] = useState(0)
   // Correcting a scanned product's values: the editor draft, pre-filled from
@@ -1278,7 +1287,7 @@ type ResultsSheetProps = {
   snapReviewItems: SnapReviewItem[]
   snapRaw: string | null
   snapError: boolean
-  barcodeResult: FoodResult | null
+  barcodeResult: FoodDetail | null
   barcodeError: string | null
   meal: MealType
   onMealChange: (m: MealType) => void
@@ -1593,8 +1602,13 @@ function SnapReviewRow({
           grams={item.grams}
           presets={
             item.food
-              ? snapPortionPresets(item.food, foodCardMacros(item.food).grams)
+              ? snapPortionPresets(item.food, foodServingGrams(item.food))
               : []
+          }
+          serving={
+            item.food
+              ? snapNamedServing(item.food, foodServingGrams(item.food))
+              : null
           }
           disabled={!food}
           onChange={(grams) =>
@@ -1655,40 +1669,92 @@ function SnapReviewRow({
   )
 }
 
+/** A typed quantity without trailing zeros: 1, 1.5, 0.25. */
+function trimQuantityAmount(value: number) {
+  return String(Math.round(value * 100) / 100)
+}
+
 function SnapQuantityControl({
   grams,
   presets,
+  serving,
   disabled,
   onChange,
 }: {
   grams: number
   /** One-tap portions: the product's own serving plus common household units. */
   presets: Array<{ label: string; grams: number }>
+  /**
+   * The product's own serving, when the label names one our units cannot spell
+   * ("1 bar (40 g)", "8 ONZ"). The field then opens counting servings, which is
+   * the unit printed on the packet — and the reason a scanned bar used to offer
+   * nothing but 3.5 oz.
+   */
+  serving?: { label: string; grams: number } | null
   disabled: boolean
   onChange: (grams: number) => void
 }) {
   // The field speaks the system's unit; grams stay the currency underneath,
-  // so presets and macro scaling keep working unchanged.
+  // so presets and macro scaling keep working unchanged. A product that names
+  // its own serving gets that as a third context, and opens on it.
   const system = currentMeasurementSystem()
   const imperial = system === "imperial"
-  const toDisplay = (g: number) => formatQuantityAmount(g, system)
-  const [inputValue, setInputValue] = useState(toDisplay(grams))
+  const servingGrams = serving?.grams ?? 0
+  const servingLabel = serving?.label ?? ""
+  const [unit, setUnit] = useState<"serving" | "measured">(
+    servingGrams > 0 ? "serving" : "measured"
+  )
+  const inServings = unit === "serving" && servingGrams > 0
+  const toDisplay = (g: number) =>
+    inServings
+      ? trimQuantityAmount(g / servingGrams)
+      : formatQuantityAmount(g, system)
+  const [inputValue, setInputValue] = useState(() => toDisplay(grams))
+
+  // Following a different food follows its serving: another match or a
+  // corrected copy is a new label, and the old context no longer applies.
+  useEffect(() => {
+    setUnit(servingGrams > 0 ? "serving" : "measured")
+  }, [servingGrams, servingLabel])
 
   useEffect(() => {
     setInputValue(toDisplay(grams))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [grams, system])
+  }, [grams, system, unit, servingGrams])
+
+  /** A chip that is the serving, or a whole or half multiple of it. */
+  function presetCountsServings(presetGrams: number) {
+    if (servingGrams <= 0) return false
+    const multiple = presetGrams / servingGrams
+    return (
+      multiple >= 0.5 && Math.abs(multiple * 2 - Math.round(multiple * 2)) < 0.01
+    )
+  }
 
   function commit(raw: string) {
     const next = Number(raw.replace(/[^0-9.]/g, ""))
     if (Number.isFinite(next) && next > 0) {
-      onChange(clampSnapGrams(imperial ? ozToGrams(next) : next))
+      onChange(
+        clampSnapGrams(
+          inServings ? next * servingGrams : imperial ? ozToGrams(next) : next
+        )
+      )
     } else {
       setInputValue(toDisplay(grams))
     }
   }
 
   function step(direction: 1 | -1) {
+    if (inServings) {
+      // Whole servings, bottoming out at a half — nobody means 1.54 bars.
+      onChange(
+        clampSnapGrams(
+          stepFoodServingMultiplier(grams / servingGrams, direction) *
+            servingGrams
+        )
+      )
+      return
+    }
     if (imperial) {
       // Half-ounce steps: the resolution US packages actually quote.
       onChange(clampSnapGrams(grams + direction * ozToGrams(0.5)))
@@ -1700,7 +1766,7 @@ function SnapQuantityControl({
 
   return (
     <div>
-    <div className="grid grid-cols-[2.75rem_minmax(0,6rem)_2.75rem] items-center gap-2">
+    <div className="grid grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] items-center gap-2">
       <button
         type="button"
         disabled={disabled}
@@ -1728,13 +1794,19 @@ function SnapQuantityControl({
           }}
           className="h-9 min-w-0 flex-1 bg-transparent text-center text-[15px] font-semibold text-white outline-none disabled:opacity-40"
           aria-label={
-            imperial
-              ? "Snap food quantity in ounces"
-              : "Snap food quantity in grams"
+            inServings
+              ? `Snap food quantity in servings of ${servingLabel}`
+              : imperial
+                ? "Snap food quantity in ounces"
+                : "Snap food quantity in grams"
           }
         />
-        <span className="ml-1 shrink-0 text-[13px] font-semibold text-white/70">
-          {imperial ? "oz" : "g"}
+        <span
+          className={`ml-1 shrink-0 truncate font-semibold text-white/70 ${
+            inServings ? "max-w-[6.5rem] text-[12px]" : "text-[13px]"
+          }`}
+        >
+          {inServings ? servingLabel : imperial ? "oz" : "g"}
         </span>
       </label>
 
@@ -1761,7 +1833,10 @@ function SnapQuantityControl({
               key={preset.label}
               type="button"
               disabled={disabled}
-              onClick={() => onChange(preset.grams)}
+              onClick={() => {
+                setUnit(presetCountsServings(preset.grams) ? "serving" : "measured")
+                onChange(preset.grams)
+              }}
               aria-pressed={active}
               className="flex h-8 shrink-0 items-center rounded-full border px-2.5 text-[12px] font-semibold transition-colors disabled:opacity-40"
               style={
@@ -1808,6 +1883,9 @@ function BarcodeResultRow({
   const energyUnit = useEnergyUnit()
   const mealCfg = mealConfig(meal)
   const card = foodCardMacros(item)
+  // What the catalogue declares, which is not the same as the per-100 g
+  // fallback the card falls back to: only a weighed serving can be counted.
+  const declaredServingGrams = foodServingGrams(item)
   // Starts at the product's own serving, which is what the label quotes and
   // what this screen logged unconditionally until now. A tester ate half a
   // packet and had to go and re-edit the entry afterwards; the scanner knows
@@ -1876,7 +1954,8 @@ function BarcodeResultRow({
       <div className="mt-2">
         <SnapQuantityControl
           grams={grams}
-          presets={snapPortionPresets(item, card.grams)}
+          presets={snapPortionPresets(item, declaredServingGrams)}
+          serving={snapNamedServing(item, declaredServingGrams)}
           disabled={disabled}
           onChange={setGrams}
         />

@@ -57,6 +57,28 @@ describe("food search nutrition", () => {
     })
   })
 
+  test("a serving nobody weighed is not the label on per-100 g numbers", () => {
+    // The catalogue says "1 Can" for a great many products and never says what
+    // a can weighs. Printing that over the per-100 g numbers reads as a whole
+    // can while logging a third of one.
+    const card = foodCardMacros({
+      ...food,
+      id: "3",
+      source: "openfoodfacts",
+      name: "Cola",
+      serving: "1 Can",
+    } as never)
+
+    expect(card).toEqual({
+      grams: 100,
+      servingLabel: "100 g",
+      calories: 120,
+      protein: 12,
+      carbs: 15,
+      fat: 4,
+    })
+  })
+
   test("a product with no serving of its own falls back to 100 g, and says so", () => {
     const card = foodCardMacros({
       ...food,

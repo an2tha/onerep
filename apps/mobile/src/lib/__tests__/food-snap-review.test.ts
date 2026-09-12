@@ -4,6 +4,7 @@ import {
   mapSnapDetectionsToReviewItems,
   parseSnapQuantityGrams,
   snapDetectionsFromAiResult,
+  snapNamedServing,
   snapPortionPresets,
   toConvexSafe,
   type FoodSearchFn,
@@ -250,6 +251,38 @@ describe("snapPortionPresets", () => {
       50
     )
     expect(presets[0]).toEqual({ label: "one pack", grams: 50 })
+  })
+
+  test("names the serving in the label's own words, for the quantity field", () => {
+    // The barcode card offers this as the unit to count in, which is the only
+    // thing that makes "3.5 oz" of a 40 g bar avoidable.
+    expect(
+      snapNamedServing({ name: "Granola bar", serving: "1 bar (40 g)" }, 40)
+    ).toEqual({ label: "1 bar (40 g)", grams: 40 })
+    expect(
+      snapNamedServing({ name: "Mystery snack", serving: "one pack" }, 50)
+    ).toEqual({ label: "one pack", grams: 50 })
+  })
+
+  test("refuses a serving word the catalogue never weighed", () => {
+    // "1 Can" with no grams anywhere is a name, not a portion: counting it
+    // would log the per-100 g fallback under a label that says a whole can.
+    expect(snapNamedServing({ name: "Cola", serving: "1 Can" }, null)).toBeNull()
+    expect(snapNamedServing({ name: "Cola", serving: "1 Can" }, 0)).toBeNull()
+    // A label that carries its own weight needs no help from the catalogue.
+    expect(snapNamedServing({ name: "Bar", serving: "1 bar (40 g)" }, null)).toEqual(
+      { label: "1 bar (40 g)", grams: 40 }
+    )
+  })
+
+  test("stays out of the way when the units already spell the serving", () => {
+    // "100 g" is grams, not a portion of its own; offering it as a unit would
+    // just be the same number with a longer name.
+    expect(
+      snapNamedServing({ name: "Chicken breast", serving: "100 g" }, 100)
+    ).toBeNull()
+    expect(snapNamedServing({ name: "Butter", serving: "15 g" }, 15)).toBeNull()
+    expect(snapNamedServing({ name: "Milk", serving: "" }, 100)).toBeNull()
   })
 
   test("drops duplicate gram amounts instead of showing the same value twice", () => {

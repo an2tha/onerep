@@ -265,14 +265,18 @@ describe("Datasource food client", () => {
     await expect(getFoodDetail("missing")).resolves.toBeNull()
   })
 
-  test("getFoodByBarcode returns the compact food result shape", async () => {
+  test("getFoodByBarcode carries the product's own serving, not just its text", async () => {
+    // The scanner's card needs the serving *grams*. Without them it printed the
+    // label's serving next to per-100 g numbers: a 40 g bar opened on 100 g,
+    // read as 3.5 oz, and logged two and a half times its calories.
     actionMock.mockResolvedValueOnce({
       product: {
         code: "789",
-        product_name: "Milk",
+        product_name: "Granola Bar",
         brands: "Dairy Co",
-        serving_size: "100 g",
-        nutriments: { "energy-kcal_100g": 64, proteins_100g: 3.4 },
+        serving_size: "1 bar (40 g)",
+        serving_quantity: 40,
+        nutriments: { "energy-kcal_100g": 450, proteins_100g: 8.5 },
       },
     })
 
@@ -280,12 +284,30 @@ describe("Datasource food client", () => {
 
     expect(result).toMatchObject({
       id: "789",
-      name: "Milk",
+      name: "Granola Bar",
       brand: "Dairy Co",
-      serving: "100 g",
-      calories: 64,
-      protein: 3.4,
+      serving: "1 bar (40 g)",
+      servingLabel: "1 bar (40 g)",
+      servingGrams: 40,
+      calories: 450,
+      protein: 8.5,
     })
-    expect(result).not.toHaveProperty("nutrients")
+    expect(result!.nutrients.length).toBeGreaterThan(0)
+  })
+
+  test("getFoodByBarcode reads serving grams from the label when the quantity is absent", async () => {
+    actionMock.mockResolvedValueOnce({
+      product: {
+        code: "321",
+        product_name: "Yoghurt",
+        serving_size: "1 bowl 42,5 g",
+        nutriments: { "energy-kcal_100g": 100 },
+      },
+    })
+
+    const result = await getFoodByBarcode("321")
+
+    expect(result!.servingGrams).toBe(42.5)
+    expect(result!.servingLabel).toBe("1 bowl 42,5 g")
   })
 })

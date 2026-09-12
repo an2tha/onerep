@@ -382,6 +382,33 @@ export function formatSnapGrams(grams: number) {
 }
 
 /**
+ * The product's own serving, when counting it in its own words means something.
+ *
+ * "1 bar (40 g)" and "8 ONZ" are portions the measurement system cannot spell,
+ * so a card can offer them as a unit of their own — which is also the unit the
+ * packet is written in. "100 g" is just grams and returns null: the plain unit
+ * already says that, and relabelling it "1 serving" is nobody's language.
+ *
+ * `servingGrams` is what the catalogue *declares*, null when it declares
+ * nothing — not the per-100 g fallback the card falls back to. A serving word
+ * with no weight behind it ("1 Can", "one pack") returns null too: offering it
+ * as a unit would log the fallback under a label that says a whole can.
+ */
+export function snapNamedServing(
+  item: Pick<FoodResult, "name" | "serving">,
+  servingGrams: number | null
+): { label: string; grams: number } | null {
+  const portion = defaultFoodPortion(
+    item.serving,
+    item.name,
+    servingGrams ?? DEFAULT_SNAP_GRAMS
+  )
+  if (!isNamedFoodServing(item.serving, portion)) return null
+  const weighed = (servingGrams ?? 0) > 0 || parseFoodPortionLabel(item.serving)
+  return weighed ? { label: item.serving, grams: portion.grams } : null
+}
+
+/**
  * One-tap portions for a scanned item: the product's own serving (in its own
  * words when it has one worth counting) and the household units people
  * actually measure with — oz, cup, tbsp — not just grams. Grams remain the
@@ -389,7 +416,8 @@ export function formatSnapGrams(grams: number) {
  */
 export function snapPortionPresets(
   item: Pick<FoodResult, "name" | "serving">,
-  servingGrams: number
+  /** Declared serving grams, or null when the catalogue knows no weight. */
+  servingGrams: number | null
 ): Array<{ label: string; grams: number }> {
   const presets: Array<{ label: string; grams: number }> = []
   const seen = new Set<number>()
@@ -400,15 +428,15 @@ export function snapPortionPresets(
     presets.push({ label, grams: clamped })
   }
 
-  const servingPortion = defaultFoodPortion(
-    item.serving,
-    item.name,
-    servingGrams
-  )
-  if (isNamedFoodServing(item.serving, servingPortion)) {
-    push(item.serving, servingPortion.grams)
+  // Without a declared weight the chips are the household units and the
+  // per-100 g basis the numbers are actually on; nothing here claims a portion
+  // the catalogue never weighed.
+  const declared = servingGrams && servingGrams > 0 ? servingGrams : null
+  const named = snapNamedServing(item, declared)
+  if (named) {
+    push(named.label, named.grams)
   } else {
-    push("1 serving", servingGrams)
+    push("1 serving", declared ?? DEFAULT_SNAP_GRAMS)
   }
   for (const label of ["1 oz", "1 cup", "1 tbsp"] as const) {
     push(label, defaultFoodPortion(label, item.name).grams)
