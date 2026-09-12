@@ -5,8 +5,10 @@ import {
   estimateRetroDurationSeconds,
   exerciseStateFromLoggedExercise,
   makeSet,
+  normalizeCardioState,
   retroWorkoutDraftKey,
 } from "../workout-logging"
+import { writeMeasurementSystem } from "../measurement-system"
 import type { ExerciseState, WorkoutItem, WorkoutSet } from "../workout-logging"
 
 /** The flatten `handleFinish` performs on the way into a saved log. */
@@ -90,6 +92,14 @@ describe("exerciseStateFromLoggedExercise", () => {
       avgHeartRate: "148",
       routeName: "River loop",
     })
+  })
+
+  test("uses the current measurement system when a legacy cardio state has no unit", () => {
+    writeMeasurementSystem("imperial")
+    expect(normalizeCardioState({}).distanceUnit).toBe("mi")
+
+    writeMeasurementSystem("metric")
+    expect(normalizeCardioState({}).distanceUnit).toBe("km")
   })
 })
 

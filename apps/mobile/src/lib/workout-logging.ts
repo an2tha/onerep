@@ -375,7 +375,12 @@ export function normalizeCardioState(
   return {
     ...defaults,
     ...state,
-    distanceUnit: state?.distanceUnit === "mi" ? "mi" : "km",
+    distanceUnit:
+      state?.distanceUnit === "mi"
+        ? "mi"
+        : state?.distanceUnit === "km"
+          ? "km"
+          : defaults.distanceUnit,
     sourceProvider: CARDIO_SOURCE_OPTIONS.some(
       (option) => option.provider === state?.sourceProvider
     )
@@ -1087,7 +1092,11 @@ function cardioStateFromDetails(
   details: Partial<CardioWorkoutDetails>
 ): Partial<CardioExerciseState> {
   const distanceUnit: CardioDistanceUnit =
-    details.distanceUnit === "mi" ? "mi" : "km"
+    details.distanceUnit === "mi"
+      ? "mi"
+      : details.distanceUnit === "km"
+        ? "km"
+        : distanceUnitForSystem(readMeasurementSystem())
   const duration = splitDurationForState(details.durationSeconds)
   return {
     distance:

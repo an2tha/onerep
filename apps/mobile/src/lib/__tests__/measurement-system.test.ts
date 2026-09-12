@@ -2,6 +2,10 @@ import { beforeEach, describe, expect, test } from "bun:test"
 import {
   applyMeasurementSystem,
   distanceUnitForSystem,
+  formatDistanceForUnit,
+  formatElevationForSystem,
+  formatPaceForUnit,
+  formatSpeedForUnit,
   flOzToMl,
   formatQuantityAmount,
   formatWater,
@@ -121,6 +125,24 @@ describe("derived units", () => {
   test("water unit follows the system as a default", () => {
     expect(waterUnitForSystem("imperial")).toBe("fl oz")
     expect(waterUnitForSystem("metric")).toBe("ml")
+  })
+})
+
+describe("workout distance formatting", () => {
+  test("uses kilometres and metres for metric distances", () => {
+    expect(formatDistanceForUnit(500, "km")).toBe("500 m")
+    expect(formatDistanceForUnit(5_000, "km")).toBe("5.0 km")
+  })
+
+  test("uses miles for imperial distances and speed", () => {
+    expect(formatDistanceForUnit(1_609.344, "mi")).toBe("1.0 mi")
+    expect(formatPaceForUnit(300, "mi")).toBe("8:03 /mi")
+    expect(formatSpeedForUnit(1_609.344, 600, "mi")).toBe("6.0 mi/h")
+  })
+
+  test("converts elevation with the measurement system", () => {
+    expect(formatElevationForSystem(100, "metric")).toBe("100 m")
+    expect(formatElevationForSystem(100, "imperial")).toBe("328 ft")
   })
 })
 

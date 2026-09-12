@@ -22,6 +22,14 @@ import { EnduranceHeartRateChart } from "@/components/endurance-heart-rate-chart
 import { MobileSheet } from "@/components/mobile-sheet"
 import { saveWorkoutToHealth } from "@/lib/health-provider"
 import { formatElapsed } from "@/lib/workout-logging"
+import {
+  distanceUnitForSystem,
+  formatDistanceForUnit,
+  formatElevationForSystem,
+  formatPaceForUnit,
+  formatSpeedForUnit,
+} from "@/lib/measurement-system"
+import { useMeasurementSystem } from "@/lib/use-measurement-system"
 import { hapticMedium, hapticSelection, hapticTap } from "@/lib/haptics"
 import {
   ACTIVE_ENDURANCE_KEY,
@@ -184,22 +192,26 @@ function elapsedSeconds(session: EnduranceSession, now: number) {
   )
 }
 
-function formatDistance(meters: number) {
-  if (meters < 1_000) return `${Math.round(meters)} m`
-  return `${(meters / 1_000).toFixed(2)} km`
+function formatDistance(meters: number, unit: "km" | "mi") {
+  return formatDistanceForUnit(meters, unit)
 }
 
-function formatPace(distanceMeters: number, durationSeconds: number) {
+function formatPace(
+  distanceMeters: number,
+  durationSeconds: number,
+  unit: "km" | "mi"
+) {
   if (distanceMeters < 10 || durationSeconds <= 0) return "—"
-  const secondsPerKilometre = durationSeconds / (distanceMeters / 1_000)
-  const minutes = Math.floor(secondsPerKilometre / 60)
-  const seconds = Math.round(secondsPerKilometre % 60)
-  return `${minutes}:${String(seconds).padStart(2, "0")} /km`
+  return formatPaceForUnit(durationSeconds / (distanceMeters / 1_000), unit)
 }
 
-function formatSpeed(distanceMeters: number, durationSeconds: number) {
+function formatSpeed(
+  distanceMeters: number,
+  durationSeconds: number,
+  unit: "km" | "mi"
+) {
   if (distanceMeters < 10 || durationSeconds <= 0) return "—"
-  return `${((distanceMeters / durationSeconds) * 3.6).toFixed(1)} km/h`
+  return formatSpeedForUnit(distanceMeters, durationSeconds, unit)
 }
 
 function defaultTitle(sport: Sport) {
@@ -270,6 +282,8 @@ export default function ActiveEnduranceWorkout() {
   const [saving, setSaving] = useState(false)
   const endedRef = useRef(false)
   const preferences = useQuery(api.users.users.getPreferences)
+  const { system: measurementSystem } = useMeasurementSystem()
+  const distanceUnit = distanceUnitForSystem(measurementSystem)
   const recordWorkout = useMutation(
     api.logs.healthWorkouts.recordEnduranceWorkout
   )
@@ -281,8 +295,8 @@ export default function ActiveEnduranceWorkout() {
   const meta = SPORT_META[session.sport]
   const averageMetric =
     session.sport === "ride"
-      ? formatSpeed(session.distanceMeters, elapsed)
-      : formatPace(session.distanceMeters, elapsed)
+      ? formatSpeed(session.distanceMeters, elapsed, distanceUnit)
+      : formatPace(session.distanceMeters, elapsed, distanceUnit)
   const previousLapElapsed = session.laps.at(-1)?.elapsedSeconds ?? 0
   const currentLapElapsed = Math.max(0, elapsed - previousLapElapsed)
 
@@ -750,7 +764,7 @@ export default function ActiveEnduranceWorkout() {
             <p className="mt-1 text-[clamp(3rem,6vw,5rem)] leading-none font-bold tracking-[-0.04em] tabular-nums">
               {session.environment === "indoor"
                 ? session.laps.length + 1
-                : formatDistance(session.distanceMeters)}
+                : formatDistance(session.distanceMeters, distanceUnit)}
             </p>
           </div>
 
@@ -778,7 +792,10 @@ export default function ActiveEnduranceWorkout() {
                   Elevation
                 </p>
                 <p className="mt-1 text-[20px] font-bold tracking-tight tabular-nums">
-                  {Math.round(session.elevationGainMeters)} m
+                  {formatElevationForSystem(
+                    session.elevationGainMeters,
+                    measurementSystem
+                  )}
                 </p>
               </div>
             </div>
@@ -946,7 +963,7 @@ export default function ActiveEnduranceWorkout() {
               <p className="mt-1 text-[13px] text-muted-foreground">
                 {session.environment === "indoor"
                   ? formatElapsed(elapsed)
-                  : `${formatDistance(session.distanceMeters)} · ${formatElapsed(elapsed)}`}
+                : `${formatDistance(session.distanceMeters, distanceUnit)} · ${formatElapsed(elapsed)}`}
               </p>
             </div>
 
