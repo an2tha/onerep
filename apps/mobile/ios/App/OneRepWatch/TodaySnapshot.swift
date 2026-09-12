@@ -44,6 +44,9 @@ struct TodaySnapshot: Codable, Equatable {
         case waterMl, waterGoalMl, waterUnit, daysLast28, workoutBrief, updatedAt
     }
 
+    // Keep the empty snapshot used before the phone's first update.
+    init() {}
+
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         calories = try container.decodeIfPresent(Int.self, forKey: .calories) ?? 0
