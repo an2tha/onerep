@@ -658,16 +658,26 @@ export async function searchFoodsAccurate(
   return rankAndFilterFoodResults(results, query).slice(0, limit)
 }
 
+/**
+ * A scanned barcode, described as fully as a search hit.
+ *
+ * This used to hand back the compact `FoodResult`, which carries the product's
+ * serving *text* but not its grams. Everything downstream then fell back to the
+ * per-100 g basis while printing the label's own serving beside it — so a
+ * scanned 40 g bar opened on 100 g (3.5 oz), read at two and a half times its
+ * calories, and logged that way. The coach's barcode tool already re-fetched
+ * the detail separately for exactly this reason; the scanner now gets it in the
+ * one round trip it was already making.
+ */
 export async function getFoodByBarcode(
   code: string
-): Promise<FoodResult | null> {
+): Promise<FoodDetail | null> {
   const data = await datasourceFetch<OpenFoodFactsProductResponse>({
     operation: "barcode",
     value: code.trim(),
   })
   const product = normalizeProduct(data.product)
-  const detail = product ? productToDetail(product) : null
-  return detail ? productToResult(detail.openFoodFacts) : null
+  return product ? productToDetail(product) : null
 }
 
 /**

@@ -56,16 +56,34 @@ export function scaledFoodMacros(
  * says per 100 g and means it.
  */
 export function foodCardMacros(item: FoodResult) {
-  const servingGrams = (item as Partial<FoodDetail>).servingGrams
-  const grams =
-    typeof servingGrams === "number" && servingGrams > 0 ? servingGrams : 100
+  const servingGrams = foodServingGrams(item)
+  const grams = servingGrams ?? 100
   const named = (item as Partial<FoodDetail>).servingLabel || item.serving
 
   return {
     grams,
-    servingLabel: named || "100 g",
+    // A serving we cannot weigh is not a serving we can count. The catalogue
+    // says "1 Can" for a great many rows without ever saying what a can weighs,
+    // and printing that beside per-100 g numbers is how a scanned bottle reads
+    // as a third of its calories; a scanned granola bar opened on 100 g under a
+    // label that said 40 g. No weight means the card says per 100 g and means
+    // it, which is the rule this function exists to enforce.
+    servingLabel: servingGrams === null ? "100 g" : named || "100 g",
     ...scaledFoodMacros(item, grams, initialDetail(item)),
   }
+}
+
+/**
+ * The serving weight a food declares, or null when the catalogue has none.
+ *
+ * Serving *text* is far more common than serving *grams* — "1 Can", "one pack",
+ * "2 slices" describe a portion nobody wrote a weight for. Only a weight can be
+ * scaled to, and only a weight makes the serving the honest label for the
+ * numbers beside it.
+ */
+export function foodServingGrams(item: FoodResult): number | null {
+  const declared = (item as Partial<FoodDetail>).servingGrams
+  return typeof declared === "number" && declared > 0 ? declared : null
 }
 
 /** A search hit already carries its nutrient rows; a bare result does not. */
