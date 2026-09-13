@@ -21,6 +21,12 @@ import type { CSSProperties } from "react"
 import { useSearchParams } from "react-router"
 import { cn } from "@/lib/utils"
 import { FormCoachPinnedCards } from "@/components/form-coach-card"
+import {
+  localProgrammeTime,
+  plannedWorkoutStrain,
+  programmeCompatibility,
+  programmeDay,
+} from "../../../../convex/lib/nutritionProgramme"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { announceOrbActivity } from "@/lib/orb-activity"
 import { updateOneRepWidgets } from "@/lib/home-widgets"
@@ -685,6 +691,7 @@ export default function Workouts() {
 
   // ── Convex ────────────────────────────────────────────────────────────────
   const serverPresets = useQuery(api.logs.presets.list)
+  const nutritionProgramme = useQuery(api.nutritionProgrammes.getCurrent, {})
   const schedule = useQuery(api.users.schedules.get)
   const selectedLog = useQuery(api.logs.workouts.getLog, { date: dateKey })
   const workoutHistory = useQuery(api.logs.workouts.getHistory)
@@ -1982,6 +1989,20 @@ export default function Workouts() {
                           </div>
                         )}
                         {presets.map((preset, idx) => {
+                          const programmeTime = nutritionProgramme
+                            ? localProgrammeTime(nutritionProgramme.timezone)
+                            : null
+                          const presetData = serverPresets?.find(
+                            p => String(p._id) === preset.id
+                          )?.exerciseData
+                          const programmeCheck = nutritionProgramme &&
+                            !nutritionProgramme.requiresCare && programmeTime &&
+                            programmeDay(nutritionProgramme, programmeTime.date).active
+                            ? programmeCompatibility(
+                                nutritionProgramme, programmeTime.date,
+                                programmeTime.minute, plannedWorkoutStrain(presetData ?? {})
+                              )
+                            : null
                           const isDraggingThis =
                             drag?.presetId === preset.id && hasMoved
                           const isDropTarget =
@@ -2045,6 +2066,15 @@ export default function Workouts() {
                                     {preset.steps.length} exercises ·{" "}
                                     {preset.duration}
                                   </p>
+                                  {programmeCheck && programmeCheck.strain !== null && (
+                                    <p className="mt-2 text-[13px] text-muted-foreground">
+                                      Estimated strain {programmeCheck.strain}/100 · {programmeCheck.status === "too_demanding"
+                                        ? "A lighter version is suggested for your nutrition programme. Adjust when you open the session."
+                                        : programmeCheck.status === "watch"
+                                          ? "Close to your programme's strain ceiling."
+                                          : "Within your programme's strain range."}
+                                    </p>
+                                  )}
                                 </div>
                                 <div className="mt-3 flex items-center gap-1 md:mt-0">
                                   <button

@@ -58,6 +58,7 @@ import {
 import { useFormCoachSupport } from "@/lib/form-coach"
 import { InWorkoutCoach } from "@/components/in-workout-coach"
 import { CoachSheet } from "@/components/coach-sheet"
+import { ProgrammeWorkout } from "@/components/programme-workout"
 import { FormCoachRecorder } from "@/components/form-coach-recorder"
 import { FormCoachReviewSheet } from "@/components/form-coach-review-sheet"
 import { FormCoachPoseConfirm } from "@/components/form-coach-pose-confirm"
@@ -2632,6 +2633,7 @@ function ActiveWorkoutSession() {
             />
           </>
         )}
+        {!isRetro && <div className="px-[var(--app-page-x)] md:px-0"><ProgrammeWorkout data={exData} names={Object.fromEntries(uniqueExerciseIds.map(id => [id, exerciseLookup[id]?.name ?? id]))} onApply={setExData} /></div>}
         {simpleViewActive ? (
           <FocusWorkoutView
             exerciseName={activeExerciseName}

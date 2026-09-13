@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import { localProgrammeTime, programmeDay, programmeNeedsCare, validDate } from "../lib/nutritionProgramme";
 import { internal } from "../_generated/api";
 import { internalMutation, mutation, query } from "../_generated/server";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
@@ -999,6 +1000,7 @@ export const exportMyData = query({
       customFoods,
       mealPrepBatches,
       fastingSessions,
+      nutritionProgrammes,
       groceryLists,
       diaryShares,
       diaryComments,
@@ -1137,6 +1139,7 @@ export const exportMyData = query({
         .query("fastingSessions")
         .withIndex("by_userId", (q) => q.eq("userId", user._id))
         .collect(),
+      ctx.db.query("nutritionProgrammes").withIndex("by_userId", q => q.eq("userId", user._id)).collect(),
       ctx.db
         .query("groceryLists")
         .withIndex("by_userId", (q) => q.eq("userId", user._id))
@@ -1197,6 +1200,7 @@ export const exportMyData = query({
         customFoods,
         mealPrepBatches,
         fastingSessions,
+        nutritionProgrammes,
         groceryLists,
         diaryShares,
         diaryComments,
@@ -1385,6 +1389,17 @@ export const getEffectiveGoals = query({
       }
     }
 
+    // An active programme owns targets; ending it restores the existing settings.
+    const programme = args.date
+      ? await ctx.db.query("nutritionProgrammes").withIndex("by_userId_and_startDate", q => q.eq("userId", user._id).lte("startDate", args.date!)).order("desc").first()
+      : await ctx.db.query("nutritionProgrammes").withIndex("by_userId", q => q.eq("userId", user._id)).order("desc").first();
+    if (programme) {
+      const date = args.date ?? localProgrammeTime(programme.timezone).date;
+      if (!validDate(date)) throw new Error("Invalid nutrition date");
+      const day = programmeDay(programme, date);
+      if (day.active && !programmeNeedsCare(onboarding)) effective = day.targets;
+    }
+
     // 3. Per-meal calorie budget, resolved against the *final* calorie number
     // so it inherits macro cycling and the workout adjustment for free.
     const knownMeals = [
@@ -1487,6 +1502,13 @@ export const getNutritionPlan = query({
       carbs: customGoals?.carbs ?? healthGoals?.carbs ?? 200,
       fat: customGoals?.fat ?? healthGoals?.fat ?? 65,
     };
+
+    const programme = await ctx.db.query("nutritionProgrammes")
+      .withIndex("by_userId_and_startDate", q => q.eq("userId", user._id).lte("startDate", date)).order("desc").first();
+    if (programme) {
+      const day = programmeDay(programme, args.date ?? localProgrammeTime(programme.timezone).date);
+      if (day.active && !programmeNeedsCare(onboarding)) Object.assign(effective, day.targets);
+    }
 
     const [foodLogs, bodyMeasurements, recipes, mealPresets] =
       await Promise.all([

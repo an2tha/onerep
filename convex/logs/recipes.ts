@@ -2,6 +2,8 @@ import { v } from "convex/values";
 import { mutation, query } from "../_generated/server";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { getAuthUser, safeGetAuthUser } from "../lib/auth";
+import { getLatestOnboardingProfile } from "../lib/onboardingProfiles";
+import { programmeDay } from "../lib/nutritionProgramme";
 import {
   APP_UPDATE_REQUIRED,
   attachUpload,
@@ -236,6 +238,93 @@ export const suggestedForDashboard = query({
         matchScore: score,
         photoUrl: recipe.imageUrl,
       }));
+  },
+});
+
+export const recommendedForProgramme = query({
+  args: { date: v.string(), limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const user = await safeGetAuthUser(ctx);
+    if (!user) return [];
+    const programme = await ctx.db
+      .query("nutritionProgrammes")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .order("desc")
+      .first();
+    if (!programme) return [];
+    const day = programmeDay(programme, args.date);
+    if (!day.active) return [];
+    const [profile, owned, community, blocks] = await Promise.all([
+      getLatestOnboardingProfile(ctx, user._id),
+      ctx.db
+        .query("recipes")
+        .withIndex("by_userId", (q) => q.eq("userId", user._id))
+        .order("desc")
+        .take(40),
+      ctx.db
+        .query("recipes")
+        .withIndex("by_communityShared", (q) => q.eq("isCommunityShared", true))
+        .order("desc")
+        .take(80),
+      ctx.db
+        .query("communityBlocks")
+        .withIndex("by_blockerId", (q) => q.eq("blockerId", user._id))
+        .take(100),
+    ]);
+    const blockedAuthors = new Set(blocks.map((block) => block.blockedUserId));
+    const allergies = (profile?.allergies ?? []).map((value) =>
+      value.trim().toLowerCase(),
+    ).filter(Boolean);
+    const seen = new Set<string>();
+    const candidates = [...owned, ...community].filter((recipe) => {
+      if (
+        seen.has(String(recipe._id)) ||
+        recipe.communityRemovedAt ||
+        blockedAuthors.has(recipe.userId)
+      ) return false;
+      seen.add(String(recipe._id));
+      const ingredients = recipe.ingredients.map((item) => item.name.toLowerCase());
+      return !allergies.some((allergy) =>
+        ingredients.some((ingredient) => ingredient.includes(allergy)),
+      );
+    });
+    const targetCalories = Math.max(300, Math.round(day.targets.calories / 3));
+    const targetProtein = Math.max(15, Math.round(day.targets.protein / 3));
+    return await Promise.all(
+      candidates
+        .map((recipe) => {
+          const servings = Math.max(1, recipe.servings ?? 1);
+          const totals = recipe.ingredients.reduce(
+            (sum, item) => ({
+              calories: sum.calories + (item.grams * item.caloriesPer100) / 100,
+              protein: sum.protein + (item.grams * item.proteinPer100) / 100,
+            }),
+            { calories: 0, protein: 0 },
+          );
+          const calories = Math.round(totals.calories / servings);
+          const protein = Math.round(totals.protein / servings);
+          const score =
+            Math.abs(calories - targetCalories) +
+            Math.abs(protein - targetProtein) * 8;
+          return { recipe, calories, protein, score };
+        })
+        .sort((a, b) => a.score - b.score || b.recipe.updatedAt - a.recipe.updatedAt)
+        .slice(0, Math.max(1, Math.min(args.limit ?? 3, 6)))
+        .map(async ({ recipe, calories, protein }) => ({
+          id: recipe._id,
+          name: recipe.name,
+          description: recipe.description,
+          calories,
+          protein,
+          minutes: (recipe.prepMinutes ?? 0) + (recipe.cookMinutes ?? 0),
+          owned: recipe.userId === user._id,
+          photoUrl: recipe.photoUploadIds?.[0]
+            ? await getUploadUrl(ctx, recipe.photoUploadIds[0])
+            : recipe.photoStorageIds?.[0]
+              ? await ctx.storage.getUrl(recipe.photoStorageIds[0])
+              : null,
+        })),
+    );
   },
 });
 

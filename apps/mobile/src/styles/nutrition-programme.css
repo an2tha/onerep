@@ -1,0 +1,446 @@
+.nutrition-hero:has(.nutrition-programme.is-active) {
+  background-color: color-mix(in srgb, var(--background) 96%, #adb995);
+}
+.nutrition-programme,
+.programme-workout {
+  position: relative;
+  --programme-tint: color-mix(in srgb, var(--background) 85%, #adb995);
+  color: var(--foreground);
+  background: linear-gradient(
+    125deg,
+    color-mix(in srgb, var(--programme-tint) 85%, transparent),
+    color-mix(in srgb, var(--background) 65%, transparent)
+  );
+  border: 1px solid color-mix(in srgb, var(--foreground) 14%, transparent);
+  border-radius: 16px;
+  backdrop-filter: blur(22px) saturate(125%);
+  padding: 24px;
+  margin: 12px 0 24px;
+}
+.nutrition-programme.is-active {
+  background: linear-gradient(
+    125deg,
+    color-mix(in srgb, var(--programme-tint) 95%, transparent),
+    color-mix(in srgb, var(--background) 65%, transparent)
+  );
+}
+.programme-heading,
+.programme-phase,
+.programme-disclosure,
+.programme-stats,
+.programme-setup-top,
+.programme-actions,
+.programme-window {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+.nutrition-programme h2,
+.programme-setup h2 {
+  font-size: clamp(24px, 4vw, 32px);
+  font-weight: 650;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+  text-wrap: balance;
+}
+.nutrition-programme p,
+.programme-setup p,
+.programme-workout p {
+  font-size: 14px;
+  line-height: 1.6;
+  margin-top: 10px;
+  color: var(--muted-foreground);
+}
+.programme-heading p {
+  margin-top: 6px;
+}
+.programme-phase {
+  margin-top: 26px;
+  font-size: 14px;
+}
+.programme-phase span {
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.nutrition-programme progress {
+  display: block;
+  width: 100%;
+  height: 4px;
+  margin: 10px 0 18px;
+  accent-color: var(--foreground);
+  border: 0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.nutrition-programme progress::-webkit-progress-bar {
+  background: var(--border);
+}
+.nutrition-programme progress::-webkit-progress-value {
+  background: var(--foreground);
+}
+.programme-stats {
+  justify-content: flex-start;
+  gap: 28px;
+  padding: 20px 0;
+  font-size: 13px;
+}
+.programme-stats strong {
+  font-size: 20px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.programme-disclosure {
+  width: 100%;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+  min-height: 44px;
+  font-size: 14px;
+  text-align: left;
+}
+.programme-disclosure svg {
+  transition: transform 240ms ease-out;
+}
+.programme-details {
+  display: grid;
+  grid-template-rows: 0fr;
+  visibility: hidden;
+  transition:
+    grid-template-rows 260ms ease-out,
+    visibility 260ms;
+}
+.programme-details[data-open="true"] {
+  grid-template-rows: 1fr;
+  visibility: visible;
+}
+.programme-details > div {
+  overflow: hidden;
+  min-height: 0;
+}
+.programme-details-content {
+  padding-top: 16px;
+}
+.programme-details dl > div,
+.programme-weeks li {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.programme-details dd {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.programme-weeks {
+  margin: 20px 0;
+}
+.programme-recipes {
+  margin: 26px 0;
+  padding-top: 22px;
+  border-top: 1px solid var(--border);
+}
+.programme-recipes h3 {
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+}
+.programme-recipes-heading p {
+  margin-top: 4px;
+}
+.programme-recipe-list {
+  margin: 14px 0;
+}
+.programme-recipe-list li + li {
+  border-top: 1px solid var(--border);
+}
+.programme-recipe-list button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  width: 100%;
+  min-height: 58px;
+  padding: 10px 0;
+  text-align: left;
+}
+.programme-recipe-list span,
+.programme-recipe-list strong,
+.programme-recipe-list small {
+  display: block;
+}
+.programme-recipe-list small {
+  margin-top: 4px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.programme-recipe-list svg {
+  flex: 0 0 auto;
+}
+.programme-ai-recipe {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--foreground) 9%, transparent);
+  color: var(--foreground);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+}
+.programme-ai-recipe span {
+  color: var(--muted-foreground);
+  font-size: 11px;
+  font-weight: 500;
+}
+.programme-weeks li[aria-current="step"] {
+  font-weight: 650;
+}
+.programme-primary,
+.programme-secondary {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+  padding: 12px 18px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.programme-primary {
+  background: var(--foreground);
+  color: var(--background);
+}
+.programme-secondary {
+  border: 1px solid var(--border);
+}
+.programme-intro .programme-primary {
+  margin-top: 20px;
+}
+.programme-dismiss {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  color: var(--foreground);
+  border-radius: 10px;
+}
+.programme-dismiss + .programme-intro h2 {
+  padding-right: 34px;
+}
+.nutrition-programme.programme-secondary-slot {
+  background: transparent;
+  backdrop-filter: none;
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  padding: 0;
+  margin-top: 24px;
+}
+.programme-secondary-slot .programme-disclosure {
+  border: 0;
+  padding: 16px 0;
+  min-height: 56px;
+  font-weight: 600;
+}
+.programme-secondary-slot .programme-intro {
+  padding-bottom: 20px;
+}
+.programme-glass-sheet {
+  background: color-mix(in srgb, var(--background) 78%, transparent) !important;
+  backdrop-filter: blur(40px) saturate(150%);
+}
+.programme-setup {
+  padding: 12px 24px 32px;
+  max-width: 600px;
+  margin: auto;
+}
+.programme-setup-top {
+  margin-bottom: 26px;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.programme-setup-top button {
+  min-width: 44px;
+  min-height: 44px;
+  display: grid;
+  place-items: center;
+}
+.programme-setup label {
+  display: block;
+  margin-top: 22px;
+  font-size: 14px;
+  font-weight: 500;
+}
+.programme-setup p[role="alert"] {
+  color: var(--destructive);
+}
+.programme-setup input:not([type="checkbox"]),
+.programme-setup select {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: 48px;
+  padding: 12px;
+  margin-top: 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--background) 80%, transparent);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 16px;
+}
+.programme-choices {
+  margin: 24px 0;
+}
+.programme-choices legend {
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+.programme-choices button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  text-align: left;
+  padding: 16px;
+  margin-top: 8px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--background) 55%, transparent);
+}
+:root .programme-glass-sheet .programme-choices button[aria-pressed="true"] {
+  border-color: var(--foreground);
+  background: var(--foreground);
+  color: var(--background);
+}
+:root
+  .programme-glass-sheet
+  .programme-choices
+  button[aria-pressed="true"]
+  small {
+  color: color-mix(in srgb, var(--background) 82%, var(--foreground));
+}
+:root .programme-glass-sheet .programme-primary {
+  background: var(--foreground);
+  color: var(--background);
+}
+.programme-choices strong,
+.programme-choices small {
+  display: block;
+}
+.programme-choices small {
+  margin-top: 4px;
+  color: var(--muted-foreground);
+  font-size: 13px;
+}
+.programme-window {
+  margin-top: 16px;
+  padding: 16px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--foreground) 7%, transparent);
+  font-size: 13px;
+}
+.programme-review {
+  margin: 24px 0;
+}
+.programme-review li {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border);
+}
+.programme-review strong,
+.programme-review span {
+  display: block;
+  font-size: 14px;
+}
+.programme-review span {
+  margin-top: 6px;
+  color: var(--muted-foreground);
+}
+.programme-setup .programme-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.6;
+}
+.programme-consent input {
+  margin-top: 4px;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  accent-color: var(--foreground);
+}
+.programme-actions {
+  margin-top: 28px;
+}
+.programme-actions .programme-primary {
+  flex: 1;
+}
+.programme-loading {
+  min-height: 80px;
+  padding: 24px 0;
+  color: var(--muted-foreground);
+  font-size: 14px;
+}
+.programme-workout {
+  padding: 18px;
+  margin: 16px 0;
+}
+.programme-workout h2 {
+  font-weight: 650;
+  font-size: 17px;
+}
+.programme-workout .programme-actions {
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+:is(.nutrition-programme, .programme-setup, .programme-workout)
+  button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+:is(.nutrition-programme, .programme-setup, .programme-workout)
+  :is(button, input, select, a):focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 4px;
+}
+@media (hover: hover) {
+  :is(.nutrition-programme, .programme-setup, .programme-workout)
+    button:not(:disabled):hover {
+    filter: brightness(0.92);
+  }
+}
+@media (max-width: 420px) {
+  .nutrition-programme {
+    padding: 20px;
+  }
+  .programme-stats {
+    gap: 18px;
+  }
+  .programme-window {
+    flex-wrap: wrap;
+  }
+  .programme-ai-recipe {
+    grid-template-columns: auto 1fr;
+  }
+  .programme-ai-recipe span {
+    grid-column: 2;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .programme-details,
+  .programme-disclosure svg {
+    transition: none;
+  }
+}

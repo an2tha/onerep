@@ -29,6 +29,7 @@ const AI_USAGE_SOURCES = [
   "form_coach",
   "in_workout",
   "data_import",
+  "recipe_generation",
 ] as const;
 
 export type AiUsageSource = (typeof AI_USAGE_SOURCES)[number];
@@ -50,6 +51,7 @@ export const AI_USAGE_COST: Record<AiUsageSource, number> = {
   form_coach: 2,
   // One preview maps up to three files, a model call each.
   data_import: 2,
+  recipe_generation: 1,
   in_workout: 1,
 };
 
@@ -152,6 +154,7 @@ export const consumeMonthlyQuota = internalMutation({
       v.literal("form_coach"),
       v.literal("in_workout"),
       v.literal("data_import"),
+      v.literal("recipe_generation"),
     ),
   },
   handler: async (

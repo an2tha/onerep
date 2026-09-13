@@ -38,6 +38,7 @@ import { convexClient } from "@/lib/convex"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { CoachSheet } from "@/components/coach-sheet"
 import { FastingSheet } from "@/components/fasting-sheet"
+import { NutritionProgramme } from "@/components/nutrition-programme"
 import { useBottomBarAction } from "@/components/bottom-bar"
 import { ReactiveOrbField } from "@/components/reactive-orb-field"
 import { TourAnchor, useTourAnchor } from "@/components/walkthrough/tour-anchor"
@@ -3222,6 +3223,8 @@ export default function Nutrition() {
           </div>
         </header>
 
+        {isToday && !caloriesHiddenBySafety && <NutritionProgramme date={dateKey} baseline={calorieTarget} protein={macroTargets.protein} fat={macroTargets.fat} />}
+
         {!isToday && (
           <section className="progress-tab-enter border-y border-border py-4">
             <div className="flex items-start justify-between gap-3">
@@ -3961,6 +3964,9 @@ export default function Nutrition() {
               </div>
             </section>
           </>
+        )}
+        {isToday && !caloriesHiddenBySafety && (
+          <NutritionProgramme placement="secondary" date={dateKey} baseline={calorieTarget} protein={macroTargets.protein} fat={macroTargets.fat} />
         )}
       </main>
 

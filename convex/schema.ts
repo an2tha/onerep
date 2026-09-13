@@ -5,6 +5,12 @@ import { billingPlatform, billingState } from "./billing/types";
 import { nutrientProfileValidator } from "./lib/nutritionValues";
 
 export default defineSchema({
+  nutritionProgrammes: defineTable({
+    userId: v.string(), goal: v.union(v.literal("maintain"), v.literal("step_down"), v.literal("step_up")),
+    startDate: v.string(), weeks: v.number(), baselineCalories: v.number(), changePercent: v.number(),
+    protein: v.number(), fat: v.number(), fastingHours: v.number(), eatingStart: v.string(), timezone: v.string(),
+    endedDate: v.optional(v.string()), createdAt: v.number(),
+  }).index("by_userId", ["userId"]).index("by_userId_and_startDate", ["userId", "startDate"]),
   // Each trace is capped at 4,000 points by its mutation, separate from list summaries.
   hikingTrails: defineTable({
     userId: v.string(),
