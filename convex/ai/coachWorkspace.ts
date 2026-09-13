@@ -23,6 +23,7 @@ import {
   computeHealthScore,
 } from "../lib/healthScore";
 import { exerciseMinutesByDate } from "../lib/healthMetrics";
+import { sleepContext } from "../logs/sleep";
 import { shiftDate } from "../lib/healthSeries";
 import {
   buildHistoryBlock,
@@ -634,6 +635,7 @@ export async function buildCoachWorkspace(
   // Inferred behaviour, as opposed to content the user authored. This is the
   // line the privacy toggle draws.
   const personalSources = {
+    sleepAnalysis: personalized ? await sleepContext(ctx, args.userId, args.today).then(data => ({night: data.sleep, strain: data.strain, history: data.history.slice(-14), lastReview: data.review?.review ?? null})) : null,
     foodEntries: foodDays
       .flatMap((day) =>
         day.entries

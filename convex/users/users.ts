@@ -979,6 +979,8 @@ export const exportMyData = query({
       supplementIntakeLogs,
       bodyMeasurements,
       healthMetrics,
+      sleepPreferences,
+      sleepReviews,
       dailyCheckIns,
       coachMemories,
       coachCheckIns,
@@ -1061,6 +1063,8 @@ export const exportMyData = query({
         .query("healthMetrics")
         .withIndex("by_userId", (q) => q.eq("userId", user._id))
         .collect(),
+      ctx.db.query("sleepPreferences").withIndex("by_userId", q => q.eq("userId", user._id)).take(1),
+      ctx.db.query("sleepReviews").withIndex("by_userId", q => q.eq("userId", user._id)).take(2000),
       ctx.db
         .query("dailyCheckIns")
         .withIndex("by_userId", (q) => q.eq("userId", user._id))
@@ -1173,6 +1177,8 @@ export const exportMyData = query({
         supplementIntakeLogs,
         bodyMeasurements,
         healthMetrics,
+        sleepPreferences,
+        sleepReviews,
         dailyCheckIns,
         coachMemories,
         coachCheckIns,

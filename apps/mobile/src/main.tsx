@@ -1131,6 +1131,12 @@ const router = createBrowserRouter([
         ),
       },
       {
+        path: "/health/strain",
+        element: (
+          <AuthGuard><ErrorBoundary label="Health strain"><HealthSleep strainMode /></ErrorBoundary></AuthGuard>
+        ),
+      },
+      {
         path: "/health/sleep",
         element: (
           <AuthGuard>

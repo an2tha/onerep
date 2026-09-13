@@ -69,6 +69,10 @@ function drop(workspace: Sized, key: string) {
  * would break the model's ability to act rather than merely narrow its context.
  */
 const TRIM_STEPS: TrimStep[] = [
+  {field: "sleepAnalysis.history", apply: w => {
+    const sleep = w.sleepAnalysis as Sized | undefined;
+    return sleep ? cap(sleep, "history", 7) : false;
+  }},
   {
     field: "recipes.ingredients",
     apply: (w) => capNested(w, "recipes", "ingredients", 4),

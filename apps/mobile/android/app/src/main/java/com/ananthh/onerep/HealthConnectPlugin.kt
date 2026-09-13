@@ -822,8 +822,21 @@ class HealthConnectPlugin : Plugin() {
                     }
                     // Series records carry a sample list rather than one value,
                     // and every sample counts towards the day's mean.
+                    val observedHeartRates = mutableMapOf<Long, MutableList<Double>>()
                     average("heartRateBpm", HeartRateRecord::class) { record ->
+                        record.samples.forEach { sample -> observedHeartRates.getOrPut(sample.time.epochSecond / 60) { mutableListOf() }.add(sample.beatsPerMinute.toDouble()) }
                         record.samples.map { it.time to it.beatsPerMinute.toDouble() }
+                    }
+                    val strainWorkoutSpans = mutableListOf<Pair<Instant, Instant>>()
+                    read("heartRateBpm", ExerciseSessionRecord::class) { record -> strainWorkoutSpans.add(record.startTime to record.endTime) }
+                    observedHeartRates.forEach { (minute, values) ->
+                        val at = Instant.ofEpochSecond(minute * 60)
+                        if (strainWorkoutSpans.none { at >= it.first && at < it.second }) {
+                            val band = ((values.average() / 20).toInt() * 20).coerceIn(60, 200)
+                            val day = bucket(dayOf(at))
+                            day["strainHr$band"] = (day["strainHr$band"] ?: 0.0) + 1.0
+                            day["strainHrCoverage"] = (day["strainHrCoverage"] ?: 0.0) + 1.0
+                        }
                     }
                     average("hrvMs", HeartRateVariabilityRmssdRecord::class) {
                         listOf(it.time to it.heartRateVariabilityMillis)
@@ -990,8 +1003,12 @@ class HealthConnectPlugin : Plugin() {
                     if (wants("sleepMinutes")) {
                         merged.forEach { (from, to) ->
                             val day = bucket(dayOf(to))
-                            day["sleepMinutes"] = (day["sleepMinutes"] ?: 0.0) +
-                                Duration.between(from, to).toMinutes()
+                day["sleepMinutes"] = (day["sleepMinutes"] ?: 0.0) +
+                    Duration.between(from, to).toMinutes()
+                val startLocal = from.atZone(ZoneId.systemDefault())
+                val endLocal = to.atZone(ZoneId.systemDefault())
+                day["sleepStartMinutes"] = (startLocal.hour * 60 + startLocal.minute).toDouble()
+                day["sleepEndMinutes"] = (endLocal.hour * 60 + endLocal.minute).toDouble()
                         }
                     }
 
@@ -1042,7 +1059,40 @@ class HealthConnectPlugin : Plugin() {
                         }
                     }
 
-                    sums.forEach { (key, entry) ->
+        // Session duration includes awake time. Reconcile the sleep total and
+        // keep the longest session separate from naps, credited to waking day.
+        val awakeTypes = setOf(SleepSessionRecord.STAGE_TYPE_AWAKE, SleepSessionRecord.STAGE_TYPE_AWAKE_IN_BED, SleepSessionRecord.STAGE_TYPE_OUT_OF_BED)
+        val byWakingDay = merged.groupBy { dayOf(it.second) }
+        byWakingDay.forEach { (key, spans) ->
+            val main = spans.maxByOrNull { Duration.between(it.first, it.second).toMillis() } ?: return@forEach
+            fun minutesFor(span: Pair<Instant, Instant>, types: Set<Int>): Double {
+                val pieces = sessions.flatMap { it.stages }.filter { it.stage in types && it.endTime > span.first && it.startTime < span.second }
+                    .map { maxOf(it.startTime, span.first) to minOf(it.endTime, span.second) }
+                return mergeSpans(pieces).sumOf { Duration.between(it.first, it.second).toMillis() / 60000.0 }
+            }
+            fun asleep(span: Pair<Instant, Instant>) = maxOf(0.0, Duration.between(span.first, span.second).toMillis() / 60000.0 - minutesFor(span, awakeTypes))
+            val day = bucket(key)
+            if (wants("sleepMinutes")) {
+                val total = spans.sumOf { asleep(it) }
+                day["sleepMinutes"] = total
+                day["mainSleepMinutes"] = asleep(main)
+                day["napMinutes"] = maxOf(0.0, total - asleep(main))
+                day["sleepStartedAt"] = main.first.toEpochMilli().toDouble()
+                day["sleepEndedAt"] = main.second.toEpochMilli().toDouble()
+                val startLocal = main.first.atZone(zone)
+                val endLocal = main.second.atZone(zone)
+                day["sleepStartMinutes"] = (startLocal.hour * 60 + startLocal.minute).toDouble()
+                day["sleepEndMinutes"] = (endLocal.hour * 60 + endLocal.minute).toDouble()
+            }
+            stageKeys.values.distinct().forEach { stageKey ->
+                if (wants(stageKey)) {
+                    val types = stageKeys.filterValues { it == stageKey }.keys
+                    if (sessions.any { s -> s.stages.any { it.stage in types && it.endTime > main.first && it.startTime < main.second } }) day[stageKey] = minutesFor(main, types)
+                    else day.remove(stageKey)
+                }
+            }
+        }
+        sums.forEach { (key, entry) ->
                         bucket(key.first)[key.second] = entry.first / entry.second
                     }
                     latest.forEach { (key, entry) ->

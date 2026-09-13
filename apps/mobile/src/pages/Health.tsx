@@ -1,4 +1,5 @@
 import { type CSSProperties, useState } from "react"
+import { HealthSleepStrainOverview } from "@/components/health-sleep-strain-overview"
 import { useWeightUnit } from "@/lib/use-weight-unit"
 import {
   CaretRight,
@@ -451,6 +452,7 @@ function HealthHub({ data }: { data: Dashboard }) {
 
       {/* Above Trends rather than in the header: creating a metric is a rare,
           considered act, and it earns words instead of a fourth glyph. */}
+      <HealthSleepStrainOverview />
       <TrackSomethingNew
         className="mt-5"
         tab="body"

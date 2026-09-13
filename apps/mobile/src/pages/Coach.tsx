@@ -7,6 +7,7 @@ import {
   type ReactNode,
 } from "react"
 import { useLocation } from "react-router"
+import { SleepSky } from "@/components/sleep-sky"
 import { createPortal, flushSync } from "react-dom"
 import { useAction, useMutation, useQuery } from "convex/react"
 import {
@@ -705,6 +706,8 @@ export default function Coach({
   const hasActiveWorkout = (activeWorkouts?.length ?? 0) > 0
   const coachModesRef = useTourAnchor("coach-modes")
   const location = useLocation()
+  const [sleepAtmosphere, setSleepAtmosphere] = useState(() => new URLSearchParams(location.search).get("sleep") === "1")
+  useEffect(() => { if (new URLSearchParams(location.search).get("sleep") === "1") setSleepAtmosphere(true) }, [location.search])
   const todayKey = currentDateKey(detectTimeZone())
   const presets = useQuery(api.logs.presets.list, {})
   const schedule = useQuery(api.users.schedules.get, {})
@@ -781,6 +784,9 @@ export default function Coach({
   const [messages, setMessages] = useState<CoachMessage[]>(() =>
     loadCoachConversation("chat")
   )
+  useEffect(() => {
+    if (messages.some(message => message.sleepMode || (message.role === "user" && /\b(sleep|sleeping|bedtime|insomnia|nap|circadian|schlaf)\b/i.test(message.content)))) setSleepAtmosphere(true)
+  }, [messages])
   const [lastFailedPrompt, setLastFailedPrompt] = useState<string | null>(null)
   const {
     attachment,
@@ -1932,7 +1938,8 @@ export default function Coach({
     trackUmami("coach_request", requestShape)
 
     try {
-      const result = await generateChat({
+    if (/\b(sleep|sleeping|asleep|bedtime|insomnia|nightmare|nap|circadian|schlaf|schlafen)\b/i.test(prompt)) setSleepAtmosphere(true)
+    const result = await generateChat({
         context,
         message: activeWorkout
           ? [
@@ -1945,7 +1952,7 @@ export default function Coach({
           : prompt,
         coachMode: activeMode,
         model: chatModel,
-        today: todayKey,
+        today: sleepAtmosphere && /^\d{4}-\d{2}-\d{2}$/.test(new URLSearchParams(location.search).get("sleepDate") ?? "") ? new URLSearchParams(location.search).get("sleepDate")! : todayKey,
         ...(selectedAttachment?.id
           ? { attachmentId: selectedAttachment.id }
           : {}),
@@ -1953,13 +1960,15 @@ export default function Coach({
           .slice(-8)
           .map((message) => ({ role: message.role, content: message.content })),
       })
-      const response = result as {
-        reply: string
+    const response = result as {
+      reply: string
+      sleepMode?: boolean
         uiBlocks?: unknown
         operations?: unknown
         artifacts?: unknown
       }
-      const allOperations = normalizeCoachOperations(response.operations)
+    if (response.sleepMode) setSleepAtmosphere(true)
+    const allOperations = normalizeCoachOperations(response.operations)
       // Over a live session a workout plan means "change what I am doing now".
       // Saving it as a preset instead would be the wrong verb entirely.
       const workoutPlan = activeWorkout
@@ -1997,6 +2006,7 @@ export default function Coach({
         {
           role: "assistant",
           content: response.reply,
+          sleepMode: response.sleepMode === true || sleepAtmosphere,
           uiBlocks: normalizeCoachUiBlocks(response.uiBlocks),
           operationResults,
           pendingOperations: needsConfirmation ? operations : undefined,
@@ -2060,6 +2070,7 @@ export default function Coach({
 
   function startNewChat() {
     if (busy || newChatPhase !== "idle") return
+    setSleepAtmosphere(false)
     hapticTap()
     dictation.cancel()
     clearAttachment()
@@ -2287,15 +2298,18 @@ export default function Coach({
     <main
       className={cn(
         "coach-mobile-immersive coach-swoosh-surface relative isolate bg-background",
+        sleepAtmosphere && "coach-sleep-night",
         embedded
           ? "flex h-full min-h-0 flex-col overflow-hidden"
           : "desktop-canvas h-svh overflow-hidden lg:pl-64"
       )}
       data-coach-mode={activeMode}
+      data-sleep-mode={sleepAtmosphere ? "true" : undefined}
       data-coach-embedded={embedded ? "true" : undefined}
       data-new-chat-phase={newChatPhase}
       data-carousel-background={carouselBackgroundPhase}
     >
+      {sleepAtmosphere && <><SleepSky /><button className="sleep-mode-control" onClick={() => setSleepAtmosphere(false)} aria-label="Leave sleep atmosphere">Sleep mode · Exit</button></>}
       <div
         key={`coach-page-${activeMode}`}
         className="coach-page-slide relative h-full w-full touch-pan-y"

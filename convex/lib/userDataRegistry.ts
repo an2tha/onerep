@@ -39,6 +39,8 @@ export const userDataRegistry = {
   healthWorkoutHeartRateSeries: "dependent_on_user_content",
   healthWorkouts: "directly_user_owned",
   healthMetrics: "directly_user_owned",
+  sleepPreferences: "directly_user_owned",
+  sleepReviews: "directly_user_owned",
   foodLogs: "directly_user_owned",
   waterLogs: "directly_user_owned",
   supplementLogs: "directly_user_owned",

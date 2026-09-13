@@ -10,6 +10,7 @@
  */
 
 import { v } from "convex/values";
+import { internal } from "../_generated/api";
 import { internalQuery, mutation, query } from "../_generated/server";
 import type { MutationCtx } from "../_generated/server";
 import {
@@ -42,6 +43,12 @@ const MAX_DAYS_PER_SYNC = 45;
 const dailyMetricValidator = v.object({
   date: v.string(),
   sleepMinutes: v.optional(v.number()),
+  sleepDeepMinutes: v.optional(v.number()),
+  sleepRemMinutes: v.optional(v.number()),
+  sleepLightMinutes: v.optional(v.number()),
+  sleepAwakeMinutes: v.optional(v.number()),
+  sleepStartMinutes: v.optional(v.number()),
+  sleepEndMinutes: v.optional(v.number()),
   steps: v.optional(v.number()),
   restingHeartRateBpm: v.optional(v.number()),
   hrvMs: v.optional(v.number()),
@@ -217,7 +224,8 @@ async function applyManualHealthMetric(
     void _id;
     void _creationTime;
     await ctx.db.patch(existing._id, {
-      ...(checked === undefined ? {} : { [field]: checked }),
+        ...(checked === undefined ? {} : { [field]: checked }),
+        ...(field === "sleepMinutes" && checked !== undefined ? {mainSleepMinutes: undefined, napMinutes: undefined, sleepDeepMinutes: undefined, sleepRemMinutes: undefined, sleepLightMinutes: undefined, sleepAwakeMinutes: undefined, sleepStartMinutes: undefined, sleepEndMinutes: undefined, sleepStartedAt: undefined, sleepEndedAt: undefined} : {}),
       manualFields,
       updatedAt: now,
     });
@@ -303,6 +311,17 @@ export const sync = mutation({
         // 22 hours of sleep is a data-entry error or a coma; either way it is
         // not a baseline input.
         sleepMinutes: sane(day.sleepMinutes, 1, 22 * 60),
+        sleepDeepMinutes: sane(day.sleepDeepMinutes ?? day.readings?.sleepDeepMinutes, 0, 1440),
+        sleepRemMinutes: sane(day.sleepRemMinutes ?? day.readings?.sleepRemMinutes, 0, 1440),
+        sleepLightMinutes: sane(day.sleepLightMinutes ?? day.readings?.sleepLightMinutes, 0, 1440),
+        sleepAwakeMinutes: sane(day.sleepAwakeMinutes ?? day.readings?.sleepAwakeMinutes, 0, 1440),
+        sleepStartMinutes: sane(day.sleepStartMinutes ?? day.readings?.sleepStartMinutes, 0, 1439),
+        sleepEndMinutes: sane(day.sleepEndMinutes ?? day.readings?.sleepEndMinutes, 0, 1439),
+        mainSleepMinutes: sane(day.readings?.mainSleepMinutes, 1, 1440),
+        napMinutes: sane(day.readings?.napMinutes, 0, 1440),
+        sleepStartedAt: sane(day.readings?.sleepStartedAt, 0, now),
+        sleepEndedAt: sane(day.readings?.sleepEndedAt, 0, now),
+        cardiacMinutes: day.readings?.strainHrCoverage !== undefined ? Object.fromEntries([60,80,100,120,140,160,180,200].map(bpm => [String(bpm), sane(day.readings?.[`strainHr${bpm}`], 0, 1440) ?? 0])) : undefined,
         steps: sane(day.steps, 0, 200_000),
         restingHeartRateBpm: sane(day.restingHeartRateBpm, 25, 150),
         hrvMs: sane(day.hrvMs, 1, 500),
@@ -324,7 +343,10 @@ export const sync = mutation({
         // Fields the user corrected are dropped from the patch, one by one. The
         // rest of the day still updates: someone who fixed a bogus resting
         // heart rate on Tuesday keeps getting Tuesday's steps.
-        const patch: Record<string, number | undefined> = { ...fields };
+        const patch: Record<string, number | Record<string, number> | undefined> = { ...fields };
+        if (existing.manualFields?.includes("sleepMinutes")) {
+          for (const key of ["mainSleepMinutes", "napMinutes", "sleepDeepMinutes", "sleepRemMinutes", "sleepLightMinutes", "sleepAwakeMinutes", "sleepStartMinutes", "sleepEndMinutes", "sleepStartedAt", "sleepEndedAt"]) delete patch[key];
+        }
         for (const field of existing.manualFields ?? []) delete patch[field];
 
         await ctx.db.patch(existing._id, {
@@ -411,6 +433,11 @@ export const sync = mutation({
       }
     }
 
+    const sleepPrefs = await ctx.db.query("sleepPreferences").withIndex("by_userId", q => q.eq("userId", user._id)).unique();
+    const latestNight = args.days.filter(d => (d.sleepMinutes ?? 0) > 0 && isDateKey(d.date)).sort((a, b) => b.date.localeCompare(a.date))[0];
+    if (sleepPrefs?.automaticReview && latestNight) {
+      await ctx.scheduler.runAfter(0, internal.ai.sleepReview.automatic, { userId: user._id, date: latestNight.date });
+    }
     return { written, bodyWritten, customWritten };
   },
 });

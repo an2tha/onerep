@@ -509,6 +509,7 @@ type LegacyClientWorkspace = {
 
 type CoachChatResult = {
   reply: string;
+  sleepMode?: boolean;
   uiBlocks: CoachUiBlock[];
   operations: CoachOperation[];
   artifacts: CoachArtifact[];
@@ -1839,6 +1840,7 @@ function normalizeCoachChatResponse(value: unknown, message: string) {
   return {
     reply,
     uiBlocks,
+    sleepMode: input.sleepMode === true,
     operations: normalizeCoachOperations(input.operations),
     artifacts: isCasualCoachMessage(message)
       ? []

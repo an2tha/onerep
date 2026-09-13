@@ -1,0 +1,470 @@
+.detail-atmosphere {
+  position: relative;
+  isolation: isolate;
+  min-height: 100svh;
+  color: var(--foreground);
+  background: var(--background);
+}
+.detail-atmosphere-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.detail-atmosphere-backdrop > .sleep-sky {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+.detail-atmosphere-backdrop > .reactive-orb-field {
+  height: 100%;
+  min-height: 100svh;
+}
+.detail-atmosphere-content {
+  position: relative;
+  z-index: 1;
+}
+@media (min-width: 1024px) {
+  .detail-atmosphere[data-detail-sidebar] > .detail-atmosphere-content {
+    margin-left: 256px;
+  }
+}
+.detail-atmosphere--sleep {
+  --background: #080e21;
+  --foreground: #edf2ff;
+  --muted-foreground: #becde6;
+  --muted: #202d47;
+  --border: #ffffff26;
+  --surface-panel: #15223a;
+  --destructive: #ffb3bb;
+  background: #040817;
+  color-scheme: dark;
+}
+.detail-atmosphere .sleep-detail {
+  padding-top: max(20px, env(safe-area-inset-top));
+  padding-bottom: calc(108px + env(safe-area-inset-bottom));
+}
+.detail-atmosphere .sleep-night-intro {
+  background: transparent;
+  min-height: 240px;
+  padding: 30px 22px;
+}
+.detail-atmosphere--sleep .sleep-night-intro h2 {
+  font-size: clamp(28px, 7vw, 36px);
+}
+.detail-atmosphere--sleep .sleep-night-score {
+  text-shadow: 0 6px 28px #0005;
+}
+.detail-atmosphere--sleep .sleep-sky-shade {
+  background: linear-gradient(180deg, #03071308, #03071328 50%, #03071366);
+}
+
+.sleep-review-history-trigger {
+  display: flex;
+  width: 100%;
+  min-height: 64px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 18px;
+  padding: 14px 2px 0;
+  border-top: 1px solid #c4d9ff24;
+  text-align: left;
+  color: inherit;
+}
+.sleep-review-history-trigger strong,
+.sleep-review-history-trigger small {
+  display: block;
+}
+.sleep-review-history-trigger strong {
+  font-size: 14px;
+}
+.sleep-review-history-trigger small {
+  margin-top: 3px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.sleep-review-history-sheet {
+  position: relative;
+  width: min(100%, 440px);
+  overflow: hidden;
+  color: #edf2ff;
+  background: #050918;
+  border: 1px solid #d7e4ff24;
+  border-radius: 24px 24px 0 0;
+  box-shadow:
+    inset 0 1px 0 #ffffff16,
+    0 -20px 70px #0009;
+}
+.sleep-review-history-sky {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  opacity: 0.9;
+  pointer-events: none;
+}
+.sleep-review-history-sky .sleep-sky {
+  position: absolute;
+  inset: 0;
+}
+.sleep-review-history-content {
+  position: relative;
+  z-index: 1;
+  min-height: 240px;
+  background: linear-gradient(155deg, #14213c70, #0710248a 58%, #040817b8);
+  backdrop-filter: blur(9px) saturate(1.1);
+  -webkit-backdrop-filter: blur(9px) saturate(1.1);
+}
+.sleep-review-history-header {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 20px 20px 18px;
+  border-bottom: 1px solid #c4d9ff1f;
+}
+.sleep-review-history-header > div {
+  min-width: 0;
+  flex: 1;
+}
+.sleep-review-history-header h2 {
+  font-size: 21px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+.sleep-review-history-header p:last-child,
+.sleep-review-history-empty,
+.sleep-review-history-loading {
+  margin-top: 5px;
+  color: #becde6;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.sleep-review-history-back {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  place-items: center;
+  border-radius: 50%;
+  background: #dbe7ff12;
+  color: #dbe7ff;
+}
+.sleep-review-history-empty,
+.sleep-review-history-loading {
+  padding: 18px 20px 30px;
+}
+.sleep-review-history-list {
+  display: grid;
+  gap: 10px;
+  padding: 14px 14px 24px;
+}
+.sleep-review-history-list li {
+  overflow: hidden;
+  border: 1px solid #d7e4ff1f;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #dce8ff12, #718bc407);
+  box-shadow: inset 0 1px 0 #ffffff0d;
+}
+.sleep-review-history-list button {
+  width: 100%;
+  min-height: 96px;
+  padding: 15px 16px;
+  text-align: left;
+}
+.sleep-review-history-date {
+  display: block;
+  color: #dbe6fa;
+  font-size: 13px;
+  font-weight: 650;
+}
+.sleep-review-history-copy {
+  display: -webkit-box;
+  margin-top: 6px;
+  overflow: hidden;
+  color: #aebeda;
+  font-size: 13px;
+  line-height: 1.55;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  white-space: pre-line;
+}
+.sleep-review-history-open {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 9px;
+  color: #b9cdf5;
+  font-size: 11px;
+  font-weight: 650;
+}
+.sleep-review-history-detail {
+  padding: 20px 18px 28px;
+}
+.sleep-review-history-full-review {
+  white-space: pre-line;
+  color: #d0dcf0;
+  font-size: 14px;
+  line-height: 1.75;
+}
+.sleep-review-history-night-button {
+  display: flex;
+  width: 100%;
+  min-height: 48px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 22px;
+  padding: 0 15px;
+  border: 1px solid #d6e4ff29;
+  border-radius: 12px;
+  background: #d7e5ff12;
+  color: #eef3ff;
+  font-size: 13px;
+  font-weight: 650;
+}
+@media (min-width: 640px) {
+  .sleep-review-history-sheet {
+    border-radius: 24px;
+  }
+}
+.sleep-date-nav {
+  gap: 12px;
+}
+.sleep-date-nav button {
+  min-width: 44px;
+}
+.sleep-date-nav button:disabled {
+  opacity: 0.3;
+}
+.sleep-date-nav input {
+  text-align: center;
+}
+.sleep-detail > a {
+  min-height: 44px;
+}
+.sleep-detail .sleep-action {
+  width: 100%;
+}
+.sleep-detail .sleep-section > h2 {
+  margin-bottom: 14px;
+}
+.health-insight-accordion {
+  border-top: 1px solid var(--border);
+}
+.health-insight-accordion:last-child {
+  border-bottom: 1px solid var(--border);
+}
+.health-insight-trigger {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 82px;
+  padding: 18px 4px;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  color: inherit;
+  background: transparent;
+}
+.health-insight-reveal {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.health-insight-accordion[data-open="true"] > .health-insight-reveal {
+  grid-template-rows: 1fr;
+}
+.health-insight-clip {
+  min-height: 0;
+  overflow: hidden;
+}
+.health-insight-summary {
+  min-width: 0;
+  flex: 1;
+}
+.health-insight-summary strong {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+}
+.health-insight-summary p {
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted-foreground);
+}
+.health-insight-score {
+  flex-shrink: 0;
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+}
+.health-insight-chevron {
+  flex-shrink: 0;
+  color: var(--muted-foreground);
+  transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.health-insight-accordion[data-open="true"] .health-insight-chevron {
+  transform: rotate(180deg);
+}
+.health-insight-expanded {
+  padding: 0 4px 20px;
+}
+.health-insight-expanded p {
+  font-size: 14px;
+  line-height: 1.6;
+}
+.health-insight-values {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 24px;
+  margin: 14px 0;
+  font-size: 13px;
+  color: var(--muted-foreground);
+}
+.health-insight-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 48px;
+  margin-top: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.health-insight-trigger:focus-visible,
+.health-insight-link:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 4px;
+}
+.health-insight-night {
+  background: #040817;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  padding: 22px 18px;
+  border-radius: 14px;
+  color: #edf2ff;
+  --muted-foreground: #becde6;
+  --border: #ffffff30;
+}
+.health-insight-night > .sleep-sky {
+  z-index: -1;
+}
+.health-insight-night .health-insight-link {
+  background: #15233d55;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* Match the existing live-workout glass, including its edge and fallbacks. */
+@media (max-width: 767px) {
+  .mobile-glass,
+  .app-sheet-panel.detail-glass-sheet,
+  .detail-atmosphere .sleep-section,
+  .detail-atmosphere .sleep-metrics,
+  .detail-atmosphere .sleep-date-nav {
+    background-color: color-mix(in srgb, var(--background) 36%, transparent);
+    background-image: linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--foreground) 7%, transparent),
+      transparent 58%
+    );
+    backdrop-filter: blur(22px) saturate(1.35);
+    -webkit-backdrop-filter: blur(22px) saturate(1.35);
+    border: 1px solid color-mix(in srgb, var(--foreground) 16%, transparent);
+    border-radius: 16px;
+    box-shadow:
+      inset 0 1px 0 color-mix(in srgb, var(--foreground) 12%, transparent),
+      0 12px 28px -18px #0006;
+  }
+  .detail-atmosphere--sleep .sleep-section,
+  .detail-atmosphere--sleep .sleep-metrics,
+  .detail-atmosphere--sleep .sleep-date-nav {
+    background-color: #0f1b3445;
+    background-image: linear-gradient(140deg, #bdcfff14, #2634520a 62%);
+    backdrop-filter: blur(12px) saturate(1.15);
+    -webkit-backdrop-filter: blur(12px) saturate(1.15);
+    border-color: #c4d9ff29;
+    box-shadow:
+      inset 0 1px 0 #e4edff14,
+      0 14px 34px -24px #000b;
+  }
+  .detail-atmosphere .sleep-section {
+    padding: 22px 18px;
+    margin-top: 16px;
+  }
+  .detail-atmosphere .sleep-metrics {
+    padding: 18px 14px;
+    margin-top: 8px;
+    gap: 12px;
+  }
+  .detail-atmosphere .sleep-date-nav {
+    padding: 4px;
+    margin: 12px 0;
+  }
+  .detail-atmosphere .sleep-detail {
+    padding-inline: 16px;
+  }
+  .detail-atmosphere .sleep-section select {
+    background: #ffffff0d;
+    border: 1px solid var(--border);
+  }
+  .detail-atmosphere:not(.detail-atmosphere--sleep) .sleep-section select {
+    background: var(--background);
+  }
+  .detail-atmosphere .sleep-section option {
+    background: var(--background);
+    color: var(--foreground);
+  }
+  .detail-atmosphere .outdoor-detail {
+    padding-inline: 16px;
+    background: transparent;
+  }
+  .outdoor-detail .trail-header {
+    padding: 22px 18px;
+  }
+  .outdoor-detail .trail-library,
+  .outdoor-detail .trail-detail {
+    padding: 20px 16px;
+  }
+  .outdoor-detail .trail-detail > .border {
+    border: 0;
+  }
+  .outdoor-detail .trail-detail input,
+  .outdoor-detail .trail-detail textarea {
+    background: color-mix(in srgb, var(--background) 48%, transparent);
+  }
+  .endurance-overview > .endurance-hero-wash {
+    position: fixed;
+    height: 100svh;
+    min-height: 100svh;
+  }
+  .app-sheet-panel.detail-glass-sheet {
+    background-color: color-mix(in srgb, var(--background) 62%, transparent);
+  }
+  .detail-atmosphere:not(.detail-atmosphere--sleep),
+  .endurance-overview {
+    --muted-foreground: color-mix(in srgb, var(--foreground) 78%, transparent);
+  }
+}
+@supports not (
+  (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
+) {
+  .mobile-glass,
+  .app-sheet-panel.detail-glass-sheet,
+  .detail-atmosphere .sleep-section,
+  .detail-atmosphere .sleep-metrics,
+  .detail-atmosphere .sleep-date-nav {
+    background: var(--background);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .health-insight-chevron,
+  .health-insight-reveal {
+    transition: none;
+  }
+}

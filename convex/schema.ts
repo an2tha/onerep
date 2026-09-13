@@ -758,6 +758,14 @@ export default defineSchema({
    * different failure mode. A phone with no watch has steps and nothing else;
    * that is a normal row, not a broken one.
    */
+  sleepPreferences: defineTable({
+    userId: v.string(), automaticReview: v.boolean(), targetMinutes: v.number(),
+  }).index("by_userId", ["userId"]),
+  sleepReviews: defineTable({
+    userId: v.string(), date: v.string(), fingerprint: v.string(),
+    status: v.union(v.literal("pending"), v.literal("ready"), v.literal("error")),
+    review: v.optional(v.string()), error: v.optional(v.string()), updatedAt: v.number(),
+  }).index("by_userId_and_date", ["userId", "date"]).index("by_userId", ["userId"]),
   healthMetrics: defineTable({
     userId: v.string(),
     date: v.string(), // YYYY-MM-DD, the user's local day
@@ -772,6 +780,17 @@ export default defineSchema({
     ),
     /** Asleep time, not time in bed. */
     sleepMinutes: v.optional(v.number()),
+    sleepDeepMinutes: v.optional(v.number()),
+    sleepRemMinutes: v.optional(v.number()),
+    sleepLightMinutes: v.optional(v.number()),
+    sleepAwakeMinutes: v.optional(v.number()),
+    sleepStartMinutes: v.optional(v.number()),
+    sleepEndMinutes: v.optional(v.number()),
+    mainSleepMinutes: v.optional(v.number()),
+    napMinutes: v.optional(v.number()),
+    sleepStartedAt: v.optional(v.number()),
+    sleepEndedAt: v.optional(v.number()),
+    cardiacMinutes: v.optional(v.record(v.string(), v.number())),
     steps: v.optional(v.number()),
     restingHeartRateBpm: v.optional(v.number()),
     /**

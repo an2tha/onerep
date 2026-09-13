@@ -61,6 +61,7 @@ import type {
 export type CoachMessage = {
   role: "user" | "assistant"
   content: string
+  sleepMode?: boolean
   uiBlocks?: CoachUiBlock[]
   operationResults?: CoachOperationResult[]
   pendingOperations?: CoachOperation[]

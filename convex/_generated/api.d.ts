@@ -22,6 +22,7 @@ import type * as ai_inWorkout from "../ai/inWorkout.js";
 import type * as ai_metricGeneration from "../ai/metricGeneration.js";
 import type * as ai_nudges from "../ai/nudges.js";
 import type * as ai_provider from "../ai/provider.js";
+import type * as ai_sleepReview from "../ai/sleepReview.js";
 import type * as ai_usage from "../ai/usage.js";
 import type * as ai_weeklyReview from "../ai/weeklyReview.js";
 import type * as api_rest from "../api/rest.js";
@@ -80,6 +81,7 @@ import type * as lib_platformHealthMetrics from "../lib/platformHealthMetrics.js
 import type * as lib_programming from "../lib/programming.js";
 import type * as lib_rateLimits from "../lib/rateLimits.js";
 import type * as lib_recovery from "../lib/recovery.js";
+import type * as lib_sleepStrain from "../lib/sleepStrain.js";
 import type * as lib_subscriptionPrice from "../lib/subscriptionPrice.js";
 import type * as lib_supplementIntake from "../lib/supplementIntake.js";
 import type * as lib_trailGeometry from "../lib/trailGeometry.js";
@@ -107,6 +109,7 @@ import type * as logs_presets from "../logs/presets.js";
 import type * as logs_recipes from "../logs/recipes.js";
 import type * as logs_repeatMeals from "../logs/repeatMeals.js";
 import type * as logs_restDays from "../logs/restDays.js";
+import type * as logs_sleep from "../logs/sleep.js";
 import type * as logs_snap from "../logs/snap.js";
 import type * as logs_snapMatching from "../logs/snapMatching.js";
 import type * as logs_supplements from "../logs/supplements.js";
@@ -165,6 +168,7 @@ declare const fullApi: ApiFromModules<{
   "ai/metricGeneration": typeof ai_metricGeneration;
   "ai/nudges": typeof ai_nudges;
   "ai/provider": typeof ai_provider;
+  "ai/sleepReview": typeof ai_sleepReview;
   "ai/usage": typeof ai_usage;
   "ai/weeklyReview": typeof ai_weeklyReview;
   "api/rest": typeof api_rest;
@@ -223,6 +227,7 @@ declare const fullApi: ApiFromModules<{
   "lib/programming": typeof lib_programming;
   "lib/rateLimits": typeof lib_rateLimits;
   "lib/recovery": typeof lib_recovery;
+  "lib/sleepStrain": typeof lib_sleepStrain;
   "lib/subscriptionPrice": typeof lib_subscriptionPrice;
   "lib/supplementIntake": typeof lib_supplementIntake;
   "lib/trailGeometry": typeof lib_trailGeometry;
@@ -250,6 +255,7 @@ declare const fullApi: ApiFromModules<{
   "logs/recipes": typeof logs_recipes;
   "logs/repeatMeals": typeof logs_repeatMeals;
   "logs/restDays": typeof logs_restDays;
+  "logs/sleep": typeof logs_sleep;
   "logs/snap": typeof logs_snap;
   "logs/snapMatching": typeof logs_snapMatching;
   "logs/supplements": typeof logs_supplements;

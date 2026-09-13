@@ -1,4 +1,5 @@
 import { EnduranceRouteMap } from "@/components/endurance-route-map"
+import "@/components/detail-atmosphere.css"
 import {
   useEffect,
   useMemo,
@@ -290,7 +291,7 @@ export default function Endurance() {
 
   return (
     <div
-      className="app-hero endurance-hero desktop-canvas min-h-svh bg-background lg:pr-8 lg:pl-72"
+      className="app-hero endurance-hero endurance-overview desktop-canvas min-h-svh bg-background lg:pr-8 lg:pl-72"
       style={
         {
           "--hero-fill": goals?.sessions
@@ -589,7 +590,7 @@ export default function Endurance() {
           ariaLabel="Endurance workout details"
           onClose={() => setSelectedActivityId(null)}
           overlayClassName="bg-black/45"
-          panelClassName="mx-auto w-full max-w-md"
+          panelClassName="detail-glass-sheet mx-auto w-full max-w-md"
         >
           <div className="px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
             <p className="text-[12px] font-semibold text-muted-foreground">
@@ -810,7 +811,7 @@ function EnduranceGoalsSheet({
       ariaLabel="Weekly endurance goals"
       onClose={onClose}
       overlayClassName="bg-black/45"
-      panelClassName="mx-auto w-full max-w-md"
+      panelClassName="detail-glass-sheet mx-auto w-full max-w-md"
     >
       <div className="px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
         <div className="flex items-start justify-between gap-4">

@@ -152,6 +152,13 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
         // Every catalogue quantity, driven by the table rather than a chain
         // of special cases: adding a metric to platformHealthMetrics.ts means
         // adding one row to `dailyQuantities()` and nothing else.
+        if wants("heartRateBpm") {
+            group.enter()
+            collectDailyCardiacMinutes(start: start, end: end, calendar: calendar) { readings in
+                for (day, fields) in readings { for (key, value) in fields { record(day, key, value) } }
+                group.leave()
+            }
+        }
         for quantity in dailyQuantities() {
             guard wants(quantity.key),
                   let type = quantityType(quantity.identifier) else { continue }
@@ -211,7 +218,7 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
         if !wantedSleepKeys.isEmpty {
             group.enter()
             collectDailySleepMinutes(start: start, end: end, calendar: calendar) { staged in
-                for (metric, results) in staged where wantedSleepKeys.contains(metric) {
+                for (metric, results) in staged where wantedSleepKeys.contains(metric) || (wants("sleepMinutes") && ["sleepStartMinutes", "sleepEndMinutes", "mainSleepMinutes", "napMinutes", "sleepStartedAt", "sleepEndedAt"].contains(metric)) {
                     results.forEach { record($0.key, metric, $0.value) }
                 }
                 group.leave()
@@ -634,6 +641,33 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
      merging across stages would fuse a deep block into the light block beside
      it, and the stage totals would no longer add up to anything.
      */
+    private func collectDailyCardiacMinutes(start: Date, end: Date, calendar: Calendar, completion: @escaping ([String: [String: Double]]) -> Void) {
+        guard let type = HKObjectType.quantityType(forIdentifier: .heartRate) else { completion([:]); return }
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: end)
+        healthStore.execute(HKSampleQuery(sampleType: HKObjectType.workoutType(), predicate: predicate, limit: 3000, sortDescriptors: nil) { [weak self] _, workouts, _ in
+            guard let self else { completion([:]); return }
+            self.healthStore.execute(HKSampleQuery(sampleType: type, predicate: predicate, limit: 150000, sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)]) { _, samples, _ in
+                var minutes: [Int: (sum: Double, count: Double)] = [:]
+                for sample in (samples as? [HKQuantitySample] ?? []) {
+                    let key = Int(sample.startDate.timeIntervalSince1970 / 60)
+                    var value = minutes[key] ?? (0, 0)
+                    value.sum += sample.quantity.doubleValue(for: HKUnit.count().unitDivided(by: .minute()))
+                    value.count += 1; minutes[key] = value
+                }
+                var result: [String: [String: Double]] = [:]
+                for (minute, value) in minutes {
+                    let at = Date(timeIntervalSince1970: Double(minute * 60))
+                    if (workouts ?? []).contains(where: { at >= $0.startDate && at < $0.endDate }) { continue }
+                    let band = min(200, max(60, Int(value.sum / value.count / 20) * 20))
+                    let day = self.dayKey(at, calendar: calendar)
+                    result[day, default: [:]]["strainHr\(band)", default: 0] += 1
+                    result[day, default: [:]]["strainHrCoverage", default: 0] += 1
+                }
+                completion(result)
+            })
+        })
+    }
+
     private func collectDailySleepMinutes(
         start: Date,
         end: Date,
@@ -682,6 +716,47 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
                 if !results.isEmpty {
                     staged[stage.key] = results
                 }
+            }
+            // Group contiguous sleep samples into nights, keeping brief awake gaps.
+            let asleepValues = self.sleepStages().first { $0.key == "sleepMinutes" }?.values ?? []
+            var nights: [(start: Date, end: Date)] = []
+            for sample in all where asleepValues.contains(sample.value) {
+                if let last = nights.last, sample.startDate.timeIntervalSince(last.end) <= 3 * 3600 {
+                    nights[nights.count - 1].end = max(last.end, sample.endDate)
+                } else { nights.append((sample.startDate, sample.endDate)) }
+            }
+            var longest: [String: (start: Date, end: Date)] = [:]
+            for night in nights {
+                let key = self.dayKey(night.end, calendar: calendar)
+                if longest[key] == nil || night.end.timeIntervalSince(night.start) > longest[key]!.end.timeIntervalSince(longest[key]!.start) { longest[key] = night }
+            }
+            func unionMinutes(_ values: Set<Int>, _ start: Date, _ end: Date) -> Double {
+                var spans: [(start: Date, end: Date)] = []
+                for sample in all where values.contains(sample.value) && sample.endDate > start && sample.startDate < end {
+                    let from = max(start, sample.startDate), to = min(end, sample.endDate)
+                    if let last = spans.last, from <= last.end { spans[spans.count - 1].end = max(last.end, to) }
+                    else { spans.append((from, to)) }
+                }
+                return spans.reduce(0) { $0 + $1.end.timeIntervalSince($1.start) / 60 }
+            }
+            staged = [:]
+            for night in nights {
+                let key = self.dayKey(night.end, calendar: calendar)
+                staged["sleepMinutes", default: [:]][key, default: 0] += unionMinutes(asleepValues, night.start, night.end)
+            }
+            for (key, night) in longest {
+                let mainMinutes = unionMinutes(asleepValues, night.start, night.end)
+                staged["mainSleepMinutes", default: [:]][key] = mainMinutes
+                staged["napMinutes", default: [:]][key] = max(0, (staged["sleepMinutes"]?[key] ?? mainMinutes) - mainMinutes)
+                staged["sleepStartedAt", default: [:]][key] = night.start.timeIntervalSince1970 * 1000
+                staged["sleepEndedAt", default: [:]][key] = night.end.timeIntervalSince1970 * 1000
+                for stage in self.sleepStages() where stage.key != "sleepMinutes" {
+                    if all.contains(where: { stage.values.contains($0.value) && $0.endDate > night.start && $0.startDate < night.end }) {
+                        staged[stage.key, default: [:]][key] = unionMinutes(stage.values, night.start, night.end)
+                    }
+                }
+                staged["sleepStartMinutes", default: [:]][key] = Double(calendar.component(.hour, from: night.start) * 60 + calendar.component(.minute, from: night.start))
+                staged["sleepEndMinutes", default: [:]][key] = Double(calendar.component(.hour, from: night.end) * 60 + calendar.component(.minute, from: night.end))
             }
             completion(staged)
         }

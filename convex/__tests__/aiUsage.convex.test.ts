@@ -47,6 +47,28 @@ async function grantPro(t: ReturnType<typeof convexTest>, userId: string) {
 }
 
 describe("AI monthly usage quota", () => {
+  test("a sleep review is billed as one AI request", async () => {
+    const t = convexTest(schema, modules);
+    const userId = "test|sleep-review-usage";
+
+    const quota = await t.mutation(internal.ai.usage.consumeMonthlyQuota, {
+      userId,
+      source: "sleep_review",
+    });
+
+    expect(quota).toMatchObject({ allowed: true, count: 1 });
+    expect(
+      await t.run(async (ctx) =>
+        ctx.db
+          .query("aiUsage")
+          .withIndex("by_userId_month", (q) =>
+            q.eq("userId", userId).eq("month", quota.month),
+          )
+          .unique(),
+      ),
+    ).toMatchObject({ count: 1, lastSource: "sleep_review" });
+  });
+
   test("getMonthlyUsage reports the free allowance for users without Pro", async () => {
     const t = convexTest(schema, modules);
     const userId = "test|ai-usage-query-user";

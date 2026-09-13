@@ -22,6 +22,7 @@ export function aiMonthlyRequestLimit(isPro: boolean) {
 
 const AI_USAGE_SOURCES = [
   "progress_metrics",
+  "sleep_review",
   "workout_preset",
   "workout_log",
   "food_snap",
@@ -42,6 +43,7 @@ export type AiUsageSource = (typeof AI_USAGE_SOURCES)[number];
  */
 export const AI_USAGE_COST: Record<AiUsageSource, number> = {
   progress_metrics: 1,
+  sleep_review: 1,
   workout_preset: 1,
   workout_log: 1,
   food_snap: 1,
@@ -143,6 +145,7 @@ export const consumeMonthlyQuota = internalMutation({
     userId: v.string(),
     source: v.union(
       v.literal("progress_metrics"),
+      v.literal("sleep_review"),
       v.literal("workout_preset"),
       v.literal("workout_log"),
       v.literal("food_snap"),

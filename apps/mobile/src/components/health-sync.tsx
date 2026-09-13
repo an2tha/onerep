@@ -123,11 +123,12 @@ export function HealthSync() {
         }),
       ])
 
-      if (days.length > 0) {
-        await syncMetrics({ provider, days: days.map(toSyncDay) })
-      }
+      // Import sessions before sleep sync schedules its nightly review.
 
-      if (workouts.length === 0) return
+      if (workouts.length === 0) {
+        if (days.length > 0) await syncMetrics({ provider, days: days.map(toSyncDay) })
+        return
+      }
 
       await importWorkouts({
         provider,
@@ -135,6 +136,7 @@ export function HealthSync() {
           healthWorkoutToImport(workout, timeZone)
         ),
       })
+      if (days.length > 0) await syncMetrics({ provider, days: days.map(toSyncDay) })
     } catch (error) {
       // A background sync must never interrupt. The failure is surfaced in
       // Settings instead of a toast.

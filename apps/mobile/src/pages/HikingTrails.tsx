@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { DetailAtmosphere } from "@/components/detail-atmosphere"
 import { Link, useLocation, useNavigate, useParams } from "react-router"
 import { useConvexAuth, useMutation, useQuery } from "convex/react"
 import {
@@ -73,46 +74,51 @@ export function SharedHikingTrail() {
   const { token = "" } = useParams()
   const trail = useQuery(api.hikingTrails.shared, { token })
   return (
-    <main className="min-h-svh bg-background px-5 py-[max(2rem,env(safe-area-inset-top))] text-foreground">
-      <div className="mx-auto max-w-5xl">
-        <Link to="/endurance" className={`${button} mb-6`}>
-          <ArrowLeft size={18} /> OneRep endurance
-        </Link>
-        {trail === undefined ? (
-          <p role="status">Loading trail…</p>
-        ) : !trail ? (
-          <section>
-            <h1 className="text-2xl font-semibold">
-              This trail link is unavailable
-            </h1>
-            <p className="mt-3 text-muted-foreground">
-              The owner may have stopped sharing it, or the link is incomplete.
-            </p>
-          </section>
-        ) : (
-          <>
-            <h1 className="text-3xl font-semibold break-words">{trail.name}</h1>
-            <p className="mt-3 text-muted-foreground">
-              {(trail.distanceMeters / 1000).toFixed(2)} km · Shared hiking
-              trail
-            </p>
-            <div className="relative isolate mt-6 h-[55svh] min-h-[330px] overflow-hidden rounded-xl border border-border">
-              <EnduranceRouteMap points={trail.points} tracking={false} />
-            </div>
-            {trail.description && (
-              <p className="mt-5 max-w-prose break-words whitespace-pre-wrap">
-                {trail.description}
+    <DetailAtmosphere tone="endurance" sidebar={false}>
+      <main className="outdoor-detail min-h-svh px-5 py-[max(2rem,env(safe-area-inset-top))] text-foreground">
+        <div className="mobile-glass trail-detail mx-auto max-w-5xl">
+          <Link to="/endurance" className={`${button} mb-6`}>
+            <ArrowLeft size={18} /> OneRep endurance
+          </Link>
+          {trail === undefined ? (
+            <p role="status">Loading trail…</p>
+          ) : !trail ? (
+            <section>
+              <h1 className="text-2xl font-semibold">
+                This trail link is unavailable
+              </h1>
+              <p className="mt-3 text-muted-foreground">
+                The owner may have stopped sharing it, or the link is
+                incomplete.
               </p>
-            )}
-            <p className="my-5 text-sm text-muted-foreground">
-              A shared route to follow on the map. Check local access and
-              conditions before setting out.
-            </p>
-            <StartTrail trail={trail} />
-          </>
-        )}
-      </div>
-    </main>
+            </section>
+          ) : (
+            <>
+              <h1 className="text-3xl font-semibold break-words">
+                {trail.name}
+              </h1>
+              <p className="mt-3 text-muted-foreground">
+                {(trail.distanceMeters / 1000).toFixed(2)} km · Shared hiking
+                trail
+              </p>
+              <div className="relative isolate mt-6 h-[55svh] min-h-[330px] overflow-hidden rounded-xl border border-border">
+                <EnduranceRouteMap points={trail.points} tracking={false} />
+              </div>
+              {trail.description && (
+                <p className="mt-5 max-w-prose break-words whitespace-pre-wrap">
+                  {trail.description}
+                </p>
+              )}
+              <p className="my-5 text-sm text-muted-foreground">
+                A shared route to follow on the map. Check local access and
+                conditions before setting out.
+              </p>
+              <StartTrail trail={trail} />
+            </>
+          )}
+        </div>
+      </main>
+    </DetailAtmosphere>
   )
 }
 
@@ -181,349 +187,359 @@ export default function HikingTrails() {
   }
   const shown = creating ? points : (trail?.points ?? [])
   return (
-    <main className="min-h-svh bg-background px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-24 text-foreground sm:px-8">
-      <div className="mx-auto max-w-6xl">
-        <Link to="/endurance" className={`${button} mb-6`}>
-          <ArrowLeft size={18} /> Endurance
-        </Link>
-        <header className="mb-7 flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-semibold">Your hiking trails</h1>
-            <p className="mt-2 max-w-prose text-muted-foreground">
-              Plan the path, take it outside, pass it on.
-            </p>
-          </div>
-          <button
-            className={`${button} bg-foreground text-background`}
-            disabled={creating}
-            onClick={() => {
-              setCreating(true)
-              setSelected(null)
-              setShareUrl("")
-            }}
-          >
-            <Plus size={18} /> Create a trail
-          </button>
-        </header>
-        <div className="grid gap-7 lg:grid-cols-[270px_minmax(0,1fr)]">
-          <aside
-            aria-label="Saved trails"
-            className={creating ? "hidden min-w-0 lg:block" : "min-w-0"}
-          >
-            <h2 className="mb-3 font-semibold">Saved trails</h2>
-            {trails === undefined ? (
-              <p role="status" className="text-sm text-muted-foreground">
-                Loading trails…
+    <DetailAtmosphere tone="endurance">
+      <main className="outdoor-detail min-h-svh px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-24 text-foreground sm:px-8">
+        <div className="mx-auto max-w-6xl">
+          <Link to="/endurance" className={`${button} mb-6`}>
+            <ArrowLeft size={18} /> Endurance
+          </Link>
+          <header className="mobile-glass trail-header mb-5 flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-semibold">Your hiking trails</h1>
+              <p className="mt-2 max-w-prose text-muted-foreground">
+                Plan the path, take it outside, pass it on.
               </p>
-            ) : trails.length === 0 ? (
-              <p className="text-sm leading-relaxed text-muted-foreground">
-                No trails yet. Create one by adding waypoints on the map, or
-                save a recorded hike from your workout history.
-              </p>
-            ) : (
-              <ul className="divide-y divide-border border-y border-border">
-                {trails.map((item) => (
-                  <li key={item._id}>
-                    <button
-                      disabled={creating}
-                      aria-pressed={selected === item._id}
-                      className={`w-full px-3 py-4 text-left disabled:opacity-40 ${selected === item._id ? "bg-muted" : "hover:bg-muted/50"}`}
-                      onClick={() => {
-                        setSelected(item._id)
-                        setShareUrl("")
-                        setDeleteOpen(false)
+            </div>
+            <button
+              className={`${button} bg-foreground text-background`}
+              disabled={creating}
+              onClick={() => {
+                setCreating(true)
+                setSelected(null)
+                setShareUrl("")
+              }}
+            >
+              <Plus size={18} /> Create a trail
+            </button>
+          </header>
+          <div className="grid gap-7 lg:grid-cols-[270px_minmax(0,1fr)]">
+            <aside
+              aria-label="Saved trails"
+              className={
+                creating
+                  ? "mobile-glass trail-library hidden min-w-0 lg:block"
+                  : "mobile-glass trail-library min-w-0"
+              }
+            >
+              <h2 className="mb-3 font-semibold">Saved trails</h2>
+              {trails === undefined ? (
+                <p role="status" className="text-sm text-muted-foreground">
+                  Loading trails…
+                </p>
+              ) : trails.length === 0 ? (
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  No trails yet. Create one by adding waypoints on the map, or
+                  save a recorded hike from your workout history.
+                </p>
+              ) : (
+                <ul className="divide-y divide-border border-y border-border">
+                  {trails.map((item) => (
+                    <li key={item._id}>
+                      <button
+                        disabled={creating}
+                        aria-pressed={selected === item._id}
+                        className={`w-full px-3 py-4 text-left disabled:opacity-40 ${selected === item._id ? "bg-muted" : "hover:bg-muted/50"}`}
+                        onClick={() => {
+                          setSelected(item._id)
+                          setShareUrl("")
+                          setDeleteOpen(false)
+                        }}
+                      >
+                        <span className="block font-semibold break-words">
+                          {item.name}
+                        </span>
+                        <span className="mt-1 block text-sm text-muted-foreground">
+                          {(item.distanceMeters / 1000).toFixed(2)} km ·{" "}
+                          {item.shareToken ? "Link sharing on" : "Private"}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {trails?.length === 100 && (
+                <p className="mt-3 text-sm text-muted-foreground">
+                  Showing your 100 most recent trails.
+                </p>
+              )}
+            </aside>
+            <section className="mobile-glass trail-detail min-w-0">
+              {!creating && !selected ? (
+                <div className="flex min-h-[330px] flex-col items-center justify-center rounded-xl border border-border px-7 text-center">
+                  <Mountains size={44} className="mb-4 text-muted-foreground" />
+                  <h2 className="text-xl font-semibold">
+                    Where will you go next?
+                  </h2>
+                  <p className="mt-3 max-w-sm text-sm leading-relaxed text-muted-foreground">
+                    Create a trail to sketch your next hike, or choose a saved
+                    trail to see its route and share it.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <h2 className="mb-3 text-xl font-semibold break-words">
+                    {creating
+                      ? "Plan a trail"
+                      : (trail?.name ?? "Loading trail…")}
+                  </h2>
+                  <div className="relative isolate h-[48svh] min-h-[330px] overflow-hidden rounded-xl border border-border">
+                    <EnduranceRouteMap
+                      key={creating ? "new" : selected}
+                      points={shown}
+                      tracking={false}
+                      onAddPoint={creating ? addPoint : undefined}
+                    />
+                  </div>
+                  {creating ? (
+                    <form
+                      className="mt-5 space-y-5"
+                      onSubmit={(e) => {
+                        e.preventDefault()
+                        void save()
                       }}
                     >
-                      <span className="block font-semibold break-words">
-                        {item.name}
-                      </span>
-                      <span className="mt-1 block text-sm text-muted-foreground">
-                        {(item.distanceMeters / 1000).toFixed(2)} km ·{" "}
-                        {item.shareToken ? "Link sharing on" : "Private"}
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {trails?.length === 100 && (
-              <p className="mt-3 text-sm text-muted-foreground">
-                Showing your 100 most recent trails.
-              </p>
-            )}
-          </aside>
-          <section className="min-w-0">
-            {!creating && !selected ? (
-              <div className="flex min-h-[330px] flex-col items-center justify-center rounded-xl border border-border px-7 text-center">
-                <Mountains size={44} className="mb-4 text-muted-foreground" />
-                <h2 className="text-xl font-semibold">
-                  Where will you go next?
-                </h2>
-                <p className="mt-3 max-w-sm text-sm leading-relaxed text-muted-foreground">
-                  Create a trail to sketch your next hike, or choose a saved
-                  trail to see its route and share it.
-                </p>
-              </div>
-            ) : (
-              <>
-                <h2 className="mb-3 text-xl font-semibold break-words">
-                  {creating
-                    ? "Plan a trail"
-                    : (trail?.name ?? "Loading trail…")}
-                </h2>
-                <div className="relative isolate h-[48svh] min-h-[330px] overflow-hidden rounded-xl border border-border">
-                  <EnduranceRouteMap
-                    key={creating ? "new" : selected}
-                    points={shown}
-                    tracking={false}
-                    onAddPoint={creating ? addPoint : undefined}
-                  />
-                </div>
-                {creating ? (
-                  <form
-                    className="mt-5 space-y-5"
-                    onSubmit={(e) => {
-                      e.preventDefault()
-                      void save()
-                    }}
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <p className="text-sm text-muted-foreground">
-                        {points.length} waypoints ·{" "}
-                        {(trailDistance(points) / 1000).toFixed(2)} km
-                      </p>
-                      <button
-                        type="button"
-                        className={button}
-                        disabled={!points.length}
-                        onClick={() => setPoints((p) => p.slice(0, -1))}
-                      >
-                        <ArrowCounterClockwise size={18} /> Undo point
-                      </button>
-                    </div>
-                    <p className="text-sm leading-relaxed text-muted-foreground">
-                      Tap along the paths on the map to add waypoints. Lines
-                      connect your points directly; they do not automatically
-                      follow trails.
-                    </p>
-                    {points.length >= 4000 && (
-                      <p role="status">
-                        This trail has reached the 4,000-point limit.
-                      </p>
-                    )}
-                    <details>
-                      <summary className="cursor-pointer text-sm font-semibold">
-                        Add a waypoint by coordinates
-                      </summary>
-                      <div className="mt-3 grid grid-cols-2 gap-3">
-                        <label className="text-sm">
-                          Latitude
-                          <input
-                            className={field}
-                            type="number"
-                            step="any"
-                            min="-90"
-                            max="90"
-                            value={latitude}
-                            onChange={(e) => setLatitude(e.target.value)}
-                          />
-                        </label>
-                        <label className="text-sm">
-                          Longitude
-                          <input
-                            className={field}
-                            type="number"
-                            step="any"
-                            min="-180"
-                            max="180"
-                            value={longitude}
-                            onChange={(e) => setLongitude(e.target.value)}
-                          />
-                        </label>
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <p className="text-sm text-muted-foreground">
+                          {points.length} waypoints ·{" "}
+                          {(trailDistance(points) / 1000).toFixed(2)} km
+                        </p>
+                        <button
+                          type="button"
+                          className={button}
+                          disabled={!points.length}
+                          onClick={() => setPoints((p) => p.slice(0, -1))}
+                        >
+                          <ArrowCounterClockwise size={18} /> Undo point
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        className={`${button} mt-3`}
-                        disabled={points.length >= 4000}
-                        onClick={() => {
-                          const lat = Number(latitude),
-                            lng = Number(longitude)
-                          if (
-                            !latitude.trim() ||
-                            !longitude.trim() ||
-                            !Number.isFinite(lat) ||
-                            Math.abs(lat) > 90 ||
-                            !Number.isFinite(lng) ||
-                            Math.abs(lng) > 180
-                          ) {
-                            toast.error("Enter a valid latitude and longitude.")
-                            return
-                          }
-                          addPoint({ latitude: lat, longitude: lng })
-                          setLatitude("")
-                          setLongitude("")
-                        }}
-                      >
-                        Add waypoint
-                      </button>
-                    </details>
-                    <label className="block text-sm font-semibold">
-                      Trail name
-                      <input
-                        required
-                        maxLength={120}
-                        className={field}
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        placeholder="Give this trail a name"
-                      />
-                    </label>
-                    <label className="block text-sm font-semibold">
-                      Trail notes{" "}
-                      <span className="font-normal text-muted-foreground">
-                        (optional)
-                      </span>
-                      <textarea
-                        maxLength={2000}
-                        className={`${field} min-h-24`}
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
-                        placeholder="Terrain, landmarks, or things to know"
-                      />
-                    </label>
-                    <div className="flex flex-wrap gap-3">
-                      <button
-                        className={`${button} bg-foreground text-background`}
-                        disabled={busy || points.length < 2 || !name.trim()}
-                      >
-                        {busy ? "Saving…" : "Save trail"}
-                      </button>
-                      <button
-                        type="button"
-                        className={button}
-                        disabled={busy}
-                        onClick={() => {
-                          setCreating(false)
-                          setPoints([])
-                          setName("")
-                          setDescription("")
-                        }}
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </form>
-                ) : trail ? (
-                  <div className="mt-5 space-y-5">
-                    <p className="text-sm text-muted-foreground">
-                      {(trail.distanceMeters / 1000).toFixed(2)} km ·{" "}
-                      {trail.shareToken
-                        ? "Anyone with the link can view this route"
-                        : "Private — only you can see this route"}
-                    </p>
-                    {trail.description && (
-                      <p className="break-words whitespace-pre-wrap">
-                        {trail.description}
+                      <p className="text-sm leading-relaxed text-muted-foreground">
+                        Tap along the paths on the map to add waypoints. Lines
+                        connect your points directly; they do not automatically
+                        follow trails.
                       </p>
-                    )}
-                    <div className="flex flex-wrap gap-3">
-                      <StartTrail trail={trail} />
-                      <button
-                        className={button}
-                        disabled={busy}
-                        onClick={() => void share()}
-                      >
-                        <LinkSimple size={18} />{" "}
-                        {trail.shareToken ? "Copy link" : "Share by link"}
-                      </button>
-                    </div>
-                    {shareUrl && (
+                      {points.length >= 4000 && (
+                        <p role="status">
+                          This trail has reached the 4,000-point limit.
+                        </p>
+                      )}
+                      <details>
+                        <summary className="cursor-pointer text-sm font-semibold">
+                          Add a waypoint by coordinates
+                        </summary>
+                        <div className="mt-3 grid grid-cols-2 gap-3">
+                          <label className="text-sm">
+                            Latitude
+                            <input
+                              className={field}
+                              type="number"
+                              step="any"
+                              min="-90"
+                              max="90"
+                              value={latitude}
+                              onChange={(e) => setLatitude(e.target.value)}
+                            />
+                          </label>
+                          <label className="text-sm">
+                            Longitude
+                            <input
+                              className={field}
+                              type="number"
+                              step="any"
+                              min="-180"
+                              max="180"
+                              value={longitude}
+                              onChange={(e) => setLongitude(e.target.value)}
+                            />
+                          </label>
+                        </div>
+                        <button
+                          type="button"
+                          className={`${button} mt-3`}
+                          disabled={points.length >= 4000}
+                          onClick={() => {
+                            const lat = Number(latitude),
+                              lng = Number(longitude)
+                            if (
+                              !latitude.trim() ||
+                              !longitude.trim() ||
+                              !Number.isFinite(lat) ||
+                              Math.abs(lat) > 90 ||
+                              !Number.isFinite(lng) ||
+                              Math.abs(lng) > 180
+                            ) {
+                              toast.error(
+                                "Enter a valid latitude and longitude."
+                              )
+                              return
+                            }
+                            addPoint({ latitude: lat, longitude: lng })
+                            setLatitude("")
+                            setLongitude("")
+                          }}
+                        >
+                          Add waypoint
+                        </button>
+                      </details>
                       <label className="block text-sm font-semibold">
-                        Share link
+                        Trail name
                         <input
-                          readOnly
+                          required
+                          maxLength={120}
                           className={field}
-                          value={shareUrl}
-                          onFocus={(e) => e.target.select()}
+                          value={name}
+                          onChange={(e) => setName(e.target.value)}
+                          placeholder="Give this trail a name"
                         />
                       </label>
-                    )}
-                    <div className="flex flex-wrap gap-3">
-                      {trail.shareToken && (
+                      <label className="block text-sm font-semibold">
+                        Trail notes{" "}
+                        <span className="font-normal text-muted-foreground">
+                          (optional)
+                        </span>
+                        <textarea
+                          maxLength={2000}
+                          className={`${field} min-h-24`}
+                          value={description}
+                          onChange={(e) => setDescription(e.target.value)}
+                          placeholder="Terrain, landmarks, or things to know"
+                        />
+                      </label>
+                      <div className="flex flex-wrap gap-3">
+                        <button
+                          className={`${button} bg-foreground text-background`}
+                          disabled={busy || points.length < 2 || !name.trim()}
+                        >
+                          {busy ? "Saving…" : "Save trail"}
+                        </button>
+                        <button
+                          type="button"
+                          className={button}
+                          disabled={busy}
+                          onClick={() => {
+                            setCreating(false)
+                            setPoints([])
+                            setName("")
+                            setDescription("")
+                          }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
+                  ) : trail ? (
+                    <div className="mt-5 space-y-5">
+                      <p className="text-sm text-muted-foreground">
+                        {(trail.distanceMeters / 1000).toFixed(2)} km ·{" "}
+                        {trail.shareToken
+                          ? "Anyone with the link can view this route"
+                          : "Private — only you can see this route"}
+                      </p>
+                      {trail.description && (
+                        <p className="break-words whitespace-pre-wrap">
+                          {trail.description}
+                        </p>
+                      )}
+                      <div className="flex flex-wrap gap-3">
+                        <StartTrail trail={trail} />
                         <button
                           className={button}
                           disabled={busy}
-                          onClick={async () => {
-                            setBusy(true)
-                            try {
-                              await setSharing({
-                                id: trail._id,
-                                enabled: false,
-                              })
-                              setShareUrl("")
-                              toast.success("Link disabled.")
-                            } catch {
-                              toast.error(
-                                "Couldn't disable sharing. Try again."
-                              )
-                            } finally {
-                              setBusy(false)
-                            }
-                          }}
+                          onClick={() => void share()}
                         >
-                          Stop sharing
+                          <LinkSimple size={18} />{" "}
+                          {trail.shareToken ? "Copy link" : "Share by link"}
                         </button>
+                      </div>
+                      {shareUrl && (
+                        <label className="block text-sm font-semibold">
+                          Share link
+                          <input
+                            readOnly
+                            className={field}
+                            value={shareUrl}
+                            onFocus={(e) => e.target.select()}
+                          />
+                        </label>
                       )}
-                      <button
-                        className={button}
-                        disabled={busy}
-                        onClick={() => setDeleteOpen(true)}
-                      >
-                        <Trash size={18} /> Delete trail
-                      </button>
-                    </div>
-                    {deleteOpen && (
-                      <div className="rounded-xl border border-border p-4">
-                        <p className="mb-3">
-                          Delete this trail and disable its shared link?
-                        </p>
-                        <div className="flex gap-3">
+                      <div className="flex flex-wrap gap-3">
+                        {trail.shareToken && (
                           <button
                             className={button}
                             disabled={busy}
                             onClick={async () => {
                               setBusy(true)
                               try {
-                                await remove({ id: trail._id })
-                                setSelected(null)
-                                setDeleteOpen(false)
+                                await setSharing({
+                                  id: trail._id,
+                                  enabled: false,
+                                })
+                                setShareUrl("")
+                                toast.success("Link disabled.")
                               } catch {
-                                toast.error("Couldn't delete trail. Try again.")
+                                toast.error(
+                                  "Couldn't disable sharing. Try again."
+                                )
                               } finally {
                                 setBusy(false)
                               }
                             }}
                           >
-                            Delete
+                            Stop sharing
                           </button>
-                          <button
-                            className={button}
-                            onClick={() => setDeleteOpen(false)}
-                          >
-                            Keep trail
-                          </button>
-                        </div>
+                        )}
+                        <button
+                          className={button}
+                          disabled={busy}
+                          onClick={() => setDeleteOpen(true)}
+                        >
+                          <Trash size={18} /> Delete trail
+                        </button>
                       </div>
-                    )}
-                  </div>
-                ) : trail === null ? (
-                  <p className="mt-4">This trail is no longer available.</p>
-                ) : null}
-              </>
-            )}
-          </section>
+                      {deleteOpen && (
+                        <div className="rounded-xl border border-border p-4">
+                          <p className="mb-3">
+                            Delete this trail and disable its shared link?
+                          </p>
+                          <div className="flex gap-3">
+                            <button
+                              className={button}
+                              disabled={busy}
+                              onClick={async () => {
+                                setBusy(true)
+                                try {
+                                  await remove({ id: trail._id })
+                                  setSelected(null)
+                                  setDeleteOpen(false)
+                                } catch {
+                                  toast.error(
+                                    "Couldn't delete trail. Try again."
+                                  )
+                                } finally {
+                                  setBusy(false)
+                                }
+                              }}
+                            >
+                              Delete
+                            </button>
+                            <button
+                              className={button}
+                              onClick={() => setDeleteOpen(false)}
+                            >
+                              Keep trail
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : trail === null ? (
+                    <p className="mt-4">This trail is no longer available.</p>
+                  ) : null}
+                </>
+              )}
+            </section>
+          </div>
         </div>
-      </div>
-    </main>
+      </main>
+    </DetailAtmosphere>
   )
 }
