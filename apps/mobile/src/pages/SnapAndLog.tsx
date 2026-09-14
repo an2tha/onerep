@@ -1,3 +1,4 @@
+import { withCorrectedMacros } from "@/lib/food-barcode-correction"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useSearchParams } from "react-router"
 import { Capacitor } from "@capacitor/core"
@@ -113,38 +114,6 @@ function isCancelledCapture(error: unknown) {
   if (!(error instanceof Error)) return false
   if (error.name === "UserCancelled" || error.name === "AbortError") return true
   return /cancel/i.test(error.message ?? "")
-}
-
-/**
- * Overlays a user's corrected copy onto a scan result.
- *
- * Custom foods store macros per serving; a `FoodResult`'s macros are per
- * 100 g — the basis the whole scanner (portion scaling, presets, entry
- * building) is built on. Rebasing keeps that machinery intact and only the
- * numbers change, so the review card shows and logs the user's own values
- * for any quantity they pick.
- */
-function withCorrectedMacros(
-  food: FoodDetail,
-  corrected: CustomFood
-): FoodDetail {
-  const per100 = corrected.servingGrams && corrected.servingGrams > 0
-    ? 100 / corrected.servingGrams
-    : 1
-  return {
-    ...food,
-    name: corrected.name,
-    brand: corrected.brand ?? food.brand,
-    serving: corrected.servingLabel || food.serving,
-    // The correction carries its own serving. Keeping the catalogue's grams
-    // here would scale the user's numbers by the ratio between the two.
-    servingGrams: corrected.servingGrams ?? food.servingGrams,
-    servingLabel: corrected.servingLabel || food.servingLabel,
-    calories: Math.round(corrected.nutrientsPerServing.calories * per100),
-    protein: Math.round(corrected.nutrientsPerServing.protein * per100 * 10) / 10,
-    carbs: Math.round(corrected.nutrientsPerServing.carbs * per100 * 10) / 10,
-    fat: Math.round(corrected.nutrientsPerServing.fat * per100 * 10) / 10,
-  }
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
