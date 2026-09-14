@@ -7,6 +7,17 @@ const SEARCH_FOODS_SOURCE = readFileSync(
 )
 
 describe("Search foods accessibility contract", () => {
+  test("a saved correction is applied to the result and the open sheet", () => {
+    // The reactive custom-food list arrives on its own schedule, so the row
+    // the user had just corrected kept printing the database's numbers and
+    // looked as though the correction had been rejected.
+    expect(SEARCH_FOODS_SOURCE).toContain(
+      "const copy = customFoodFromDraft(correctionDraft)"
+    )
+    expect(SEARCH_FOODS_SOURCE).toContain("applyCorrectedCopy(result, copy)")
+    expect(SEARCH_FOODS_SOURCE).toContain("applyCorrectedCopy(current, copy)")
+  })
+
   test("search field exposes stable mobile form metadata", () => {
     expect(SEARCH_FOODS_SOURCE).toContain('name="food-search-query"')
     expect(SEARCH_FOODS_SOURCE).toContain('aria-label="Search foods"')

@@ -23,6 +23,7 @@ import {
 import { useQuery } from "convex/react"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { api } from "../../../../convex/_generated/api"
+import type { Id } from "../../../../convex/_generated/dataModel"
 import { FoodDetailSheet } from "@/components/food-detail-sheet"
 import { captureFeatureUsage } from "@/lib/analytics"
 import {
@@ -52,8 +53,11 @@ import {
   quantityLabel,
 } from "@/lib/measurement-system"
 import {
+  applyCorrectedCopy,
+  correctedCopyForBarcode,
   customFoodDraftFromDatabaseFood,
-  customFoodNutrientsFromDraft,
+  customFoodFromDraft,
+  customFoodSaveArgs,
   filterCustomFoods,
   foodLogEntryFromCustomFood,
   type CustomFood,
@@ -201,18 +205,36 @@ export default function SearchFoods() {
     if (!correctionDraft || savingCorrection) return
     setSavingCorrection(true)
     try {
+      // Correct the copy this barcode already has rather than adding another
+      // row for the same packet, so the next search can only mean one thing.
+      const existing = correctedCopyForBarcode(
+        customFoods,
+        correctionDraft.barcode
+      )
       await saveCustomFood({
-        name: correctionDraft.name.trim(),
-        brand: correctionDraft.brand.trim() || undefined,
-        servingLabel: correctionDraft.servingLabel.trim(),
-        servingGrams: correctionDraft.servingGrams.trim()
-          ? Number(correctionDraft.servingGrams)
-          : undefined,
-        barcode: correctionDraft.barcode.trim() || undefined,
-        notes: correctionDraft.notes.trim() || undefined,
-        favorite: correctionDraft.favorite,
-        nutrientsPerServing: customFoodNutrientsFromDraft(correctionDraft),
+        id: existing?.id ? (existing.id as Id<"customFoods">) : undefined,
+        ...customFoodSaveArgs(correctionDraft),
       })
+      // Apply the correction to the results the user is looking at, from the
+      // draft that was just written rather than from the reactive list, which
+      // arrives on its own schedule. Otherwise the row they corrected keeps
+      // printing the database's numbers and reads as though it was rejected.
+      const copy = customFoodFromDraft(correctionDraft)
+      const correctedCode = copy.barcode?.trim()
+      if (correctedCode) {
+        setSearchResults((results) =>
+          results.map((result) =>
+            result.code?.trim() === correctedCode
+              ? applyCorrectedCopy(result, copy)
+              : result
+          )
+        )
+        setDetailItem((current) =>
+          current && current.code?.trim() === correctedCode
+            ? applyCorrectedCopy(current, copy)
+            : current
+        )
+      }
       setCorrectionDraft(null)
       toast.success("Corrected values saved to your foods")
     } catch (error) {
