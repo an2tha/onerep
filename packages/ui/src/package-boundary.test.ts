@@ -201,6 +201,22 @@ describe("@repo/ui package boundary", () => {
       "endurance-heart-rate-chart.tsx",
       // Owns the live workout GPS route and imperative Leaflet map lifecycle.
       "endurance-route-map.tsx",
+      // Owns the animated sleep canvas and its browser lifecycle. It is an
+      // app-specific atmosphere consumed by Coach and Health screens.
+      "sleep-sky.tsx",
+      // Composes app-specific atmosphere implementations around routed page
+      // content; the shared visual primitives remain in @repo/ui.
+      "detail-atmosphere.tsx",
+      // Binds sleep and strain data from the app's health model to its
+      // full-screen overview and sleep atmosphere.
+      "health-sleep-strain-overview.tsx",
+      // Nutrition programme state, persistence, and workout adjustments are
+      // app-domain controllers rendered with shared UI primitives.
+      "nutrition-programme.tsx",
+      "programme-workout.tsx",
+      // Reads and writes the versioned Convex AI-sharing consent record and
+      // gates app AI flows; sheet and button chrome come from @repo/ui.
+      "ai-sharing-consent.tsx",
     ])
     const unexpected = sourceFiles(mobileComponents)
       .map((path) => relative(mobileComponents, path))
