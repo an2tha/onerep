@@ -1,12 +1,17 @@
-import { v } from "convex/values";
+import { AI_SHARING_VERSION, hasAiSharingConsent } from "../lib/aiSharing";
+import { ConvexError, v } from "convex/values";
 import { internal } from "../_generated/api";
 import {
   env,
   internalMutation,
+  internalQuery,
+  mutation,
+  type QueryCtx,
+  type MutationCtx,
   query,
   type ActionCtx,
 } from "../_generated/server";
-import { safeGetAuthUser } from "../lib/auth";
+import { getAuthUser, safeGetAuthUser } from "../lib/auth";
 import { hasActiveProEntitlement } from "../billing/entitlement";
 import { isProCompedForEveryone } from "../billing/entitlement";
 import { byokKeyFor } from "./byok";
@@ -161,6 +166,11 @@ export const consumeMonthlyQuota = internalMutation({
     ctx,
     args,
   ): Promise<AiUsageQuota & { apiKey: string | null }> => {
+    if (!(await aiSharingAllowed(ctx, args.userId))) {
+      throw new ConvexError(
+        "Allow AI data sharing in Settings → Privacy & sync before using AI.",
+      );
+    }
     const month = utcMonthKey();
     const [existing, isPro, byokKey] = await Promise.all([
       ctx.db
@@ -336,3 +346,47 @@ export async function consumeAiUsageOrThrow(
 
   return quota;
 }
+
+export async function aiSharingAllowed(
+  ctx: QueryCtx | MutationCtx,
+  userId: string,
+) {
+  const preferences = await ctx.db
+    .query("userPreferences")
+    .withIndex("by_userId", (q) => q.eq("userId", userId))
+    .unique();
+  return hasAiSharingConsent(preferences?.aiSharingConsent);
+}
+
+export const isSharingAllowed = internalQuery({
+  args: { userId: v.string() },
+  handler: (ctx, { userId }) => aiSharingAllowed(ctx, userId),
+});
+
+export const setSharingConsent = mutation({
+  args: { granted: v.boolean(), version: v.number() },
+  handler: async (ctx, args) => {
+    const user = await getAuthUser(ctx);
+    if (args.version !== AI_SHARING_VERSION) {
+      throw new ConvexError(
+        "Please update OneRep to review the current AI sharing disclosure.",
+      );
+    }
+    const preferences = await ctx.db
+      .query("userPreferences")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .unique();
+    const updatedAt = Date.now();
+    const aiSharingConsent = { ...args, updatedAt };
+    if (preferences)
+      await ctx.db.patch(preferences._id, { aiSharingConsent, updatedAt });
+    else
+      await ctx.db.insert("userPreferences", {
+        userId: user._id,
+        lastActiveTimezone: "UTC",
+        aiSharingConsent,
+        updatedAt,
+      });
+    return null;
+  },
+});

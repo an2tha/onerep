@@ -832,3 +832,24 @@ describe("settings is reachable without a desktop sidebar", () => {
     assert.match(NATIVE_BAR, /isTabActive\(pathname, "\/settings"\)/)
   })
 })
+
+describe("App Review settings navigation regression", () => {
+  test("native workout queries use the deployed contract and only load in Health", () => {
+    const query = SETTINGS_SOURCE.match(
+      /const healthWorkouts = useQuery\(([\s\S]*?)\n  \)/
+    )?.[1]
+    assert.ok(query, "Settings must retain the health workout query")
+    assert.match(query, /api\.logs\.healthWorkouts\.list/)
+    assert.match(query, /activeView === "health" && isHealthSyncSupportedPlatform\(\)/)
+    assert.match(query, /\? \{ limit: 20 \}\s*: "skip"/)
+    assert.doesNotMatch(query, /excludeLinked/)
+    assert.match(SETTINGS_SOURCE, /filter\(\(workout\) => !workout\.linked\)/)
+  })
+
+  test("both health entry points open the Health settings section", () => {
+    for (const page of ["Health.tsx", "Progress.tsx"]) {
+      const source = readFileSync(new URL(`./${page}`, import.meta.url), "utf8")
+      assert.match(source, /navigate\("\/settings\?view=health", \{ motion: "forward" \}\)/)
+    }
+  })
+})

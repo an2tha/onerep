@@ -1,3 +1,4 @@
+import { AI_SHARING_VERSION } from "../lib/aiSharing";
 import { describe, expect, test } from "vitest";
 import { convexTest } from "convex-test";
 import schema from "../schema";
@@ -50,6 +51,12 @@ describe("AI monthly usage quota", () => {
   test("a sleep review is billed as one AI request", async () => {
     const t = convexTest(schema, modules);
     const userId = "test|sleep-review-usage";
+    await t
+      .withIdentity({ tokenIdentifier: userId })
+      .mutation(api.ai.usage.setSharingConsent, {
+        granted: true,
+        version: AI_SHARING_VERSION,
+      });
 
     const quota = await t.mutation(internal.ai.usage.consumeMonthlyQuota, {
       userId,
@@ -72,6 +79,12 @@ describe("AI monthly usage quota", () => {
   test("getMonthlyUsage reports the free allowance for users without Pro", async () => {
     const t = convexTest(schema, modules);
     const userId = "test|ai-usage-query-user";
+    await t
+      .withIdentity({ tokenIdentifier: userId })
+      .mutation(api.ai.usage.setSharingConsent, {
+        granted: true,
+        version: AI_SHARING_VERSION,
+      });
 
     await expect(
       t.query(api.ai.usage.getMonthlyUsage, {}),
@@ -107,6 +120,12 @@ describe("AI monthly usage quota", () => {
   test("getMonthlyUsage reports the Pro allowance for subscribers", async () => {
     const t = convexTest(schema, modules);
     const userId = "test|ai-usage-pro-query-user";
+    await t
+      .withIdentity({ tokenIdentifier: userId })
+      .mutation(api.ai.usage.setSharingConsent, {
+        granted: true,
+        version: AI_SHARING_VERSION,
+      });
     await grantPro(t, userId);
 
     await t.mutation(internal.ai.usage.consumeMonthlyQuota, {
@@ -129,6 +148,12 @@ describe("AI monthly usage quota", () => {
   test("allows 10 AI requests per month without Pro", async () => {
     const t = convexTest(schema, modules);
     const userId = "test|ai-quota-user";
+    await t
+      .withIdentity({ tokenIdentifier: userId })
+      .mutation(api.ai.usage.setSharingConsent, {
+        granted: true,
+        version: AI_SHARING_VERSION,
+      });
 
     for (let i = 0; i < 10; i += 1) {
       const quota = await t.mutation(internal.ai.usage.consumeMonthlyQuota, {
@@ -152,6 +177,12 @@ describe("AI monthly usage quota", () => {
   test("allows 500 AI requests per month with Pro", async () => {
     const t = convexTest(schema, modules);
     const userId = "test|ai-quota-pro-user";
+    await t
+      .withIdentity({ tokenIdentifier: userId })
+      .mutation(api.ai.usage.setSharingConsent, {
+        granted: true,
+        version: AI_SHARING_VERSION,
+      });
     await grantPro(t, userId);
 
     for (let i = 0; i < 500; i += 1) {
@@ -174,7 +205,19 @@ describe("AI monthly usage quota", () => {
   test("an exhausted free user is pointed at Pro, a Pro user is not", async () => {
     const t = convexTest(schema, modules);
     const freeUserId = "test|ai-quota-message-free";
+    await t
+      .withIdentity({ tokenIdentifier: freeUserId })
+      .mutation(api.ai.usage.setSharingConsent, {
+        granted: true,
+        version: AI_SHARING_VERSION,
+      });
     const proUserId = "test|ai-quota-message-pro";
+    await t
+      .withIdentity({ tokenIdentifier: proUserId })
+      .mutation(api.ai.usage.setSharingConsent, {
+        granted: true,
+        version: AI_SHARING_VERSION,
+      });
     await grantPro(t, proUserId);
 
     for (let i = 0; i < 10; i += 1) {
@@ -206,6 +249,12 @@ describe("AI monthly usage quota", () => {
   test("a form analysis spends two requests, not one", async () => {
     const t = convexTest(schema, modules);
     const userId = "test|ai-quota-form-coach";
+    await t
+      .withIdentity({ tokenIdentifier: userId })
+      .mutation(api.ai.usage.setSharingConsent, {
+        granted: true,
+        version: AI_SHARING_VERSION,
+      });
 
     await expect(
       t.mutation(internal.ai.usage.consumeMonthlyQuota, {
@@ -224,6 +273,12 @@ describe("AI monthly usage quota", () => {
   test("a request that cannot be paid for in full is refused, not part-charged", async () => {
     const t = convexTest(schema, modules);
     const userId = "test|ai-quota-form-coach-short";
+    await t
+      .withIdentity({ tokenIdentifier: userId })
+      .mutation(api.ai.usage.setSharingConsent, {
+        granted: true,
+        version: AI_SHARING_VERSION,
+      });
 
     // Nine of ten spent, so a two-cost analysis no longer fits.
     for (let i = 0; i < 9; i += 1) {
@@ -252,6 +307,12 @@ describe("AI monthly usage quota", () => {
   test("public AI actions reject once the monthly quota is exhausted", async () => {
     const t = convexTest(schema, modules);
     const userId = "test|ai-action-quota-user";
+    await t
+      .withIdentity({ tokenIdentifier: userId })
+      .mutation(api.ai.usage.setSharingConsent, {
+        granted: true,
+        version: AI_SHARING_VERSION,
+      });
 
     for (let i = 0; i < 10; i += 1) {
       await t.mutation(internal.ai.usage.consumeMonthlyQuota, {
@@ -278,6 +339,12 @@ describe("one-time AI usage reset", () => {
   test("clears existing counters once and refuses to run twice", async () => {
     const t = convexTest(schema, modules);
     const userId = "test|ai-usage-reset-user";
+    await t
+      .withIdentity({ tokenIdentifier: userId })
+      .mutation(api.ai.usage.setSharingConsent, {
+        granted: true,
+        version: AI_SHARING_VERSION,
+      });
 
     for (let i = 0; i < 4; i += 1) {
       await t.mutation(internal.ai.usage.consumeMonthlyQuota, {

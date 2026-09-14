@@ -4,6 +4,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   DEFAULT_OPENROUTER_MODEL,
+  disclosedProvider,
   hasOpenAiApiKey,
   OPENROUTER_BASE_URL,
   requestOpenAiJson,
@@ -137,4 +138,40 @@ describe("AI prompt bundle", () => {
       expect(source).not.toMatch(/role:\s*["']system["']/);
     }
   });
+});
+
+
+test("only disclosed AI recipients can be selected", () => {
+  expect(disclosedProvider("openai/gpt-5.6-luna")).toBe("openai");
+  expect(disclosedProvider("cognitivecomputations/dolphin-mistral-24b-venice-edition")).toBe("venice");
+  expect(disclosedProvider("unknown/model")).toBeNull();
+  process.env.OPENROUTER_API_KEY = "test-key";
+  process.env.AI_PROCESSOR_APPROVED = "true";
+  process.env.OPENROUTER_MODEL = "unknown/model";
+  expect(hasOpenAiApiKey()).toBe(false);
+});
+
+test("outbound AI requests enforce the disclosed recipient and privacy controls", async () => {
+  process.env.OPENROUTER_API_KEY = "test-key";
+  process.env.AI_PROCESSOR_APPROVED = "true";
+  const previousFetch = globalThis.fetch;
+  const requests: Array<Record<string, unknown>> = [];
+  globalThis.fetch = (async (_input, init) => {
+    requests.push(JSON.parse(String(init?.body)));
+    return new Response(JSON.stringify({
+      id: "test-completion", object: "chat.completion", created: 0,
+      model: "openai/gpt-5.6-luna",
+      choices: [{ index: 0, finish_reason: "stop", message: { role: "assistant", content: '{"ok":true}' } }],
+      usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+    }), { status: 200, headers: { "Content-Type": "application/json" } });
+  }) as typeof fetch;
+  try {
+    await requestOpenAiJson({ system: "test", user: "test", model: "openai/gpt-5.6-luna", maxTokens: 10 });
+    expect(requests).toHaveLength(1);
+    expect(requests[0]?.provider).toEqual({
+      only: ["openai"], allow_fallbacks: false, data_collection: "deny", zdr: true,
+    });
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
 });

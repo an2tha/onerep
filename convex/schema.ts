@@ -39,6 +39,13 @@ export default defineSchema({
 
   // ── User preferences (settings) ───────────────────────────────────────────
   userPreferences: defineTable({
+    aiSharingConsent: v.optional(
+      v.object({
+        granted: v.boolean(),
+        version: v.number(),
+        updatedAt: v.number(),
+      }),
+    ),
     userId: v.string(),
     lastActiveTimezone: v.string(),
     bodyReminder: v.optional(

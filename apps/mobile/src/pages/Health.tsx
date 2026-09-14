@@ -154,7 +154,7 @@ export default function Health() {
             }
             action={
               <PrimaryButton
-                onClick={() => navigate("/settings", { motion: "forward" })}
+                onClick={() => navigate("/settings?view=health", { motion: "forward" })}
               >
                 Open health settings
               </PrimaryButton>

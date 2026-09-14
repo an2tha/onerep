@@ -79,7 +79,7 @@ function resolveOpenRouterConfig(
   if (
     env.AI_PROCESSOR_APPROVED?.trim().toLowerCase() !== "true" ||
     !apiKey ||
-    !model.includes("/")
+    !disclosedProvider(model)
   ) {
     return null;
   }
@@ -166,6 +166,13 @@ export type AgentResult<T> = {
   steps: number;
 };
 
+export function disclosedProvider(model: string): string | null {
+  if (model.startsWith("openai/")) return "openai";
+  if (model === "cognitivecomputations/dolphin-mistral-24b-venice-edition")
+    return "venice";
+  return null;
+}
+
 function chatModel(
   config: OpenRouterConfig,
   options: { maxTokens: number; temperature?: number },
@@ -178,6 +185,14 @@ function chatModel(
       ? {}
       : { temperature: options.temperature }),
     configuration: { baseURL: config.baseURL },
+    modelKwargs: {
+      provider: {
+        only: [disclosedProvider(config.model)],
+        allow_fallbacks: false,
+        data_collection: "deny",
+        zdr: true,
+      },
+    },
   });
 }
 

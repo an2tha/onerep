@@ -1,3 +1,4 @@
+import { AiSharingSettings } from "@/components/ai-sharing-consent"
 import React, { useCallback, useState, useEffect, useMemo, useRef } from "react"
 import { useNavigate, useSearchParams } from "react-router"
 import {
@@ -312,6 +313,17 @@ export default function Settings({
     email: user?.email,
     name: user?.name,
   })
+  // The subview lives in the URL, not component state: each drill-down pushes
+  // a history entry, so the system back gesture unwinds subview → overview →
+  // out instead of skipping straight past the overview.
+  const [searchParams] = useSearchParams()
+  const viewParam = searchParams.get("view")
+  const activeView: SettingsView =
+    setupView ??
+    (viewParam && viewParam in SETTINGS_VIEW_TITLE_KEYS
+      ? (viewParam as SettingsView)
+      : "overview")
+
   const preferences = useQuery(api.users.users.getPreferences)
   const effectiveGoals = useQuery(api.users.users.getEffectiveGoals, {})
   const onboarding = useQuery(api.users.onboarding.get)
@@ -356,7 +368,9 @@ export default function Settings({
   // deploy-order safe.
   const healthWorkouts = useQuery(
     api.logs.healthWorkouts.list,
-    isHealthSyncSupportedPlatform() ? { limit: 20 } : "skip"
+    activeView === "health" && isHealthSyncSupportedPlatform()
+      ? { limit: 20 }
+      : "skip"
   )
   // "Recent imports" is a work queue, not an archive: once a session joins the
   // training log it has nowhere further to go, so it leaves the list instead of
@@ -633,16 +647,6 @@ export default function Settings({
   const [sendingTestEmail, setSendingTestEmail] = useState<string | null>(null)
   const sendTestEmail = useMutation(api.users.devEmails.sendTest)
   const [clearingMoments, setClearingMoments] = useState(false)
-  // The subview lives in the URL, not component state: each drill-down pushes
-  // a history entry, so the system back gesture unwinds subview → overview →
-  // out instead of skipping straight past the overview.
-  const [searchParams] = useSearchParams()
-  const viewParam = searchParams.get("view")
-  const activeView: SettingsView =
-    setupView ??
-    (viewParam && viewParam in SETTINGS_VIEW_TITLE_KEYS
-      ? (viewParam as SettingsView)
-      : "overview")
   const [hapticLevel, setHapticLevel] = useState<HapticStrength>(() => {
     if (typeof window === "undefined") return "full"
     return hapticStrength()
@@ -3062,6 +3066,7 @@ export default function Settings({
 
             {activeView === "privacy" && (
               <>
+                <AiSharingSettings />
                 <SettingsSectionIntro>
                   Control personalized recommendations and this device’s sync
                   state.

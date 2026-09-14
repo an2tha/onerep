@@ -1,3 +1,5 @@
+import { AiSharingConsentSheet } from "@/components/ai-sharing-consent"
+import { hasAiSharingConsent } from "../../../../convex/lib/aiSharing"
 import { useCallback, useState } from "react"
 import { useQuery } from "convex/react"
 import { toast } from "@repo/ui"
@@ -46,6 +48,9 @@ export function useAiFeatureGate() {
     billing.status === "loading" ||
     billing.status === "idle" ||
     usage === undefined
+  const preferences = useQuery(api.users.users.getPreferences)
+  const sharingAllowed = hasAiSharingConsent(preferences?.aiSharingConsent)
+  const [consentOpen, setConsentOpen] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [paywallBusy, setPaywallBusy] = useState(false)
   const navigate = useSmoothNavigate()
@@ -58,6 +63,10 @@ export function useAiFeatureGate() {
    */
   const requireAiAccess = useCallback(
     (cost = 1, feature = "unknown") => {
+      if (!sharingAllowed) {
+        setConsentOpen(true)
+        return false
+      }
       if (hasPro || hasByok) return true
       if (isLoading) {
         toast.message("Checking your access…")
@@ -76,73 +85,86 @@ export function useAiFeatureGate() {
       setModalOpen(true)
       return false
     },
-    [freeRequestsLeft, hasPro, isLoading, usage?.count, usage?.limit]
+    [
+      freeRequestsLeft,
+      hasPro,
+      hasByok,
+      isLoading,
+      sharingAllowed,
+      usage?.count,
+      usage?.limit,
+    ],
   )
 
   // Lets Developer settings preview the paywall without spending an allowance.
   const showAiPaywall = useCallback(() => setModalOpen(true), [])
 
   const aiAccessModal = (
-    <AiAccessRequiredModal
-      open={modalOpen}
-      busy={paywallBusy}
-      price={billing.monthlyPrice ?? "Monthly"}
-      error={billing.error}
-      freeLimit={usage && !usage.isPro ? usage.limit : null}
-      proLimit={usage?.proLimit ?? null}
-      usedCount={usage?.count ?? null}
-      isNative={billing.isNative}
-      canPurchase={billing.canPurchase}
-      canRestore={billing.canRestore}
-      onClose={() => setModalOpen(false)}
-      onOpenPaywall={() => {
-        if (paywallBusy) return
-        setPaywallBusy(true)
-        void (async () => {
-          try {
-            const purchasedCustomerInfo =
-              await billing.purchaseMonthly("ai_paywall")
-            const customerInfo =
-              purchasedCustomerInfo ?? (await billing.refresh())
-            if (hasOneRepPro(customerInfo)) {
-              celebrateSubscription()
-              setModalOpen(false)
-            } else {
-              toast.message("Subscription is pending. Refreshing access...")
-              void billing.refresh()
+    <>
+      {consentOpen && (
+        <AiSharingConsentSheet onClose={() => setConsentOpen(false)} />
+      )}
+      <AiAccessRequiredModal
+        open={modalOpen}
+        busy={paywallBusy}
+        price={billing.monthlyPrice ?? "Monthly"}
+        error={billing.error}
+        freeLimit={usage && !usage.isPro ? usage.limit : null}
+        proLimit={usage?.proLimit ?? null}
+        usedCount={usage?.count ?? null}
+        isNative={billing.isNative}
+        canPurchase={billing.canPurchase}
+        canRestore={billing.canRestore}
+        onClose={() => setModalOpen(false)}
+        onOpenPaywall={() => {
+          if (paywallBusy) return
+          setPaywallBusy(true)
+          void (async () => {
+            try {
+              const purchasedCustomerInfo =
+                await billing.purchaseMonthly("ai_paywall")
+              const customerInfo =
+                purchasedCustomerInfo ?? (await billing.refresh())
+              if (hasOneRepPro(customerInfo)) {
+                celebrateSubscription()
+                setModalOpen(false)
+              } else {
+                toast.message("Subscription is pending. Refreshing access...")
+                void billing.refresh()
+              }
+            } catch (error) {
+              const message =
+                error instanceof Error && error.message
+                  ? error.message
+                  : "We couldn’t start your subscription. Try again."
+              if (message !== "Purchase canceled") toast.error(message)
+            } finally {
+              setPaywallBusy(false)
             }
-          } catch (error) {
-            const message =
-              error instanceof Error && error.message
-                ? error.message
-                : "We couldn’t start your subscription. Try again."
-            if (message !== "Purchase canceled") toast.error(message)
-          } finally {
-            setPaywallBusy(false)
-          }
-        })()
-      }}
-      onRestore={() => {
-        if (paywallBusy) return
-        setPaywallBusy(true)
-        void (async () => {
-          try {
-            const { restored } = await billing.restorePurchases()
-            if (restored > 0) {
-              await billing.refresh()
-              celebrateSubscription()
-              setModalOpen(false)
+          })()
+        }}
+        onRestore={() => {
+          if (paywallBusy) return
+          setPaywallBusy(true)
+          void (async () => {
+            try {
+              const { restored } = await billing.restorePurchases()
+              if (restored > 0) {
+                await billing.refresh()
+                celebrateSubscription()
+                setModalOpen(false)
+              }
+            } finally {
+              setPaywallBusy(false)
             }
-          } finally {
-            setPaywallBusy(false)
-          }
-        })()
-      }}
-      onOpenSettings={() => {
-        setModalOpen(false)
-        navigate("/settings", { motion: "switch" })
-      }}
-    />
+          })()
+        }}
+        onOpenSettings={() => {
+          setModalOpen(false)
+          navigate("/settings", { motion: "switch" })
+        }}
+      />
+    </>
   )
 
   return {

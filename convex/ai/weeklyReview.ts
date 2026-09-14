@@ -340,6 +340,13 @@ export const generateForUser = internalAction({
   args: { userId: v.string(), today: v.string() },
   handler: async (ctx, args) => {
     if (!proactiveCoachEnabled()) return { generated: false };
+    if (
+      !(await ctx.runQuery(internal.ai.usage.isSharingAllowed, {
+        userId: args.userId,
+      }))
+    ) {
+      return { generated: false };
+    }
     const userKey: string | null = await ctx.runQuery(
       internal.ai.byok.getKeyForUser,
       { userId: args.userId },

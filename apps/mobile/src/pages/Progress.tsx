@@ -696,7 +696,7 @@ export default function Progress() {
                 series={healthSeries ?? null}
                 onOpenHealth={() => navigate("/health", { motion: "switch" })}
                 onOpenSettings={() =>
-                  navigate("/settings", { motion: "forward" })
+                  navigate("/settings?view=health", { motion: "forward" })
                 }
               />
             )}

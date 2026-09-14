@@ -1,3 +1,4 @@
+import { useAiFeatureGate } from "@/lib/ai-access"
 import { useEnergyUnit } from "@/lib/use-energy-unit"
 import type { SettingsView } from "./Settings"
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react"
@@ -641,6 +642,7 @@ export function OnboardingMobile() {
   const aiUsage = useQuery(api.ai.usage.getMonthlyUsage, {})
   const aiUnavailable =
     aiUsage !== undefined && !aiUsage.serverAiConfigured && !aiUsage.byok
+  const { requireAiAccess, aiAccessModal } = useAiFeatureGate()
   const generateChat = useAction(
     api.ai.metricGeneration.generateCoachChatMessage
   )
@@ -1124,6 +1126,9 @@ export function OnboardingMobile() {
       setImportPreview(result)
       hapticTap()
     } catch (caught) {
+      if (caught instanceof Error && caught.message.includes("Allow AI data sharing")) {
+        requireAiAccess(1, "setup_import")
+      }
       hapticHeavy()
       setImportError(
         caught instanceof Error && caught.message
@@ -1194,6 +1199,7 @@ export function OnboardingMobile() {
   }
 
   async function sendSetupMessage() {
+    if (!requireAiAccess(1, "setup_coach")) return
     const rawPrompt = setupInput.trim().slice(0, 1200)
     const selectedAttachment = setupAttachmentRef.current
     if ((!rawPrompt && !selectedAttachment) || setupBusy) return
@@ -2298,14 +2304,11 @@ export function OnboardingMobile() {
             I explicitly consent to OneRep processing the fitness, nutrition,
             body, recovery, and related information I provide to deliver
             personalized tracking and Coach features. Some of this information
-            may qualify as health data. When I choose an AI feature, prompts,
-            selected account context, and submitted images are sent to
-            OpenRouter, which routes them to the selected model provider,
-            currently OpenAI; both may process the request. AI is optional and
-            core tracking remains available without it. I can withdraw consent
-            with future effect by deleting affected data or my account, or by
-            contacting{" "}
-            <a
+            may qualify as health data. AI sharing requires a separate, optional permission before using
+                  an AI feature. Core tracking works without AI. I can withdraw
+                  this processing consent for future effect by deleting affected
+                  data or my account, or by contacting{" "}
+                  <a
               href="mailto:support@onerep.life"
               className="font-semibold text-foreground underline decoration-border underline-offset-4"
             >
@@ -2530,6 +2533,7 @@ export function OnboardingMobile() {
           </div>
         </div>
       </section>
+      {aiAccessModal}
     </main>
   )
 }
