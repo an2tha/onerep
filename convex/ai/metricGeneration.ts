@@ -3396,6 +3396,17 @@ export const generateCoachChatMessage = action({
     );
     return {
       ...fallback,
+      reply:
+        fallback.reply &&
+        fallback.reply !== fallbackCoachChatResponse({
+          message,
+          context,
+          focusInsight,
+          coachMode,
+          history,
+        }).reply
+          ? fallback.reply
+          : `I couldn’t reach the coach right now. AI isn’t available on this server, so I’m showing you a general suggestion instead. Try again in a moment or finish setup and chat with Coach afterwards.`,
       artifacts: [],
       source: "fallback",
     };
