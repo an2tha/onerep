@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 import { convexTest } from "convex-test";
 import schema from "../schema";
 import { api, internal } from "../_generated/api";
+import { AI_SHARING_VERSION } from "../lib/aiSharing";
 
 const modules = import.meta.glob("../**/*.ts");
 
@@ -27,6 +28,10 @@ describe("user data export and deletion", () => {
     const authed = t.withIdentity({ tokenIdentifier: userId });
 
     await authed.mutation(api.logs.mealPresets.create, mealPresetArgs);
+    await authed.mutation(api.ai.usage.setSharingConsent, {
+      granted: true,
+      version: AI_SHARING_VERSION,
+    });
     await t.mutation(internal.ai.usage.consumeMonthlyQuota, {
       userId,
       source: "progress_metrics",
