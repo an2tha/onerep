@@ -6,6 +6,20 @@ const SNAP_SOURCE = readFileSync(
   "utf8"
 )
 
+describe("Snap and Log correction contract", () => {
+  test("a saved correction is applied from the draft that was written", () => {
+    // Re-reading the reactive custom-food list here raced the subscription: it
+    // usually had not arrived yet, so the first correction of a barcode found
+    // nothing and the card kept the database's numbers — which reads as the
+    // correction having been rejected.
+    expect(SNAP_SOURCE).toContain(
+      "const copy = customFoodFromDraft(correctionDraft)"
+    )
+    expect(SNAP_SOURCE).toContain("applyCorrectedCopy(current, copy)")
+    expect(SNAP_SOURCE).not.toContain("withCorrectedMacros")
+  })
+})
+
 describe("Snap and Log accessibility contract", () => {
   test("camera capture controls expose explicit button semantics", () => {
     expect(SNAP_SOURCE).toContain(

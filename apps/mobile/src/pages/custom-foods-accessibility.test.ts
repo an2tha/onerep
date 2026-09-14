@@ -45,6 +45,10 @@ describe("Custom foods accessibility contract", () => {
     expect(FOOD_EDITOR_SOURCE).toContain("aria-expanded={microsOpen}")
   })
 
+  test("the nutrition basis toggle reports which basis is active", () => {
+    expect(FOOD_EDITOR_SOURCE).toContain("aria-pressed={active}")
+  })
+
   test("sheets can be dismissed by a named button", () => {
     expect(FOOD_EDITOR_SOURCE).toContain('aria-label="Close food editor"')
     expect(CUSTOM_FOODS_SOURCE).toContain('aria-label="Close log sheet"')

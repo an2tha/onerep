@@ -226,12 +226,36 @@ function parseServingGrams(product: OpenFoodFactsProduct): number | null {
   return parsed > 0 ? parsed : null
 }
 
-/** The serving the product names, and never the size of the packet. */
+/**
+ * True when a serving text is nothing but a weight ("85 g", "42,5 g").
+ *
+ * A bare weight names no portion. It is the weight *of* a serving, and
+ * printing it on its own is what put "85 g" in the diary where the label's
+ * serving belonged.
+ */
+function servingTextIsBareWeight(text: string): boolean {
+  return /^[0-9]+(?:[.,][0-9]+)?\s*g(?:rams?)?\.?$/i.test(text.trim())
+}
+
+/**
+ * The serving the product names, and never the size of the packet.
+ *
+ * `serving_size` is the label's own words — "6 meatballs (85 g)" — and is
+ * used as-is. Where the catalogue holds only the weight of one serving, that
+ * serving still exists; it is merely unnamed, so it is called what it is and
+ * the weight rides beside it: "1 serving (85 g)".
+ *
+ * "100 g" is deliberately left alone in both directions. It is the generic
+ * basis the numbers are quoted on, not a portion anybody wrote down, and
+ * relabelling it "1 serving" would claim a serving the catalogue never
+ * declared.
+ */
 function servingLabel(product: OpenFoodFactsProduct): string {
-  const named = firstString(product.serving_size)
-  if (named) return named
+  const named = firstString(product.serving_size)?.trim() ?? ""
   const grams = parseServingGrams(product)
-  return grams ? `${+grams.toFixed(1)} g` : "100 g"
+  if (named && !servingTextIsBareWeight(named)) return named
+  if (grams && grams !== 100) return `1 serving (${+grams.toFixed(1)} g)`
+  return named || "100 g"
 }
 
 function normalizeProduct(raw: unknown): OpenFoodFactsProduct | null {

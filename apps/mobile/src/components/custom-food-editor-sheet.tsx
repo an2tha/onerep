@@ -6,10 +6,13 @@ import { cn } from "@/lib/utils"
 import { FOOD_MICRONUTRIENT_KEYS } from "@/lib/food-log"
 import {
   caloriesFromMacros,
+  customFoodDraftInBasis,
   customFoodNutrientsFromDraft,
+  CUSTOM_FOOD_BASES,
   CUSTOM_FOOD_MACRO_KEYS,
   CUSTOM_FOOD_NUTRIENT_LABELS,
   macroCalorieMismatch,
+  parseServingGramsInput,
   validateCustomFoodDraft,
   type CustomFoodDraft,
 } from "@/lib/custom-foods"
@@ -42,6 +45,21 @@ export function CustomFoodEditorSheet({
   const validation = validateCustomFoodDraft(draft)
   const nutrients = customFoodNutrientsFromDraft(draft)
   const mismatch = macroCalorieMismatch(nutrients)
+  const per100g = draft.basis === "100g"
+  const declaredGrams = parseServingGramsInput(draft.servingGrams)
+  // Where the per-100 g numbers are about to land, said plainly: the packet's
+  // own serving is what the copy keeps, so the user is not agreeing to a
+  // serving they cannot see — and where there is no weight to convert onto, the
+  // copy stays on the basis it was typed in.
+  const basisHint = `Type the label's per-100 g column.${
+    declaredGrams === undefined
+      ? " Without a serving weight to convert onto, the copy is kept per 100 g."
+      : declaredGrams === 100
+        ? ""
+        : ` One serving (${
+            draft.servingLabel || `${declaredGrams} g`
+          }) is kept.`
+  }`
 
   const update = (patch: Partial<CustomFoodDraft>) =>
     onChange({ ...draft, ...patch })
@@ -126,7 +144,37 @@ export function CustomFoodEditorSheet({
           </div>
 
           <fieldset>
-            <legend className="native-field-label mb-2">Per serving</legend>
+            <legend className="native-field-label mb-2">Values are</legend>
+            <div className="flex gap-1.5">
+              {CUSTOM_FOOD_BASES.map((option) => {
+                const active = draft.basis === option
+                return (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() =>
+                      onChange(customFoodDraftInBasis(draft, option))
+                    }
+                    aria-pressed={active}
+                    className={cn(
+                      "min-h-11 flex-1 rounded-lg text-[14px] font-medium transition-colors",
+                      active
+                        ? "bg-foreground text-background"
+                        : "bg-muted/60 text-muted-foreground active:bg-muted"
+                    )}
+                  >
+                    {option === "100g" ? "Per 100 g" : "Per serving"}
+                  </button>
+                )
+              })}
+            </div>
+            {per100g && (
+              <p className="native-field-hint mt-2">{basisHint}</p>
+            )}
+          </fieldset>
+
+          <fieldset>
+            <legend className="native-field-label mb-2">Nutrition</legend>
             <div className="grid grid-cols-2 gap-3">
               {CUSTOM_FOOD_MACRO_KEYS.map((key) => {
                 const meta = CUSTOM_FOOD_NUTRIENT_LABELS[key]

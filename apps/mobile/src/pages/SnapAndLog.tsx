@@ -1,4 +1,3 @@
-import { withCorrectedMacros } from "@/lib/food-barcode-correction"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useSearchParams } from "react-router"
 import { Capacitor } from "@capacitor/core"
@@ -45,6 +44,7 @@ import {
   isFoodLogTime,
 } from "@/lib/food-log-context"
 import { api } from "../../../../convex/_generated/api"
+import type { Id } from "../../../../convex/_generated/dataModel"
 import { convexClient } from "@/lib/convex"
 import { captureFeatureUsage } from "@/lib/analytics"
 import { toast } from "@repo/ui"
@@ -76,8 +76,11 @@ import {
   type SnapReviewItem,
 } from "@/lib/food-snap-review"
 import {
+  applyCorrectedCopy,
+  correctedCopyForBarcode,
   customFoodDraftFromFoodResult,
-  customFoodNutrientsFromDraft,
+  customFoodFromDraft,
+  customFoodSaveArgs,
   foodLogEntryFromCustomFood,
   type CustomFood,
   type CustomFoodDraft,
@@ -171,10 +174,7 @@ export default function SnapAndLog() {
   const customFoodsQuery = useQuery(api.logs.customFoods.list, {})
   const customFoods = (customFoodsQuery ?? []) as CustomFood[]
   const correctedForBarcode = useCallback(
-    (code: string) =>
-      customFoods.find(
-        (food) => food.barcode && food.barcode.trim() === code.trim()
-      ) ?? null,
+    (code: string) => correctedCopyForBarcode(customFoods, code),
     [customFoods]
   )
 
@@ -403,7 +403,9 @@ export default function SnapAndLog() {
           // Same correction overlay as the shutter path: a saved correction
           // must hold on the live scan too, or the two entries disagree.
           const corrected = correctedForBarcode(code)
-          setBarcodeResult(corrected ? withCorrectedMacros(food, corrected) : food)
+          setBarcodeResult(
+            corrected ? applyCorrectedCopy(food, corrected) : food
+          )
         } else {
           setBarcodeError(`No food found for barcode ${code}`)
         }
@@ -465,7 +467,7 @@ export default function SnapAndLog() {
         // card's macros are per-100 g, so the values are rebased before the
         // overlay — the card then shows and logs the user's own figures.
         const corrected = correctedForBarcode(code)
-        setBarcodeResult(corrected ? withCorrectedMacros(food, corrected) : food)
+        setBarcodeResult(corrected ? applyCorrectedCopy(food, corrected) : food)
         setBarcodeError(null)
       } else {
         setBarcodeError(`No food found for barcode ${code}`)
@@ -680,25 +682,34 @@ export default function SnapAndLog() {
     if (!correctionDraft || savingCorrection) return
     setSavingCorrection(true)
     try {
+      // Correct the copy this barcode already has rather than adding another
+      // row for the same packet, so the next scan can only mean one thing.
+      const existing = correctedForBarcode(correctionDraft.barcode)
       await saveCustomFood({
-        name: correctionDraft.name.trim(),
-        brand: correctionDraft.brand.trim() || undefined,
-        servingLabel: correctionDraft.servingLabel.trim(),
-        servingGrams: correctionDraft.servingGrams.trim()
-          ? Number(correctionDraft.servingGrams)
-          : undefined,
-        barcode: correctionDraft.barcode.trim() || undefined,
-        notes: correctionDraft.notes.trim() || undefined,
-        favorite: correctionDraft.favorite,
-        nutrientsPerServing: customFoodNutrientsFromDraft(correctionDraft),
+        id: existing?.id ? (existing.id as Id<"customFoods">) : undefined,
+        ...customFoodSaveArgs(correctionDraft),
       })
+      // The card rebases onto the copy that was just written, taken from the
+      // draft itself. Re-reading the reactive list here raced the subscription:
+      // it usually had not arrived yet, so the first correction of a barcode
+      // appeared to do nothing.
+      const copy = customFoodFromDraft(correctionDraft)
       setCorrectionDraft(null)
       toast.success("Corrected values saved to your foods")
-      // Re-run the barcode lookup so the open card rebases onto the saved
-      // copy without the user having to scan twice.
-      if (barcodeResult) {
-        const corrected = correctedForBarcode(barcodeResult.code)
-        if (corrected) setBarcodeResult(withCorrectedMacros(barcodeResult, corrected))
+      const correctedCode = copy.barcode?.trim()
+      if (correctedCode) {
+        setBarcodeResult((current) =>
+          current && current.code?.trim() === correctedCode
+            ? applyCorrectedCopy(current, copy)
+            : current
+        )
+        setSnapReviewItems((items) =>
+          items.map((item) =>
+            item.food && item.food.code?.trim() === correctedCode
+              ? { ...item, food: applyCorrectedCopy(item.food, copy) }
+              : item
+          )
+        )
       }
     } catch (error) {
       reportOfflineMutationError(error)

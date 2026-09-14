@@ -60,6 +60,7 @@ import {
   mealLabel,
   nutritionDetailTotals,
   offsetDateKey,
+  parseFoodPortionLabel,
   stripUndefined,
   DEFAULT_MEAL_CATEGORIES,
   type FoodLogEntry,
@@ -1464,9 +1465,16 @@ function FoodEntrySheet({
     (key) => (entry[key] ?? 0) > 0
   ).slice(0, 8)
 
+  // A serving the catalogue never named reads "1 serving (85 g)", and the
+  // logged weight would then print that same 85 g a second time. The weight is
+  // worth the repetition only when it is not already the one in the label.
+  const labelWeightGrams = parseFoodPortionLabel(entry.servingLabel)?.grams ?? null
   const servingLine = [
     entry.servingLabel,
-    entry.quantityGrams ? `${Math.round(entry.quantityGrams)} g` : null,
+    entry.quantityGrams &&
+    Math.round(entry.quantityGrams) !== Math.round(labelWeightGrams ?? -1)
+      ? `${Math.round(entry.quantityGrams)} g`
+      : null,
   ]
     .filter(Boolean)
     .join(" · ")
