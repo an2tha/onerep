@@ -3,6 +3,7 @@ import { convexTest } from "convex-test";
 import schema from "../schema";
 import { api } from "../_generated/api";
 import { AI_FREE_MONTHLY_REQUEST_LIMIT } from "../ai/usage";
+import { AI_SHARING_VERSION } from "../lib/aiSharing";
 
 const modules = import.meta.glob("../**/*.ts");
 
@@ -33,6 +34,10 @@ describe("logs.logAgent.draftLogFromText", () => {
   test("parses a dictated recap into completed sets", async () => {
     const t = convexTest(schema, modules);
     const user = t.withIdentity({ tokenIdentifier: "test|log-agent" });
+    await user.mutation(api.ai.usage.setSharingConsent, {
+      granted: true,
+      version: AI_SHARING_VERSION,
+    });
 
     const draft = await user.action(api.logs.logAgent.draftLogFromText, {
       text: "bench 3x8 at 185, then rows 3x10 at 60",
@@ -63,6 +68,10 @@ describe("logs.logAgent.draftLogFromText", () => {
   test("reads an unqualified weight in the user's own unit", async () => {
     const t = convexTest(schema, modules);
     const user = t.withIdentity({ tokenIdentifier: "test|log-agent-kg" });
+    await user.mutation(api.ai.usage.setSharingConsent, {
+      granted: true,
+      version: AI_SHARING_VERSION,
+    });
 
     const draft = await user.action(api.logs.logAgent.draftLogFromText, {
       text: "squat 5x5 at 100",
@@ -74,6 +83,10 @@ describe("logs.logAgent.draftLogFromText", () => {
   test("leaves an open-ended set for the user to fill in", async () => {
     const t = convexTest(schema, modules);
     const user = t.withIdentity({ tokenIdentifier: "test|log-agent-amrap" });
+    await user.mutation(api.ai.usage.setSharingConsent, {
+      granted: true,
+      version: AI_SHARING_VERSION,
+    });
 
     const draft = await user.action(api.logs.logAgent.draftLogFromText, {
       text: "pull ups 3 x amrap",
@@ -87,6 +100,10 @@ describe("logs.logAgent.draftLogFromText", () => {
   test("takes the low end of a rep range and picks up the session length", async () => {
     const t = convexTest(schema, modules);
     const user = t.withIdentity({ tokenIdentifier: "test|log-agent-range" });
+    await user.mutation(api.ai.usage.setSharingConsent, {
+      granted: true,
+      version: AI_SHARING_VERSION,
+    });
 
     const draft = await user.action(api.logs.logAgent.draftLogFromText, {
       text: "took about an hour\\ndeadlift 4x8-10 at 140kg",
@@ -101,6 +118,10 @@ describe("logs.logAgent.draftLogFromText", () => {
   test("says so rather than inventing a workout it could not read", async () => {
     const t = convexTest(schema, modules);
     const user = t.withIdentity({ tokenIdentifier: "test|log-agent-noise" });
+    await user.mutation(api.ai.usage.setSharingConsent, {
+      granted: true,
+      version: AI_SHARING_VERSION,
+    });
 
     const draft = await user.action(api.logs.logAgent.draftLogFromText, {
       text: "!!!! ????",
@@ -112,6 +133,10 @@ describe("logs.logAgent.draftLogFromText", () => {
   test("spends the monthly AI allowance and stops when it runs out", async () => {
     const t = convexTest(schema, modules);
     const user = t.withIdentity({ tokenIdentifier: "test|log-agent-quota" });
+    await user.mutation(api.ai.usage.setSharingConsent, {
+      granted: true,
+      version: AI_SHARING_VERSION,
+    });
 
     await user.action(api.logs.logAgent.draftLogFromText, {
       text: "bench 3x8 at 60kg",
