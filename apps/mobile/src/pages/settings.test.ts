@@ -679,8 +679,13 @@ describe("AI subscription hint", () => {
     // non-billing error path at all.
     assert.match(
       AI_ACCESS_SOURCE,
-      /usageDeniedReason|error=\{\(?billing\.error/,
-      "paywall must receive a server-side AI reason, not only the billing error"
+      /usageDeniedReason/,
+      "paywall reason helper must exist"
+    )
+    assert.match(
+      AI_ACCESS_SOURCE,
+      /isPro === true/,
+      "server reason is only shown for Pro users who still cannot reach AI"
     )
   })
 
