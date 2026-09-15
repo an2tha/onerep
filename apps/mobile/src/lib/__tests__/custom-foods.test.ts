@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import type { FoodDetail, FoodResult } from "@repo/models"
+import { foodCardMacros } from "@/lib/food-search-nutrition"
 import {
   applyCorrectedCopy,
   caloriesFromMacros,
@@ -72,7 +73,9 @@ describe("parsing", () => {
 
   test("only supplied micronutrients survive into the saved profile", () => {
     const nutrients = customFoodNutrientsFromDraft(
-      draftWith({ nutrients: { sodium: "60" } as CustomFoodDraft["nutrients"] })
+      draftWith({
+        nutrients: { sodium: "60" } as CustomFoodDraft["nutrients"],
+      }),
     )
     expect(nutrients.sodium).toBe(60)
     expect("iron" in nutrients).toBe(false)
@@ -86,7 +89,7 @@ describe("validation", () => {
 
   test("name and serving label are required", () => {
     const result = validateCustomFoodDraft(
-      draftWith({ name: " ", servingLabel: "" })
+      draftWith({ name: " ", servingLabel: "" }),
     )
     expect(result.valid).toBe(false)
     expect(result.errors.name).toBeDefined()
@@ -101,14 +104,14 @@ describe("validation", () => {
           calories: "",
           protein: "24",
         },
-      })
+      }),
     )
     expect(result.valid).toBe(true)
   })
 
   test("a food with no nutrition at all is rejected", () => {
     const result = validateCustomFoodDraft(
-      draftWith({ nutrients: emptyCustomFoodDraft().nutrients })
+      draftWith({ nutrients: emptyCustomFoodDraft().nutrients }),
     )
     expect(result.valid).toBe(false)
     expect(result.errors.calories).toBeDefined()
@@ -118,22 +121,22 @@ describe("validation", () => {
 describe("macro sanity check", () => {
   test("matching macros do not warn", () => {
     expect(
-      macroCalorieMismatch({ calories: 120, protein: 24, carbs: 3, fat: 1.5 })
+      macroCalorieMismatch({ calories: 120, protein: 24, carbs: 3, fat: 1.5 }),
     ).toBe(false)
   })
 
   test("a mistyped calorie count warns", () => {
     expect(
-      macroCalorieMismatch({ calories: 1200, protein: 24, carbs: 3, fat: 1.5 })
+      macroCalorieMismatch({ calories: 1200, protein: 24, carbs: 3, fat: 1.5 }),
     ).toBe(true)
     expect(
-      caloriesFromMacros({ calories: 0, protein: 24, carbs: 3, fat: 1.5 })
+      caloriesFromMacros({ calories: 0, protein: 24, carbs: 3, fat: 1.5 }),
     ).toBe(122)
   })
 
   test("no warning when calories were left blank", () => {
     expect(
-      macroCalorieMismatch({ calories: 0, protein: 24, carbs: 3, fat: 1.5 })
+      macroCalorieMismatch({ calories: 0, protein: 24, carbs: 3, fat: 1.5 }),
     ).toBe(false)
   })
 })
@@ -169,7 +172,7 @@ describe("scaling and logging", () => {
 
   test("servings default to one", () => {
     expect(foodLogEntryFromCustomFood(shake, { meal: "snack" }).calories).toBe(
-      120
+      120,
     )
     expect(servingsLabel(1, "1 scoop")).toBe("1 × 1 scoop")
   })
@@ -178,7 +181,7 @@ describe("scaling and logging", () => {
 describe("editing and searching", () => {
   test("a saved food round-trips through the editor draft", () => {
     const nutrients = customFoodNutrientsFromDraft(
-      customFoodDraftFromFood(shake)
+      customFoodDraftFromFood(shake),
     )
     expect(nutrients).toEqual(shake.nutrientsPerServing)
   })
@@ -252,7 +255,6 @@ describe("customFoodDraftFromDatabaseFood", () => {
     expect(draft.barcode).toBe("")
     expect(validateCustomFoodDraft(draft).valid).toBe(true)
   })
-
 })
 
 describe("corrections", () => {
@@ -260,7 +262,11 @@ describe("corrections", () => {
     // "85 g" straight off the packet is not a number, and NaN is not a number
     // Convex accepts — the save used to fail its validator instead of reading
     // the field.
-    const draft = { ...emptyCustomFoodDraft(), name: "Meatballs", servingLabel: "3 meatballs" }
+    const draft = {
+      ...emptyCustomFoodDraft(),
+      name: "Meatballs",
+      servingLabel: "3 meatballs",
+    }
     const grams = (raw: string) =>
       customFoodSaveArgs({ ...draft, servingGrams: raw }).servingGrams
 
@@ -297,7 +303,7 @@ describe("corrections", () => {
     })
     // An empty brand is absent, not an empty string on the row.
     expect(
-      customFoodFromDraft({ ...draft, brand: "   " }).brand
+      customFoodFromDraft({ ...draft, brand: "   " }).brand,
     ).toBeUndefined()
   })
 
@@ -347,6 +353,54 @@ describe("corrections", () => {
     // The result the user was looking at keeps every other field.
     expect(corrected.imageUrl).toBeUndefined()
     expect(corrected.brand).toBe("Cooked Perfect")
+  })
+
+  test("a correction replaces detailed macro rows used by serving cards", () => {
+    const detail: FoodDetail = {
+      id: "bar",
+      source: "openfoodfacts",
+      code: "bar",
+      name: "Bar",
+      serving: "1 bar (40 g)",
+      servingGrams: 40,
+      servingLabel: "1 bar (40 g)",
+      calories: 450,
+      protein: 8,
+      carbs: 60,
+      fat: 20,
+      openFoodFacts: { code: "bar" },
+      nutrients: [
+        { key: "energy", name: "Calories", unit: "kcal", per100g: 450 },
+        { key: "protein", name: "Protein", unit: "g", per100g: 8 },
+        { key: "carbs", name: "Carbs", unit: "g", per100g: 60 },
+        { key: "fat", name: "Fat", unit: "g", per100g: 20 },
+        { key: "fiber", name: "Fiber", unit: "g", per100g: 3 },
+      ],
+      extraNutrients: [],
+    }
+    const corrected = applyCorrectedCopy(detail, {
+      name: "Corrected bar",
+      servingLabel: "1 bar (40 g)",
+      servingGrams: 40,
+      nutrientsPerServing: {
+        calories: 100,
+        protein: 4,
+        carbs: 20,
+        fat: 0,
+      },
+    })
+
+    expect(foodCardMacros(corrected)).toMatchObject({
+      grams: 40,
+      calories: 100,
+      protein: 4,
+      carbs: 20,
+      fat: 0,
+    })
+    expect(
+      corrected.nutrients.find((row) => row.key === "fiber")?.per100g,
+    ).toBe(3)
+    expect(detail.nutrients[0].per100g).toBe(450)
   })
 
   test("a correction updates the copy the barcode already has", () => {
@@ -407,7 +461,7 @@ describe("nutrition basis", () => {
   test("a round trip returns the numbers that were typed", () => {
     const back = customFoodDraftInBasis(
       customFoodDraftInBasis(twoColumnDraft(), "100g"),
-      "serving"
+      "serving",
     )
 
     expect(back.basis).toBe("serving")
@@ -421,7 +475,7 @@ describe("nutrition basis", () => {
     // drifting a decimal each way.
     const again = customFoodDraftInBasis(
       customFoodDraftInBasis(back, "100g"),
-      "serving"
+      "serving",
     )
     expect(again.nutrients).toEqual(back.nutrients)
   })
