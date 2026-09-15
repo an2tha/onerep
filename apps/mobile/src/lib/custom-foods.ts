@@ -110,7 +110,7 @@ export const CUSTOM_FOOD_NUTRIENT_LABELS: Record<
 
 function emptyNutrientFields() {
   return Object.fromEntries(
-    CUSTOM_FOOD_NUTRIENT_KEYS.map((key) => [key, ""])
+    CUSTOM_FOOD_NUTRIENT_KEYS.map((key) => [key, ""]),
   ) as Record<CustomFoodNutrientKey, string>
 }
 
@@ -138,7 +138,7 @@ export function emptyCustomFoodDraft(): CustomFoodDraft {
  */
 function basisFor(
   servingLabel: string | undefined,
-  servingGrams: number | undefined | null
+  servingGrams: number | undefined | null,
 ): CustomFoodBasis {
   // A serving nobody weighed is not a scale the numbers can be in: they are per
   // 100 g, which is what the card prints for such a row whatever serving text it
@@ -182,7 +182,7 @@ export function parseNutrientInput(raw: string): number | undefined {
 }
 
 export function customFoodNutrientsFromDraft(
-  draft: CustomFoodDraft
+  draft: CustomFoodDraft,
 ): CustomFoodNutrients {
   const nutrients: CustomFoodNutrients = {
     calories: parseNutrientInput(draft.nutrients.calories) ?? 0,
@@ -205,7 +205,7 @@ export type CustomFoodValidation = {
 }
 
 export function validateCustomFoodDraft(
-  draft: CustomFoodDraft
+  draft: CustomFoodDraft,
 ): CustomFoodValidation {
   const errors: CustomFoodValidation["errors"] = {}
 
@@ -230,7 +230,7 @@ export function validateCustomFoodDraft(
  */
 export function caloriesFromMacros(nutrients: CustomFoodNutrients) {
   return Math.round(
-    nutrients.protein * 4 + nutrients.carbs * 4 + nutrients.fat * 9
+    nutrients.protein * 4 + nutrients.carbs * 4 + nutrients.fat * 9,
   )
 }
 
@@ -264,7 +264,7 @@ export function parseServingGramsInput(raw: string): number | undefined {
 
 /** The grams one unit of a draft's basis weighs — 100 g, or the serving. */
 export function customFoodDraftBasisGrams(
-  draft: CustomFoodDraft
+  draft: CustomFoodDraft,
 ): number | undefined {
   return draft.basis === "100g"
     ? 100
@@ -285,7 +285,7 @@ export function customFoodDraftBasisGrams(
  */
 export function customFoodDraftInBasis(
   draft: CustomFoodDraft,
-  basis: CustomFoodBasis
+  basis: CustomFoodBasis,
 ): CustomFoodDraft {
   if (basis === draft.basis) return draft
   const from = customFoodDraftBasisGrams(draft)
@@ -309,7 +309,7 @@ export function customFoodDraftInBasis(
  */
 function rescaleNutrientFields(
   fields: Record<CustomFoodNutrientKey, string>,
-  factor: number
+  factor: number,
 ): Record<CustomFoodNutrientKey, string> {
   const scaled = { ...fields }
   for (const key of CUSTOM_FOOD_NUTRIENT_KEYS) {
@@ -344,7 +344,11 @@ function savedServingFor(draft: CustomFoodDraft): {
     return { servingLabel: label, servingGrams: declared, factor: 1 }
   }
   if (declared !== undefined && declared !== 100) {
-    return { servingLabel: label, servingGrams: declared, factor: declared / 100 }
+    return {
+      servingLabel: label,
+      servingGrams: declared,
+      factor: declared / 100,
+    }
   }
   return {
     servingLabel: declared === 100 ? label : PER_100G_SERVING_LABEL,
@@ -379,7 +383,7 @@ export function customFoodSaveArgs(draft: CustomFoodDraft) {
         : {
             ...draft,
             nutrients: rescaleNutrientFields(draft.nutrients, serving.factor),
-          }
+          },
     ),
   }
 }
@@ -394,7 +398,7 @@ export function customFoodSaveArgs(draft: CustomFoodDraft) {
  */
 export function customFoodFromDraft(
   draft: CustomFoodDraft,
-  id?: string
+  id?: string,
 ): CustomFood {
   return { ...(id ? { id } : {}), ...customFoodSaveArgs(draft) }
 }
@@ -410,14 +414,29 @@ export function customFoodFromDraft(
  */
 export function applyCorrectedCopy<
   T extends FoodResult &
-    Partial<Pick<FoodDetail, "servingGrams" | "servingLabel">>,
+    Partial<Pick<FoodDetail, "servingGrams" | "servingLabel" | "nutrients">>,
 >(food: T, corrected: CustomFood): T {
   const per100 =
     corrected.servingGrams && corrected.servingGrams > 0
       ? 100 / corrected.servingGrams
       : 1
+  const macros = {
+    energy: corrected.nutrientsPerServing.calories * per100,
+    protein: corrected.nutrientsPerServing.protein * per100,
+    carbs: corrected.nutrientsPerServing.carbs * per100,
+    fat: corrected.nutrientsPerServing.fat * per100,
+  }
+  const nutrients = food.nutrients?.map((row) =>
+    Object.hasOwn(macros, row.key)
+      ? { ...row, per100g: macros[row.key as keyof typeof macros] }
+      : row,
+  )
   return {
     ...food,
+    // Detail cards prefer nutrient rows over compact macro fields. Keep both
+    // representations in sync so a correction is also used by the default
+    // serving card and log path.
+    ...(nutrients ? { nutrients } : {}),
     name: corrected.name,
     brand: corrected.brand ?? food.brand,
     serving: corrected.servingLabel || food.serving,
@@ -425,11 +444,10 @@ export function applyCorrectedCopy<
     // here would scale the user's numbers by the ratio between the two.
     servingGrams: corrected.servingGrams ?? food.servingGrams,
     servingLabel: corrected.servingLabel || food.servingLabel,
-    calories: Math.round(corrected.nutrientsPerServing.calories * per100),
-    protein:
-      Math.round(corrected.nutrientsPerServing.protein * per100 * 10) / 10,
-    carbs: Math.round(corrected.nutrientsPerServing.carbs * per100 * 10) / 10,
-    fat: Math.round(corrected.nutrientsPerServing.fat * per100 * 10) / 10,
+    calories: Math.round(macros.energy),
+    protein: Math.round(macros.protein * 10) / 10,
+    carbs: Math.round(macros.carbs * 10) / 10,
+    fat: Math.round(macros.fat * 10) / 10,
     // A generic spread cannot preserve T on its own; every field above is one
     // T already declares (serving fields optionally), so the result is T.
   } as T
@@ -439,7 +457,7 @@ export function applyCorrectedCopy<
 
 export function scaleCustomFoodNutrients(
   nutrients: CustomFoodNutrients,
-  servings: number
+  servings: number,
 ): CustomFoodNutrients {
   const factor = Number.isFinite(servings) && servings > 0 ? servings : 0
   const round = (value: number) => Math.round(value * 100) / 100
@@ -470,7 +488,7 @@ export function servingsLabel(servings: number, servingLabel: string) {
 /** Turns a saved custom food into a food log entry ready for `setDay`. */
 export function foodLogEntryFromCustomFood(
   food: CustomFood,
-  options: { meal: MealType; servings?: number; loggedAt?: string }
+  options: { meal: MealType; servings?: number; loggedAt?: string },
 ): FoodLogEntry {
   const servings =
     options.servings && options.servings > 0 ? options.servings : 1
@@ -507,7 +525,7 @@ export function filterCustomFoods(foods: CustomFood[], query: string) {
   const needle = query.trim().toLowerCase()
   if (!needle) return foods
   return foods.filter((food) =>
-    `${food.name} ${food.brand ?? ""}`.toLowerCase().includes(needle)
+    `${food.name} ${food.brand ?? ""}`.toLowerCase().includes(needle),
   )
 }
 
@@ -522,7 +540,7 @@ export function filterCustomFoods(foods: CustomFood[], query: string) {
  */
 export function correctedCopyForBarcode(
   foods: CustomFood[],
-  barcode?: string | null
+  barcode?: string | null,
 ): CustomFood | null {
   const code = (barcode ?? "").trim()
   if (!code) return null

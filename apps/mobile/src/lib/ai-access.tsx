@@ -182,7 +182,20 @@ export function useAiFeatureGate() {
   }
 }
 
-function usageDeniedReason(usage: { isPro?: boolean | null; byok?: boolean | null; unlimited?: boolean | null; serverAiConfigured?: boolean | null; count?: number | null; limit?: number | null; remaining?: number | null } | null | undefined): string | null {
+function usageDeniedReason(
+  usage:
+    | {
+        isPro?: boolean | null
+        byok?: boolean | null
+        unlimited?: boolean | null
+        serverAiConfigured?: boolean | null
+        count?: number | null
+        limit?: number | null
+        remaining?: number | null
+      }
+    | null
+    | undefined,
+): string | null {
   if (!usage) return null
   if (usage.isPro === true) {
     if (usage.serverAiConfigured === false) {
@@ -197,5 +210,4 @@ function usageDeniedReason(usage: { isPro?: boolean | null; byok?: boolean | nul
     return `You've used all ${usage.limit ?? 10} free AI requests this month.`
   }
   return null
-}
 }
