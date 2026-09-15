@@ -82,6 +82,11 @@ export function useAiFeatureGate() {
         used: usage?.count ?? 0,
         limit: usage?.limit ?? 0,
       })
+      // The gate itself only knows that the allowance is exhausted or missing; the
+      // real reason a Pro user hits the paywall is usually server-side (entitlement
+      // not resolved, AI not configured, provider down). The modal is the one place
+      // that can say so plainly, so pass the usage response along as the server's
+      // word on why access was denied.
       setModalOpen(true)
       return false
     },
@@ -108,7 +113,7 @@ export function useAiFeatureGate() {
         open={modalOpen}
         busy={paywallBusy}
         price={billing.monthlyPrice ?? "Monthly"}
-        error={billing.error}
+        error={billing.error ?? usageDeniedReason(usage)}
         freeLimit={usage && !usage.isPro ? usage.limit : null}
         proLimit={usage?.proLimit ?? null}
         usedCount={usage?.count ?? null}
@@ -175,4 +180,34 @@ export function useAiFeatureGate() {
     showAiPaywall,
     aiAccessModal,
   }
+}
+
+function usageDeniedReason(
+  usage:
+    | {
+        isPro?: boolean | null
+        byok?: boolean | null
+        unlimited?: boolean | null
+        serverAiConfigured?: boolean | null
+        count?: number | null
+        limit?: number | null
+        remaining?: number | null
+      }
+    | null
+    | undefined,
+): string | null {
+  if (!usage) return null
+  if (usage.isPro === true) {
+    if (usage.serverAiConfigured === false) {
+      return "AI isn't configured on this server yet."
+    }
+    if (usage.byok !== true && usage.unlimited !== true) {
+      return `Your account has Pro, but AI still isn't available on this server (you've used ${usage.count ?? 0} of ${usage.limit ?? 0} this month).`
+    }
+    return "AI is configured, but the monthly usage couldn't be read."
+  }
+  if (usage.remaining !== undefined && usage.remaining <= 0) {
+    return `You've used all ${usage.limit ?? 10} free AI requests this month.`
+  }
+  return null
 }

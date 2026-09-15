@@ -27,6 +27,7 @@ export function AiAccessRequiredModal({
   freeLimit,
   proLimit,
   usedCount,
+  error,
   onClose,
 }: AiAccessRequiredModalProps) {
   if (!open) return null
@@ -62,18 +63,27 @@ export function AiAccessRequiredModal({
         <h2 id="ai-access-required-title" className="ai-hint-title">
           {spentAllowance
             ? "That’s your free AI for this month"
-            : "AI features need Pro access"}
+            : "AI features are not available right now"}
         </h2>
 
         <p className="ai-hint-body">
           {spentAllowance
             ? `You’ve used all ${free} free AI requests. They come back on the 1st — Pro raises the limit to ${pro} a month.`
-            : "This build has no way to sell subscriptions, which is either a bug or a feature depending on who deployed it."}
+            : error
+              ? `AI couldn’t be reached on this server: ${error}`
+              : "This build has no way to sell subscriptions, which is either a bug or a feature depending on who deployed it."}
         </p>
-        <p className="ai-hint-note">
-          If you run this server, set BILLING_COMP_ALL_USERS=true and every
-          account gets Pro. That is the whole checkout flow.
-        </p>
+        {error ? (
+          <p className="ai-hint-note">
+            If your account already has Pro, this is usually a server-side
+            entitlement or AI-configuration issue, not a limit you have hit.
+          </p>
+        ) : (
+          <p className="ai-hint-note">
+            If you run this server, set BILLING_COMP_ALL_USERS=true and every
+            account gets Pro. That is the whole checkout flow.
+          </p>
+        )}
       </div>
     </div>
   )

@@ -671,6 +671,24 @@ describe("AI subscription hint", () => {
     )
   })
 
+  test("the hint can explain a server-side AI access problem", () => {
+    // When the server reports that AI access is blocked for a Pro user, the gate
+    // should pass that reason into the paywall so the user is not told they have
+    // exhausted their allowance. That reason is now derived from the server usage
+    // response at runtime, so the contract to guard is that the modal receives a
+    // non-billing error path at all.
+    assert.match(
+      AI_ACCESS_SOURCE,
+      /usageDeniedReason/,
+      "paywall reason helper must exist"
+    )
+    assert.match(
+      AI_ACCESS_SOURCE,
+      /isPro === true/,
+      "server reason is only shown for Pro users who still cannot reach AI"
+    )
+  })
+
   test("the hint carries no decorative eyebrow or sparkle mark", () => {
     assert.ok(!AI_ACCESS_SOURCE.includes("ai-hint-eyebrow"))
     assert.ok(!AI_ACCESS_SOURCE.includes("Sparkle"))

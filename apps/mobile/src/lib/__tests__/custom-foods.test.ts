@@ -1,9 +1,18 @@
 import { describe, expect, test } from "bun:test"
+import type { FoodDetail, FoodResult } from "@repo/models"
+import { foodCardMacros } from "@/lib/food-search-nutrition"
 import {
+  applyCorrectedCopy,
   caloriesFromMacros,
+  correctedCopyForBarcode,
+  customFoodDraftBasisGrams,
   customFoodDraftFromDatabaseFood,
   customFoodDraftFromFood,
+  customFoodDraftFromFoodResult,
+  customFoodDraftInBasis,
+  customFoodFromDraft,
   customFoodNutrientsFromDraft,
+  customFoodSaveArgs,
   emptyCustomFoodDraft,
   filterCustomFoods,
   foodLogEntryFromCustomFood,
@@ -64,7 +73,9 @@ describe("parsing", () => {
 
   test("only supplied micronutrients survive into the saved profile", () => {
     const nutrients = customFoodNutrientsFromDraft(
-      draftWith({ nutrients: { sodium: "60" } as CustomFoodDraft["nutrients"] })
+      draftWith({
+        nutrients: { sodium: "60" } as CustomFoodDraft["nutrients"],
+      }),
     )
     expect(nutrients.sodium).toBe(60)
     expect("iron" in nutrients).toBe(false)
@@ -78,7 +89,7 @@ describe("validation", () => {
 
   test("name and serving label are required", () => {
     const result = validateCustomFoodDraft(
-      draftWith({ name: " ", servingLabel: "" })
+      draftWith({ name: " ", servingLabel: "" }),
     )
     expect(result.valid).toBe(false)
     expect(result.errors.name).toBeDefined()
@@ -93,14 +104,14 @@ describe("validation", () => {
           calories: "",
           protein: "24",
         },
-      })
+      }),
     )
     expect(result.valid).toBe(true)
   })
 
   test("a food with no nutrition at all is rejected", () => {
     const result = validateCustomFoodDraft(
-      draftWith({ nutrients: emptyCustomFoodDraft().nutrients })
+      draftWith({ nutrients: emptyCustomFoodDraft().nutrients }),
     )
     expect(result.valid).toBe(false)
     expect(result.errors.calories).toBeDefined()
@@ -110,22 +121,22 @@ describe("validation", () => {
 describe("macro sanity check", () => {
   test("matching macros do not warn", () => {
     expect(
-      macroCalorieMismatch({ calories: 120, protein: 24, carbs: 3, fat: 1.5 })
+      macroCalorieMismatch({ calories: 120, protein: 24, carbs: 3, fat: 1.5 }),
     ).toBe(false)
   })
 
   test("a mistyped calorie count warns", () => {
     expect(
-      macroCalorieMismatch({ calories: 1200, protein: 24, carbs: 3, fat: 1.5 })
+      macroCalorieMismatch({ calories: 1200, protein: 24, carbs: 3, fat: 1.5 }),
     ).toBe(true)
     expect(
-      caloriesFromMacros({ calories: 0, protein: 24, carbs: 3, fat: 1.5 })
+      caloriesFromMacros({ calories: 0, protein: 24, carbs: 3, fat: 1.5 }),
     ).toBe(122)
   })
 
   test("no warning when calories were left blank", () => {
     expect(
-      macroCalorieMismatch({ calories: 0, protein: 24, carbs: 3, fat: 1.5 })
+      macroCalorieMismatch({ calories: 0, protein: 24, carbs: 3, fat: 1.5 }),
     ).toBe(false)
   })
 })
@@ -161,7 +172,7 @@ describe("scaling and logging", () => {
 
   test("servings default to one", () => {
     expect(foodLogEntryFromCustomFood(shake, { meal: "snack" }).calories).toBe(
-      120
+      120,
     )
     expect(servingsLabel(1, "1 scoop")).toBe("1 × 1 scoop")
   })
@@ -170,7 +181,7 @@ describe("scaling and logging", () => {
 describe("editing and searching", () => {
   test("a saved food round-trips through the editor draft", () => {
     const nutrients = customFoodNutrientsFromDraft(
-      customFoodDraftFromFood(shake)
+      customFoodDraftFromFood(shake),
     )
     expect(nutrients).toEqual(shake.nutrientsPerServing)
   })
@@ -245,3 +256,358 @@ describe("customFoodDraftFromDatabaseFood", () => {
     expect(validateCustomFoodDraft(draft).valid).toBe(true)
   })
 })
+
+describe("corrections", () => {
+  test("a typed serving weight is read tolerantly", () => {
+    // "85 g" straight off the packet is not a number, and NaN is not a number
+    // Convex accepts — the save used to fail its validator instead of reading
+    // the field.
+    const draft = {
+      ...emptyCustomFoodDraft(),
+      name: "Meatballs",
+      servingLabel: "3 meatballs",
+    }
+    const grams = (raw: string) =>
+      customFoodSaveArgs({ ...draft, servingGrams: raw }).servingGrams
+
+    expect(grams("85 g")).toBe(85)
+    expect(grams("85g")).toBe(85)
+    expect(grams("85,5")).toBe(85.5)
+    expect(grams(" 85.5 ")).toBe(85.5)
+    expect(grams("")).toBeUndefined()
+    expect(grams("   ")).toBeUndefined()
+    expect(grams("n/a")).toBeUndefined()
+    expect(grams("0")).toBeUndefined()
+    expect(grams("-5")).toBeUndefined()
+  })
+
+  test("the row that is saved and the row that is shown are one description", () => {
+    const draft = {
+      ...emptyCustomFoodDraft(),
+      name: "  Meatballs  ",
+      brand: " Cooked Perfect ",
+      servingLabel: " 3 meatballs ",
+      servingGrams: "85",
+      barcode: "0856772001122",
+    }
+    draft.nutrients = { ...draft.nutrients, calories: "240" }
+
+    expect(customFoodFromDraft(draft, "abc")).toMatchObject({
+      id: "abc",
+      name: "Meatballs",
+      brand: "Cooked Perfect",
+      servingLabel: "3 meatballs",
+      servingGrams: 85,
+      barcode: "0856772001122",
+      nutrientsPerServing: { calories: 240 },
+    })
+    // An empty brand is absent, not an empty string on the row.
+    expect(
+      customFoodFromDraft({ ...draft, brand: "   " }).brand,
+    ).toBeUndefined()
+  })
+
+  test("a correction overlays the catalogue result on its per-100 g basis", () => {
+    // Every card scales from per-100 g, so the user's per-serving numbers are
+    // rebased on the way in — the same trip the catalogue's numbers make on the
+    // way out — and the correction's own serving becomes the card's serving.
+    const result: FoodResult &
+      Pick<FoodDetail, "servingGrams" | "servingLabel"> = {
+      id: "62233",
+      source: "openfoodfacts",
+      code: "62233",
+      name: "Italian Style Meatballs",
+      brand: "Cooked Perfect",
+      serving: "85 g",
+      servingGrams: 85,
+      servingLabel: "85 g",
+      calories: 282,
+      protein: 13,
+      carbs: 5,
+      fat: 19,
+      openFoodFacts: { code: "62233" },
+    }
+    const draft = {
+      ...emptyCustomFoodDraft(),
+      name: "Italian Style Meatballs",
+      servingLabel: "3 meatballs",
+      servingGrams: "85",
+    }
+    draft.nutrients = {
+      ...draft.nutrients,
+      calories: "240",
+      protein: "13",
+      carbs: "5",
+      fat: "19",
+    }
+
+    const corrected = applyCorrectedCopy(result, customFoodFromDraft(draft))
+
+    expect(corrected.servingLabel).toBe("3 meatballs")
+    expect(corrected.serving).toBe("3 meatballs")
+    expect(corrected.servingGrams).toBe(85)
+    expect(corrected.calories).toBe(282)
+    expect(corrected.protein).toBe(15.3)
+    expect(corrected.carbs).toBe(5.9)
+    expect(corrected.fat).toBe(22.4)
+    // The result the user was looking at keeps every other field.
+    expect(corrected.imageUrl).toBeUndefined()
+    expect(corrected.brand).toBe("Cooked Perfect")
+  })
+
+  test("a correction replaces detailed macro rows used by serving cards", () => {
+    const detail: FoodDetail = {
+      id: "bar",
+      source: "openfoodfacts",
+      code: "bar",
+      name: "Bar",
+      serving: "1 bar (40 g)",
+      servingGrams: 40,
+      servingLabel: "1 bar (40 g)",
+      calories: 450,
+      protein: 8,
+      carbs: 60,
+      fat: 20,
+      openFoodFacts: { code: "bar" },
+      nutrients: [
+        { key: "energy", name: "Calories", unit: "kcal", per100g: 450 },
+        { key: "protein", name: "Protein", unit: "g", per100g: 8 },
+        { key: "carbs", name: "Carbs", unit: "g", per100g: 60 },
+        { key: "fat", name: "Fat", unit: "g", per100g: 20 },
+        { key: "fiber", name: "Fiber", unit: "g", per100g: 3 },
+      ],
+      extraNutrients: [],
+    }
+    const corrected = applyCorrectedCopy(detail, {
+      name: "Corrected bar",
+      servingLabel: "1 bar (40 g)",
+      servingGrams: 40,
+      nutrientsPerServing: {
+        calories: 100,
+        protein: 4,
+        carbs: 20,
+        fat: 0,
+      },
+    })
+
+    expect(foodCardMacros(corrected)).toMatchObject({
+      grams: 40,
+      calories: 100,
+      protein: 4,
+      carbs: 20,
+      fat: 0,
+    })
+    expect(
+      corrected.nutrients.find((row) => row.key === "fiber")?.per100g,
+    ).toBe(3)
+    expect(detail.nutrients[0].per100g).toBe(450)
+  })
+
+  test("a correction updates the copy the barcode already has", () => {
+    // Insert-only corrections left a row per attempt, and a pinned one
+    // outranked every later correction because pinned foods sort first.
+    const foods: CustomFood[] = [
+      food("other", "999"),
+      food("mit", "0856772001122"),
+      food("mit-old", " 0856772001122 "),
+    ]
+    expect(correctedCopyForBarcode(foods, "0856772001122")?.id).toBe("mit")
+    expect(correctedCopyForBarcode(foods, " 0856772001122 ")?.id).toBe("mit")
+    expect(correctedCopyForBarcode(foods, null)).toBeNull()
+    expect(correctedCopyForBarcode(foods, "   ")).toBeNull()
+    expect(correctedCopyForBarcode(foods, "404")).toBeNull()
+  })
+})
+
+describe("nutrition basis", () => {
+  /** Barilla's two-column packet: per 2 oz (56 g), and per 3.5 oz (100 g). */
+  function twoColumnDraft(): CustomFoodDraft {
+    const draft = {
+      ...emptyCustomFoodDraft(),
+      name: "Spaghetti Grain & Legume Pasta",
+      servingLabel: "2 oz (56 g)",
+      servingGrams: "56",
+    }
+    return {
+      ...draft,
+      nutrients: {
+        ...draft.nutrients,
+        calories: "190",
+        protein: "10",
+        carbs: "38",
+        fat: "1",
+        iron: "2",
+      },
+    }
+  }
+
+  test("switching basis re-scales the numbers instead of reinterpreting them", () => {
+    const per100 = customFoodDraftInBasis(twoColumnDraft(), "100g")
+
+    expect(per100.basis).toBe("100g")
+    expect(per100.nutrients.calories).toBe("339.29")
+    expect(per100.nutrients.protein).toBe("17.86")
+    expect(per100.nutrients.carbs).toBe("67.86")
+    expect(per100.nutrients.fat).toBe("1.79")
+    expect(per100.nutrients.iron).toBe("3.57")
+    // The packet's serving is left exactly as typed, which is the point: nothing
+    // has to be retyped to work in the packet's other column.
+    expect(per100.servingLabel).toBe("2 oz (56 g)")
+    expect(per100.servingGrams).toBe("56")
+    expect(customFoodDraftBasisGrams(per100)).toBe(100)
+    expect(customFoodDraftBasisGrams(twoColumnDraft())).toBe(56)
+  })
+
+  test("a round trip returns the numbers that were typed", () => {
+    const back = customFoodDraftInBasis(
+      customFoodDraftInBasis(twoColumnDraft(), "100g"),
+      "serving",
+    )
+
+    expect(back.basis).toBe("serving")
+    expect(back.nutrients.calories).toBe("190")
+    expect(back.nutrients.protein).toBe("10")
+    expect(back.nutrients.carbs).toBe("38")
+    expect(back.nutrients.fat).toBe("1")
+    expect(back.nutrients.iron).toBe("2")
+
+    // And it settles: toggling again lands on the same numbers rather than
+    // drifting a decimal each way.
+    const again = customFoodDraftInBasis(
+      customFoodDraftInBasis(back, "100g"),
+      "serving",
+    )
+    expect(again.nutrients).toEqual(back.nutrients)
+  })
+
+  test("an empty field is not a number in either basis", () => {
+    const draft = {
+      ...twoColumnDraft(),
+      nutrients: emptyCustomFoodDraft().nutrients,
+    }
+    const per100 = customFoodDraftInBasis(draft, "100g")
+    expect(per100.nutrients.calories).toBe("")
+    expect(per100.nutrients.iron).toBe("")
+  })
+
+  test("the basis that is already selected is left alone", () => {
+    const draft = twoColumnDraft()
+    expect(customFoodDraftInBasis(draft, "serving")).toBe(draft)
+  })
+
+  test("with no weight to scale from, the numbers carry over as typed", () => {
+    // The contract the prefill already has for a row that declares no serving:
+    // a catalogue "1 Can" has no weight to convert, so nothing is converted.
+    const draft = {
+      ...emptyCustomFoodDraft(),
+      name: "Coca-Cola Zero",
+      servingLabel: "1 Can",
+    }
+    draft.nutrients = { ...draft.nutrients, calories: "0.3" }
+
+    expect(customFoodDraftBasisGrams(draft)).toBeUndefined()
+    expect(customFoodDraftInBasis(draft, "100g").nutrients.calories).toBe("0.3")
+  })
+
+  test("the per-100 g basis keeps the packet's serving and converts onto it", () => {
+    const typed = customFoodDraftInBasis(twoColumnDraft(), "100g")
+    const saved = customFoodSaveArgs({
+      ...typed,
+      nutrients: {
+        ...typed.nutrients,
+        calories: "340",
+        protein: "17",
+        carbs: "68",
+        fat: "2",
+      },
+    })
+
+    // Stored against the packet's own portion, at two decimals, so the per-100 g
+    // column comes back out exactly as the label printed it.
+    expect(saved.servingLabel).toBe("2 oz (56 g)")
+    expect(saved.servingGrams).toBe(56)
+    expect(saved.nutrientsPerServing).toMatchObject({
+      calories: 190.4,
+      protein: 9.52,
+      carbs: 38.08,
+      fat: 1.12,
+      // Micronutrients make the same trip as the macros.
+      iron: 2,
+    })
+  })
+
+  test("a serving named without a weight gets the per-100 g copy instead", () => {
+    const typed = {
+      ...customFoodDraftInBasis(twoColumnDraft(), "100g"),
+      servingLabel: "1 Can",
+      servingGrams: "",
+    }
+    const saved = customFoodSaveArgs(typed)
+
+    // Calling a can 100 g because the numbers are on that basis would be a
+    // weight the catalogue never gave us, so the copy says what it is.
+    expect(saved.servingLabel).toBe("100 g")
+    expect(saved.servingGrams).toBe(100)
+    expect(saved.nutrientsPerServing.calories).toBe(339.29)
+  })
+
+  test("the serving basis saves exactly what it always saved", () => {
+    const saved = customFoodSaveArgs(twoColumnDraft())
+
+    expect(saved.servingLabel).toBe("2 oz (56 g)")
+    expect(saved.servingGrams).toBe(56)
+    expect(saved.nutrientsPerServing.calories).toBe(190)
+  })
+
+  test("a row with no serving weight opens on the per-100 g basis", () => {
+    // `foodCardMacros` says per 100 g and means it for these rows, so the sheet
+    // opens on the column the numbers are actually in.
+    const unweighted = customFoodDraftFromDatabaseFood({
+      name: "Coca-Cola Zero",
+      servingLabel: "1 Can",
+      servingGrams: null,
+      calories: 0.3,
+      protein: 0,
+      carbs: 0,
+      fat: 0,
+    })
+    expect(unweighted.basis).toBe("100g")
+    expect(unweighted.servingLabel).toBe("1 Can")
+
+    const weighed = customFoodDraftFromDatabaseFood({
+      name: "Spaghetti",
+      servingLabel: "2 oz (56 g)",
+      servingGrams: 56,
+      calories: 339,
+      protein: 17.9,
+      carbs: 67.9,
+      fat: 1.79,
+    })
+    expect(weighed.basis).toBe("serving")
+    expect(weighed.nutrients.calories).toBe("190")
+
+    // A scan result carries the card's own serving text, and the copy is still
+    // keyed to the 100 g its numbers are on.
+    const scanned = customFoodDraftFromFoodResult({
+      name: "Mystery Bar",
+      serving: "1 bar",
+      calories: 400,
+      protein: 5,
+      carbs: 40,
+      fat: 20,
+    })
+    expect(scanned.servingLabel).toBe("1 bar")
+    expect(scanned.servingGrams).toBe("100")
+    expect(scanned.nutrients.calories).toBe("400")
+  })
+})
+
+function food(id: string, barcode?: string): CustomFood {
+  return {
+    id,
+    name: "Italian Style Meatballs",
+    servingLabel: "1 serving (85 g)",
+    ...(barcode ? { barcode } : {}),
+    nutrientsPerServing: { calories: 240, protein: 13, carbs: 5, fat: 19 },
+  }
+}

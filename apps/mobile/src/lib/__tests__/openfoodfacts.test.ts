@@ -184,7 +184,9 @@ describe("Datasource food client", () => {
       brand: "Acme",
       servingGrams: 250,
       // Not "330 g": that is the packet, and the packet is not a serving.
-      servingLabel: "250 g",
+      // The catalogue named no portion here, so the serving is called one and
+      // the weight it stands for is shown beside it.
+      servingLabel: "1 serving (250 g)",
       nutriscoreGrade: "a",
       novaGroup: 2,
     })
@@ -309,5 +311,64 @@ describe("Datasource food client", () => {
 
     expect(result!.servingGrams).toBe(42.5)
     expect(result!.servingLabel).toBe("1 bowl 42,5 g")
+  })
+
+  test("an unnamed serving reads as a serving, not as its own weight", async () => {
+    // The datasource fills `serving_size` in from the weight when the catalogue
+    // never wrote a portion down, and its own rows hold that bare weight too.
+    // Printing it verbatim is what put "85 g" in the diary where the label's
+    // serving belonged.
+    actionMock.mockResolvedValueOnce({
+      product: {
+        code: "62233",
+        product_name: "Italian Style Meatballs",
+        brands: "Cooked Perfect",
+        serving_size: "85 g",
+        serving_quantity: 85,
+        nutriments: { "energy-kcal_100g": 282 },
+      },
+    })
+
+    const result = await getFoodByBarcode("62233")
+
+    expect(result!.servingGrams).toBe(85)
+    expect(result!.servingLabel).toBe("1 serving (85 g)")
+    expect(result!.serving).toBe("1 serving (85 g)")
+  })
+
+  test("a serving the label names keeps its own words", async () => {
+    actionMock.mockResolvedValueOnce({
+      product: {
+        code: "622080",
+        product_name: "Homestyle Meatballs",
+        brands: "Cooked Perfect",
+        serving_size: "6 meatballs (85 g)",
+        serving_quantity: 85,
+        nutriments: { "energy-kcal_100g": 282 },
+      },
+    })
+
+    const result = await getFoodByBarcode("622080")
+
+    expect(result!.servingLabel).toBe("6 meatballs (85 g)")
+    expect(result!.servingGrams).toBe(85)
+  })
+
+  test("the generic 100 g basis stays 100 g", async () => {
+    // A 100 g basis is the catalogue admitting it knows no portion; calling
+    // that "1 serving" would invent one.
+    actionMock.mockResolvedValueOnce({
+      product: {
+        code: "100g",
+        product_name: "Mystery mix",
+        serving_size: "100 g",
+        serving_quantity: 100,
+        nutriments: { "energy-kcal_100g": 400 },
+      },
+    })
+
+    const result = await getFoodByBarcode("100g")
+
+    expect(result!.servingLabel).toBe("100 g")
   })
 })
