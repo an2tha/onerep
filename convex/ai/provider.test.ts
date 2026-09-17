@@ -142,7 +142,7 @@ describe("AI prompt bundle", () => {
 
 
 test("only disclosed AI recipients can be selected", () => {
-  expect(disclosedProvider("openai/gpt-5.6-luna")).toBe("openai");
+  expect(disclosedProvider("openai/gpt-5.6-luna")).toBe("azure");
   expect(disclosedProvider("cognitivecomputations/dolphin-mistral-24b-venice-edition")).toBe("venice");
   expect(disclosedProvider("unknown/model")).toBeNull();
   process.env.OPENROUTER_API_KEY = "test-key";
@@ -169,7 +169,7 @@ test("outbound AI requests enforce the disclosed recipient and privacy controls"
     await requestOpenAiJson({ system: "test", user: "test", model: "openai/gpt-5.6-luna", maxTokens: 10 });
     expect(requests).toHaveLength(1);
     expect(requests[0]?.provider).toEqual({
-      only: ["openai"], allow_fallbacks: false, data_collection: "deny", zdr: true,
+      only: ["azure"], allow_fallbacks: false, data_collection: "deny", zdr: true,
     });
   } finally {
     globalThis.fetch = previousFetch;
