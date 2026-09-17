@@ -32,7 +32,7 @@ describe("AI data sharing consent", () => {
         .withIndex("by_userId", (q) => q.eq("userId", userId))
         .unique();
       await ctx.db.patch(row!._id, {
-        aiSharingConsent: { granted: true, version: 0, updatedAt: Date.now() },
+        aiSharingConsent: { granted: true, version: 1, updatedAt: Date.now() },
       });
     });
     await expect(consume()).rejects.toThrow("Allow AI data sharing");

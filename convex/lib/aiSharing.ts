@@ -1,7 +1,7 @@
 /** Increment when recipients or the scope of sharing changes; never infer consent. */
-export const AI_SHARING_VERSION = 1;
+export const AI_SHARING_VERSION = 2;
 export const AI_SHARING_RECIPIENTS =
-  "OpenRouter, which sends requests to OpenAI (Default model) or Venice (Uncensored model).";
+  "OpenRouter, which sends requests to Microsoft Azure (hosting the Default OpenAI model) or Venice (Uncensored model).";
 export const AI_SHARING_DATA =
   "Your messages and conversation history; photos, images, or imported text you submit; and relevant profile details (including age, height, dietary preferences, and injuries or limitations you enter), goals, food, workout, body measurement, sleep, recovery, and connected health data. Form analysis may include selected video frames and movement measurements.";
 export const AI_SHARING_PURPOSE =

@@ -167,7 +167,9 @@ export type AgentResult<T> = {
 };
 
 export function disclosedProvider(model: string): string | null {
-  if (model.startsWith("openai/")) return "openai";
+  // OpenRouter provider slugs identify the host, not the model author.
+  // Azure supplies the ZDR endpoint for OpenAI models.
+  if (model.startsWith("openai/")) return "azure";
   if (model === "cognitivecomputations/dolphin-mistral-24b-venice-edition")
     return "venice";
   return null;

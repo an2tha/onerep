@@ -50,6 +50,7 @@ import type * as feedback from "../feedback.js";
 import type * as food_datasource from "../food/datasource.js";
 import type * as hikingTrails from "../hikingTrails.js";
 import type * as http from "../http.js";
+import type * as lib_aiSharing from "../lib/aiSharing.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_authEmail from "../lib/authEmail.js";
 import type * as lib_bodyMeasurements from "../lib/bodyMeasurements.js";
@@ -199,6 +200,7 @@ declare const fullApi: ApiFromModules<{
   "food/datasource": typeof food_datasource;
   hikingTrails: typeof hikingTrails;
   http: typeof http;
+  "lib/aiSharing": typeof lib_aiSharing;
   "lib/auth": typeof lib_auth;
   "lib/authEmail": typeof lib_authEmail;
   "lib/bodyMeasurements": typeof lib_bodyMeasurements;
