@@ -4134,20 +4134,12 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
 .rounded-t-\[28px\] {
   border-top-left-radius: var(--radius-sheet) !important;
   border-top-right-radius: var(--radius-sheet) !important;
-  border-bottom-right-radius: var(--radius-sheet) !important;
-  border-bottom-left-radius: var(--radius-sheet) !important;
 }
 
 .rounded-xl,
 .rounded-\[15px\],
 .rounded-\[16px\],
 .rounded-\[17px\] {
-  border-radius: var(--radius-control) !important;
-}
-
-.rounded-full[class*="px-"],
-.rounded-full[class*="pr-"],
-.rounded-full[class*="pl-"] {
   border-radius: var(--radius-control) !important;
 }
 

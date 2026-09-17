@@ -60,6 +60,19 @@
 
         <service android:name=".EnduranceLocationService" android:exported="false" android:foregroundServiceType="location" android:stopWithTask="false" />
 
+        <!-- Home and supported lock-screen camera launcher. -->
+        <receiver
+            android:name=".SnapCameraWidgetReceiver"
+            android:exported="false"
+            android:label="@string/widget_snap_camera_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_snap_camera" />
+        </receiver>
+
         <!-- Home-screen widgets. -->
         <receiver
             android:name=".QuickActionsWidgetReceiver"

@@ -1314,7 +1314,9 @@ if (Capacitor.getPlatform() === "android") {
 // the app via onerep://. Without an explicit listener the query string — which
 // is what carries liveAction=complete|skipRest — is only delivered by accident.
 if (Capacitor.isNativePlatform()) {
+  let receivedAppUrl = false
   void CapacitorApp.addListener("appUrlOpen", ({ url }) => {
+    receivedAppUrl = true
     // OAuth comes back through onerep://auth after a trip through the system
     // browser, carrying the one-time token that becomes the session. It has to
     // be redeemed before the router lands on /sso-callback, which waits on a
@@ -1334,6 +1336,17 @@ if (Capacitor.isNativePlatform()) {
     // read it.
     const samePath = router.state.location.pathname === path.split("?")[0]
     void router.navigate(path, samePath ? { replace: true } : undefined)
+  })
+
+  // Android's initial activity intent is exposed through getLaunchUrl, whereas
+  // appUrlOpen handles subsequent intents. Avoid replaying a launch URL if a
+  // newer (or retained iOS) event has already arrived.
+  void CapacitorApp.getLaunchUrl().then((launch) => {
+    if (receivedAppUrl || !launch?.url) return
+    const path = deepLinkToPath(launch.url)
+    if (path) void router.navigate(path, { replace: true })
+  }).catch((error: unknown) => {
+    console.warn("Unable to read app launch URL", error)
   })
 }
 
