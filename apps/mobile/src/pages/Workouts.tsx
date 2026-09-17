@@ -617,7 +617,7 @@ function MuscleVolumeCard({ muscleVolume }: { muscleVolume: MuscleSets[] }) {
   )
 }
 
-export default function Workouts() {
+export default function Workouts({ embedded = false }: { embedded?: boolean }) {
   const navigate = useSmoothNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const trainingHeaderRef = useTourAnchor("training-header")
@@ -1351,10 +1351,10 @@ export default function Workouts() {
   return (
     <div
       className={cn(
-        "desktop-canvas min-h-svh bg-background lg:pr-8 lg:pl-72",
+        embedded ? "training-embedded" : "desktop-canvas min-h-svh bg-background lg:pr-8 lg:pl-72",
         // The wash starts at the very top of the page so the title row sits
         // inside the same field as the dials, and it deepens as the week fills.
-        isToday && "app-hero"
+        isToday && !embedded && "app-hero"
       )}
       style={
         isToday
@@ -1365,12 +1365,12 @@ export default function Workouts() {
           : undefined
       }
     >
-      {isToday && <ReactiveOrbField className="training-hero-wash" />}
-      <main className="app-page">
+      {isToday && !embedded && <ReactiveOrbField className="training-hero-wash" />}
+      <div className={embedded ? "" : "app-page"}>
         <header className="app-header" ref={trainingHeaderRef}>
-          <div className="min-w-0">
+          {!embedded && <div className="min-w-0">
             <h1 className="app-title">Training</h1>
-          </div>
+          </div>}
           <div className="ml-auto flex items-center gap-1">
             <DateSelectorButton
               onInteract={hapticSelection}
@@ -2175,7 +2175,7 @@ export default function Workouts() {
             <FormCoachPinnedCards surface="workouts" />
           </>
         )}
-      </main>
+      </div>
 
       {/* ── Drag ghost ──────────────────────────────────────────────────── */}
       {hasMoved && ghostPreset && GhostIcon && drag && (

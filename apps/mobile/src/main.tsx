@@ -50,9 +50,8 @@ import Login from "./pages/Login.tsx"
 import ResetPassword from "./pages/ResetPassword.tsx"
 import VerifyEmailRequired from "./pages/VerifyEmailRequired.tsx"
 import OAuthConsent from "./pages/OAuthConsent.tsx"
-import Workouts from "./pages/Workouts.tsx"
+import Training, { LegacyEnduranceRedirect } from "./pages/Training.tsx"
 import HikingTrails, { SharedHikingTrail } from "./pages/HikingTrails.tsx"
-import Endurance from "./pages/Endurance.tsx"
 import ActiveEnduranceWorkout from "./pages/ActiveEnduranceWorkout.tsx"
 import NewPreset from "./pages/NewPreset.tsx"
 import ActiveWorkout from "./pages/ActiveWorkout.tsx"
@@ -801,7 +800,7 @@ const router = createBrowserRouter([
         path: "/workouts",
         element: (
           <AuthGuard>
-            <Workouts />
+            <Training />
           </AuthGuard>
         ),
       },
@@ -810,7 +809,7 @@ const router = createBrowserRouter([
         element: (
           <AuthGuard>
             <ErrorBoundary label="Endurance">
-              <Endurance />
+              <LegacyEnduranceRedirect />
             </ErrorBoundary>
           </AuthGuard>
         ),

@@ -10,7 +10,6 @@ import { useLocation } from "react-router"
 import { useTranslation } from "react-i18next"
 import {
   Barbell,
-  Bicycle,
   ChartLine,
   ForkKnife,
   HeartbeatIcon,
@@ -69,7 +68,6 @@ const BASE_TABS: TabDef[] = [
   { path: "/", Icon: House, labelKey: "nav.today" },
   { path: "/nutrition", Icon: ForkKnife, labelKey: "nav.nutrition" },
   { path: "/workouts", Icon: Barbell, labelKey: "nav.training" },
-  { path: "/endurance", Icon: Bicycle, labelKey: "nav.endurance" },
   { path: "/progress", Icon: ChartLine, labelKey: "nav.progress" },
   { path: "/health", Icon: HeartbeatIcon, labelKey: "nav.health" },
   { path: "/coach", Icon: RocketLaunchIcon, labelKey: "nav.coach" },
@@ -91,7 +89,7 @@ function isNutritionPath(pathname: string) {
 }
 
 function isTrainingPath(pathname: string) {
-  return pathname === "/workouts" || pathname.startsWith("/workouts/")
+  return pathname === "/workouts" || pathname.startsWith("/workouts/") || pathname === "/endurance" || pathname.startsWith("/endurance/")
 }
 
 // The library lives inside Progress now, so a single exercise lights up the

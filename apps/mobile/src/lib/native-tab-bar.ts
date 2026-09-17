@@ -43,7 +43,6 @@ const BASE_NATIVE_TAB_ITEMS: NativeTabBarItem[] = [
   { id: "/", symbol: "house.fill", label: "Today" },
   { id: "/nutrition", symbol: "fork.knife", label: "Nutrition" },
   { id: "/workouts", symbol: "dumbbell.fill", label: "Training" },
-  { id: "/endurance", symbol: "bicycle", label: "Endurance" },
   { id: "/progress", symbol: "chart.bar.fill", label: "Progress" },
   { id: "/health", symbol: "heart.text.square.fill", label: "Health" },
   { id: "/coach", symbol: "sparkles", label: "Coach", prominent: true },

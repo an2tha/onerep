@@ -135,3 +135,297 @@
     }
   }
 }
+/* Unified food quick-log surface. The selector is deliberately tactile rather
+   than tab-like: its raised crown moves as one physical dial between tools. */
+.quick-food-log__dial {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  min-height: 4.25rem;
+  margin: 0 0.25rem 0.75rem;
+  padding: 0.3rem;
+  border: 1px solid color-mix(in srgb, var(--foreground) 12%, transparent);
+  border-radius: 1.25rem 1.25rem 0.9rem 0.9rem;
+  background: color-mix(in srgb, var(--background) 34%, transparent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--foreground) 10%, transparent),
+    0 14px 36px -28px rgb(0 0 0 / 0.55);
+  isolation: isolate;
+}
+
+.quick-food-log__dial-indicator {
+  position: absolute;
+  z-index: -1;
+  inset-block: 0.3rem;
+  inset-inline-start: 0.3rem;
+  width: calc((100% - 0.6rem) / 3);
+  border-radius: 1rem 1rem 0.7rem 0.7rem;
+  background: var(--foreground);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--background) 30%, transparent),
+    0 8px 20px -14px rgb(0 0 0 / 0.7);
+  transition: transform 360ms var(--motion-ease-out);
+}
+
+.quick-food-log__dial-option {
+  display: flex;
+  min-width: 0;
+  min-height: 3.6rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  border-radius: 0.85rem;
+  color: var(--muted-foreground);
+  font-size: 0.8125rem;
+  font-weight: 650;
+  transition: color 220ms var(--motion-ease-out);
+}
+
+.quick-food-log__dial-option[aria-checked="true"] {
+  color: var(--background);
+}
+
+.quick-food-log__stage {
+  min-height: 24rem;
+  flex: 1;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--foreground) 11%, transparent);
+  border-radius: 1.15rem;
+  background: color-mix(in srgb, var(--background) 38%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--foreground) 7%, transparent);
+}
+
+.quick-food-log__stage > div {
+  animation: quick-food-stage-in 280ms var(--motion-ease-out) both;
+}
+
+.quick-food-log__capture {
+  min-height: 18rem;
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--foreground) 5%, transparent),
+      transparent 52%
+    ),
+    color-mix(in srgb, var(--background) 20%, transparent);
+}
+
+.quick-food-log__capture-mark {
+  display: grid;
+  width: 4.25rem;
+  height: 4.25rem;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--foreground) 14%, transparent);
+  border-radius: 1.05rem;
+  background: color-mix(in srgb, var(--foreground) 8%, transparent);
+  color: var(--foreground);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--foreground) 10%, transparent);
+}
+
+.quick-food-log__action {
+  display: flex;
+  min-height: 3.25rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 0.85rem;
+  background: var(--foreground);
+  color: var(--background);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.quick-food-log__search {
+  display: flex;
+  min-height: 3.25rem;
+  align-items: center;
+  gap: 0.65rem;
+  padding-inline: 0.9rem;
+  border: 1px solid color-mix(in srgb, var(--foreground) 13%, transparent);
+  border-radius: 0.9rem;
+  background: color-mix(in srgb, var(--background) 48%, transparent);
+}
+
+.quick-food-log__search:focus-within {
+  border-color: color-mix(in srgb, var(--foreground) 34%, transparent);
+  outline: 2px solid color-mix(in srgb, var(--foreground) 14%, transparent);
+  outline-offset: 2px;
+}
+
+.quick-food-log__search input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--foreground);
+  font-size: 0.9375rem;
+}
+
+.quick-food-log__search input::placeholder {
+  color: var(--muted-foreground);
+}
+
+@keyframes quick-food-stage-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.4rem);
+    filter: blur(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@media (min-width: 768px) {
+  .quick-food-log__stage,
+  .quick-food-log__dial {
+    background: var(--background);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quick-food-log__dial-indicator {
+    transition: none;
+  }
+
+  .quick-food-log__stage > div {
+    animation: none;
+  }
+}
+.food-mode-dial {
+  position: relative;
+  flex-shrink: 0;
+  margin-bottom: 12px;
+}
+.food-mode-dial__control {
+  height: 132px;
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+  cursor: grab;
+  color: var(--foreground);
+  mask-image: linear-gradient(to right, transparent, black 12%, black 88%, transparent);
+}
+.food-mode-dial__control:active { cursor: grabbing; }
+.food-mode-dial__control svg { width: 100%; height: 100%; }
+.food-mode-dial__control:focus-visible { outline: 2px solid var(--foreground); outline-offset: -3px; border-radius: 12px; }
+.food-mode-dial__pointer {
+  position: absolute;
+  left: calc(50% - 2px);
+  top: 12px;
+  width: 4px;
+  height: 16px;
+  border-radius: 2px;
+  background: var(--foreground);
+  z-index: 1;
+}
+.food-mode-dial__hint { margin-top: -15px; position: relative; text-align: center; pointer-events: none; color: var(--muted-foreground); font-size: 12px; }
+@media (prefers-reduced-motion: reduce) {
+  .food-mode-dial__control svg g { transition: none !important; }
+}
+.quick-food-camera {
+  position: relative;
+  min-height: 24rem;
+  height: 100%;
+  overflow: hidden;
+  background: #101010;
+  color: white;
+}
+.quick-food-camera video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.quick-food-camera > p {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+  color: #ddd;
+}
+.quick-food-camera__controls {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  padding: 20px;
+  background: linear-gradient(transparent, rgb(0 0 0 / .5));
+}
+.quick-food-camera__controls button {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgb(0 0 0 / .6);
+  color: white;
+}
+.quick-food-camera__controls button:active { transform: scale(.94); }
+.quick-food-camera__controls button:focus-visible { outline: 2px solid white; outline-offset: 3px; }
+.endurance-mode-dials {
+  width: min(86%, 620px);
+  margin-inline: auto;
+  isolation: isolate;
+}
+.endurance-mode-dials > .food-mode-dial { margin-bottom: 0; }
+.endurance-mode-dials__inner {
+  position: relative;
+  width: 84%;
+  margin: 0 auto;
+}
+.endurance-mode-dials__inner .food-mode-dial { margin-bottom: 0; }
+.endurance-mode-dials__inner .food-mode-dial__control {
+  height: 112px;
+}
+.endurance-mode-dials__inner .food-mode-dial__control circle {
+  fill: color-mix(in srgb, var(--background) 80%, transparent);
+}
+.endurance-mode-dials__inner .food-mode-dial__pointer { top: 8px; }
+
+.linear-mode-dial { position: relative; height: 58px; touch-action: pan-y; user-select: none; cursor: grab; color: var(--foreground); }
+.linear-mode-dial:active { cursor: grabbing; }
+.linear-mode-dial:focus-visible { outline: 2px solid var(--foreground); outline-offset: 2px; border-radius: 4px; }
+.linear-mode-dial__window { height: 100%; overflow: hidden; mask-image: linear-gradient(to right, transparent, black 15%, black 85%, transparent); }
+.linear-mode-dial__index { position: absolute; left: calc(50% - 1px); top: 0; height: 12px; width: 2px; background: var(--foreground); border-radius: 1px; z-index: 1; }
+.linear-mode-dial__track { position: relative; left: calc(50% - 48px); display: flex; width: max-content; transition: transform 320ms cubic-bezier(.2,.8,.2,1); }
+.linear-mode-dial__stop { position: relative; flex: 0 0 96px; width: 96px; padding-top: 23px; text-align: center; font-size: 14px; line-height: 20px; color: var(--muted-foreground); }
+.linear-mode-dial__stop[data-selected="true"] { color: var(--foreground); font-weight: 650; }
+.linear-mode-dial__ticks { position: absolute; left: 0; right: 0; top: 3px; display: flex; justify-content: space-around; height: 9px; }
+.linear-mode-dial__ticks i { width: 1px; height: 4px; background: currentColor; opacity: .35; }
+.linear-mode-dial__ticks i:nth-child(5) { height: 9px; opacity: .6; }
+.endurance-mode-dials__inner .linear-mode-dial { height: 50px; }
+.endurance-mode-dials__inner .linear-mode-dial__stop { font-size: 13px; }
+@media (prefers-reduced-motion: reduce) { .linear-mode-dial__track { transition: none; } }
+.linear-mode-dial--curved { height: 88px; }
+.linear-mode-dial--curved .linear-mode-dial__stop {
+  transform-origin: center top;
+  transition: transform 320ms cubic-bezier(.2,.8,.2,1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .linear-mode-dial--curved .linear-mode-dial__stop { transition: none; }
+}
+.training-family-dial { width: min(100%, 880px); margin-inline: auto; }
+.training-family-dial .linear-mode-dial { height: 110px; }
+.linear-mode-dial__arc { display: block; width: 100%; height: 110px; font-size: 14px; }
+.linear-mode-dial__rotor { transition: transform 320ms cubic-bezier(.2,.8,.2,1); }
+.training-family-dial .linear-mode-dial__arc { font-size: 18px; }
+@media (prefers-reduced-motion: reduce) { .linear-mode-dial__rotor { transition: none; } }
+.training-family-dial .linear-mode-dial__stop { font-size: 15px; }
+.training-embedded { position: relative; }
+.training-embedded > div > .app-header {
+  position: absolute;
+  top: -82px;
+  right: 0;
+  margin: 0;
+  padding: 0;
+  min-height: 44px;
+  z-index: 2;
+}

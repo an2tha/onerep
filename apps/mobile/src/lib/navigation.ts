@@ -36,7 +36,6 @@ export const PRIMARY_TAB_ORDER = [
   "/",
   "/nutrition",
   "/workouts",
-  "/endurance",
   "/progress",
   "/health",
   "/coach",

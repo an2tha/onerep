@@ -1,4 +1,6 @@
 import { EnduranceRouteMap } from "@/components/endurance-route-map"
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
+import { LinearModeDial } from "@/components/linear-mode-dial"
 import "@/components/detail-atmosphere.css"
 import {
   useEffect,
@@ -33,7 +35,6 @@ import {
   HoldToStartDial,
   TrainingStatDial,
 } from "@/components/training-hero-dials"
-import { hapticSelection } from "@/lib/haptics"
 import { cn } from "@/lib/utils"
 import { useSmoothNavigate } from "@/lib/navigation"
 import {
@@ -49,6 +50,22 @@ import {
 } from "@/lib/endurance-workout"
 
 type Sport = "run" | "ride" | "swim" | "hike" | "walk" | "trail_run" | "row"
+
+function DialContentFade({ identity, children, shifting = false }: { identity: string; children: ReactNode; shifting?: boolean }) {
+  const reducedMotion = useReducedMotion()
+  return (
+    <AnimatePresence mode="wait" initial={false}>
+      <motion.div
+        key={identity}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: shifting ? 0 : 1, transition: { duration: reducedMotion ? 0 : shifting ? 0.5 : 0.8, ease: "easeInOut" } }}
+        exit={{ opacity: 0, transition: { duration: reducedMotion ? 0 : 0.5, ease: "easeInOut" } }}
+      >
+        {children}
+      </motion.div>
+    </AnimatePresence>
+  )
+}
 type EnduranceGoal = {
   distanceMeters?: number
   durationMinutes?: number
@@ -176,12 +193,14 @@ function numberOrUndefined(value: string) {
   return Number.isFinite(number) && number > 0 ? number : undefined
 }
 
-export default function Endurance() {
+export default function Endurance({ embedded = false }: { embedded?: boolean }) {
   const navigate = useSmoothNavigate()
   const activities = useQuery(api.logs.healthWorkouts.list, { limit: 50 })
   const preferences = useQuery(api.users.users.getPreferences)
   const saveGoals = useMutation(api.users.users.setEnduranceGoals)
   const [sport, setSport] = useState<Sport>("run")
+  const [sportShifting, setSportShifting] = useState(false)
+  const [environmentShifting, setEnvironmentShifting] = useState(false)
   const [environment, setEnvironment] =
     useState<EnduranceEnvironment>("outdoor")
   const [goalsOpen, setGoalsOpen] = useState(false)
@@ -285,13 +304,12 @@ export default function Endurance() {
   ]
 
   function chooseSport(nextSport: Sport) {
-    hapticSelection()
     setSport(nextSport)
   }
 
   return (
     <div
-      className="app-hero endurance-hero endurance-overview desktop-canvas min-h-svh bg-background lg:pr-8 lg:pl-72"
+      className={embedded ? "endurance-overview training-embedded" : "app-hero endurance-hero endurance-overview desktop-canvas min-h-svh bg-background lg:pr-8 lg:pl-72"}
       style={
         {
           "--hero-fill": goals?.sessions
@@ -301,14 +319,14 @@ export default function Endurance() {
         } as CSSProperties
       }
     >
-      <ReactiveOrbField className="endurance-hero-wash" />
-      <main className="app-page pb-28">
+      {!embedded && <ReactiveOrbField className="endurance-hero-wash" />}
+      <div className={embedded ? "" : "app-page pb-28"}>
         <header className="app-header flex items-center justify-between gap-3">
-          <h1 className="app-title">Endurance</h1>
+          {!embedded && <h1 className="app-title">Endurance</h1>}
           <button
             type="button"
             onClick={() => setGoalsOpen(true)}
-            className="app-header-icon-action"
+            className="ml-auto flex size-11 items-center justify-center border-0 bg-transparent text-foreground shadow-none transition-opacity hover:opacity-75 active:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2"
             aria-label={`Edit ${SPORT_META[sport].label.toLowerCase()} goals`}
           >
             <Target size={17} weight="bold" />
@@ -319,33 +337,33 @@ export default function Endurance() {
           className="app-hero-frame progress-tab-enter relative flex flex-col justify-center pt-3 pb-4 text-center"
           aria-labelledby="endurance-hero-title"
         >
-          <div
-            className="mx-auto flex min-h-11 max-w-full flex-wrap items-center justify-center gap-1 rounded-[12px] border border-border/70 bg-background/35 p-1"
-            aria-label="Activity type"
-          >
-            {(Object.keys(SPORT_META) as Sport[]).map((option) => {
-              const { Icon, label } = SPORT_META[option]
-              const selected = option === sport
-              return (
-                <button
-                  key={option}
-                  type="button"
-                  aria-pressed={selected}
-                  onClick={() => chooseSport(option)}
-                  className={cn(
-                    "motion-tactile flex min-h-9 items-center gap-1.5 rounded-[9px] px-3 text-[13px] font-semibold transition-colors",
-                    selected
-                      ? "bg-foreground text-background"
-                      : "text-muted-foreground hover:bg-muted/45 hover:text-foreground"
-                  )}
-                >
-                  <Icon size={15} weight={selected ? "fill" : "regular"} />
-                  {label}
-                </button>
-              )
-            })}
+          <div className="endurance-mode-dials">
+            <LinearModeDial
+              curved
+              value={sport}
+              onChange={chooseSport}
+              onShiftingChange={setSportShifting}
+              modes={Object.keys(SPORT_META) as Sport[]}
+              labels={Object.values(SPORT_META).map((meta) => meta.label)}
+              ariaLabel="Activity type"
+            />
+            {!activeSport && (
+              <DialContentFade identity={sport} shifting={sportShifting}>
+              <div className="endurance-mode-dials__inner">
+                <LinearModeDial<EnduranceEnvironment>
+                  value={environment}
+                  onChange={setEnvironment}
+                  onShiftingChange={setEnvironmentShifting}
+                  modes={["outdoor", "indoor"] as const}
+                  labels={["Outdoor", "Indoor"]}
+                  ariaLabel="Workout setting"
+                />
+              </div>
+              </DialContentFade>
+            )}
           </div>
 
+          <DialContentFade identity={`${sport}:${environment}`} shifting={sportShifting || environmentShifting}>
           {sport === "hike" && (
             <button
               type="button"
@@ -355,37 +373,6 @@ export default function Endurance() {
               <Mountains size={20} /> Plan & explore your trails{" "}
               <CaretRight size={16} />
             </button>
-          )}
-          {!activeSport && (
-            <div
-              className="mx-auto mt-3 flex items-center rounded-[10px] bg-muted/55 p-1"
-              aria-label="Workout setting"
-            >
-              {(["outdoor", "indoor"] as EnduranceEnvironment[]).map(
-                (option) => {
-                  const selected = environment === option
-                  return (
-                    <button
-                      key={option}
-                      type="button"
-                      aria-pressed={selected}
-                      onClick={() => {
-                        hapticSelection()
-                        setEnvironment(option)
-                      }}
-                      className={cn(
-                        "motion-tactile min-h-8 rounded-[8px] px-4 text-[12px] font-semibold transition-colors",
-                        selected
-                          ? "bg-background text-foreground shadow-[0_4px_14px_rgba(0,0,0,0.12)]"
-                          : "text-muted-foreground hover:text-foreground"
-                      )}
-                    >
-                      {option === "outdoor" ? "Outdoor" : "Indoor"}
-                    </button>
-                  )
-                }
-              )}
-            </div>
           )}
 
           <p className="mt-4 text-[13px] font-medium text-muted-foreground">
@@ -478,8 +465,10 @@ export default function Endurance() {
               ? "Set weekly goals"
               : "Edit weekly goals"}
           </button>
+          </DialContentFade>
         </section>
 
+        <DialContentFade identity={sport} shifting={sportShifting}>
         <section className="mt-4" aria-labelledby="endurance-recent-heading">
           <h2 id="endurance-recent-heading" className="app-section-title">
             Recent {SPORT_META[sport].activityLabel.toLowerCase()}
@@ -570,7 +559,8 @@ export default function Endurance() {
             </ul>
           )}
         </section>
-      </main>
+        </DialContentFade>
+      </div>
 
       {goalsOpen && (
         <EnduranceGoalsSheet
