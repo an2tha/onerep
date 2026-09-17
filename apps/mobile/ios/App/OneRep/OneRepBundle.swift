@@ -11,6 +11,7 @@ import SwiftUI
 @main
 struct OneRepBundle: WidgetBundle {
     var body: some Widget {
+        OneRepSnapCameraWidget()
         OneRepQuickActionsWidget()
         OneRepNutritionWidget()
         OneRepScheduleWidget()

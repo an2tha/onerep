@@ -6,6 +6,8 @@ describe("deepLinkToPath", () => {
     expect(deepLinkToPath("onerep://today")).toBe("/")
     expect(deepLinkToPath("onerep://workouts")).toBe("/workouts")
     expect(deepLinkToPath("onerep://nutrition")).toBe("/nutrition")
+    expect(deepLinkToPath("onerep://camera")).toBe("/camera")
+    expect(deepLinkToPath("onerep:/camera")).toBe("/camera")
   })
 
   test("preserves the query string the live status actions rely on", () => {

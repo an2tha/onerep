@@ -16,6 +16,7 @@ const ROUTES: Record<string, string> = {
   workout: "/workout/active",
   workouts: "/workouts",
   nutrition: "/nutrition",
+  camera: "/camera",
   progress: "/progress",
   coach: "/coach",
   settings: "/settings",

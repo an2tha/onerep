@@ -4,3 +4,134 @@
 @import "./flavour-carousel.css";
 @import "./reactive-orb.css";
 @import "./flavours.css";
+
+/* ── Route glass, phone only ────────────────────────────────────────────────
+ * Secondary pages used to fall back to opaque panel cards after the primary
+ * tabs moved to the new material language. Keep the treatment here, at the
+ * route boundary, so new secondary screens inherit the same glass without
+ * changing their desktop composition.
+ *
+ * Camera, live workouts, onboarding and Coach own full-screen atmospheric
+ * systems already; stacking another backdrop-filter over them is both visually
+ * muddy and expensive on a phone GPU. */
+@media (max-width: 767px) {
+  .app-route-frame-current:not([data-route-path="/"]):not(
+      [data-route-path="/camera"]
+    ):not([data-route-path="/onboarding"]):not(
+      [data-route-path^="/workout/active"]
+    ):not([data-route-path="/endurance/active"]):not(
+      [data-route-path="/coach"]
+    ) {
+    --route-glass-fill: color-mix(
+      in srgb,
+      var(--surface-panel) 58%,
+      transparent
+    );
+    --route-glass-fill-strong: color-mix(
+      in srgb,
+      var(--surface-panel) 78%,
+      transparent
+    );
+    --route-glass-rim: color-mix(
+      in srgb,
+      var(--foreground) 12%,
+      transparent
+    );
+    --route-glass-highlight: color-mix(in srgb, white 18%, transparent);
+
+    background:
+      radial-gradient(
+        85% 48% at 4% -6%,
+        color-mix(in srgb, var(--accent-water) 9%, transparent),
+        transparent 68%
+      ),
+      radial-gradient(
+        72% 44% at 104% 16%,
+        color-mix(in srgb, var(--accent-progress) 8%, transparent),
+        transparent 72%
+      ),
+      var(--background);
+  }
+
+  .app-route-frame-current:not([data-route-path="/"]):not(
+      [data-route-path="/camera"]
+    ):not([data-route-path="/onboarding"]):not(
+      [data-route-path^="/workout/active"]
+    ):not([data-route-path="/endurance/active"]):not(
+      [data-route-path="/coach"]
+    ) :is(.desktop-canvas, .native-page) {
+    background: transparent;
+  }
+
+  .app-route-frame-current:not([data-route-path="/"]):not(
+      [data-route-path="/camera"]
+    ):not([data-route-path="/onboarding"]):not(
+      [data-route-path^="/workout/active"]
+    ):not([data-route-path="/endurance/active"]):not(
+      [data-route-path="/coach"]
+    ) :is(.app-surface, .app-rail-surface, .mobile-surface, .native-group) {
+    border: 1px solid var(--route-glass-rim);
+    border-radius: 1.25rem;
+    background: linear-gradient(
+      145deg,
+      var(--route-glass-highlight),
+      transparent 32%
+    ), var(--route-glass-fill);
+    box-shadow:
+      inset 0 1px 0 var(--route-glass-highlight),
+      0 10px 30px -16px color-mix(in srgb, black 34%, transparent);
+    -webkit-backdrop-filter: blur(24px) saturate(1.45);
+    backdrop-filter: blur(24px) saturate(1.45);
+  }
+
+  /* Nested panels are structure inside the parent lens, not another lens. */
+  .app-route-frame-current:not([data-route-path="/"]):not(
+      [data-route-path="/camera"]
+    ):not([data-route-path="/onboarding"]):not(
+      [data-route-path^="/workout/active"]
+    ):not([data-route-path="/endurance/active"]):not(
+      [data-route-path="/coach"]
+    ) :is(.app-surface, .app-rail-surface, .native-group)
+    :is(.app-surface, .native-group) {
+    background: color-mix(in srgb, var(--surface-panel) 36%, transparent);
+    box-shadow: inset 0 1px 0 color-mix(in srgb, white 10%, transparent);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  .app-route-frame-current:not([data-route-path="/"]):not(
+      [data-route-path="/camera"]
+    ):not([data-route-path="/onboarding"]):not(
+      [data-route-path^="/workout/active"]
+    ):not([data-route-path="/endurance/active"]):not(
+      [data-route-path="/coach"]
+    ) :is(.app-translucent, .app-icon-button, .app-header-icon-action) {
+    border-color: var(--route-glass-rim);
+    background-color: var(--route-glass-fill-strong);
+    box-shadow: inset 0 1px 0 var(--route-glass-highlight);
+    -webkit-backdrop-filter: blur(16px) saturate(1.35);
+    backdrop-filter: blur(16px) saturate(1.35);
+  }
+
+  @supports not (
+    (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
+  ) {
+    .app-route-frame-current:not([data-route-path="/"]):not(
+        [data-route-path="/camera"]
+      ):not([data-route-path="/onboarding"]):not(
+        [data-route-path^="/workout/active"]
+      ):not([data-route-path="/endurance/active"]):not(
+        [data-route-path="/coach"]
+      ) :is(
+        .app-surface,
+        .app-rail-surface,
+        .mobile-surface,
+        .native-group,
+        .app-translucent,
+        .app-icon-button,
+        .app-header-icon-action
+      ) {
+      background-color: var(--surface-panel);
+    }
+  }
+}

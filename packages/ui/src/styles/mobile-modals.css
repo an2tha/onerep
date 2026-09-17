@@ -5,31 +5,27 @@
     --mobile-modal-fill: color-mix(in srgb, var(--background) 82%, transparent);
     --mobile-modal-edge: color-mix(in srgb, var(--foreground) 14%, transparent);
     --mobile-modal-sheen: color-mix(in srgb, var(--foreground) 6%, transparent);
-    --modal-control-fill: color-mix(in srgb, var(--background) 72%, transparent);
-    --modal-control-highlight: rgb(255 255 255 / 0.12);
-    --modal-control-edge: color-mix(in srgb, var(--foreground) 12%, transparent);
   }
 
   :root:is(.dark, [data-theme="dark"]) {
     --mobile-modal-fill: color-mix(in srgb, var(--background) 86%, transparent);
     --mobile-modal-edge: color-mix(in srgb, var(--foreground) 18%, transparent);
-    --modal-control-fill: color-mix(in srgb, var(--foreground) 10%, var(--background));
-    --modal-control-highlight: rgb(255 255 255 / 0.04);
   }
 
-  :root :is(
-    .app-sheet-panel,
-    .sheet-panel,
-    .mobile-modal-surface,
-    .coach-sheet-surface,
-    .ai-hint-sheet,
-    .moment-layer,
-    [data-slot="tour-content"],
-    [data-slot="dialog-content"],
-    [data-slot="alert-dialog-content"],
-    [data-slot="sheet-content"],
-    [data-slot="drawer-content"]
-  ) {
+  :root
+    :is(
+      .app-sheet-panel,
+      .sheet-panel,
+      .mobile-modal-surface,
+      .coach-sheet-surface,
+      .ai-hint-sheet,
+      .moment-layer,
+      [data-slot="tour-content"],
+      [data-slot="dialog-content"],
+      [data-slot="alert-dialog-content"],
+      [data-slot="sheet-content"],
+      [data-slot="drawer-content"]
+    ) {
     background-color: var(--mobile-modal-fill);
     background-image: linear-gradient(
       145deg,
@@ -43,29 +39,10 @@
       0 18px 48px -24px rgb(0 0 0 / 0.35);
     --muted-foreground: color-mix(in srgb, var(--foreground) 76%, transparent);
 
-
-    /* Raised glass controls: a readable ink color and a defined edge against
-       the dense frosted pane. Keep native toggles and drag handles intact. */
-    & :where(
-      button:not([role="switch"]):not([role="checkbox"]):not([role="radio"]):not([aria-label^="Drag "]):not(:has(.app-sheet-handle)),
-      input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="hidden"]),
-      select,
-      textarea,
-      summary
-    ) {
-      color: var(--foreground);
-      background-color: var(--modal-control-fill);
-      background-image: linear-gradient(155deg, var(--modal-control-highlight), transparent 65%);
-      border-color: var(--modal-control-edge);
-      /* The authored border is the only edge; list rows remain borderless. */
-      box-shadow: none;
-    }
-
-    & summary {
-      border-radius: 12px;
-      padding-inline: 12px;
-    }
-
+    /* Controls keep their authored geometry and paint. Blanket styling here
+     used to turn close icons, transparent rows, segmented controls, and pills
+     into identical rounded rectangles. The pane supplies the shared glass;
+     each control remains responsible for its own interaction affordance. */
     & :is(button, input, select, textarea, summary):focus-visible {
       outline: 2px solid color-mix(in srgb, var(--foreground) 55%, transparent);
       outline-offset: -2px;
@@ -73,29 +50,6 @@
     }
 
     & button:not(:disabled):not([aria-disabled="true"]):active {
-      box-shadow: none;
-    }
-
-    /* Primary and selected controls use dark glass in light mode, and light
-       glass in dark mode, so they remain distinct from secondary actions. */
-    & button:is(
-      [class~="bg-foreground"],
-      [class~="bg-primary"],
-      .app-button-primary,
-      [data-variant="default"],
-      [aria-pressed="true"]
-    ) {
-      color: var(--background);
-      background-color: color-mix(in srgb, var(--foreground) 94%, transparent);
-      background-image: linear-gradient(155deg, var(--modal-control-highlight), transparent 65%);
-      border-color: transparent;
-      box-shadow: none;
-    }
-
-    & button:is([class*="bg-destructive"], .app-button-danger, [data-variant="destructive"]) {
-      color: var(--destructive);
-      background-color: color-mix(in srgb, var(--destructive) 12%, var(--background));
-      border-color: color-mix(in srgb, var(--destructive) 55%, transparent);
       box-shadow: none;
     }
 
@@ -107,75 +61,8 @@
 
   /* Blur belongs to the pane. A light scrim leaves the page's atmosphere
      visible through it, without stacking two full-screen blur passes. */
-  :root :is(
-    .sheet-overlay:not([aria-modal="true"]),
-    .sheet-backdrop-enter,
-    .sheet-backdrop-exit,
-    .mobile-modal-backdrop,
-    .ai-hint-scrim,
-    [data-slot="dialog-overlay"],
-    [data-slot="alert-dialog-overlay"],
-    [data-slot="sheet-overlay"],
-    [data-slot="drawer-overlay"]
-  ) {
-    background-color: rgb(0 0 0 / 0.16);
-    backdrop-filter: none;
-  }
-
-  /* An opacity animation with forwards/both fill keeps the wrapper a
-     backdrop root even after its fade reaches 1. Child glass then samples
-     only the scrim, not the workout/orb behind it. Animate the pane alone. */
-  :root :is(
-    .sheet-overlay,
-    .sheet-backdrop-enter,
-    .sheet-backdrop-exit,
-    .mobile-modal-backdrop
-  ):has(:is(
-    .app-sheet-panel,
-    .sheet-panel,
-    .mobile-modal-surface,
-    .coach-sheet-surface
-  )) {
-    animation: none;
-    backdrop-filter: none;
-  }
-
-  /* Opaque input wells and footer strips must not paint over the pane.
-     Primary and destructive action colors retain their own contrast. */
-  :root :is(
-    .app-sheet-panel,
-    .sheet-panel,
-    .mobile-modal-surface,
-    .coach-sheet-surface,
-    .ai-hint-sheet,
-    [data-slot="dialog-content"],
-    [data-slot="alert-dialog-content"],
-    [data-slot="sheet-content"],
-    [data-slot="drawer-content"]
-  ) :is([class~="bg-card"], [class~="bg-background"]):not(button):not(input):not(select):not(textarea) {
-    background-color: color-mix(in srgb, var(--background) 20%, transparent);
-  }
-
-  /* Keep the Safari alias separate: the CSS optimizer collapses adjacent
-     aliases, which would remove the standard property used by Chromium. */
-  @supports (-webkit-backdrop-filter: blur(1px)) {
-    :root :is(
-      .app-sheet-panel,
-      .sheet-panel,
-      .mobile-modal-surface,
-      .coach-sheet-surface,
-      .ai-hint-sheet,
-      .moment-layer,
-      [data-slot="tour-content"],
-      [data-slot="dialog-content"],
-      [data-slot="alert-dialog-content"],
-      [data-slot="sheet-content"],
-      [data-slot="drawer-content"]
-    ) {
-      -webkit-backdrop-filter: blur(56px) saturate(1.1);
-    }
-
-    :root :is(
+  :root
+    :is(
       .sheet-overlay:not([aria-modal="true"]),
       .sheet-backdrop-enter,
       .sheet-backdrop-exit,
@@ -186,13 +73,93 @@
       [data-slot="sheet-overlay"],
       [data-slot="drawer-overlay"]
     ) {
+    background-color: rgb(0 0 0 / 0.16);
+    backdrop-filter: none;
+  }
+
+  /* An opacity animation with forwards/both fill keeps the wrapper a
+     backdrop root even after its fade reaches 1. Child glass then samples
+     only the scrim, not the workout/orb behind it. Animate the pane alone. */
+  :root
+    :is(
+      .sheet-overlay,
+      .sheet-backdrop-enter,
+      .sheet-backdrop-exit,
+      .mobile-modal-backdrop
+    ):has(
+      :is(
+        .app-sheet-panel,
+        .sheet-panel,
+        .mobile-modal-surface,
+        .coach-sheet-surface
+      )
+    ) {
+    animation: none;
+    backdrop-filter: none;
+  }
+
+  /* Opaque input wells and footer strips must not paint over the pane.
+     Primary and destructive action colors retain their own contrast. */
+  :root
+    :is(
+      .app-sheet-panel,
+      .sheet-panel,
+      .mobile-modal-surface,
+      .coach-sheet-surface,
+      .ai-hint-sheet,
+      [data-slot="dialog-content"],
+      [data-slot="alert-dialog-content"],
+      [data-slot="sheet-content"],
+      [data-slot="drawer-content"]
+    )
+    :is([class~="bg-card"], [class~="bg-background"]):not(button):not(
+      input
+    ):not(select):not(textarea) {
+    background-color: color-mix(in srgb, var(--background) 20%, transparent);
+  }
+
+  /* Keep the Safari alias separate: the CSS optimizer collapses adjacent
+     aliases, which would remove the standard property used by Chromium. */
+  @supports (-webkit-backdrop-filter: blur(1px)) {
+    :root
+      :is(
+        .app-sheet-panel,
+        .sheet-panel,
+        .mobile-modal-surface,
+        .coach-sheet-surface,
+        .ai-hint-sheet,
+        .moment-layer,
+        [data-slot="tour-content"],
+        [data-slot="dialog-content"],
+        [data-slot="alert-dialog-content"],
+        [data-slot="sheet-content"],
+        [data-slot="drawer-content"]
+      ) {
+      -webkit-backdrop-filter: blur(56px) saturate(1.1);
+    }
+
+    :root
+      :is(
+        .sheet-overlay:not([aria-modal="true"]),
+        .sheet-backdrop-enter,
+        .sheet-backdrop-exit,
+        .mobile-modal-backdrop,
+        .ai-hint-scrim,
+        [data-slot="dialog-overlay"],
+        [data-slot="alert-dialog-overlay"],
+        [data-slot="sheet-overlay"],
+        [data-slot="drawer-overlay"]
+      ) {
       -webkit-backdrop-filter: none;
     }
   }
 
   /* Full-screen pickers still need the underlying page to reach the pane.
      Their wrappers otherwise paint an opaque background behind the glass. */
-  :root :is(.sheet-backdrop-enter, .sheet-backdrop-exit):has(> .sheet-panel-fullscreen) {
+  :root
+    :is(.sheet-backdrop-enter, .sheet-backdrop-exit):has(
+      > .sheet-panel-fullscreen
+    ) {
     background-color: transparent;
   }
 
@@ -202,7 +169,9 @@
     box-shadow: inset 0 1px 0 var(--mobile-modal-edge);
   }
 
-  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  @supports not (
+    (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
+  ) {
     :root,
     :root:is(.dark, [data-theme="dark"]) {
       --mobile-modal-fill: var(--background);
