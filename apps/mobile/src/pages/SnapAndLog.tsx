@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react"
-import { useSearchParams } from "react-router"
+import { useLocation, useSearchParams } from "react-router"
 import { Capacitor } from "@capacitor/core"
 import {
   Camera as NativeCamera,
@@ -128,6 +128,10 @@ type SnapPhase = "idle" | "uploading" | "results" | "error"
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function SnapAndLog() {
+  const location = useLocation()
+  const initialCapture = useRef<Blob | null>(
+    location.state?.snapCapture instanceof Blob ? location.state.snapCapture : null
+  )
   const navigate = useSmoothNavigate()
   const { hasAiAccess, aiAccessLoading, requireAiAccess, aiAccessModal } =
     useAiFeatureGate()
@@ -202,6 +206,7 @@ export default function SnapAndLog() {
   const [snapReviewItems, setSnapReviewItems] = useState<SnapReviewItem[]>([])
   const [snapRaw, setSnapRaw] = useState<string | null>(null)
   const [snapLogging, setSnapLogging] = useState(false)
+  const libraryAutoOpenRef = useRef(false)
 
   // Barcode results
   const [barcodeScanning, setBarcodeScanning] = useState(false)
@@ -523,6 +528,15 @@ export default function SnapAndLog() {
     }
   }
 
+  useEffect(() => {
+    if (aiAccessLoading || !initialCapture.current) return
+    const image = initialCapture.current
+    initialCapture.current = null
+    void processSnapBlob(image)
+    // Consume the quick-log capture once, after the AI access gate resolves.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiAccessLoading])
+
   async function handleNativeCapture() {
     try {
       const permission = await NativeCamera.requestPermissions()
@@ -624,6 +638,18 @@ export default function SnapAndLog() {
       else setBarcodeError("That photo could not be read. Try another.")
     }
   }
+
+  // Quick Log's "Choose image" action lands directly in the system picker.
+  // Keep the camera route as the one ingestion pipeline; the source hint only
+  // removes the redundant tap after the user already chose where to capture.
+  useEffect(() => {
+    if (params.get("source") !== "library" || libraryAutoOpenRef.current) return
+    libraryAutoOpenRef.current = true
+    void handlePickFromLibrary()
+    // The picker is intentionally a one-shot route entry action. Re-running on
+    // reactive camera state changes would reopen it after a cancellation.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   function handleShutter() {
     if (
@@ -987,11 +1013,13 @@ export default function SnapAndLog() {
             )}
           </div>
           <p className="text-[15px] font-medium text-white/80">
-            {mode === "snap" ? "Open native camera" : "Capture a barcode photo"}
+            {mode === "snap"
+              ? "Capture anything food-related"
+              : "Capture a barcode photo"}
           </p>
           <p className="max-w-[300px] text-[14px] leading-5 text-white/75">
             {mode === "snap"
-              ? "iOS uses the native camera for more reliable capture."
+              ? "Meals, restaurant orders, receipts, packaging, and handwritten notes all become one editable food log."
               : "Take a clear photo of the barcode and OneRep will scan it after capture."}
           </p>
         </div>
@@ -1143,7 +1171,7 @@ export default function SnapAndLog() {
           <div className="flex items-center gap-2 rounded-[12px] border border-white/10 bg-black/70 px-3 py-2 backdrop-blur-md">
             <div className="h-3 w-3 animate-spin rounded-full border border-white/30 border-t-white/70" />
             <span className="text-[14px] font-medium text-white">
-              Analysing…
+              Reading foods…
             </span>
           </div>
         </div>
@@ -1151,7 +1179,16 @@ export default function SnapAndLog() {
 
       {/* ── Bottom controls (both modes; each button gates itself) ────── */}
       {snapPhase !== "uploading" && (
-        <div
+        <>
+          {mode === "snap" && cameraState === "active" && (
+            <p
+              className="pointer-events-none absolute left-1/2 w-[min(88vw,420px)] -translate-x-1/2 text-center text-[14px] leading-5 font-medium text-white/85"
+              style={{ bottom: "calc(var(--app-safe-bottom-lg) + 6rem)" }}
+            >
+              Meal, restaurant order, receipt, package, or handwritten note
+            </p>
+          )}
+          <div
           className="absolute right-0 bottom-0 left-0 flex items-center justify-between px-10"
           style={{
             paddingBottom: "var(--app-safe-bottom-lg)",
@@ -1196,12 +1233,13 @@ export default function SnapAndLog() {
             aria-label={
               mode === "barcode"
                 ? "Scan a barcode from a photo"
-                : "Choose a photo from your library"
+                : "Choose a meal, order, receipt, package, or note from your library"
             }
           >
             <ImagesSquare size={18} />
           </button>
-        </div>
+          </div>
+        </>
       )}
 
       {/* ── Results sheet ─────────────────────────────────────────────── */}

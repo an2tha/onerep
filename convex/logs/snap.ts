@@ -383,9 +383,9 @@ async function analyzeImageWithOpenAi(
   const content = await requestOpenAiJson({
     apiKey,
     system: renderSystemPrompt("meal_image"),
-    user: `Analyze this meal image for logging. Split plates, bowls, and mixed meals into visible foods where possible. Return JSON only with the exact keys: "foodName", "estimatedQuantity", "searchQueries", "ingredients". Use null for unused single-food fields and [] for no ingredients or search queries.`,
+    user: `Analyze this food-related image for logging. It may show a meal, restaurant order or receipt, delivery screenshot, package, typed list, or handwritten note. Compose every consumed or ordered food into the same structured ingredient list. Return JSON only with the exact keys: "foodName", "estimatedQuantity", "searchQueries", "ingredients". Use null for unused single-food fields and [] for no ingredients or search queries.`,
     image: { url: imageData, detail: "high" },
-    maxTokens: 800,
+    maxTokens: 1100,
   });
   return normalizeAnalyzeResult(JSON.parse(content));
 }

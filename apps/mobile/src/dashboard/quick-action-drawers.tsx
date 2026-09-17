@@ -18,7 +18,7 @@ import {
  * one and no drawer pays for another's queries.
  */
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useMutation, useQuery } from "convex/react"
 import {
   ArrowClockwise,
@@ -54,6 +54,9 @@ import {
 } from "@/lib/food-log"
 import { recipeTotals } from "@/lib/coach-chat"
 import { buildQuickRepeatFoods } from "@/lib/food-quick-repeat"
+import { searchFoodsAccurate } from "@/lib/openfoodfacts"
+import { FoodModeDial } from "./food-mode-dial"
+import { QuickFoodCamera } from "./quick-food-camera"
 import { useEnergyUnit, type EnergyUnit } from "@/lib/use-energy-unit"
 import { energyDisplay } from "@repo/ui"
 import { WATER_BG, WATER_COLOR } from "./constants"
@@ -435,6 +438,15 @@ function FoodDrawer({
   const addFood = useMutation(api.logs.foodLogs.addEntry)
   const removeFood = useMutation(api.logs.foodLogs.removeEntry)
   const [busy, setBusy] = useState(false)
+  const [mode, setMode] = useState<"snap" | "repeat" | "search">("repeat")
+  const [query, setQuery] = useState("")
+  const [searching, setSearching] = useState(false)
+  const [searchError, setSearchError] = useState(false)
+  const [searchResults, setSearchResults] = useState<
+    Awaited<ReturnType<typeof searchFoodsAccurate>>
+  >([])
+  const searchInputRef = useRef<HTMLInputElement>(null)
+  const searchRequestRef = useRef(0)
 
   const choices = useMemo(() => {
     const repeats = buildQuickRepeatFoods(
@@ -520,6 +532,46 @@ function FoodDrawer({
 
   const loading = recentFood === undefined || mealPresets === undefined
 
+  const context = foodLogContextParams(
+    dateKey,
+    atMinutes === undefined ? undefined : foodLogTime(atMinutes)
+  )
+
+  function selectMode(next: "snap" | "repeat" | "search") {
+    if (next === mode) return
+    setMode(next)
+  }
+
+  useEffect(() => {
+    const requestId = ++searchRequestRef.current
+    const trimmed = query.trim()
+    if (mode !== "search" || trimmed.length < 2) {
+      setSearchResults([])
+      setSearching(false)
+      setSearchError(false)
+      return
+    }
+
+    setSearching(true)
+    setSearchError(false)
+    const timeout = window.setTimeout(() => {
+      void searchFoodsAccurate(trimmed, { limit: 8, fetchLimit: 24 })
+        .then((results) => {
+          if (requestId !== searchRequestRef.current) return
+          setSearchResults(results)
+          setSearching(false)
+        })
+        .catch(() => {
+          if (requestId !== searchRequestRef.current) return
+          setSearchResults([])
+          setSearching(false)
+          setSearchError(true)
+        })
+    }, 280)
+
+    return () => window.clearTimeout(timeout)
+  }, [mode, query])
+
   if (editEntry) {
     return (
       <FoodEntryEditor
@@ -532,42 +584,123 @@ function FoodDrawer({
   }
 
   return (
-    <div className="flex flex-col gap-3 p-4">
-      <DrawerIntro title="Log food" detail="Your usual foods, one tap each." />
+    <div className="quick-food-log flex min-h-[35rem] flex-col px-4 pt-1 pb-4">
+      <FoodModeDial value={mode} onChange={selectMode} />
 
-      <div className="app-surface overflow-hidden">
-        {!loading && choices.length === 0 && (
-          <p className="px-4 py-3 text-[13px] leading-snug text-muted-foreground">
-            Nothing to repeat yet — foods you log will show up here.
-          </p>
+      <div className="quick-food-log__stage" data-mode={mode}>
+        {mode === "snap" && (
+          <QuickFoodCamera
+            onCapture={(snapCapture) => {
+              onClose()
+              navigate(`/camera?${context}`, { motion: "forward", state: { snapCapture } })
+            }}
+            onCamera={() => {
+              onClose()
+              navigate(`/camera?${context}`, { motion: "forward" })
+            }}
+            onLibrary={() => {
+              hapticMedium()
+              onClose()
+              navigate(`/camera?source=library&${context}`, { motion: "forward" })
+            }}
+          />
         )}
-        {choices.map((choice, index) => (
-          <div key={choice.key}>
-            {index > 0 && <RowDivider />}
-            <DrawerRow
-              icon={choice.icon}
-              title={choice.name}
-              detail={choice.detail}
-              disabled={busy}
-              onClick={() => void log(choice)}
-            />
-          </div>
-        ))}
-      </div>
 
-      <div className="app-surface overflow-hidden">
-        <DrawerRow
-          icon={<MagnifyingGlass size={16} weight="bold" />}
-          title="Search all foods"
-          detail="Barcode scanning, portions and filters."
-          onClick={() => {
-            onClose()
-            navigate(
-              `/foods/search?${foodLogContextParams(dateKey, atMinutes === undefined ? undefined : foodLogTime(atMinutes))}`,
-              { motion: "forward" }
-            )
-          }}
-        />
+        {mode === "repeat" && (
+          <div className="flex h-full flex-col">
+            <div className="px-4 pt-4 pb-2">
+              <h2 className="text-[18px] font-semibold tracking-[-0.02em]">Your usuals</h2>
+              <p className="mt-0.5 text-[13px] text-muted-foreground">Log the same portion again with one tap.</p>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-2">
+              {!loading && choices.length === 0 && (
+                <p className="px-4 py-8 text-center text-[14px] leading-5 text-muted-foreground">
+                  Nothing to repeat yet. Foods and saved meals appear here after you log them.
+                </p>
+              )}
+              {choices.map((choice, index) => (
+                <div key={choice.key}>
+                  {index > 0 && <RowDivider />}
+                  <DrawerRow
+                    icon={choice.icon}
+                    title={choice.name}
+                    detail={choice.detail}
+                    disabled={busy}
+                    onClick={() => void log(choice)}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {mode === "search" && (
+          <div className="flex h-full flex-col">
+            <div className="p-3 pb-2">
+              <label className="quick-food-log__search">
+                {searching ? (
+                  <span className="size-4 animate-spin rounded-full border border-muted-foreground/25 border-t-foreground" />
+                ) : (
+                  <MagnifyingGlass size={17} className="text-muted-foreground" />
+                )}
+                <input
+                  ref={searchInputRef}
+                  type="search"
+                  name="quick-food-search"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Food, brand, or dish"
+                  maxLength={80}
+                  aria-label="Search foods"
+                />
+              </label>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-2">
+              {query.trim().length < 2 && (
+                <p className="px-5 py-8 text-center text-[14px] leading-5 text-muted-foreground">
+                  Start typing to search foods, brands, and dishes.
+                </p>
+              )}
+              {searchError && (
+                <p className="px-5 py-8 text-center text-[14px] leading-5 text-destructive">
+                  Search failed. Check your connection and try again.
+                </p>
+              )}
+              {!searching && !searchError && query.trim().length >= 2 && searchResults.length === 0 && (
+                <p className="px-5 py-8 text-center text-[14px] leading-5 text-muted-foreground">
+                  No matches yet. Try a simpler name or create your own food.
+                </p>
+              )}
+              {searchResults.map((item, index) => (
+                <div key={item.id}>
+                  {index > 0 && <RowDivider />}
+                  <DrawerRow
+                    icon={<ForkKnife size={16} weight="bold" />}
+                    title={item.name}
+                    detail={`${item.brand ? `${item.brand} · ` : ""}${energyDisplay(item.calories, energyUnit)} ${energyUnit}`}
+                    onClick={() => {
+                      onClose()
+                      navigate(
+                        `/foods/review/${encodeURIComponent(item.id)}?${context}`,
+                        { motion: "forward", state: { item } }
+                      )
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+            <button
+              type="button"
+              className="mx-3 mb-3 min-h-11 rounded-xl text-[13px] font-semibold text-muted-foreground active:bg-muted/60"
+              onClick={() => {
+                onClose()
+                navigate(`/foods/search?${context}`, { motion: "forward" })
+              }}
+            >
+              Open full food search
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )

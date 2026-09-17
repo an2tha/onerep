@@ -52,7 +52,6 @@ describe("bottom bar accessibility contract", () => {
       ["/", "nav.today", "Today"],
       ["/nutrition", "nav.nutrition", "Nutrition"],
       ["/workouts", "nav.training", "Training"],
-      ["/endurance", "nav.endurance", "Endurance"],
       ["/progress", "nav.progress", "Progress"],
       ["/coach", "nav.coach", "Coach"],
     ] as const
@@ -69,15 +68,17 @@ describe("bottom bar accessibility contract", () => {
     expect(SOURCE).not.toContain("Beta")
   })
 
-  test("endurance is always available in native navigation", () => {
+  test("native navigation has one unified Training destination", () => {
     const nativeTabs = readFileSync(
       new URL("../lib/native-tab-bar.ts", import.meta.url),
       "utf8"
     )
 
     expect(nativeTabs).toContain(
-      '{ id: "/endurance", symbol: "bicycle", label: "Endurance" }'
+      '{ id: "/workouts", symbol: "dumbbell.fill", label: "Training" }'
     )
+    expect(nativeTabs).not.toContain('id: "/endurance"')
+    expect(SOURCE).not.toContain('path: "/endurance"')
     expect(nativeTabs).not.toContain("experimentalFeaturesEnabled")
     expect(nativeTabs).not.toContain("getNativeTabItems")
   })
