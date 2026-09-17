@@ -11,7 +11,46 @@ import {
 } from "../../../../convex/lib/aiSharing"
 import { MobileSheet } from "./mobile-sheet"
 
-export function AiSharingDisclosure() {
+export function AiSharingDisclosure({ concise = false }: { concise?: boolean }) {
+  if (concise) {
+    return (
+      <div className="space-y-4 text-sm leading-relaxed text-muted-foreground">
+        <div className="rounded-xl bg-muted/55 px-4 py-3">
+          <p className="font-semibold text-foreground">
+            Zero-data retention is enabled
+          </p>
+          <p className="mt-1">
+            Your privacy is protected. AI providers can process your request,
+            but they cannot store it or use it to train their models.
+          </p>
+        </div>
+        <div className="space-y-2.5">
+          <p>
+            <strong className="text-foreground">What’s shared:</strong> Only
+            the information needed for the AI feature you choose—such as your
+            message, photo, or relevant health and fitness details.
+          </p>
+          <p>
+            <strong className="text-foreground">Who processes it:</strong>{" "}
+            OpenRouter securely routes it to Microsoft Azure or Venice.
+          </p>
+        </div>
+        <p>
+          AI is optional. You can turn it off anytime in Settings.
+          {" "}
+          <a
+            className="underline underline-offset-4"
+            href="https://onerep.life/privacy#ai"
+            target="_blank"
+            rel="noreferrer"
+          >
+            How your privacy is protected
+          </a>
+        </p>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-3 text-sm leading-relaxed text-muted-foreground">
       <p>
@@ -47,14 +86,20 @@ export function AiSharingConsentSheet({ onClose }: { onClose: () => void }) {
   const [error, setError] = useState<string | null>(null)
   return (
     <MobileSheet
-      ariaLabel="Allow AI data sharing?"
+      ariaLabel="Use AI features?"
       onClose={() => {
         if (!busy) onClose()
       }}
     >
       <div className="space-y-5 px-5 py-6">
-        <h2 className="text-xl font-semibold">Allow AI data sharing?</h2>
-        <AiSharingDisclosure />
+        <div className="space-y-1.5">
+          <h2 className="text-xl font-semibold">Use AI features?</h2>
+          <p className="text-sm text-muted-foreground">
+            OneRep needs your permission before sending anything to an AI
+            provider.
+          </p>
+        </div>
+        <AiSharingDisclosure concise />
         {error && (
           <p role="alert" className="text-sm text-destructive">
             {error}
@@ -68,7 +113,7 @@ export function AiSharingConsentSheet({ onClose }: { onClose: () => void }) {
             void save({ granted: true, version: AI_SHARING_VERSION })
               .then(() => {
                 toast.message(
-                  "AI sharing enabled. You can now use your chosen AI feature.",
+                  "AI features are ready to use.",
                 )
                 onClose()
               })
@@ -80,7 +125,7 @@ export function AiSharingConsentSheet({ onClose }: { onClose: () => void }) {
               .finally(() => setBusy(false))
           }}
         >
-          {busy ? "Saving…" : "Allow AI data sharing"}
+          {busy ? "Turning on…" : "Turn on AI features"}
         </PrimaryButton>
         <button
           type="button"
