@@ -45,11 +45,13 @@ beforeEach(() => {
 })
 
 describe("meal-times storage", () => {
-  test("defaults exist for the four built-in meals", () => {
+  test("defaults exist for the three built-in snack times", () => {
     expect(DEFAULT_MEAL_TIMES.breakfast).toMatch(/^\d{2}:\d{2}$/)
     expect(DEFAULT_MEAL_TIMES.lunch).toMatch(/^\d{2}:\d{2}$/)
     expect(DEFAULT_MEAL_TIMES.dinner).toMatch(/^\d{2}:\d{2}$/)
-    expect(DEFAULT_MEAL_TIMES.snack).toMatch(/^\d{2}:\d{2}$/)
+    expect(DEFAULT_MEAL_TIMES["snack-post-breakfast"]).toMatch(/^\d{2}:\d{2}$/)
+    expect(DEFAULT_MEAL_TIMES["snack-post-lunch"]).toMatch(/^\d{2}:\d{2}$/)
+    expect(DEFAULT_MEAL_TIMES["snack-post-dinner"]).toMatch(/^\d{2}:\d{2}$/)
   })
 
   test("an empty store falls back to the built-in defaults", () => {
