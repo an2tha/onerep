@@ -778,6 +778,18 @@ export const DEFAULT_MEAL_CATEGORIES: MealCategory[] = [
   },
 ]
 
+/** Historical entries stay visible without offering the old slot for new logs. */
+export const DISPLAY_MEAL_CATEGORIES: MealCategory[] = [
+  ...DEFAULT_MEAL_CATEGORIES,
+  {
+    id: "snack",
+    label: "Snack",
+    color: DEFAULT_MEAL_TONES.snack.color,
+    bg: DEFAULT_MEAL_TONES.snack.bg,
+    isDefault: false,
+  },
+]
+
 // ─── Smart meal preset helpers ────────────────────────────────────────────────
 
 const MEAL_PRESET_MIN_OCCURRENCES = 2
@@ -802,7 +814,7 @@ function mealSuggestionKey(meal: MealType, signature: string) {
 }
 
 export function mealLabel(meal: MealType) {
-  const category = DEFAULT_MEAL_CATEGORIES.find((item) => item.id === meal)
+  const category = DISPLAY_MEAL_CATEGORIES.find((item) => item.id === meal)
   if (category) return category.label
   return String(meal)
     .replace(/[_-]+/g, " ")
