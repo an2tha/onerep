@@ -3,15 +3,14 @@ import { Capacitor } from "@capacitor/core"
 import { Browser } from "@capacitor/browser"
 import { useAction, useQuery } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
+import { loadStoreProduct } from "@/lib/billing-catalogue"
 import { trackUmami } from "@/lib/analytics"
 import {
   currentStoreEntitlements,
-  fetchStoreProducts,
   finishStoreTransaction,
   onStoreTransaction,
   purchaseStoreProduct,
   restoreStorePurchases,
-  storeKitAvailable,
   storeKitSupported,
   type SignedTransaction,
   type StoreProduct,
@@ -290,6 +289,9 @@ export function useBilling({ userId }: UseBillingOptions) {
   const [isBusy, setIsBusy] = useState(false)
   const [storeProduct, setStoreProduct] = useState<StoreProduct | null>(null)
   const [storeReady, setStoreReady] = useState(false)
+  const [catalogueError, setCatalogueError] = useState<string | null>(null)
+  const [catalogueLoading, setCatalogueLoading] = useState(false)
+  const catalogueRequest = useRef(0)
   const mounted = useRef(true)
 
   useEffect(() => {
@@ -325,25 +327,51 @@ export function useBilling({ userId }: UseBillingOptions) {
     [redeemTransaction]
   )
 
-  /** Load the catalogue once, and only where there is a catalogue to load. */
-  useEffect(() => {
-    if (!storeKit || !appleProvider || !monthlyProductId) return
-    let cancelled = false
-
-    void (async () => {
-      const available = await storeKitAvailable()
-      const products = available
-        ? await fetchStoreProducts([monthlyProductId])
-        : []
-      if (cancelled || !mounted.current) return
-      setStoreProduct(products[0] ?? null)
-      setStoreReady(available)
-    })()
-
-    return () => {
-      cancelled = true
+  const reloadProducts = useCallback(async () => {
+    const request = ++catalogueRequest.current
+    setStoreProduct(null)
+    setStoreReady(false)
+    setCatalogueError(null)
+    if (!storeKit || !appleProvider || !monthlyProductId) {
+      setCatalogueLoading(false)
+      return
+    }
+    setCatalogueLoading(true)
+    try {
+      const product = await loadStoreProduct(monthlyProductId)
+      if (!mounted.current || request !== catalogueRequest.current) return
+      setStoreProduct(product)
+      setStoreReady(true)
+    } catch (cause) {
+      if (!mounted.current || request !== catalogueRequest.current) return
+      setCatalogueError(
+        billingErrorMessage(
+          cause,
+          "Could not load subscription plans. Please retry."
+        )
+      )
+    } finally {
+      if (mounted.current && request === catalogueRequest.current)
+        setCatalogueLoading(false)
     }
   }, [appleProvider, monthlyProductId, storeKit])
+
+  useEffect(() => {
+    void reloadProducts()
+    const retry = () => {
+      void reloadProducts()
+    }
+    const resume = () => {
+      if (document.visibilityState === "visible") retry()
+    }
+    window.addEventListener("online", retry)
+    document.addEventListener("visibilitychange", resume)
+    return () => {
+      catalogueRequest.current += 1
+      window.removeEventListener("online", retry)
+      document.removeEventListener("visibilitychange", resume)
+    }
+  }, [reloadProducts])
 
   /**
    * Catch up on anything StoreKit is still holding.
@@ -391,7 +419,7 @@ export function useBilling({ userId }: UseBillingOptions) {
   const refresh = useCallback(async () => {
     if (!userId) return serverStatus
     try {
-      await refreshStatus({})
+      await Promise.all([refreshStatus({}), reloadProducts()])
       if (mounted.current) setError(null)
     } catch (cause) {
       if (mounted.current) {
@@ -400,7 +428,7 @@ export function useBilling({ userId }: UseBillingOptions) {
     }
     // The Convex query is reactive, so the fresh value arrives on its own.
     return serverStatus
-  }, [refreshStatus, serverStatus, userId])
+  }, [refreshStatus, reloadProducts, serverStatus, userId])
 
   /**
    * Buy the monthly plan, through whichever till this platform has.
@@ -617,11 +645,21 @@ export function useBilling({ userId }: UseBillingOptions) {
 
   const status: BillingStatus = useMemo(() => {
     if (!isNative && !isWeb) return "unsupported"
-    if (error) return "error"
-    if (subscriptionQuery === undefined || isBusy) return "loading"
+    if (error || catalogueError) return "error"
+    if (subscriptionQuery === undefined || isBusy || catalogueLoading)
+      return "loading"
     if (!userId) return "idle"
     return "ready"
-  }, [error, isBusy, isNative, isWeb, subscriptionQuery, userId])
+  }, [
+    error,
+    catalogueError,
+    catalogueLoading,
+    isBusy,
+    isNative,
+    isWeb,
+    subscriptionQuery,
+    userId,
+  ])
 
   const customerInfo = serverStatus as BillingSubscriptionStatus | null
   const managementUrl = customerInfo?.managementUrl ?? null
@@ -630,7 +668,9 @@ export function useBilling({ userId }: UseBillingOptions) {
     () => ({
       customerInfo,
       currentOffering: null,
-      error,
+      error: error ?? catalogueError,
+      catalogueLoading,
+      reloadProducts,
       isConfigured,
       isNative,
       isWeb,
@@ -672,7 +712,7 @@ export function useBilling({ userId }: UseBillingOptions) {
       refresh,
       subscriptionDiagnostic: subscriptionDiagnosticCopy({
         customerInfo,
-        error,
+        error: error ?? catalogueError,
         isConfigured,
         isNative,
         isWeb,
@@ -682,6 +722,9 @@ export function useBilling({ userId }: UseBillingOptions) {
     }),
     [
       appleProvider,
+      catalogueError,
+      catalogueLoading,
+      reloadProducts,
       cancelSubscription,
       openBillingManagement,
       customerInfo,
