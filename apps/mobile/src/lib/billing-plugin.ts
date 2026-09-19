@@ -90,15 +90,8 @@ export async function storeKitAvailable() {
 
 export async function fetchStoreProducts(productIds: string[]) {
   if (!pluginAvailable() || productIds.length === 0) return []
-  try {
-    const { products } = await Billing.getProducts({ productIds })
-    return products
-  } catch {
-    // An empty catalogue is a legitimate state — App Store Connect propagation
-    // takes hours, and a build running against products that do not exist yet
-    // should show "unavailable", not an error dialog.
-    return []
-  }
+  const { products } = await Billing.getProducts({ productIds })
+  return products
 }
 
 export async function purchaseStoreProduct(options: {

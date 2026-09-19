@@ -72,6 +72,8 @@ const {
   storeKitSupported,
 } = await import("../billing-plugin")
 
+const { loadStoreProduct } = await import("../billing-catalogue")
+
 function onIos() {
   platform.name = "ios"
   platform.native = true
@@ -150,14 +152,73 @@ describe("on iOS", () => {
     productsMock.mockClear()
   })
 
-  test("an empty product list is a state, not an error", async () => {
+  test("preserves catalogue errors for recovery", async () => {
     productsMock.mockImplementationOnce(async () => {
-      throw new Error("no products configured")
+      throw new Error("store offline")
     })
-    // App Store Connect takes hours to propagate a new subscription, and a
-    // build pointed at one that does not exist yet should say "unavailable"
-    // rather than throwing inside a render effect.
-    expect(await fetchStoreProducts(["onerep_pro_monthly"])).toEqual([])
+    await expect(fetchStoreProducts(["onerep_pro_monthly"])).rejects.toThrow(
+      "store offline"
+    )
+  })
+
+  test("retries an empty catalogue and a transient error before recovering", async () => {
+    const product = {
+      id: "onerep_pro_monthly",
+      displayName: "Pro",
+      description: "Pro",
+      displayPrice: "€4.99",
+    }
+    productsMock.mockImplementationOnce(async () => ({ products: [] }))
+    productsMock.mockImplementationOnce(async () => {
+      throw new Error("offline")
+    })
+    productsMock.mockImplementationOnce(async () => ({ products: [product] }))
+    expect(await loadStoreProduct(product.id, { retryDelayMs: 0 })).toEqual(
+      product
+    )
+    expect(productsMock).toHaveBeenCalledTimes(3)
+  })
+
+  test("stops after three empty responses and allows a later retry", async () => {
+    await expect(
+      loadStoreProduct("onerep_pro_monthly", { retryDelayMs: 0 })
+    ).rejects.toThrow("couldn’t load")
+    expect(productsMock).toHaveBeenCalledTimes(3)
+    const product = {
+      id: "onerep_pro_monthly",
+      displayName: "Pro",
+      description: "Pro",
+      displayPrice: "$4.99",
+    }
+    productsMock.mockImplementationOnce(async () => ({ products: [product] }))
+    expect(await loadStoreProduct(product.id, { retryDelayMs: 0 })).toEqual(
+      product
+    )
+  })
+
+  test("a hung StoreKit request times out and recovers", async () => {
+    productsMock.mockImplementationOnce(() => new Promise(() => {}))
+    const product = {
+      id: "onerep_pro_monthly",
+      displayName: "Pro",
+      description: "Pro",
+      displayPrice: "$4.99",
+    }
+    productsMock.mockImplementationOnce(async () => ({ products: [product] }))
+    expect(
+      await loadStoreProduct(product.id, { retryDelayMs: 0, timeoutMs: 5 })
+    ).toEqual(product)
+    expect(productsMock).toHaveBeenCalledTimes(2)
+  })
+
+  test("does not accept a different product", async () => {
+    for (let i = 0; i < 3; i += 1)
+      productsMock.mockImplementationOnce(async () => ({
+        products: [{ id: "wrong" }],
+      }))
+    await expect(
+      loadStoreProduct("onerep_pro_monthly", { retryDelayMs: 0 })
+    ).rejects.toThrow("couldn’t load")
   })
 
   test("asking for nothing does not call the store", async () => {

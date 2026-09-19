@@ -30,5 +30,7 @@ export interface AiAccessRequiredModalProps {
   onClose: () => void
   onOpenPaywall: () => void
   onRestore?: () => void
+  onRetry?: () => void
+  plansLoading?: boolean
   onOpenSettings: () => void
 }

@@ -120,6 +120,8 @@ export function useAiFeatureGate() {
         isNative={billing.isNative}
         canPurchase={billing.canPurchase}
         canRestore={billing.canRestore}
+        plansLoading={billing.catalogueLoading}
+        onRetry={billing.canRestore ? () => void billing.reloadProducts() : undefined}
         onClose={() => setModalOpen(false)}
         onOpenPaywall={() => {
           if (paywallBusy) return
