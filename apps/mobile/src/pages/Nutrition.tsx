@@ -2229,22 +2229,25 @@ export default function Nutrition() {
   const [smartMealBusyKey, setSmartMealBusyKey] = useState<string | null>(null)
   // Held by id, not by value: the sheet must follow the entry as the day's
   // query updates underneath it rather than showing a frozen copy.
-  const [entryDetail, setEntryDetail] = useState<string | null>(() =>
-    searchParams.get("entry")
+  const entryDetail = searchParams.get("entry")
+  const setEntryDetail = useCallback(
+    (entryId: string | null) => {
+      setSearchParams(
+        (current) => {
+          const next = new URLSearchParams(current)
+          if (entryId) next.set("entry", entryId)
+          else next.delete("entry")
+          return next
+        },
+        { replace: true }
+      )
+    },
+    [setSearchParams]
   )
-  const closeEntryDetail = useCallback(() => {
-    setEntryDetail(null)
-    if (!searchParams.has("entry")) return
-    const next = new URLSearchParams(searchParams)
-    next.delete("entry")
-    setSearchParams(next, { replace: true })
-  }, [searchParams, setSearchParams])
-  useEffect(() => {
-    const requestedEntry = searchParams.get("entry")
-    if (requestedEntry && requestedEntry !== entryDetail) {
-      setEntryDetail(requestedEntry)
-    }
-  }, [entryDetail, searchParams])
+  const closeEntryDetail = useCallback(
+    () => setEntryDetail(null),
+    [setEntryDetail]
+  )
   const [savingEntry, setSavingEntry] = useState(false)
   const { requireAiAccess, aiAccessModal } = useAiFeatureGate()
   useBottomBarAction(() => {

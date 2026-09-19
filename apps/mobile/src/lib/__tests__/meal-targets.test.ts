@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import {
   DEFAULT_MEAL_SHARES,
+  DEFAULT_MEAL_IDS,
   mealTargetProgress,
   normalizeMealShares,
   resolveMealCalorieTargets,
@@ -172,5 +173,35 @@ describe("mealTargetProgress", () => {
   test("negative and non-finite intake is treated as zero", () => {
     expect(mealTargetProgress(Number.NaN, 500).ratio).toBe(0)
     expect(mealTargetProgress(-100, 500).ratio).toBe(0)
+  })
+})
+
+describe("legacy snack target migration", () => {
+  const legacy = [
+    { meal: "breakfast", percent: 25 },
+    { meal: "lunch", percent: 35 },
+    { meal: "dinner", percent: 30 },
+    { meal: "snack", percent: 10 },
+  ]
+  test("preserves main meals and divides the full snack allocation", () => {
+    const shares = normalizeMealShares(legacy, [...DEFAULT_MEAL_IDS])
+    expect(shares.find((s) => s.meal === "lunch")?.percent).toBeCloseTo(35)
+    for (const share of shares.filter((s) => s.meal.startsWith("snack-"))) {
+      expect(share.percent).toBeCloseTo(10 / 3)
+    }
+    expect(sum(shares)).toBeCloseTo(100)
+    expect(normalizeMealShares(shares, [...DEFAULT_MEAL_IDS])).toEqual(shares)
+  })
+  test("combines existing windows and legacy shares without losing either", () => {
+    const shares = normalizeMealShares(
+      [
+        { meal: "breakfast", percent: 70 },
+        { meal: "snack", percent: 15 },
+        { meal: "snack-post-lunch", percent: 15 },
+      ],
+      [...DEFAULT_MEAL_IDS]
+    )
+    expect(shares.find((s) => s.meal === "breakfast")?.percent).toBe(70)
+    expect(shares.find((s) => s.meal === "snack-post-lunch")?.percent).toBe(20)
   })
 })

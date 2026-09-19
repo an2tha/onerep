@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils"
 import { useEnergyUnit } from "@/lib/use-energy-unit"
 import { energyDisplay } from "@repo/ui"
 import { useSmoothNavigate } from "@/lib/navigation"
-import { DEFAULT_MEAL_CATEGORIES, type FoodLogEntry } from "@/lib/food-log"
+import { DISPLAY_MEAL_CATEGORIES, type FoodLogEntry } from "@/lib/food-log"
 import { DateNav } from "./date-nav"
 import {
   COMPLETE_COLOR,
@@ -345,7 +345,7 @@ export function LoggedTodayCard({
     if (!byMeal.has(e.meal)) byMeal.set(e.meal, [])
     byMeal.get(e.meal)!.push(e)
   }
-  const groups = DEFAULT_MEAL_CATEGORIES.filter((c) => byMeal.has(c.id)).map(
+  const groups = DISPLAY_MEAL_CATEGORIES.filter((c) => byMeal.has(c.id)).map(
     (c) => ({ cfg: c, entries: byMeal.get(c.id)! })
   )
 
@@ -720,7 +720,7 @@ export function FoodSmall({
     if (!byMeal.has(e.meal)) byMeal.set(e.meal, [])
     byMeal.get(e.meal)!.push(e)
   }
-  const groups = DEFAULT_MEAL_CATEGORIES.filter((c) => byMeal.has(c.id)).map(
+  const groups = DISPLAY_MEAL_CATEGORIES.filter((c) => byMeal.has(c.id)).map(
     (c) => ({ cfg: c, entries: byMeal.get(c.id)! })
   )
 

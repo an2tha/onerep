@@ -81,6 +81,25 @@ export function normalizeMealShares(
     }
   }
 
+  // Read-time compatibility for preferences saved before snack windows split.
+  // Preserve the legacy allocation, including when some new windows already
+  // have shares, and leave old/custom catalogues that still contain snack alone.
+  const snackMeals = meals.filter((meal) =>
+    ["snack-post-breakfast", "snack-post-lunch", "snack-post-dinner"].includes(
+      meal,
+    ),
+  );
+  if (
+    !meals.includes("snack") &&
+    snackMeals.length > 0 &&
+    Array.isArray(shares)
+  ) {
+    const legacy = shares.filter((share) => share?.meal === "snack").at(-1);
+    const portion = safePercent(legacy?.percent) / snackMeals.length;
+    for (const meal of snackMeals) {
+      byMeal.set(meal, (byMeal.get(meal) ?? 0) + portion);
+    }
+  }
   const raw = meals.map((meal) => ({
     meal,
     percent: byMeal.get(meal) ?? 0,
