@@ -5,7 +5,7 @@ const app = readFileSync(new URL("../App.tsx", import.meta.url), "utf8")
 const timeline = readFileSync(new URL("./timeline.tsx", import.meta.url), "utf8")
 const weekStrip = readFileSync(new URL("./week-strip.tsx", import.meta.url), "utf8")
 const styles = readFileSync(
-  new URL("../styles/index.css", import.meta.url),
+  new URL("../styles/dashboard.css", import.meta.url),
   "utf8"
 )
 const dials = readFileSync(new URL("./dials.tsx", import.meta.url), "utf8")

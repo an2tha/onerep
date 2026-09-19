@@ -169,6 +169,8 @@ describe("@repo/ui package boundary", () => {
       // already saying — so it stays on the side of the fence that can talk
       // to the phone.
       "training-hero-dials.tsx",
+      // Training/endurance mode dial coordinates selection with native haptics.
+      "linear-mode-dial.tsx",
       // The coach's computed lift verdicts and recovery read-out on Progress,
       // straight from a Convex query.
       "training-insights-panel.tsx",

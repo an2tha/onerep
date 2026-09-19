@@ -48,6 +48,9 @@ mock.module("@capgo/capacitor-updater", () => ({
 
 const originalFetch = globalThis.fetch
 
+// Each suite needs its own module instance: ota captures the native plugin
+// at import time, and Bun otherwise reuses the other suite's cached instance.
+const otaModulePath = "../ota.ts?test=disabled"
 const {
   applyOtaUpdateNow,
   checkForOtaUpdate,
@@ -55,7 +58,7 @@ const {
   initializeOta,
   notifyOtaAppReady,
   resetOtaStateForTests,
-} = await import("../ota")
+} = (await import(otaModulePath)) as typeof import("../ota")
 
 function installStorage() {
   const values = new Map<string, string>()

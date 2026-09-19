@@ -52,7 +52,7 @@ describe("endurance tab", () => {
 
   test("offers independent run, ride and swim views", () => {
     expect(SOURCE).toContain('type Sport = "run" | "ride" | "swim"')
-    expect(SOURCE).toContain('aria-label="Activity type"')
+    expect(SOURCE).toContain('ariaLabel="Activity type"')
   })
 
   test("allows weekly distance, time and session goals", () => {
@@ -85,7 +85,7 @@ describe("endurance tab", () => {
   })
 
   test("offers indoor workouts without starting geolocation", () => {
-    expect(SOURCE).toContain('aria-label="Workout setting"')
+    expect(SOURCE).toContain('ariaLabel="Workout setting"')
     expect(SOURCE).toContain('["outdoor", "indoor"]')
     expect(ACTIVE_SOURCE).toContain('session.environment === "indoor"')
     expect(ACTIVE_SOURCE).toContain("Timing and laps are active. GPS is off.")
