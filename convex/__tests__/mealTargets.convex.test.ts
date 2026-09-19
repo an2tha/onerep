@@ -36,6 +36,16 @@ describe("per-meal calorie targets", () => {
       const goals = await t.query(api.users.users.getEffectiveGoals, {});
       expect(goals?.mealTargetsEnabled).toBe(true);
       expect(goals!.effective.calories).toBe(2317);
+      expect(
+        goals!.mealTargets.find((target) => target.meal === "lunch")?.percent,
+      ).toBeCloseTo(35);
+      const snacks = goals!.mealTargets.filter((target) =>
+        target.meal.startsWith("snack-"),
+      );
+      expect(snacks).toHaveLength(3);
+      expect(
+        snacks.reduce((sum, target) => sum + target.percent, 0),
+      ).toBeCloseTo(10);
       // Largest-remainder rounding must not lose or invent a calorie.
       expect(sumCalories(goals!.mealTargets)).toBe(2317);
     });
@@ -60,10 +70,11 @@ describe("per-meal calorie targets", () => {
         0,
       );
       expect(total).toBeCloseTo(100, 6);
-      // "snack" was omitted by the caller but is a known meal, so it joins at 0.
+      // New snack windows omitted by the caller join at zero.
       expect(
-        prefs?.mealCalorieTargets?.shares.find((s) => s.meal === "snack")
-          ?.percent,
+        prefs?.mealCalorieTargets?.shares.find(
+          (s) => s.meal === "snack-post-lunch",
+        )?.percent,
       ).toBe(0);
     });
   });

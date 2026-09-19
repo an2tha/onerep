@@ -1,6 +1,7 @@
 import { describe, test, expect, beforeEach } from "bun:test"
 import {
   DEFAULT_MEAL_CATEGORIES,
+  DISPLAY_MEAL_CATEGORIES,
   CUSTOM_CATEGORY_COLORS,
   defaultMeal,
   dateForOffset,
@@ -34,16 +35,27 @@ import {
 // ── DEFAULT_MEAL_CATEGORIES ───────────────────────────────────────────────────
 
 describe("DEFAULT_MEAL_CATEGORIES", () => {
-  test("has 4 default categories", () => {
-    expect(DEFAULT_MEAL_CATEGORIES).toHaveLength(4)
+  test("has 6 default categories", () => {
+    expect(DEFAULT_MEAL_CATEGORIES).toHaveLength(6)
   })
 
-  test("contains breakfast, lunch, dinner, snack", () => {
+  test("contains main meals and three snack windows", () => {
     const ids = DEFAULT_MEAL_CATEGORIES.map((c) => c.id)
     expect(ids).toContain("breakfast")
     expect(ids).toContain("lunch")
     expect(ids).toContain("dinner")
-    expect(ids).toContain("snack")
+    expect(ids).not.toContain("snack")
+    expect(ids).toContain("snack-post-breakfast")
+    expect(ids).toContain("snack-post-lunch")
+    expect(ids).toContain("snack-post-dinner")
+  })
+
+  test("display groups retain legacy snacks without making them a new default", () => {
+    const legacy = DISPLAY_MEAL_CATEGORIES.find(
+      (category) => category.id === "snack"
+    )
+    expect(legacy?.label).toBe("Snack")
+    expect(legacy?.isDefault).toBe(false)
   })
 
   test("all default categories have isDefault: true", () => {
@@ -678,18 +690,18 @@ describe("meal category localStorage helpers", () => {
     expect(ids).toContain("breakfast")
     expect(ids).toContain("lunch")
     expect(ids).toContain("dinner")
-    expect(ids).toContain("snack")
+    expect(ids).toContain("snack-post-lunch")
   })
 
   test("readAllMealCategories returns only defaults when no custom ones", () => {
     const cats = readAllMealCategories()
-    expect(cats).toHaveLength(4)
+    expect(cats).toHaveLength(6)
   })
 
   test("addMealCategory adds a new category", () => {
     addMealCategory("Pre-Workout")
     const cats = readAllMealCategories()
-    expect(cats.length).toBe(5)
+    expect(cats.length).toBe(7)
     const custom = cats.find((c) => c.label === "Pre-Workout")
     expect(custom).toBeDefined()
     expect(custom!.isDefault).toBeUndefined()

@@ -28,7 +28,9 @@ describe("logged food entries can be inspected and corrected", () => {
       "aria-label={`Details for ${entry.name}`}"
     )
     expect(NUTRITION_SOURCE).toContain("setEntryDetail(entry.id)")
-    expect(NUTRITION_SOURCE).toContain("const [entryDetail, setEntryDetail]")
+    expect(NUTRITION_SOURCE).toContain(
+      'const entryDetail = searchParams.get("entry")'
+    )
   })
 
   test("the row itself shows macros, not calories alone", () => {
