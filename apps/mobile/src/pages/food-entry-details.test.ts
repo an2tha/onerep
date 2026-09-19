@@ -51,6 +51,11 @@ describe("logged food entries can be inspected and corrected", () => {
     expect(NUTRITION_SOURCE).toContain("Also in this entry")
   })
 
+  test("legacy snack entries remain editable after snack slots split", () => {
+    expect(NUTRITION_SOURCE).toContain('entry.meal === "snack"')
+    expect(NUTRITION_SOURCE).toContain("Snack (legacy)")
+  })
+
   test("Coach opens the day the meal was logged to, not today", () => {
     expect(COACH_CHAT_SOURCE).toContain(
       "onOpenNutrition: (date?: string) => void"
