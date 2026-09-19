@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach } from "bun:test"
+import { describe, test, expect, beforeEach, spyOn } from "bun:test"
 import {
   DEFAULT_MEAL_CATEGORIES,
   DISPLAY_MEAL_CATEGORIES,
@@ -92,10 +92,20 @@ describe("CUSTOM_CATEGORY_COLORS", () => {
 // ── defaultMeal ───────────────────────────────────────────────────────────────
 
 describe("defaultMeal", () => {
-  test("returns a valid meal type string", () => {
-    const meal = defaultMeal()
-    const validMeals = ["breakfast", "lunch", "dinner", "snack"]
-    expect(validMeals).toContain(meal)
+  test("returns a current default meal at every hour, including overnight", () => {
+    const hour = spyOn(Date.prototype, "getHours")
+    try {
+      const validMeals = DEFAULT_MEAL_CATEGORIES.map((category) => category.id)
+      for (let value = 0; value < 24; value += 1) {
+        hour.mockReturnValue(value)
+        expect(validMeals).toContain(defaultMeal())
+        if (value >= 21 || value < 5) {
+          expect(defaultMeal()).toBe("snack-post-dinner")
+        }
+      }
+    } finally {
+      hour.mockRestore()
+    }
   })
 })
 
