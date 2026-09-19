@@ -194,7 +194,7 @@ export function foodTools(deps: QuickActionDeps) {
           protein: protein ?? 0,
           carbs: carbs ?? 0,
           fat: fat ?? 0,
-          meal: meal ?? "snack",
+          meal: meal ?? "snack-post-dinner",
           loggedAt: deps.now(),
         } as FoodLogEntry
         await deps.mutate(

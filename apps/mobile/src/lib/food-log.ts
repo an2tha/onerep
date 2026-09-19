@@ -756,8 +756,22 @@ export const DEFAULT_MEAL_CATEGORIES: MealCategory[] = [
     isDefault: true,
   },
   {
-    id: "snack",
-    label: "Snack",
+    id: "snack-post-breakfast",
+    label: "Post-breakfast snack",
+    color: DEFAULT_MEAL_TONES.snack.color,
+    bg: DEFAULT_MEAL_TONES.snack.bg,
+    isDefault: true,
+  },
+  {
+    id: "snack-post-lunch",
+    label: "Post-lunch snack",
+    color: DEFAULT_MEAL_TONES.snack.color,
+    bg: DEFAULT_MEAL_TONES.snack.bg,
+    isDefault: true,
+  },
+  {
+    id: "snack-post-dinner",
+    label: "Post-dinner snack",
     color: DEFAULT_MEAL_TONES.snack.color,
     bg: DEFAULT_MEAL_TONES.snack.bg,
     isDefault: true,
@@ -1191,7 +1205,7 @@ export function defaultMeal(): MealType {
   if (h >= 5 && h < 11) return "breakfast"
   if (h >= 11 && h < 15) return "lunch"
   if (h >= 15 && h < 21) return "dinner"
-  return "snack"
+  return "snack-post-dinner"
 }
 
 // ─── Date key helpers ─────────────────────────────────────────────────────────

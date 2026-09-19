@@ -1,6 +1,13 @@
 import type { OpenFoodFactsProduct } from "./foods";
 
-export type MealType = "breakfast" | "lunch" | "dinner" | "snack";
+export type MealType =
+  | "breakfast"
+  | "lunch"
+  | "dinner"
+  | "snack" // Legacy records remain readable and editable.
+  | "snack-post-breakfast"
+  | "snack-post-lunch"
+  | "snack-post-dinner";
 
 export type FoodLogEntry = {
   id: string;

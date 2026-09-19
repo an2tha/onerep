@@ -64,6 +64,13 @@ describe("Today and nutrition UX contract", () => {
     assert.match(HOME_SOURCE, /\{energyUnit\} from supplements/)
   })
 
+  test("Today food pencils identify and open the selected diary entry", () => {
+    const APP_SOURCE = source("../App.legacy.tsx")
+    assert.match(APP_SOURCE, /event\.kind === "food"/)
+    assert.match(APP_SOURCE, /entry=\$\{encodeURIComponent\(entryId\)\}/)
+    assert.match(NUTRITION_SOURCE, /searchParams\.get\("entry"\)/)
+  })
+
   test("Nutrition no longer pushes automatic target adjustments", () => {
     assert.doesNotMatch(NUTRITION_SOURCE, /NutritionCalibrationCard/)
     assert.doesNotMatch(NUTRITION_SOURCE, /applyNutritionCalibration/)

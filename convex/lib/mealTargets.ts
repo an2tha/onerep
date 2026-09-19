@@ -28,14 +28,18 @@ export const DEFAULT_MEAL_IDS = [
   "breakfast",
   "lunch",
   "dinner",
-  "snack",
+  "snack-post-breakfast",
+  "snack-post-lunch",
+  "snack-post-dinner",
 ] as const;
 
 export const DEFAULT_MEAL_SHARES: MealShare[] = [
   { meal: "breakfast", percent: 25 },
-  { meal: "lunch", percent: 35 },
+  { meal: "lunch", percent: 30 },
   { meal: "dinner", percent: 30 },
-  { meal: "snack", percent: 10 },
+  { meal: "snack-post-breakfast", percent: 6 },
+  { meal: "snack-post-lunch", percent: 5 },
+  { meal: "snack-post-dinner", percent: 4 },
 ];
 
 function safePercent(value: unknown): number {

@@ -1721,7 +1721,13 @@ export default function LegacyApp() {
                   navigate("/workouts", { motion: "switch" })
                 else if (event.kind === "supplement")
                   navigate("/supplements", { motion: "switch" })
-                else
+                else if (event.kind === "food") {
+                  const entryId = event.id.replace(/^food-/, "")
+                  navigate(
+                    `/nutrition?date=${selectedDate}&entry=${encodeURIComponent(entryId)}`,
+                    { motion: "switch" }
+                  )
+                } else
                   navigate(`/nutrition?date=${selectedDate}`, {
                     motion: "switch",
                   })

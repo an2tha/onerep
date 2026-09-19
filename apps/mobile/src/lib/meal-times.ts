@@ -24,7 +24,9 @@ export const DEFAULT_MEAL_TIMES: Record<string, string> = {
   breakfast: "08:00",
   lunch: "12:30",
   dinner: "19:00",
-  snack: "15:00",
+  "snack-post-breakfast": "10:00",
+  "snack-post-lunch": "15:00",
+  "snack-post-dinner": "20:00",
 }
 
 export function readMealTimes(): MealTimeDefaults {
