@@ -125,7 +125,15 @@ export function shiftDate(date: string, days: number) {
  * is a smaller loss than a diary full of meals named after food.
  */
 export const mealArg = z
-  .enum(["breakfast", "lunch", "dinner", "snack"])
+  .enum([
+    "breakfast",
+    "lunch",
+    "dinner",
+    "snack", // Legacy records remain addressable through the tool.
+    "snack-post-breakfast",
+    "snack-post-lunch",
+    "snack-post-dinner",
+  ])
   .describe("Which meal it belongs to")
 
 /**

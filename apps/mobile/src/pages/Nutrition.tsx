@@ -1530,6 +1530,9 @@ function FoodEntrySheet({
           aria-label="Meal"
           className="h-11 w-full rounded-xl border border-border bg-transparent px-3 text-[14px] font-medium outline-none"
         >
+          {entry.meal === "snack" && (
+            <option value="snack">Snack (legacy)</option>
+          )}
           {DEFAULT_MEAL_CATEGORIES.map((category) => (
             <option key={category.id} value={category.id}>
               {category.label}
@@ -2226,7 +2229,22 @@ export default function Nutrition() {
   const [smartMealBusyKey, setSmartMealBusyKey] = useState<string | null>(null)
   // Held by id, not by value: the sheet must follow the entry as the day's
   // query updates underneath it rather than showing a frozen copy.
-  const [entryDetail, setEntryDetail] = useState<string | null>(null)
+  const [entryDetail, setEntryDetail] = useState<string | null>(() =>
+    searchParams.get("entry")
+  )
+  const closeEntryDetail = useCallback(() => {
+    setEntryDetail(null)
+    if (!searchParams.has("entry")) return
+    const next = new URLSearchParams(searchParams)
+    next.delete("entry")
+    setSearchParams(next, { replace: true })
+  }, [searchParams, setSearchParams])
+  useEffect(() => {
+    const requestedEntry = searchParams.get("entry")
+    if (requestedEntry && requestedEntry !== entryDetail) {
+      setEntryDetail(requestedEntry)
+    }
+  }, [entryDetail, searchParams])
   const [savingEntry, setSavingEntry] = useState(false)
   const { requireAiAccess, aiAccessModal } = useAiFeatureGate()
   useBottomBarAction(() => {
@@ -2856,7 +2874,7 @@ export default function Nutrition() {
         entry: stripUndefined({ ...updated, _id: undefined }),
       })
       hapticTap()
-      setEntryDetail(null)
+      closeEntryDetail()
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Could not save this entry"
@@ -4102,17 +4120,17 @@ export default function Nutrition() {
             onSave={(updated) => void saveFoodEntry(updated)}
             onDelete={() => {
               removeFoodEntry(entry.id)
-              setEntryDetail(null)
+              closeEntryDetail()
             }}
             onEditRecipe={
               entry.recipeId || entry.recipeDraft
                 ? () => {
-                    setEntryDetail(null)
+                    closeEntryDetail()
                     editRecipeFromLogEntry(entry)
                   }
                 : undefined
             }
-            onClose={() => setEntryDetail(null)}
+            onClose={() => closeEntryDetail()}
           />
         )
       })()}
