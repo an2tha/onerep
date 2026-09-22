@@ -1,3 +1,5 @@
+import { RecoveryBanner } from "@/components/recovery/recovery-banner"
+import { useRecovery } from "@/lib/use-recovery"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useWeightUnit } from "@/lib/use-weight-unit"
 import { useEnergyUnit } from "@/lib/use-energy-unit"
@@ -423,11 +425,13 @@ export default function LegacyApp() {
     dayOffset === 0 ? "" : ` · ${selectedDateLabel}`
   }`
 
+  const recovery = useRecovery()
   const scheduledWorkout = useMemo(() => {
+    if (dayOffset >= 0 && recovery?.active?.deferTraining) return null
     const day = dateKeyToDay(selectedDate, activeTimezone)
     const presetId = storedRoutine[day]
     return storedPresets.find((preset) => preset.id === presetId) ?? null
-  }, [activeTimezone, selectedDate, storedPresets, storedRoutine])
+  }, [activeTimezone, selectedDate, storedPresets, storedRoutine, dayOffset, recovery?.active?.deferTraining])
 
   // Shown once per day; dismissing stores the day it applies to.
   const [welcomeSeenDay, setWelcomeSeenDay] = useState(() =>
@@ -1439,7 +1443,8 @@ export default function LegacyApp() {
                 </div>
               </section>
             )}
-            {showWelcomeNudge && (
+            {dayOffset === 0 && <div className="mx-[var(--app-page-x)] md:mx-8"><RecoveryBanner /></div>}
+            {showWelcomeNudge && recovery !== undefined && !recovery.active && (
               <div className="mx-[var(--app-page-x)] md:mx-8">
                 <WelcomeNudge
                   scheduledWorkout={scheduledWorkout}

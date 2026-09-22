@@ -1,3 +1,4 @@
+import { activeRecovery } from "../lib/illnessRecovery";
 import { v } from "convex/values";
 import { programmeDay, programmeNeedsCare } from "../lib/nutritionProgramme";
 import { internalQuery } from "../_generated/server";
@@ -454,7 +455,11 @@ export async function buildCoachWorkspace(
       }
     : null;
 
+  const illnessRecovery = await activeRecovery(ctx, args.userId);
+  const recoveryHistory = await ctx.db.query("recoveryEpisodes").withIndex("by_userId_and_startedOn", q => q.eq("userId", args.userId)).order("desc").take(30);
   const base = {
+    illnessRecovery,
+    recoveryHistory,
     today: args.today,
     timezone: preferences?.lastActiveTimezone ?? "UTC",
     nutritionTargets,

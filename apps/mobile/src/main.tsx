@@ -1,3 +1,5 @@
+import Recovery from "./pages/Recovery"
+import { RecoveryReminderSync } from "./components/recovery/recovery-reminder-sync"
 import { RouteActivityContext } from "./lib/route-activity"
 import {
   StrictMode,
@@ -661,6 +663,7 @@ function NavSync() {
           )}
         </TourProvider>
         <AppMoments />
+              <RecoveryReminderSync />
       </BottomBarActionProvider>
     </FullScreenEventProvider>
   )
@@ -1234,6 +1237,10 @@ const router = createBrowserRouter([
             </ErrorBoundary>
           </AuthGuard>
         ),
+      },
+      {
+        path: "/recovery",
+        element: <AuthGuard><ErrorBoundary label="Recovery"><Recovery /></ErrorBoundary></AuthGuard>,
       },
       {
         path: "/coach",

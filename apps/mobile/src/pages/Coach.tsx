@@ -1,3 +1,5 @@
+import { coachErrorMessage } from "@/lib/coach-error"
+import { RecoveryBanner } from "@/components/recovery/recovery-banner"
 import {
   useEffect,
   useId,
@@ -109,7 +111,7 @@ import {
   CoachAttachmentPreview,
   CoachOperationResults,
   CoachProposal,
-  CoachUiBlocks,
+  CoachGeneratedUI,
   ThinkingIndicator,
   useCoachAttachment,
   normalizeCoachArtifacts,
@@ -1963,6 +1965,7 @@ export default function Coach({
     const response = result as {
       reply: string
       sleepMode?: boolean
+        openui?: string
         uiBlocks?: unknown
         operations?: unknown
         artifacts?: unknown
@@ -2007,6 +2010,7 @@ export default function Coach({
           role: "assistant",
           content: response.reply,
           sleepMode: response.sleepMode === true || sleepAtmosphere,
+          openui: typeof response.openui === "string" ? response.openui : undefined,
           uiBlocks: normalizeCoachUiBlocks(response.uiBlocks),
           operationResults,
           pendingOperations: needsConfirmation ? operations : undefined,
@@ -2016,7 +2020,7 @@ export default function Coach({
     } catch (error) {
       // The server has no error code for a spent allowance, only prose, so the
       // string match is what separates "you ran out" from "it broke".
-      const message = error instanceof Error ? error.message : ""
+      const message = coachErrorMessage(error)
       trackUmami("coach_failed", {
         mode: activeMode,
         seconds: elapsedSeconds(),
@@ -2028,10 +2032,7 @@ export default function Coach({
         ...nextMessages,
         {
           role: "assistant",
-          content:
-            error instanceof Error
-              ? error.message
-              : "I could not answer that right now.",
+          content: message,
           error: true,
         },
       ])
@@ -2485,6 +2486,7 @@ export default function Coach({
               ) : null}
             </div>
           </header>
+        <RecoveryBanner surface="coach" />
 
           <nav
             ref={coachModesRef}
@@ -2778,7 +2780,9 @@ export default function Coach({
                               </button>
                             ) : (
                               <>
-                                <CoachUiBlocks
+                                <CoachGeneratedUI
+                                  openui={message.openui}
+                                  onContinue={(message) => void submit(message)}
                                   blocks={message.uiBlocks}
                                   onAction={handleUiAction}
                                   onSubmitInteractive={(operation) =>

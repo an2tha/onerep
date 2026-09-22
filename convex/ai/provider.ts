@@ -62,6 +62,39 @@ type AiJsonRequest = {
   model?: string | null;
 };
 
+export function defaultOpenRouterModel() {
+  return env.OPENROUTER_MODEL?.trim() || env.OPENAI_MODEL?.trim() || DEFAULT_OPENROUTER_MODEL;
+}
+
+export class AiProviderError extends Error {
+  constructor(message: string, public readonly status?: number) {
+    super(message);
+    this.name = "AiProviderError";
+  }
+}
+
+function providerErrorStatus(error: unknown): number | undefined {
+  if (!error || typeof error !== "object") return undefined;
+  const status = (error as { status?: unknown }).status;
+  return typeof status === "number" ? status : undefined;
+}
+
+/** OpenRouter can finish a non-streaming request with an error inside HTTP 200. */
+const checkedOpenRouterFetch = async (...args: Parameters<typeof fetch>): Promise<Response> => {
+  const response = await globalThis.fetch(...args);
+  if (!response.ok || !response.headers.get("content-type")?.includes("application/json")) return response;
+  const body = await response.clone().json() as { error?: { message?: string; code?: number }; choices?: unknown[] };
+  const emptyCompletion = Array.isArray(body.choices) && body.choices.length === 0;
+  if (!body.error && !emptyCompletion) return response;
+  const code = body.error?.code;
+  const status = typeof code === "number" && Number.isInteger(code) && code >= 400 && code <= 599 ? code : 502;
+  // Keep upstream details for the SDK's error handler instead of dereferencing an absent generation.
+  const headers = new Headers(response.headers);
+  headers.delete("content-length");
+  headers.delete("content-encoding");
+  return new Response(JSON.stringify({ error: body.error ?? { message: "AI provider returned an empty completion", code: status } }), { status, headers });
+};
+
 function resolveOpenRouterConfig(
   userApiKey?: string | null,
   modelOverride?: string | null,
@@ -72,10 +105,7 @@ function resolveOpenRouterConfig(
   // the OpenRouter endpoint. A caller's override wins over all of it, but only
   // after assertCatalogModel has vouched for it.
   const model =
-    modelOverride?.trim() ||
-    env.OPENROUTER_MODEL?.trim() ||
-    env.OPENAI_MODEL?.trim() ||
-    DEFAULT_OPENROUTER_MODEL;
+    modelOverride?.trim() || defaultOpenRouterModel();
   if (
     env.AI_PROCESSOR_APPROVED?.trim().toLowerCase() !== "true" ||
     !apiKey ||
@@ -186,7 +216,8 @@ function chatModel(
     ...(options.temperature === undefined
       ? {}
       : { temperature: options.temperature }),
-    configuration: { baseURL: config.baseURL },
+    maxRetries: 1,
+    configuration: { baseURL: config.baseURL, fetch: checkedOpenRouterFetch, maxRetries: 0 },
     modelKwargs: {
       provider: {
         only: [disclosedProvider(config.model)],
@@ -467,7 +498,7 @@ export async function runOpenAiAgent<T>({
       steps: result.steps,
     };
   } catch (error) {
-    throw new Error(`Model request failed: ${describeProviderError(error)}`);
+    throw new AiProviderError(`Model request failed: ${describeProviderError(error)}`, providerErrorStatus(error));
   }
 }
 
@@ -512,6 +543,9 @@ export async function requestOpenAiJson({
         response_format: { type: "json_object" },
       });
     } catch (formatError) {
+      const status = providerErrorStatus(formatError);
+      const detail = describeProviderError(formatError);
+      if ((status !== 400 && status !== 422) || !/response[_ ]format|json[_ ]object|structured output|json mode/i.test(detail)) throw formatError;
       // `json_object` is an OpenAI-ism. Plenty of the models the catalog can
       // now route to reject the parameter outright, and before this retry
       // that rejection silently became the canned fallback reply — the worst
@@ -536,7 +570,7 @@ export async function requestOpenAiJson({
     const output = extractJsonObject(messageText(result.content));
     return JSON.stringify(output);
   } catch (error) {
-    throw new Error(`Model request failed: ${describeProviderError(error)}`);
+    throw new AiProviderError(`Model request failed: ${describeProviderError(error)}`, providerErrorStatus(error));
   }
 }
 

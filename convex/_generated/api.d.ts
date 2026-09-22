@@ -11,6 +11,7 @@
 import type * as ai_byok from "../ai/byok.js";
 import type * as ai_coachGoals from "../ai/coachGoals.js";
 import type * as ai_coachHistory from "../ai/coachHistory.js";
+import type * as ai_coachOpenUI from "../ai/coachOpenUI.js";
 import type * as ai_coachOperations from "../ai/coachOperations.js";
 import type * as ai_coachReviews from "../ai/coachReviews.js";
 import type * as ai_coachState from "../ai/coachState.js";
@@ -71,6 +72,7 @@ import type * as lib_healthProfiles from "../lib/healthProfiles.js";
 import type * as lib_healthScore from "../lib/healthScore.js";
 import type * as lib_healthSeries from "../lib/healthSeries.js";
 import type * as lib_history from "../lib/history.js";
+import type * as lib_illnessRecovery from "../lib/illnessRecovery.js";
 import type * as lib_importPresets from "../lib/importPresets.js";
 import type * as lib_mealTargets from "../lib/mealTargets.js";
 import type * as lib_memoryConsolidation from "../lib/memoryConsolidation.js";
@@ -133,6 +135,7 @@ import type * as push_apns from "../push/apns.js";
 import type * as push_fcm from "../push/fcm.js";
 import type * as push_send from "../push/send.js";
 import type * as push_tokens from "../push/tokens.js";
+import type * as recovery from "../recovery.js";
 import type * as security from "../security.js";
 import type * as sharing_diaryComments from "../sharing/diaryComments.js";
 import type * as sharing_diaryShares from "../sharing/diaryShares.js";
@@ -161,6 +164,7 @@ declare const fullApi: ApiFromModules<{
   "ai/byok": typeof ai_byok;
   "ai/coachGoals": typeof ai_coachGoals;
   "ai/coachHistory": typeof ai_coachHistory;
+  "ai/coachOpenUI": typeof ai_coachOpenUI;
   "ai/coachOperations": typeof ai_coachOperations;
   "ai/coachReviews": typeof ai_coachReviews;
   "ai/coachState": typeof ai_coachState;
@@ -221,6 +225,7 @@ declare const fullApi: ApiFromModules<{
   "lib/healthScore": typeof lib_healthScore;
   "lib/healthSeries": typeof lib_healthSeries;
   "lib/history": typeof lib_history;
+  "lib/illnessRecovery": typeof lib_illnessRecovery;
   "lib/importPresets": typeof lib_importPresets;
   "lib/mealTargets": typeof lib_mealTargets;
   "lib/memoryConsolidation": typeof lib_memoryConsolidation;
@@ -283,6 +288,7 @@ declare const fullApi: ApiFromModules<{
   "push/fcm": typeof push_fcm;
   "push/send": typeof push_send;
   "push/tokens": typeof push_tokens;
+  recovery: typeof recovery;
   security: typeof security;
   "sharing/diaryComments": typeof sharing_diaryComments;
   "sharing/diaryShares": typeof sharing_diaryShares;

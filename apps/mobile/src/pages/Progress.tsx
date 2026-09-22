@@ -1,3 +1,4 @@
+import { RecoveryBanner } from "@/components/recovery/recovery-banner"
 import {
   useCallback,
   useEffect,
@@ -570,6 +571,7 @@ export default function Progress() {
             </TourAnchor>
           </div>
         </header>
+        <RecoveryBanner surface="progress" />
 
         {/* Progress opens on the week itself, not on a tab bar. Nutrition
              rings its dials in a row and Training rings them in a crown;

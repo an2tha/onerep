@@ -175,3 +175,58 @@ test("outbound AI requests enforce the disclosed recipient and privacy controls"
     globalThis.fetch = previousFetch;
   }
 });
+
+test("HTTP 200 rate-limit envelopes preserve 429 instead of crashing or retrying formats", async () => {
+  process.env.OPENROUTER_API_KEY = "test-key";
+  process.env.AI_PROCESSOR_APPROVED = "true";
+  const previousFetch = globalThis.fetch;
+  const requests: Array<Record<string, unknown>> = [];
+  globalThis.fetch = (async (_input, init) => {
+    requests.push(JSON.parse(String(init?.body)));
+    return new Response(JSON.stringify({ id: "rate-limited", error: { code: 429, message: "Model is temporarily rate-limited upstream" } }), { status: 200, headers: { "Content-Type": "application/json", "retry-after": "0" } });
+  }) as typeof fetch;
+  try {
+    const failure = await requestOpenAiJson({ system: "JSON only", user: "test", model: DEFAULT_OPENROUTER_MODEL, maxTokens: 32 }).catch(error => error);
+    expect(failure.status).toBe(429);
+    expect(failure.message).toContain("rate-limited upstream");
+    expect(failure.message).not.toContain("reading 'message'");
+    expect(requests.length).toBeLessThanOrEqual(2);
+    expect(requests.every(request => request.response_format !== undefined)).toBe(true);
+  } finally { globalThis.fetch = previousFetch; }
+});
+
+test("a genuine JSON-format rejection retries once without that parameter", async () => {
+  process.env.OPENROUTER_API_KEY = "test-key";
+  process.env.AI_PROCESSOR_APPROVED = "true";
+  const previousFetch = globalThis.fetch;
+  const requests: Array<Record<string, unknown>> = [];
+  globalThis.fetch = (async (_input, init) => {
+    requests.push(JSON.parse(String(init?.body)));
+    return requests.length === 1
+      ? new Response(JSON.stringify({ error: { message: "response_format json_object is unsupported", code: 400 } }), { status: 400, headers: { "Content-Type": "application/json" } })
+      : new Response(JSON.stringify({ id: "ok", object: "chat.completion", choices: [{ index: 0, finish_reason: "stop", message: { role: "assistant", content: '{"ok":true}' } }] }), { status: 200, headers: { "Content-Type": "application/json" } });
+  }) as typeof fetch;
+  try {
+    expect(await requestOpenAiJson({ system: "JSON only", user: "test", model: DEFAULT_OPENROUTER_MODEL, maxTokens: 32 })).toBe('{"ok":true}');
+    expect(requests).toHaveLength(2);
+    expect(requests[1]?.response_format).toBeUndefined();
+  } finally { globalThis.fetch = previousFetch; }
+});
+
+test("a transient rate-limit envelope can recover on the bounded retry", async () => {
+  process.env.OPENROUTER_API_KEY = "test-key";
+  process.env.AI_PROCESSOR_APPROVED = "true";
+  const previousFetch = globalThis.fetch;
+  let requests = 0;
+  globalThis.fetch = (async () => {
+    requests++;
+    const body = requests === 1
+      ? { error: { code: 429, message: "Rate-limited upstream" } }
+      : { id: "ok", object: "chat.completion", choices: [{ index: 0, finish_reason: "stop", message: { role: "assistant", content: '{"ok":true}' } }] };
+    return new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json", "retry-after": "0" } });
+  }) as typeof fetch;
+  try {
+    expect(await requestOpenAiJson({ system: "JSON only", user: "test", model: DEFAULT_OPENROUTER_MODEL, maxTokens: 32 })).toBe('{"ok":true}');
+    expect(requests).toBe(2);
+  } finally { globalThis.fetch = previousFetch; }
+});

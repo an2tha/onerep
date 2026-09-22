@@ -72,6 +72,7 @@ export type WeeklyReportDay = {
 }
 
 export type WeeklyReport = {
+  recoveryDays?: number
   weekKey: string
   start: string
   end: string
@@ -193,6 +194,7 @@ export function buildWeeklyReport({
   proteinTarget,
   target = null,
   weightUnit = "kg",
+  recoveryDates = [],
 }: {
   start: string
   end: string
@@ -204,6 +206,7 @@ export function buildWeeklyReport({
   /** Sessions the user committed to for this week, if they committed. */
   target?: number | null
   /** The unit the reader thinks in. Weight is stored in kg regardless. */
+  recoveryDates?: string[]
   weightUnit?: WeightUnit
 }): WeeklyReport {
   const previousStart = dateToIso(
@@ -290,24 +293,35 @@ export function buildWeeklyReport({
     }
   })
 
+  const recoveryDays = new Set(
+    recoveryDates.filter((date) => inRange(date, start, end))
+  ).size
   return {
+    recoveryDays,
     weekKey: isoWeekKey(start),
     start,
     end,
     rangeLabel: rangeLabel(start, end),
-    headline: headlineFor({
-      workouts: training.workouts,
-      previousWorkouts: training.previousWorkouts,
-      loggedDays: nutrition.loggedDays,
-      target,
-    }),
+    headline: recoveryDays
+      ? `${recoveryDays} recovery ${recoveryDays === 1 ? "day" : "days"} this week. Making room to recover is part of the plan.`
+      : headlineFor({
+          workouts: training.workouts,
+          previousWorkouts: training.previousWorkouts,
+          loggedDays: nutrition.loggedDays,
+          target,
+        }),
     days,
     target,
-    metTarget: target === null ? null : training.workouts >= target,
+    metTarget:
+      recoveryDays || target === null ? null : training.workouts >= target,
     training,
     nutrition,
     body: { latestWeightKg, weightDeltaKg },
-    highlights: buildHighlights(training, nutrition, weightDeltaKg, weightUnit),
+    highlights: recoveryDays
+      ? [
+          "Recovery explains changes in activity and logging. Your long-term goals are unchanged.",
+        ]
+      : buildHighlights(training, nutrition, weightDeltaKg, weightUnit),
   }
 }
 
@@ -364,6 +378,7 @@ export function weeklyReportTrigger({
   calorieTarget,
   proteinTarget,
   target = null,
+  recoveryDates = [],
 }: {
   todayKey: string
   nowMinutes: number
@@ -373,6 +388,7 @@ export function weeklyReportTrigger({
   calorieTarget: number
   proteinTarget: number
   target?: number | null
+  recoveryDates?: string[]
 }): { key: string; report: WeeklyReport } | null {
   const { start, end } = completedWeek(todayKey, nowMinutes)
   const report = buildWeeklyReport({
@@ -384,6 +400,7 @@ export function weeklyReportTrigger({
     calorieTarget,
     proteinTarget,
     target,
+    recoveryDates,
   })
 
   // A week with nothing in it gets no screen — unless the user set a target
@@ -391,7 +408,8 @@ export function weeklyReportTrigger({
   if (
     report.training.workouts === 0 &&
     report.nutrition.loggedDays === 0 &&
-    target === null
+    target === null &&
+    !report.recoveryDays
   ) {
     return null
   }

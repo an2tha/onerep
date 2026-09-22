@@ -1,3 +1,4 @@
+import { useRecovery } from "@/lib/use-recovery"
 import { useEffect, useRef, useState } from "react"
 import { Barbell, CaretDown, Trash } from "@phosphor-icons/react"
 import { Card, CardTitle, SwipeToStart, tint } from "@repo/ui"
@@ -132,6 +133,7 @@ export function WorkoutCard({
   onDeleteSlot: (slot: 1 | 2) => void
 }) {
   const navigate = useSmoothNavigate()
+  const recovery = useRecovery()
   const isToday = dayOffset === 0
   const focus = settings.workoutFocus
   const fallbackWorkout = WORKOUTS[focus]
@@ -160,7 +162,7 @@ export function WorkoutCard({
       >
         <div className="flex min-h-12 items-center justify-between gap-3 px-4 py-2.5">
           <CardTitle className="text-sm font-semibold">{title}</CardTitle>
-          <p className="text-[13px] text-muted-foreground">Rest day</p>
+          <p className="text-[13px] text-muted-foreground">{recovery?.active?.deferTraining ? "Deferred for recovery" : "Rest day"}</p>
         </div>
       </Card>
     )

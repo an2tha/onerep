@@ -62,6 +62,7 @@ export type CoachMessage = {
   role: "user" | "assistant"
   content: string
   sleepMode?: boolean
+  openui?: string
   uiBlocks?: CoachUiBlock[]
   operationResults?: CoachOperationResult[]
   pendingOperations?: CoachOperation[]
@@ -2454,6 +2455,36 @@ function CoachPoseBlock({
       />
     </div>
   )
+}
+
+const CoachOpenUI = lazy(() => import("./coach-openui"))
+
+export function CoachGeneratedUI({
+  openui,
+  onContinue,
+  ...props
+}: Parameters<typeof CoachUiBlocks>[0] & {
+  openui?: string
+  onContinue: (message: string) => void
+}) {
+  if (openui)
+    return (
+      <Suspense
+        fallback={
+          <p className="mt-3 text-sm text-muted-foreground">
+            Loading interface…
+          </p>
+        }
+      >
+        <CoachOpenUI
+          key={openui}
+          source={openui}
+          onContinue={onContinue}
+          {...props}
+        />
+      </Suspense>
+    )
+  return <CoachUiBlocks {...props} />
 }
 
 export function CoachUiBlocks({

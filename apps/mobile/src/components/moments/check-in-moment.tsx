@@ -1,3 +1,4 @@
+import { NudgeIllustration } from "@/components/nudge-illustration"
 import { useState } from "react"
 import { useMutation, useQuery } from "convex/react"
 import { CaretLeft, ChatCircleDots, Drop } from "@phosphor-icons/react"
@@ -31,7 +32,7 @@ type Answer = {
    * picker, the questions the coach gets asked. Nothing here is a bare link
    * to a page.
    */
-  action: "retro" | "rest" | "coach" | "nutrition" | "close"
+  action: "retro" | "rest" | "coach" | "nutrition" | "close" | "recovery"
   outcome: FullScreenEventOutcome
 }
 
@@ -59,7 +60,10 @@ const COACH_PROMPTS: Record<CheckInVariant, string[]> = {
   ],
 }
 
+const RECOVERY_ANSWER: Answer = { id: "unwell", label: "I’m feeling unwell", detail: "Make room for recovery and adjust my plan.", action: "recovery", outcome: "resolved" }
+
 const MISSED_LOG_ANSWERS: Answer[] = [
+  RECOVERY_ANSWER,
   {
     id: "ate-unlogged",
     label: "I ate, I just didn't write it down",
@@ -77,7 +81,7 @@ const MISSED_LOG_ANSWERS: Answer[] = [
   {
     id: "off-day",
     label: "Today got away from me",
-    detail: "Noted. Tomorrow is a separate argument.",
+    detail: "Take a breath. Tomorrow is a fresh start.",
     action: "close",
     outcome: "dismissed",
   },
@@ -91,6 +95,7 @@ const MISSED_LOG_ANSWERS: Answer[] = [
 ]
 
 const LAPSE_ANSWERS: Answer[] = [
+  RECOVERY_ANSWER,
   {
     id: "trained-unlogged",
     label: "I trained, it just never got logged",
@@ -119,7 +124,7 @@ function copyFor(variant: CheckInVariant, daysSince: number) {
     return {
       title: "Nothing logged today.",
       subtitle:
-        "You're usually done by now, so either the day went sideways or the app did. Which one?",
+        "How has your day been? Log something, adjust the plan, or take a break.",
     }
   }
   return {
@@ -128,7 +133,7 @@ function copyFor(variant: CheckInVariant, daysSince: number) {
         ? `${daysSince} days since your last session.`
         : "No training logged lately.",
     subtitle:
-      "Not a crisis, and not nothing. Tell us what happened and we'll pick it up from there.",
+      "Plans change. Tell us what you need and we’ll find a comfortable next step.",
   }
 }
 
@@ -249,6 +254,7 @@ export function CheckInMoment({
   }
 
   function choose(answer: Answer) {
+    if (answer.action === "recovery") { onClose("resolved"); navigate("/recovery"); return }
     hapticSelection()
     if (answer.action === "retro") {
       setStep("day")
@@ -372,6 +378,7 @@ export function CheckInMoment({
         </MomentSecondaryAction>
       }
     >
+      <NudgeIllustration scene={variant === "missed-log" ? "log" : "return"} className="mx-auto mb-5 !w-44" />
       <div className="app-surface overflow-hidden">
         {answers.map((answer, index) => (
           <div key={answer.id}>

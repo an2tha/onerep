@@ -91,6 +91,7 @@ const BLOCKED_ROUTE_PREFIXES = [
   "/workout/active",
   "/workout/log",
   "/onboarding",
+  "/recovery",
   "/login",
   "/sso-callback",
   "/reset-password",

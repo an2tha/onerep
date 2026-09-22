@@ -1,0 +1,221 @@
+OneRep
+
+Training and nutrition
+One shared picture
+
+A working fitness app with an optional
+AI Coach built around the user’s own log.
+
+
+
+Investor introduction / September 2026
+
+Product image: demonstration account, captured 3 August 2026. UI has since evolved.
+                                                                                      1
+The first customer
+INITIAL CUSTOMER HYPOTHESIS
+
+                                                                                                                The daily task
+People who already lift                                                                                         Keep workouts and food in one usable
+                                                                                                                record.
+and track what they eat.
+
+                                                                                                                The weekly decision
+They have a routine. The opportunity is to                                                                      Understand what changed before
+make daily logging and weekly decisions                                                                         adjusting training or nutrition.
+easier to keep up.
+
+
+
+
+Proposed customer focus. Customer interviews, cohort retention and willingness to pay remain to be validated.
+                                                                                                                                                       2
+A working product across the daily routine
+Training                                                       Nutrition                                      Progress
+
+
+
+
+Routines and workout logs                                      Food logging and macros                        Trends and measurements
+Actual OneRep demo-account captures from 3 August 2026. Illustrative account values, not customer outcomes.
+                                                                                                                                        3
+Coach works inside the log
+
+Context from the account
+Coach can use training, food and goals rather than asking
+users to reconstruct their history.
+
+
+Suggestions that become entries
+Supported actions can create workouts or food records through
+an approval flow.
+
+
+User control
+AI sharing is opt-in. Core tracking works without Coach, and
+users can export their data.
+
+Implemented product capabilities. Demo screenshot: 3 August 2026. No claim of clinical effectiveness or improved outcomes.
+                                                                                                                             4
+A large category, a narrow starting point
+
+                                                                                                           OneRep’s starting audience
+
+81 million                                                                                                 Self-directed adults who combine
+                                                                                                           strength training with regular food
+                                                                                                           tracking.
+
+US fitness-facility members in 2025
+                                                                                                           What still needs proof
+                                                                                                           How many of these users will switch,
+                                                                                                           stay active and pay for Coach.
+HFA also reports that free weights led equipment
+usage growth since 2021.
+
+
+
+Source: HFA, 2026 US Health & Fitness Consumer Report. US membership includes ages 6+. Category context, not OneRep’s addressable market.
+                                                                                                                                                  5
+Competition is already converging
+PRODUCT                                     EXISTING OFFER                                                           IMPLICATION FOR ONEREP
+
+
+
+Hevy                                        Workout logging, routines and a                                          Workout tracking alone must meet
+                                            fitness community.                                                       a high usability bar.
+
+
+
+MacroFactor                                 Nutrition and workout apps, with a                                       Combining training and food is
+                                            combined subscription.                                                   already a competitive category.
+
+
+
+OneRep                                      Free core tracking, a shared account                                     The proposed advantage is less
+                                            and optional AI actions.                                                 logging friction and more useful
+                                                                                                                     context.
+
+
+Retention and useful coaching will determine whether users switch.
+Sources: Hevy official site; MacroFactor Workouts and pricing pages; OneRep product and code. Competitive position remains a hypothesis.
+                                                                                                                                                        6
+Free tracking, optional paid Coach
+CORE                                                                                                COACH / PUBLISHED WEB PRICE
+
+
+
+
+€0                                                                                                  €4.99
+                                                                                                     per month
+Workout, nutrition and progress
+tracking.                                                                                           500 AI requests per month.
+10 AI requests per month.                                                                           Recurring subscription.
+
+
+
+At 1,000 paying subscribers: €4,990 in monthly gross billings.
+
+
+Illustrative arithmetic, not a forecast. Before taxes, fees, AI, hosting and support costs. Published web offer; regional store prices may vary.
+                                                                                                                                                   7
+A working product, an early commercial stage
+
+                                                                                  Product available
+
+
+
+
+0
+                                                                                  Web app available. iOS in TestFlight
+                                                                                  beta, with the App Store release still
+                                                                                  pending.
+
+
+
+                                                                                  Next proof points
+ paying subscribers                                                               Reliable checkout, repeat weekly use and
+                                                                                  the first paid renewals.
+ As of 20 September 2026
+
+
+
+
+Current focus: establish repeat use, subscription conversion and paid renewals.
+                                                                                                                             8
+A focused distribution plan
+PROPOSED TESTS
+
+
+
+
+Start with small cohorts.
+Learn before buying reach.
+
+Direct recruiting                                                                              Search and useful content
+Invite lifters through relevant communities and                                                Use the existing exercise library and practical
+coach-led introductions. Offer hands-on                                                        training content to reach people with a specific
+onboarding.                                                                                    need.
+
+
+
+
+Planned experiments, not established channels or partnerships. Measure activation, four-week retention and conversion by acquisition source.
+                                                                                                                                                  9
+The milestones that justify the next stage
+PROPOSED PRIORITIES FOR INVESTMENT
+
+
+
+Reliable purchase and onboarding                                                                 A retained initial cohort
+Complete subscription purchase validation and the                                                Measure who returns to both training and nutrition
+iOS release. Make the first workout and food log                                                 after four weeks, and learn why others stop.
+straightforward.
+
+
+
+Repeat paid usage                                                                                A repeatable acquisition route
+Reach first paid renewals and measure AI cost per                                                Compare cohort quality by channel before
+paying subscriber alongside support and platform                                                 committing to a larger acquisition budget.
+fees.
+
+
+
+Milestones and priorities are proposed. Fundraising amount, runway, valuation and hiring plan require a separate founder discussion.
+                                                                                                                                                      10
+OneRep
+
+A working product.
+Paid demand is the next proof.
+
+Seeking investor conversations about the path
+to retained users and repeat paid subscriptions.
+
+
+ananthahalmuttur@gmail.com
+
+onerep.life / app.onerep.life
+                                                   11
+Sources and basis
+Product and pricing                            OneRep website, product source and published pricing. Accessed 20 September 2026.
+
+
+Commercial status                              OneRep reports zero paying subscribers as of 20 September 2026.
+
+
+Product imagery                                Repository demo-account captures dated 3 August 2026. Screens show demonstration data
+                                               and an earlier UI.
+
+Category context                               HFA, “81 Million Americans Were Members of a Fitness Facility in 2025,” 9 April 2026.
+
+
+Competition                                    Hevy (hevyapp.com). MacroFactor Workouts and pricing (macrofactor.com/workouts/price).
+                                               Accessed 20 September 2026.
+
+License and claims                             Public source uses PolyForm Noncommercial 1.0.0. Self-hosting and source availability are
+                                               distinct from unrestricted commercial use.
+
+
+
+Plans and scenario arithmetic are explicitly labeled. Founder background, financing terms and audited operating metrics are outside this introduction.
+                                                                                                                                                         12
+

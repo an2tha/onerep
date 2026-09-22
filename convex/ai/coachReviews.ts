@@ -27,6 +27,10 @@ export const latest = query({
       .order("desc")
       .first();
     if (!review) return null;
+    const recovery = await ctx.db.query("recoveryEpisodes")
+      .withIndex("by_userId_and_startedOn", q => q.eq("userId", user._id)).order("desc").first();
+    const weekEnd = new Date(Date.parse(review.weekStart) + 6 * 86400000).toISOString().slice(0, 10);
+    if (recovery && (recovery.active || (recovery.startedOn <= weekEnd && (!recovery.endedOn || recovery.endedOn >= review.weekStart))) && review.createdAt < recovery.updatedAt) return null;
     return {
       id: review._id,
       weekStart: review.weekStart,

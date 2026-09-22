@@ -1,3 +1,5 @@
+import { useRecovery } from "@/lib/use-recovery"
+import { RecoveryBanner } from "@/components/recovery/recovery-banner"
 import {
   foodLogContextParams,
   foodLogTimestamp,
@@ -2159,6 +2161,7 @@ function SupplementRow({
 }
 
 export default function Nutrition() {
+  const recovery = useRecovery()
   const energyUnit = useEnergyUnit()
   // Water's unit is its own choice (ml or fl oz), not an implication of the
   // measurement system — the Settings row picks it.
@@ -2276,6 +2279,7 @@ export default function Nutrition() {
     )
   }
   const isToday = dateKey === todayKey
+  const recoverySimple = isToday && !!recovery?.active?.simpleFood
   const dateLabel = formatDateLabel(dateKey, todayKey)
 
   const effectiveGoals = useQuery(api.users.users.getEffectiveGoals, {
@@ -2390,7 +2394,7 @@ export default function Nutrition() {
     water: true,
     streaks: true,
   }
-  const visibleMetrics = showCalorieNumbers
+  const visibleMetrics = recoverySimple ? { ...planMetrics, calories: false, macros: false, protein: false, streaks: false, micros: false, habits: true, water: true } : showCalorieNumbers
     ? { ...planMetrics, calories: true, macros: true, protein: true }
     : planMetrics
   // Recovery mode hides the numbers on purpose, but trackingMode is a separate
@@ -2469,7 +2473,7 @@ export default function Nutrition() {
     fastTargetSeconds > 0 ? Math.min(1, fastElapsed / fastTargetSeconds) : 0
   const fastRemaining = Math.max(0, fastTargetSeconds - fastElapsed)
   // A running fast takes the hero: it is the thing with a deadline.
-  const fastingHero = Boolean(activeFast)
+  const fastingHero = !recoverySimple && Boolean(activeFast)
   const mealTargetsEnabled = effectiveGoals?.mealTargetsEnabled ?? false
   const mealTargets = useMemo(
     () => effectiveGoals?.mealTargets ?? [],
@@ -3251,8 +3255,10 @@ export default function Nutrition() {
             )}
           </div>
         </header>
+        {isToday && <RecoveryBanner surface="nutrition" />}
+        {recoverySimple && activeFast && <button type="button" className="recovery-secondary" onClick={() => setFastingOpen(true)}>Review or end your active fast</button>}
 
-        {isToday && !caloriesHiddenBySafety && <NutritionProgramme date={dateKey} baseline={calorieTarget} protein={macroTargets.protein} fat={macroTargets.fat} />}
+        {isToday && !recoverySimple && !caloriesHiddenBySafety && <NutritionProgramme date={dateKey} baseline={calorieTarget} protein={macroTargets.protein} fat={macroTargets.fat} />}
 
         {!isToday && (
           <section className="progress-tab-enter border-y border-border py-4">
@@ -3518,7 +3524,7 @@ export default function Nutrition() {
                   : undefined
               }
             >
-              {fastingHero ? (
+              {!recoverySimple && fastingHero ? (
                 <div className="flex items-center justify-between gap-4">
                   <div className="min-w-0">
                     <button
@@ -3651,7 +3657,7 @@ export default function Nutrition() {
                 </>
               )}
 
-              {fastingHero ? null : visibleMetrics.calories ||
+              {!recoverySimple && fastingHero ? null : visibleMetrics.calories ||
                 visibleMetrics.macros ||
                 visibleMetrics.protein ? (
                 <div className="relative mt-7 flex items-center justify-center pb-2">
@@ -3989,12 +3995,12 @@ export default function Nutrition() {
                   )}
                 </div>
 
-                {fastingCard}
+                {!recoverySimple && fastingCard}
               </div>
             </section>
           </>
         )}
-        {isToday && !caloriesHiddenBySafety && (
+        {isToday && !recoverySimple && !caloriesHiddenBySafety && (
           <NutritionProgramme placement="secondary" date={dateKey} baseline={calorieTarget} protein={macroTargets.protein} fat={macroTargets.fat} />
         )}
       </main>

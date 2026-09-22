@@ -162,7 +162,7 @@ describe("Coach first-open experience", () => {
     expect(COACH_SOURCE).toContain("h-svh overflow-hidden")
     expect(COACH_SOURCE).toContain("min-h-0 flex-1 flex-col overflow-y-auto")
     expect(COACH_PROMPT_SOURCE).toContain(
-      "Return uiBlocks=[] only for greetings"
+      "Return openui=\"\" for greetings"
     )
     expect(COACH_PROMPT_SOURCE).toContain(
       "create exactly three reusable presets"
@@ -247,7 +247,7 @@ describe("Coach first-open experience", () => {
     expect(COACH_SOURCE).toContain("goals: (goals ?? []).map")
     expect(COACH_ACTION_SOURCE).toContain('type: "save_goal"')
     expect(COACH_PROMPT_SOURCE).toContain(
-      "Use one goal uiBlock when the answer is a coherent time-boxed challenge"
+      "Use one CoachGoal component when the answer is a coherent time-boxed challenge"
     )
     expect(COACH_PROMPT_SOURCE).toContain("use workspace.today as startDate")
   })

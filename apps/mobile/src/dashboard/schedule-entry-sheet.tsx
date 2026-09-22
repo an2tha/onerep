@@ -59,6 +59,8 @@ export function ScheduleEntrySheet({
       const result = await scheduleEntryReminder(kind, at)
       if (result === "scheduled") {
         toast.success(`Reminder set for ${timeLabel}`)
+      } else if (result === "disabled") {
+        toast.success("This reminder is paused by your recovery plan")
       } else if (result === "denied") {
         toast.error("Notifications are off — allow them to get reminders")
       } else {

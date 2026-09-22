@@ -1,3 +1,4 @@
+import { recoveryDates } from "../lib/illnessRecovery";
 /**
  * The two nudges, evaluated server-side so they can reach a phone that never
  * opened the app.
@@ -225,7 +226,7 @@ export const loadTriggerData = internalQuery({
       workoutLogs: workoutLogs.map((log) => ({
         date: log.date,
       })) as MomentWorkoutLog[],
-      restDates: restDays.map((row) => row.date),
+      restDates: [...restDays.map((row) => row.date), ...recoveryDates(await ctx.db.query("recoveryEpisodes").withIndex("by_userId_and_startedOn", q => q.eq("userId", args.userId)).order("desc").take(90), restCutoff, args.today)],
       deloadWeek,
       // The client writes these when it shows a moment. Honouring them here is
       // what stops a user being told twice — once by a notification and once by

@@ -1,3 +1,4 @@
+import { activeRecovery } from "../lib/illnessRecovery";
 /**
  * The coach between sets.
  *
@@ -114,6 +115,7 @@ export const loadContext = internalQuery({
       : null;
 
     return {
+      illnessRecovery: await activeRecovery(ctx, args.userId),
       session,
       programming: personalized
         ? summarizeProgramming(

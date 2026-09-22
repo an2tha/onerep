@@ -1,0 +1,5 @@
+.coach-openui button,
+.coach-openui input,
+.coach-openui select {
+  min-height: 44px;
+}

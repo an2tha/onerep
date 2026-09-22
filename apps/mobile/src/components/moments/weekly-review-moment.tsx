@@ -1,3 +1,4 @@
+import { NudgeIllustration } from "@/components/nudge-illustration"
 import { useState } from "react"
 import { useAction, useMutation } from "convex/react"
 import { Check, X } from "@phosphor-icons/react"
@@ -134,6 +135,7 @@ export function WeeklyReviewMoment({
         </>
       }
     >
+      <NudgeIllustration scene="week" className="mx-auto mb-5 !w-44" />
       {review.summary.length > 0 && (
         <ul className="flex flex-col gap-2">
           {review.summary.map((line) => (
