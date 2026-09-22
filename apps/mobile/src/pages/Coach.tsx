@@ -98,6 +98,7 @@ import {
 } from "@/lib/haptics"
 import { useCoachDictation } from "@/lib/use-coach-dictation"
 import { scheduleCoachCheckInNotification } from "@/lib/reminders"
+import CoachPreparationPreview from "@/lib/coach-preparation"
 import {
   COACH_MAX_MESSAGE_CHARS,
   normalizeCoachOperations as normalizeSharedCoachOperations,
@@ -735,6 +736,11 @@ export default function Coach({
   const [recipeCustomizationClosing, setRecipeCustomizationClosing] =
     useState(false)
   const [busy, setBusy] = useState(false)
+  const [activeRequestId, setActiveRequestId] = useState<string | null>(null)
+  const preparation = useQuery(
+    api.ai.coachPreparations.get,
+    activeRequestId ? { requestId: activeRequestId } : "skip"
+  )
   const [applyingMessageIndex, setApplyingMessageIndex] = useState<
     number | null
   >(null)
@@ -1056,7 +1062,13 @@ export default function Coach({
       hash = Math.imul(hash, 16777619)
     }
     const results = (await applyCoachOperations({
-      requestId: `coach-${(hash >>> 0).toString(36)}`,
+      // Recovery can be started again after dismissal with the same wording.
+      // The recovery mutation itself deduplicates an already active episode.
+      requestId: operations.some(
+        (operation) => operation.type === "start_recovery"
+      )
+        ? `coach-recovery-${createClientId()}`
+        : `coach-${(hash >>> 0).toString(36)}`,
       operations,
     })) as CoachOperationResult[]
     return await Promise.all(
@@ -1921,6 +1933,8 @@ export default function Coach({
     if (recipeCustomization) setRecipeCustomization(null)
     if (guidedIntent) setGuidedIntent(null)
     setBusy(true)
+    const requestId = createClientId()
+    setActiveRequestId(requestId)
 
     const elapsedSeconds = startReplyTimer()
     // Every field here is a shape, never content: how the request was framed,
@@ -1941,7 +1955,8 @@ export default function Coach({
 
     try {
     if (/\b(sleep|sleeping|asleep|bedtime|insomnia|nightmare|nap|circadian|schlaf|schlafen)\b/i.test(prompt)) setSleepAtmosphere(true)
-    const result = await generateChat({
+      const result = await generateChat({
+        requestId,
         context,
         message: activeWorkout
           ? [
@@ -2037,6 +2052,7 @@ export default function Coach({
         },
       ])
     } finally {
+      setActiveRequestId(null)
       setBusy(false)
     }
   }
@@ -2875,7 +2891,17 @@ export default function Coach({
                         </div>
                       )
                     )}
-                    {busy && <ThinkingIndicator />}
+                    {busy && (
+                      <div className="space-y-3">
+                        {preparation?.preparation && (
+                          <CoachPreparationPreview
+                            key={activeRequestId}
+                            preparation={preparation.preparation}
+                          />
+                        )}
+                        <ThinkingIndicator />
+                      </div>
+                    )}
                     <div ref={messagesEndRef} />
                   </div>
                 </div>

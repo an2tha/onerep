@@ -17,11 +17,11 @@ export function AiSharingDisclosure({ concise = false }: { concise?: boolean }) 
       <div className="space-y-4 text-sm leading-relaxed text-muted-foreground">
         <div className="rounded-xl bg-muted/55 px-4 py-3">
           <p className="font-semibold text-foreground">
-            Zero-data retention is enabled
+            You control AI sharing
           </p>
           <p className="mt-1">
-            Your privacy is protected. AI providers can process your request,
-            but they cannot store it or use it to train their models.
+            AI features send your request and relevant context to the providers
+            below. You can decline and keep using manual tracking.
           </p>
         </div>
         <div className="space-y-2.5">
@@ -32,7 +32,8 @@ export function AiSharingDisclosure({ concise = false }: { concise?: boolean }) 
           </p>
           <p>
             <strong className="text-foreground">Who processes it:</strong>{" "}
-            OpenRouter securely routes it to Microsoft Azure or Venice.
+            TypeSafe AI prepares the Coach interface. OpenRouter routes requests
+            to Microsoft Azure or Venice for the full answer.
           </p>
         </div>
         <p>

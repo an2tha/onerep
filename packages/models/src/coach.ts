@@ -158,6 +158,12 @@ export type CoachOperation = CoachOperationMeta &
     | { type: "remember"; key: string; category: string; value: string }
     | { type: "forget_memory"; key: string; value: string }
     | {
+        type: "start_recovery";
+        symptoms?: string;
+        energy?: "low" | "okay" | "good";
+        manageable?: string;
+      }
+    | {
         type: "save_check_in";
         date: string;
         energy: number;
@@ -339,6 +345,14 @@ export function normalizeCoachOperations(value: unknown): CoachOperation[] {
         return typeof row.key === "string" && typeof row.value === "string";
       case "forget_memory":
         return typeof row.key === "string";
+      case "start_recovery":
+        return (
+          (row.symptoms === undefined || typeof row.symptoms === "string") &&
+          (row.manageable === undefined ||
+            typeof row.manageable === "string") &&
+          (row.energy === undefined ||
+            ["low", "okay", "good"].includes(String(row.energy)))
+        );
       case "save_check_in":
         return typeof row.date === "string";
       case "create_scheduled_check_in":

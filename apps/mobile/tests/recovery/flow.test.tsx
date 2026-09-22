@@ -50,7 +50,7 @@ let calls: Array<{ name: string; args: Record<string, unknown> }>
 let failNext = false
 const navigate = mock(() => {})
 mock.module("@repo/ui/mobile", () => ({ NudgeIllustration }))
-mock.module("@repo/ui", () => ({ toast: { success: mock(() => {}) } }))
+mock.module("@repo/ui", () => ({ cn: (...values: string[]) => values.filter(Boolean).join(" "), toast: { success: mock(() => {}) } }))
 mock.module("@/lib/use-recovery", () => ({
   useRecovery: () => data,
   useRecoveryToday: () => today,
@@ -85,6 +85,7 @@ mock.module("convex/react", () => ({
       if (name === "recovery:finish") data.active = null
     },
 }))
+const { RecoveryBanner } = await import("../../src/components/recovery/recovery-banner")
 const { default: Recovery } = await import("../../src/pages/Recovery")
 let root: ReturnType<typeof createRoot>
 let container: HTMLElement
@@ -222,4 +223,25 @@ test("check-ins and finish refer to the displayed episode", async () => {
   await click("Finish recovery mode")
   await click("Finish and restore my usual plan")
   expect(calls.at(-1)?.args).toEqual({ episodeId: "episode-1", endedOn: today })
+})
+
+
+test("banner dismissal ends recovery today and hides the suggestion", async () => {
+  await act(async () => root.render(<RecoveryBanner />))
+  const dismiss = container.querySelector<HTMLButtonElement>('[aria-label="Dismiss recovery mode"]')
+  expect(dismiss).not.toBeNull()
+  await act(async () => dismiss!.click())
+  expect(calls).toEqual([{ name: "recovery:finish", args: { episodeId: "episode-1", endedOn: today } }])
+  await act(async () => root.render(<RecoveryBanner />))
+  expect(container.querySelector('[aria-label="Recovery mode"]')).toBeNull()
+})
+
+test("failed banner dismissal leaves recovery active and allows retry", async () => {
+  await act(async () => root.render(<RecoveryBanner />))
+  failNext = true
+  await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Dismiss recovery mode"]')!.click())
+  expect(data.active).not.toBeNull()
+  expect(container.querySelector('[role="alert"]')?.textContent).toContain("Try again")
+  await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Dismiss recovery mode"]')!.click())
+  expect(data.active).toBeNull()
 })

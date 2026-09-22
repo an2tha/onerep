@@ -601,6 +601,23 @@ export const applyApproved = action({
               id: memory._id,
             })),
           });
+        } else if (operation.type === "start_recovery") {
+          const episodeId = await ctx.runMutation(api.recovery.startFromCoach, {
+            ...(operation.symptoms !== undefined
+              ? { symptoms: operation.symptoms }
+              : {}),
+            ...(operation.energy !== undefined
+              ? { energy: operation.energy }
+              : {}),
+            ...(operation.manageable !== undefined
+              ? { manageable: operation.manageable }
+              : {}),
+          });
+          results.push({
+            type: operation.type,
+            label: "Recovery mode is active",
+            episodeId,
+          });
         } else if (operation.type === "save_check_in")
           results.push({
             type: operation.type,

@@ -199,6 +199,12 @@ export type CoachOperation = CoachOperationMeta &
         value: string
       }
     | {
+        type: "start_recovery"
+        symptoms?: string
+        energy?: "low" | "okay" | "good"
+        manageable?: string
+      }
+    | {
         type: "save_check_in"
         date: string
         energy: number
@@ -384,6 +390,7 @@ export type CoachOperationResult =
         | "remember"
         | "forget_memory"
         | "save_check_in"
+        | "start_recovery"
         | "save_weekly_plan"
         | "set_nutrition_targets"
         | "undo_action"
@@ -661,6 +668,7 @@ export function normalizeCoachOperations(value: unknown): CoachOperation[] {
     if (row.type === "update_routine") return Array.isArray(row.assignments)
     if (row.type === "remember") return Boolean(row.key && row.value)
     if (row.type === "forget_memory") return Boolean(row.key)
+    if (row.type === "start_recovery") return true
     if (row.type === "save_check_in") return Boolean(row.date)
     if (row.type === "save_weekly_plan")
       return Boolean(row.weekStart && Array.isArray(row.days))

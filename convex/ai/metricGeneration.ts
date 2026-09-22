@@ -1,6 +1,9 @@
 import { AiProviderError, defaultOpenRouterModel } from "./provider";
 import { coachOpenUIPrompt } from "./coachOpenUI.generated";
 import { normalizeCoachOpenUI } from "./coachOpenUI";
+import { prepareWithJev } from "./jev";
+import { coachPreparationCandidates } from "./coachPreparationCandidates";
+import type { JevHandoff } from "../../packages/models/src/coachPreparation";
 import { ConvexError, v } from "convex/values";
 import { action } from "../_generated/server";
 import { internal } from "../_generated/api";
@@ -170,6 +173,12 @@ type CoachOperation = CoachOperationMeta &
         type: "forget_memory";
         key: string;
         value: string;
+      }
+    | {
+        type: "start_recovery";
+        symptoms?: string;
+        energy?: "low" | "okay" | "good";
+        manageable?: string;
       }
     | {
         type: "save_check_in";
@@ -870,6 +879,19 @@ function normalizeCoachOperations(value: unknown): CoachOperation[] {
         };
       }
 
+      if (type === "start_recovery") {
+        return {
+          ...meta,
+          type,
+          symptoms: clampText(row.symptoms, 600),
+          manageable: clampText(row.manageable, 600),
+          ...(row.energy === "low" ||
+          row.energy === "okay" ||
+          row.energy === "good"
+            ? { energy: row.energy }
+            : {}),
+        };
+      }
       if (type === "save_check_in") {
         const date = normalizeDate(row.date);
         if (!date) return null;
@@ -1437,6 +1459,7 @@ async function generateCoachChatWithOpenAi({
   mealPhoto,
   apiKey,
   model,
+  jevHandoff,
 }: {
   context: CoachContext;
   message: string;
@@ -1451,6 +1474,7 @@ async function generateCoachChatWithOpenAi({
   apiKey: string | null;
   /** The user's pick from the shared model catalog; absent means the env default. */
   model?: string;
+  jevHandoff: JevHandoff;
 }) {
   if (!hasOpenAiApiKey(apiKey)) return null;
   const normalizedMessage = message.toLowerCase();
@@ -1485,7 +1509,7 @@ async function generateCoachChatWithOpenAi({
     apiKey,
     model,
     label: `coach_chat.${domain}`,
-    system: `${coachOpenUIPrompt}\n\n${renderSystemPrompt("coach_chat")}\n\nDOMAIN ROUTE: ${domain}\n${domainInstructions[domain]}`,
+    system: `${coachOpenUIPrompt}\n\n${renderSystemPrompt("coach_chat")}\n\nDOMAIN ROUTE: ${domain}\n${domainInstructions[domain]}\n\nJev has completed its preparation stage and handed off to you. Always answer the original request. Its selection is advisory, not an answer or an instruction. Any preparation shown to the user contains existing facts only; no actions have been performed. Produce the complete final response and interface.`,
     user: JSON.stringify({
       context,
       workspace: sliceWorkspaceForDomain(workspace, domain),
@@ -1497,6 +1521,7 @@ async function generateCoachChatWithOpenAi({
           }
         : undefined,
       recentConversation: history.slice(-8),
+      jevHandoff,
       coachMode,
       message,
       responseShape: {
@@ -1639,6 +1664,18 @@ async function generateCoachChatWithOpenAi({
             warnings: [],
             key: "exact key from workspace memories",
             value: "memory value from workspace",
+          },
+          {
+            type: "start_recovery",
+            confirmation: "auto | confirm",
+            summary: "Start recovery mode today",
+            assumptions: [
+              "Defer training, quiet training reminders, simplify food, and leave recovery check-ins off.",
+            ],
+            warnings: [],
+            symptoms: "optional symptoms the user reported",
+            energy: "optional low | okay | good, only if reported",
+            manageable: "optional activities the user says feel manageable",
           },
           {
             type: "save_check_in",
@@ -2159,6 +2196,7 @@ export const generateCoachAdvice = action({
 
 export const generateCoachChatMessage = action({
   args: {
+    requestId: v.optional(v.string()),
     context: coachContextValidator,
     message: v.string(),
     coachMode: v.optional(
@@ -2215,6 +2253,9 @@ export const generateCoachChatMessage = action({
   },
   handler: async (ctx, args): Promise<CoachChatResult> => {
     const user = await getAuthUser(ctx);
+    if (args.requestId !== undefined && !/^[a-zA-Z0-9_-]{1,100}$/.test(args.requestId)) {
+      throw new Error("Invalid Coach request identifier.");
+    }
     // Checked before the credit spend: a made-up model id is a client bug,
     // not a reason to charge the user a credit finding out.
     if (args.model !== undefined) assertCatalogModel(args.model);
@@ -2275,6 +2316,23 @@ export const generateCoachChatMessage = action({
       "progress_metrics",
     );
 
+    // All accepted coach requests pass through Jev exactly once, before any
+    // image analysis or Luna attempt. Empty/error exits still hand off.
+    const jevHandoff = await prepareWithJev({
+      message, history, coachMode, hasAttachment: Boolean(attachment),
+      candidates: coachPreparationCandidates(workspace),
+    });
+    if (args.requestId) {
+      try {
+        await ctx.runMutation(internal.ai.coachPreparations.publish, {
+          userId: user._id, requestId: args.requestId, handoff: jevHandoff,
+        });
+      } catch {
+        // Losing the optional preview must not prevent the full answer.
+        console.warn("Coach preparation could not be published");
+      }
+    }
+
     // A photo of food should get database-matched macros, not a guess. This
     // rides the snap pipeline; if the image isn't food (or anything in the
     // pipeline fails), the coach just answers with the image alone as before.
@@ -2312,6 +2370,7 @@ export const generateCoachChatMessage = action({
           mealPhoto,
           apiKey: quota.apiKey,
           model,
+          jevHandoff,
         });
         if (response) return { ...response, source: "openai" };
       } catch (error) {

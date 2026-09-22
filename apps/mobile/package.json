@@ -10,14 +10,15 @@
     "lint": "eslint .",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "typecheck": "tsc -b",
-    "test": "bun test --max-concurrency 1 ./src ./capacitor-config.test.ts ./ios-privacy-manifest.test.ts && bun run test:recovery-ui",
+    "test": "bun test --max-concurrency 1 ./src ./capacitor-config.test.ts ./ios-privacy-manifest.test.ts && bun run test:recovery-ui && bun run test:billing-ui",
     "test:visual": "playwright test",
     "test:visual:update": "playwright test --update-snapshots",
     "preview": "vite preview",
     "ios:watch": "./scripts/run-watch.sh",
     "ios:watch:fast": "./scripts/run-watch.sh --no-build",
     "dev:watch": "concurrently -n vite,sim -c blue,green \"vite --host\" \"wait-on tcp:5173 && ./scripts/run-watch.sh\"",
-    "test:recovery-ui": "bun test ./tests/recovery"
+    "test:recovery-ui": "bun test ./tests/recovery",
+    "test:billing-ui": "bun test ./tests/billing"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.4",
@@ -39,6 +40,8 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@fontsource-variable/instrument-sans": "^5.2.8",
     "@ionic/react": "^8.8.3",
+    "@json-render/core": "0.21.0",
+    "@json-render/react": "0.21.0",
     "@openuidev/react-lang": "0.3.0",
     "@openuidev/react-ui": "0.16.2",
     "@phosphor-icons/react": "^2.1.10",
