@@ -1,3 +1,5 @@
+import { RecoveryBanner } from "@/components/recovery/recovery-banner"
+import { useRecovery } from "@/lib/use-recovery"
 import { useMemo, useState, type CSSProperties } from "react"
 import { useMutation, useQuery } from "convex/react"
 import {
@@ -59,6 +61,7 @@ export default function App() {
 }
 
 function Dashboard() {
+  const recovery = useRecovery()
   const navigate = useSmoothNavigate()
   const { user } = useAppAuth()
   const preferences = useQuery(api.users.users.getPreferences, {})
@@ -286,7 +289,7 @@ function Dashboard() {
           firstName={firstName}
           // A finished day names itself. The greeting is about now, and now
           // is not what is on screen.
-          title={viewingToday ? undefined : dateLabel}
+          title={viewingToday ? recovery?.active ? "Your recovery plan" : undefined : dateLabel}
           subtitle={viewingToday ? undefined : daysAgoLabel(dateKey, todayKey)}
           // The sidebar's profile row is a desktop thing; on a phone, and in
           // the native shells especially, this is the only door into settings.
@@ -314,13 +317,14 @@ function Dashboard() {
           // there the dials go under the words, as a row, in the ledger slot.
           action={
             <div className="hidden lg:block">
-              <DashboardDials {...dialProps} />
+              {!recovery?.active && <DashboardDials {...dialProps} />}
             </div>
           }
         >
           <div className="px-[var(--app-page-x)]">
+            {viewingToday && <RecoveryBanner />}
             <div className="lg:hidden">
-              <DashboardDials {...dialProps} layout="row" />
+              {!recovery?.active && <DashboardDials {...dialProps} layout="row" />}
             </div>
             <button
               type="button"
@@ -338,7 +342,7 @@ function Dashboard() {
       {/* The phone is only the wheel and one date control. Desktop has room
           for the day's supporting totals in a separate right-hand rail. */}
       <div className="dashboard-today-body relative z-10 flex min-h-0 flex-1 flex-col">
-        <div className="dashboard-day-rail mx-auto hidden w-full max-w-6xl shrink-0 px-[var(--app-page-x)] pt-1 md:px-8 lg:block">
+        <div style={recovery?.active ? { display: "none" } : undefined} className="dashboard-day-rail mx-auto hidden w-full max-w-6xl shrink-0 px-[var(--app-page-x)] pt-1 md:px-8 lg:block">
           <DayRail
             className="dashboard-day-rail-grid"
             dateKey={dateKey}

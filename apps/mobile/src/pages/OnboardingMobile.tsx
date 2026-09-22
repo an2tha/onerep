@@ -51,7 +51,7 @@ import {
   CoachAttachmentPreview,
   CoachOperationResults,
   CoachProposal,
-  CoachUiBlocks,
+  CoachGeneratedUI,
   ThinkingIndicator,
   useCoachAttachment,
   normalizeCoachArtifacts,
@@ -1198,9 +1198,9 @@ export function OnboardingMobile() {
     })) as CoachOperationResult[]
   }
 
-  async function sendSetupMessage() {
+  async function sendSetupMessage(message?: string) {
     if (!requireAiAccess(1, "setup_coach")) return
-    const rawPrompt = setupInput.trim().slice(0, 1200)
+    const rawPrompt = (message ?? setupInput).trim().slice(0, 4000)
     const selectedAttachment = setupAttachmentRef.current
     if ((!rawPrompt && !selectedAttachment) || setupBusy) return
     if (setupUsed >= SETUP_MESSAGE_LIMIT) return
@@ -1244,6 +1244,7 @@ export function OnboardingMobile() {
         history,
       })) as {
         reply: string
+        openui?: string
         uiBlocks?: unknown
         operations?: unknown
         artifacts?: unknown
@@ -1265,6 +1266,7 @@ export function OnboardingMobile() {
         {
           role: "assistant",
           content: response.reply,
+          openui: typeof response.openui === "string" ? response.openui : undefined,
           uiBlocks: normalizeCoachUiBlocks(response.uiBlocks),
           operationResults,
           pendingOperations: needsConfirmation ? operations : undefined,
@@ -1483,6 +1485,7 @@ export function OnboardingMobile() {
     } catch (caught) {
       hapticHeavy()
       toast.error(caught instanceof Error ? caught.message : "Could not log it")
+      throw caught
     }
   }
 
@@ -2068,7 +2071,9 @@ export function OnboardingMobile() {
                 >
                   <span>{message.content}</span>
                 </div>
-                <CoachUiBlocks
+                <CoachGeneratedUI
+                  openui={message.openui}
+                  onContinue={(message) => void sendSetupMessage(message)}
                   blocks={message.uiBlocks}
                   onAction={handleSetupUiAction}
                   onPinGoal={pinSetupGoalDraft}

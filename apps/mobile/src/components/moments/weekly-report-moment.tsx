@@ -1,3 +1,5 @@
+import { NudgeIllustration } from "@/components/nudge-illustration"
+import { useRecovery } from "@/lib/use-recovery"
 import { useState } from "react"
 import { useMutation } from "convex/react"
 import { Minus, Plus } from "@phosphor-icons/react"
@@ -58,6 +60,8 @@ export function WeeklyReportMoment({
   existingNextTarget: number | null
   onClose: (outcome: FullScreenEventOutcome) => void
 }) {
+  const recovery = useRecovery()
+  const recoveryWeek = !!report.recoveryDays || !!recovery?.active
   const navigate = useSmoothNavigate()
   const setWeeklyTarget = useMutation(api.users.weeklyTargets.set)
   const { training, nutrition, body } = report
@@ -106,8 +110,21 @@ export function WeeklyReportMoment({
       showClose={false}
       actions={
         <>
-          <MomentPrimaryAction onClick={() => void commit()}>
-            {busy ? "Saving…" : `Commit to ${target} this week`}
+          <MomentPrimaryAction
+            onClick={() => {
+              if (recoveryWeek) {
+                onClose("resolved")
+                navigate(recovery?.active ? "/recovery" : "/progress")
+              } else void commit()
+            }}
+          >
+            {recoveryWeek
+              ? recovery?.active
+                ? "Review my recovery plan"
+                : "See my progress"
+              : busy
+                ? "Saving…"
+                : `Commit to ${target} this week`}
           </MomentPrimaryAction>
           <MomentSecondaryAction
             onClick={() => {
@@ -122,6 +139,7 @@ export function WeeklyReportMoment({
         </>
       }
     >
+      <NudgeIllustration scene="week" className="mx-auto mb-5 !w-44" />
       <div className="app-surface px-4 py-4">
         <WeekStrip days={report.days} />
       </div>
@@ -152,15 +170,17 @@ export function WeeklyReportMoment({
         />
       </div>
 
-      <p className="mt-3 px-1 text-[13px] leading-snug text-muted-foreground">
-        {trendWord(training.workouts, training.previousWorkouts)}
-        {nutrition.loggedDays > 0 &&
-          ` · ${nutrition.onTargetDays} of ${nutrition.loggedDays} logged days within 10% of target`}
-        {body.weightDeltaKg !== null &&
-          body.weightDeltaKg !== 0 &&
-          ` · weight ${formatWeightDelta(body.weightDeltaKg, weightUnit)}`}
-        .
-      </p>
+      {!recoveryWeek && (
+        <p className="mt-3 px-1 text-[13px] leading-snug text-muted-foreground">
+          {trendWord(training.workouts, training.previousWorkouts)}
+          {nutrition.loggedDays > 0 &&
+            ` · ${nutrition.onTargetDays} of ${nutrition.loggedDays} logged days within 10% of target`}
+          {body.weightDeltaKg !== null &&
+            body.weightDeltaKg !== 0 &&
+            ` · weight ${formatWeightDelta(body.weightDeltaKg, weightUnit)}`}
+          .
+        </p>
+      )}
 
       {report.highlights.length > 0 && (
         <ul className="mt-4 flex flex-col gap-2">
@@ -175,43 +195,45 @@ export function WeeklyReportMoment({
         </ul>
       )}
 
-      <div className="app-surface mt-4 px-4 py-4">
-        <p className="text-[15px] font-semibold tracking-tight">
-          Next week, then.
-        </p>
-        <p className="mt-1 text-[13px] leading-snug text-muted-foreground">
-          Pick a number now and this screen will hold you to it on Sunday.
-        </p>
+      {!recoveryWeek && (
+        <div className="app-surface mt-4 px-4 py-4">
+          <p className="text-[15px] font-semibold tracking-tight">
+            Next week, then.
+          </p>
+          <p className="mt-1 text-[13px] leading-snug text-muted-foreground">
+            Pick a number now and this screen will hold you to it on Sunday.
+          </p>
 
-        <div className="mt-4 flex items-center justify-between">
-          <button
-            type="button"
-            aria-label="One fewer session"
-            disabled={target <= MIN_TARGET}
-            onClick={() => nudge(-1)}
-            className="app-icon-button h-11 w-11 bg-muted/55 text-muted-foreground disabled:opacity-40"
-          >
-            <Minus size={15} weight="bold" />
-          </button>
-          <div className="text-center">
-            <div className="text-[32px] leading-none font-semibold tabular-nums">
-              {target}
+          <div className="mt-4 flex items-center justify-between">
+            <button
+              type="button"
+              aria-label="One fewer session"
+              disabled={target <= MIN_TARGET}
+              onClick={() => nudge(-1)}
+              className="app-icon-button h-11 w-11 bg-muted/55 text-muted-foreground disabled:opacity-40"
+            >
+              <Minus size={15} weight="bold" />
+            </button>
+            <div className="text-center">
+              <div className="text-[32px] leading-none font-semibold tabular-nums">
+                {target}
+              </div>
+              <div className="mt-1 text-[12px] text-muted-foreground">
+                {target === 1 ? "session" : "sessions"}
+              </div>
             </div>
-            <div className="mt-1 text-[12px] text-muted-foreground">
-              {target === 1 ? "session" : "sessions"}
-            </div>
+            <button
+              type="button"
+              aria-label="One more session"
+              disabled={target >= MAX_TARGET}
+              onClick={() => nudge(1)}
+              className="app-icon-button h-11 w-11 bg-muted/55 text-muted-foreground disabled:opacity-40"
+            >
+              <Plus size={15} weight="bold" />
+            </button>
           </div>
-          <button
-            type="button"
-            aria-label="One more session"
-            disabled={target >= MAX_TARGET}
-            onClick={() => nudge(1)}
-            className="app-icon-button h-11 w-11 bg-muted/55 text-muted-foreground disabled:opacity-40"
-          >
-            <Plus size={15} weight="bold" />
-          </button>
         </div>
-      </div>
+      )}
     </MomentScreen>
   )
 }

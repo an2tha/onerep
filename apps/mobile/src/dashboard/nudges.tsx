@@ -1,3 +1,4 @@
+import { NudgeIllustration } from "@/components/nudge-illustration"
 import { useRef, useState } from "react"
 import { Barbell, ForkKnife, Sparkle, X } from "@phosphor-icons/react"
 import { useMutation, useQuery } from "convex/react"
@@ -86,6 +87,7 @@ export function WelcomeNudge({
       <Card className="dashboard-tile">
         <div className="px-4 py-3">
           <div className="flex items-start justify-between gap-3">
+            <NudgeIllustration scene="welcome" className="!w-20 shrink-0" />
             <div className="min-w-0">
               <p className="text-[15px] font-semibold tracking-tight">
                 {greeting}
@@ -168,7 +170,7 @@ export function UnloggedWorkoutNudge() {
         <Card key={workout._id} className="dashboard-tile">
           <div className="flex items-center gap-3 px-4 py-3">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted/60">
-              <Barbell size={16} weight="bold" />
+              <NudgeIllustration scene="log" className="!w-14" />
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-[14px] font-semibold">

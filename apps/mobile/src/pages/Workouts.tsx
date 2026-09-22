@@ -1,3 +1,5 @@
+import { useRecovery } from "@/lib/use-recovery"
+import { RecoveryBanner } from "@/components/recovery/recovery-banner"
 import * as React from "react"
 import { createPortal } from "react-dom"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
@@ -618,6 +620,7 @@ function MuscleVolumeCard({ muscleVolume }: { muscleVolume: MuscleSets[] }) {
 }
 
 export default function Workouts({ embedded = false }: { embedded?: boolean }) {
+  const recovery = useRecovery()
   const navigate = useSmoothNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const trainingHeaderRef = useTourAnchor("training-header")
@@ -868,8 +871,8 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
   const presetRefs = useRef<(HTMLDivElement | null)[]>([])
 
   const today = isToday ? todayDay() : dayFromDateKey(dateKey)
-  const todayPreset = presets.find((p) => p.id === routine[today]) ?? null
-  const todayPreset2 = presets.find((p) => p.id === routine2[today]) ?? null
+  const todayPreset = recovery?.active?.deferTraining && dateKey >= todayKey ? null : presets.find((p) => p.id === routine[today]) ?? null
+  const todayPreset2 = recovery?.active?.deferTraining && dateKey >= todayKey ? null : presets.find((p) => p.id === routine2[today]) ?? null
 
   useEffect(() => {
     if (syncing) return
@@ -1383,6 +1386,7 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
             />
           </div>
         </header>
+        {dateKey >= todayKey && <RecoveryBanner surface="training" />}
 
         {!isToday && (
           <section className="border-y border-border py-5">

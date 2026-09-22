@@ -80,11 +80,12 @@ describe("Nutrition page accessibility contract", () => {
     expect(NUTRITION_SOURCE).toContain(
       "const planMetrics = nutritionPlan?.visibleMetrics"
     )
-    // The screening default is overridable, so the plan is the base, not the
-    // final word.
+    // Recovery temporarily simplifies today; the usual display override still applies otherwise.
     expect(NUTRITION_SOURCE).toContain(
-      "const visibleMetrics = showCalorieNumbers"
+      "const visibleMetrics = recoverySimple"
     )
+    expect(NUTRITION_SOURCE).toContain(": showCalorieNumbers")
+    expect(NUTRITION_SOURCE).toContain("const recoverySimple = isToday && !!recovery?.active?.simpleFood")
     expect(NUTRITION_SOURCE).toContain("visibleMetrics.calories")
     expect(NUTRITION_SOURCE).toContain("visibleMetrics.micros")
     expect(NUTRITION_SOURCE).toContain("nutritionPlan?.trackingMode")

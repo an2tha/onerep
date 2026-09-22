@@ -1,3 +1,5 @@
+import { useRecovery } from "@/lib/use-recovery"
+import { recoveryDates } from "../../../../../convex/lib/illnessRecovery"
 import { useEffect, useMemo, useState } from "react"
 import { useConvexAuth, useQuery } from "convex/react"
 import { api } from "../../../../../convex/_generated/api"
@@ -61,6 +63,7 @@ function readClock() {
  * this component costs one small query and nothing else.
  */
 export function AppMoments() {
+  const recovery = useRecovery()
   const { isAuthenticated } = useConvexAuth()
   const records = useMomentRecords()
   const [clock, setClock] = useState(readClock)
@@ -173,7 +176,7 @@ export function AppMoments() {
   )
 
   const weekly = useMemo(() => {
-    if (!foodLogs || !workoutLogs || !pending?.weekly) return null
+    if (!recovery || !foodLogs || !workoutLogs || !pending?.weekly) return null
     if (bodyMeasurements === undefined || goals === undefined) return null
     if (weeklyTargets === undefined) return null
     return weeklyReportTrigger({
@@ -185,6 +188,11 @@ export function AppMoments() {
       calorieTarget: goals?.effective.calories ?? 2000,
       proteinTarget: goals?.effective.protein ?? 150,
       target: reportedTarget,
+      recoveryDates: recoveryDates(
+        recovery?.episodes ?? [],
+        restCutoff,
+        todayKey
+      ),
     })
   }, [
     bodyMeasurements,
@@ -193,6 +201,8 @@ export function AppMoments() {
     nowMinutes,
     pending?.weekly,
     reportedTarget,
+    recovery,
+    restCutoff,
     todayKey,
     weeklyTargets,
     workoutLogs,
@@ -215,6 +225,11 @@ export function AppMoments() {
       calorieTarget: goals?.effective.calories ?? 2000,
       proteinTarget: goals?.effective.protein ?? 150,
       target: reportedTarget,
+      recoveryDates: recoveryDates(
+        recovery?.episodes ?? [],
+        restCutoff,
+        todayKey
+      ),
       weightUnit,
     })
   }, [
@@ -224,6 +239,8 @@ export function AppMoments() {
     nowMinutes,
     previewId,
     reportedTarget,
+    recovery,
+    restCutoff,
     todayKey,
     weightUnit,
     workoutLogs,
@@ -254,7 +271,7 @@ export function AppMoments() {
 
   const review = useFullScreenEvent({
     id: WEEKLY_REVIEW_ID,
-    key: coachReview?.weekKey ?? null,
+    key: recovery === undefined ? null : (coachReview?.weekKey ?? null),
     priority: 40,
   })
 
@@ -277,12 +294,20 @@ export function AppMoments() {
   })
   const missedLog = useFullScreenEvent({
     id: MISSED_LOG_ID,
-    key: missed?.key ?? null,
+    key:
+      recovery === undefined || recovery.active?.simpleFood
+        ? null
+        : (missed?.key ?? null),
     priority: 20,
   })
   const trainingLapse = useFullScreenEvent({
     id: LAPSE_ID,
-    key: lapse?.key ?? null,
+    key:
+      recovery === undefined ||
+      recovery.active?.quietTraining ||
+      recovery.active?.deferTraining
+        ? null
+        : (lapse?.key ?? null),
     priority: 10,
   })
 

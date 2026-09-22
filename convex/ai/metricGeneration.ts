@@ -1,3 +1,6 @@
+import { AiProviderError, defaultOpenRouterModel } from "./provider";
+import { coachOpenUIPrompt } from "./coachOpenUI.generated";
+import { normalizeCoachOpenUI } from "./coachOpenUI";
 import { ConvexError, v } from "convex/values";
 import { action } from "../_generated/server";
 import { internal } from "../_generated/api";
@@ -71,159 +74,11 @@ type CoachChatMessage = {
   content: string;
 };
 
-type CoachUiStat = {
-  label: string;
-  value: string;
-  detail?: string;
-  trend?: "up" | "down" | "flat";
-};
-
-type CoachUiAction =
-  | "open_nutrition"
-  | "open_workouts"
-  | "open_progress"
-  | "open_settings"
-  | "open_workout_builder"
-  | "open_recipe_builder"
-  | "open_supplements"
-  | "log_food";
-
 type CoachGoalTaskDraft = {
   title: string;
   detail?: string;
   completed?: boolean;
 };
-
-type CoachInteractiveElement =
-  | { type: "text"; text: string; emphasis?: "quiet" | "strong" }
-  | { type: "section"; title: string; detail?: string }
-  | { type: "divider"; label?: string }
-  | {
-      type: "key_value";
-      items: Array<{ label: string; value: string; detail?: string }>;
-    }
-  | {
-      type: "progress";
-      label: string;
-      value: number;
-      max: number;
-      unit?: string;
-      detail?: string;
-    }
-  | {
-      type: "list";
-      style: "bullet" | "number" | "timeline";
-      items: Array<{ title: string; detail?: string }>;
-    }
-  | {
-      type: "metric_group";
-      metrics: Array<{
-        label: string;
-        value: number;
-        unit?: string;
-        detail?: string;
-        scaleWith?: string;
-      }>;
-    }
-  | {
-      type: "stepper";
-      id: string;
-      label: string;
-      value: number;
-      min: number;
-      max: number;
-      step: number;
-      unit?: string;
-    }
-  | {
-      type: "range";
-      id: string;
-      label: string;
-      value: number;
-      min: number;
-      max: number;
-      step: number;
-      unit?: string;
-      lowLabel?: string;
-      highLabel?: string;
-    }
-  | {
-      type: "choice";
-      id: string;
-      label: string;
-      value: string;
-      options: string[];
-    }
-  | {
-      type: "rating";
-      id: string;
-      label: string;
-      value: number;
-      max: number;
-      lowLabel?: string;
-      highLabel?: string;
-    }
-  | {
-      type: "toggle";
-      id: string;
-      label: string;
-      detail?: string;
-      value: boolean;
-    };
-
-type CoachUiBlock =
-  | {
-      type: "card";
-      label: string;
-      title: string;
-      detail: string;
-    }
-  | {
-      type: "stat_group";
-      title: string;
-      stats: CoachUiStat[];
-    }
-  | {
-      type: "checklist";
-      title: string;
-      items: Array<{ label: string; detail?: string; done?: boolean }>;
-    }
-  | {
-      type: "goal";
-      title: string;
-      detail: string;
-      durationDays: number;
-      tasks: CoachGoalTaskDraft[];
-    }
-  | {
-      type: "action_row";
-      title: string;
-      actions: Array<{ label: string; action: CoachUiAction }>;
-    }
-  | {
-      type: "interactive_card";
-      label: string;
-      title: string;
-      detail?: string;
-      accent: "nutrition" | "training" | "progress" | "neutral";
-      elements: CoachInteractiveElement[];
-      submit?: {
-        type: "log_nutrition";
-        label: string;
-        name: string;
-        meal: string;
-        date?: string;
-        calories: number;
-        protein: number;
-        carbs: number;
-        fat: number;
-        quantityControlId?: string;
-        baseQuantity?: number;
-        mealControlId?: string;
-        assumptions: string[];
-      };
-      actions?: Array<{ label: string; action: CoachUiAction }>;
-    };
 
 type CoachRecipeIngredient = {
   id?: string;
@@ -510,7 +365,7 @@ type LegacyClientWorkspace = {
 type CoachChatResult = {
   reply: string;
   sleepMode?: boolean;
-  uiBlocks: CoachUiBlock[];
+  openui: string;
   operations: CoachOperation[];
   artifacts: CoachArtifact[];
   source: "openai" | "fallback";
@@ -671,31 +526,6 @@ function normalizeCoachAdvice(value: unknown): CoachAdvice[] | null {
   return advice.length > 0 ? advice : null;
 }
 
-function normalizeCoachUiStats(value: unknown): CoachUiStat[] {
-  if (!Array.isArray(value)) return [];
-  return value
-    .map((item) => {
-      if (!item || typeof item !== "object") return null;
-      const row = item as Record<string, unknown>;
-      const label = clampText(row.label, 28);
-      const statValue = clampText(row.value, 28);
-      if (!label || !statValue) return null;
-      const trend = clampText(row.trend, 8);
-      return {
-        label,
-        value: statValue,
-        ...(clampText(row.detail, 64)
-          ? { detail: clampText(row.detail, 64) }
-          : {}),
-        ...(trend === "up" || trend === "down" || trend === "flat"
-          ? { trend }
-          : {}),
-      };
-    })
-    .filter((item): item is CoachUiStat => Boolean(item))
-    .slice(0, 4);
-}
-
 function normalizeCoachGoalTasks(value: unknown): CoachGoalTaskDraft[] {
   if (!Array.isArray(value)) return [];
   return value
@@ -716,430 +546,6 @@ function normalizeCoachGoalTasks(value: unknown): CoachGoalTaskDraft[] {
     })
     .filter((item): item is CoachGoalTaskDraft => Boolean(item))
     .slice(0, 12);
-}
-
-function normalizeInteractiveElements(
-  value: unknown,
-): CoachInteractiveElement[] {
-  if (!Array.isArray(value)) return [];
-  return value
-    .map((item): CoachInteractiveElement | null => {
-      if (!item || typeof item !== "object") return null;
-      const row = item as Record<string, unknown>;
-      const type = clampText(row.type, 20);
-      if (type === "text") {
-        const text = clampText(row.text, 220);
-        if (!text) return null;
-        return {
-          type,
-          text,
-          ...(row.emphasis === "strong" || row.emphasis === "quiet"
-            ? { emphasis: row.emphasis }
-            : {}),
-        };
-      }
-      if (type === "section") {
-        const title = clampText(row.title, 64);
-        if (!title) return null;
-        return {
-          type,
-          title,
-          ...(clampText(row.detail, 140)
-            ? { detail: clampText(row.detail, 140) }
-            : {}),
-        };
-      }
-      if (type === "divider") {
-        return {
-          type,
-          ...(clampText(row.label, 32)
-            ? { label: clampText(row.label, 32) }
-            : {}),
-        };
-      }
-      if (type === "key_value") {
-        const items = (Array.isArray(row.items) ? row.items : [])
-          .map((item) => {
-            if (!item || typeof item !== "object") return null;
-            const pair = item as Record<string, unknown>;
-            const label = clampText(pair.label, 36);
-            const pairValue = clampText(pair.value, 48);
-            if (!label || !pairValue) return null;
-            return {
-              label,
-              value: pairValue,
-              ...(clampText(pair.detail, 64)
-                ? { detail: clampText(pair.detail, 64) }
-                : {}),
-            };
-          })
-          .filter((item): item is NonNullable<typeof item> => Boolean(item))
-          .slice(0, 6);
-        return items.length > 0 ? { type, items } : null;
-      }
-      if (type === "progress") {
-        const label = clampText(row.label, 48);
-        if (!label) return null;
-        const max = clampNumber(row.max, 0.01, 1_000_000, 100);
-        return {
-          type,
-          label,
-          value: clampNumber(row.value, 0, max),
-          max,
-          ...(clampText(row.unit, 12) ? { unit: clampText(row.unit, 12) } : {}),
-          ...(clampText(row.detail, 100)
-            ? { detail: clampText(row.detail, 100) }
-            : {}),
-        };
-      }
-      if (type === "list") {
-        const items = (Array.isArray(row.items) ? row.items : [])
-          .map((item) => {
-            if (!item || typeof item !== "object") return null;
-            const listItem = item as Record<string, unknown>;
-            const title = clampText(listItem.title, 72);
-            if (!title) return null;
-            return {
-              title,
-              ...(clampText(listItem.detail, 120)
-                ? { detail: clampText(listItem.detail, 120) }
-                : {}),
-            };
-          })
-          .filter((item): item is NonNullable<typeof item> => Boolean(item))
-          .slice(0, 8);
-        if (items.length === 0) return null;
-        return {
-          type,
-          style:
-            row.style === "number" || row.style === "timeline"
-              ? row.style
-              : "bullet",
-          items,
-        };
-      }
-      if (type === "metric_group") {
-        const metrics = (Array.isArray(row.metrics) ? row.metrics : [])
-          .map((item) => {
-            if (!item || typeof item !== "object") return null;
-            const metric = item as Record<string, unknown>;
-            const label = clampText(metric.label, 32);
-            if (!label) return null;
-            return {
-              label,
-              value: clampNumber(metric.value, 0, 100_000),
-              ...(clampText(metric.unit, 12)
-                ? { unit: clampText(metric.unit, 12) }
-                : {}),
-              ...(clampText(metric.detail, 48)
-                ? { detail: clampText(metric.detail, 48) }
-                : {}),
-              ...(clampText(metric.scaleWith, 32)
-                ? { scaleWith: clampText(metric.scaleWith, 32) }
-                : {}),
-            };
-          })
-          .filter((item): item is NonNullable<typeof item> => Boolean(item))
-          .slice(0, 4);
-        return metrics.length > 0 ? { type, metrics } : null;
-      }
-      if (type === "stepper") {
-        const id = clampText(row.id, 32);
-        const label = clampText(row.label, 48);
-        if (!id || !label) return null;
-        const min = clampNumber(row.min, 0, 100_000);
-        const max = clampNumber(row.max, min, 100_000, Math.max(min, 10));
-        return {
-          type,
-          id,
-          label,
-          value: clampNumber(row.value, min, max, min),
-          min,
-          max,
-          step: clampNumber(row.step, 0.01, Math.max(0.01, max - min), 1),
-          ...(clampText(row.unit, 12) ? { unit: clampText(row.unit, 12) } : {}),
-        };
-      }
-      if (type === "range") {
-        const id = clampText(row.id, 32);
-        const label = clampText(row.label, 48);
-        if (!id || !label) return null;
-        const min = clampNumber(row.min, 0, 100_000);
-        const max = clampNumber(row.max, min, 100_000, Math.max(min, 10));
-        return {
-          type,
-          id,
-          label,
-          value: clampNumber(row.value, min, max, min),
-          min,
-          max,
-          step: clampNumber(row.step, 0.01, Math.max(0.01, max - min), 1),
-          ...(clampText(row.unit, 12) ? { unit: clampText(row.unit, 12) } : {}),
-          ...(clampText(row.lowLabel, 24)
-            ? { lowLabel: clampText(row.lowLabel, 24) }
-            : {}),
-          ...(clampText(row.highLabel, 24)
-            ? { highLabel: clampText(row.highLabel, 24) }
-            : {}),
-        };
-      }
-      if (type === "choice") {
-        const id = clampText(row.id, 32);
-        const label = clampText(row.label, 48);
-        const options = (Array.isArray(row.options) ? row.options : [])
-          .map((option) => clampText(option, 32))
-          .filter(Boolean)
-          .slice(0, 6);
-        if (!id || !label || options.length === 0) return null;
-        const requestedValue = clampText(row.value, 32);
-        return {
-          type,
-          id,
-          label,
-          value: options.includes(requestedValue) ? requestedValue : options[0],
-          options,
-        };
-      }
-      if (type === "rating") {
-        const id = clampText(row.id, 32);
-        const label = clampText(row.label, 48);
-        const max = clampInteger(row.max, 2, 10, 5);
-        if (!id || !label) return null;
-        return {
-          type,
-          id,
-          label,
-          value: clampInteger(row.value, 1, max, 3),
-          max,
-          ...(clampText(row.lowLabel, 24)
-            ? { lowLabel: clampText(row.lowLabel, 24) }
-            : {}),
-          ...(clampText(row.highLabel, 24)
-            ? { highLabel: clampText(row.highLabel, 24) }
-            : {}),
-        };
-      }
-      if (type === "toggle") {
-        const id = clampText(row.id, 32);
-        const label = clampText(row.label, 64);
-        if (!id || !label) return null;
-        return {
-          type,
-          id,
-          label,
-          value: row.value === true,
-          ...(clampText(row.detail, 100)
-            ? { detail: clampText(row.detail, 100) }
-            : {}),
-        };
-      }
-      return null;
-    })
-    .filter((item): item is CoachInteractiveElement => Boolean(item))
-    .slice(0, 12);
-}
-
-function normalizeCoachUiBlocks(value: unknown): CoachUiBlock[] {
-  if (!Array.isArray(value)) return [];
-  return value
-    .map((item) => {
-      if (!item || typeof item !== "object") return null;
-      const row = item as Record<string, unknown>;
-      const type = clampText(row.type, 24);
-
-      if (type === "card") {
-        const label = clampText(row.label, 28);
-        const title = clampText(row.title, 86);
-        const detail = clampText(row.detail, 220);
-        if (!label || !title || !detail) return null;
-        return { type, label, title, detail };
-      }
-
-      if (type === "stat_group") {
-        const title = clampText(row.title, 64);
-        const stats = normalizeCoachUiStats(row.stats);
-        if (!title || stats.length === 0) return null;
-        return { type, title, stats };
-      }
-
-      if (type === "checklist") {
-        const title = clampText(row.title, 64);
-        const rawItems = Array.isArray(row.items) ? row.items : [];
-        const items = rawItems
-          .map((rawItem) => {
-            if (!rawItem || typeof rawItem !== "object") return null;
-            const checklistItem = rawItem as Record<string, unknown>;
-            const label = clampText(checklistItem.label, 72);
-            if (!label) return null;
-            return {
-              label,
-              ...(clampText(checklistItem.detail, 120)
-                ? { detail: clampText(checklistItem.detail, 120) }
-                : {}),
-              ...(typeof checklistItem.done === "boolean"
-                ? { done: checklistItem.done }
-                : {}),
-            };
-          })
-          .filter(
-            (
-              checklistItem,
-            ): checklistItem is {
-              label: string;
-              detail?: string;
-              done?: boolean;
-            } => Boolean(checklistItem),
-          )
-          .slice(0, 5);
-        if (!title || items.length === 0) return null;
-        return { type, title, items };
-      }
-
-      if (type === "goal") {
-        const title = clampText(row.title, 80);
-        const detail = clampText(row.detail, 280);
-        const durationDays = clampInteger(row.durationDays, 1, 365, 7);
-        const tasks = normalizeCoachGoalTasks(row.tasks);
-        if (!title || !detail || tasks.length === 0) return null;
-        return { type, title, detail, durationDays, tasks };
-      }
-
-      if (type === "interactive_card") {
-        const label = clampText(row.label, 28);
-        const title = clampText(row.title, 72);
-        const detail = clampText(row.detail, 180);
-        const elements = normalizeInteractiveElements(row.elements);
-        const accent =
-          row.accent === "training" ||
-          row.accent === "progress" ||
-          row.accent === "neutral"
-            ? row.accent
-            : "nutrition";
-        if (!label || !title || elements.length === 0) return null;
-
-        let submit: Extract<
-          CoachUiBlock,
-          { type: "interactive_card" }
-        >["submit"];
-        if (row.submit && typeof row.submit === "object") {
-          const rawSubmit = row.submit as Record<string, unknown>;
-          const submitLabel = clampText(rawSubmit.label, 32);
-          const name = clampText(rawSubmit.name, 80);
-          if (rawSubmit.type === "log_nutrition" && submitLabel && name) {
-            submit = {
-              type: "log_nutrition",
-              label: submitLabel,
-              name,
-              meal: clampText(rawSubmit.meal, 32) || "Meal",
-              ...(normalizeDate(rawSubmit.date)
-                ? { date: normalizeDate(rawSubmit.date) }
-                : {}),
-              calories: clampNumber(rawSubmit.calories, 0, 10_000),
-              protein: clampNumber(rawSubmit.protein, 0, 1_000),
-              carbs: clampNumber(rawSubmit.carbs, 0, 2_000),
-              fat: clampNumber(rawSubmit.fat, 0, 1_000),
-              ...(clampText(rawSubmit.quantityControlId, 32)
-                ? {
-                    quantityControlId: clampText(
-                      rawSubmit.quantityControlId,
-                      32,
-                    ),
-                  }
-                : {}),
-              ...(typeof rawSubmit.baseQuantity === "number"
-                ? {
-                    baseQuantity: clampNumber(
-                      rawSubmit.baseQuantity,
-                      0.01,
-                      100_000,
-                      1,
-                    ),
-                  }
-                : {}),
-              ...(clampText(rawSubmit.mealControlId, 32)
-                ? { mealControlId: clampText(rawSubmit.mealControlId, 32) }
-                : {}),
-              assumptions: (Array.isArray(rawSubmit.assumptions)
-                ? rawSubmit.assumptions
-                : []
-              )
-                .map((item) => clampText(item, 120))
-                .filter(Boolean)
-                .slice(0, 3),
-            };
-          }
-        }
-
-        const allowedActions = new Set<CoachUiAction>([
-          "open_nutrition",
-          "open_workouts",
-          "open_progress",
-          "open_settings",
-          "open_workout_builder",
-          "open_recipe_builder",
-          "open_supplements",
-          "log_food",
-        ]);
-        const actions = (Array.isArray(row.actions) ? row.actions : [])
-          .map((item) => {
-            if (!item || typeof item !== "object") return null;
-            const action = item as Record<string, unknown>;
-            const actionName = clampText(action.action, 32) as CoachUiAction;
-            const actionLabel = clampText(action.label, 32);
-            return actionLabel && allowedActions.has(actionName)
-              ? { label: actionLabel, action: actionName }
-              : null;
-          })
-          .filter((item): item is NonNullable<typeof item> => Boolean(item))
-          .slice(0, 2);
-
-        return {
-          type,
-          label,
-          title,
-          ...(detail ? { detail } : {}),
-          accent,
-          elements,
-          ...(submit ? { submit } : {}),
-          ...(actions.length > 0 ? { actions } : {}),
-        };
-      }
-
-      if (type === "action_row") {
-        const title = clampText(row.title, 64);
-        const rawActions = Array.isArray(row.actions) ? row.actions : [];
-        const allowedActions = new Set<CoachUiAction>([
-          "open_nutrition",
-          "open_workouts",
-          "open_progress",
-          "open_settings",
-          "open_workout_builder",
-          "open_recipe_builder",
-          "open_supplements",
-          "log_food",
-        ]);
-        const actions = rawActions
-          .map((rawAction) => {
-            if (!rawAction || typeof rawAction !== "object") return null;
-            const actionRow = rawAction as Record<string, unknown>;
-            const label = clampText(actionRow.label, 36);
-            const action = clampText(actionRow.action, 32) as CoachUiAction;
-            if (!label || !allowedActions.has(action)) return null;
-            return { label, action };
-          })
-          .filter(
-            (action): action is { label: string; action: CoachUiAction } =>
-              Boolean(action),
-          )
-          .slice(0, 3);
-        if (!title || actions.length === 0) return null;
-        return { type, title, actions };
-      }
-
-      return null;
-    })
-    .filter((item): item is CoachUiBlock => Boolean(item))
-    .slice(0, 3);
 }
 
 function clampNumber(value: unknown, min: number, max: number, fallback = 0) {
@@ -1824,22 +1230,14 @@ function normalizeCoachArtifacts(value: unknown): CoachArtifact[] {
 function normalizeCoachChatResponse(value: unknown, message: string) {
   if (!value || typeof value !== "object") return null;
   const input = value as Record<string, unknown>;
-  const uiBlocks = isCasualCoachMessage(message)
-    ? []
-    : normalizeCoachUiBlocks(input.uiBlocks);
-  let reply = clampText(input.reply, 280);
-  if (!reply) {
-    // Some catalog models put the whole answer in blocks and never write the
-    // orienting sentence the shape asks for. Blocks alone are still an answer;
-    // borrow the first block's own words rather than discarding the turn.
-    const first = uiBlocks[0] as
-      { title?: string; detail?: string; label?: string } | undefined;
-    reply = clampText(first?.title || first?.detail || first?.label, 280);
-  }
+  const openui = isCasualCoachMessage(message)
+    ? ""
+    : normalizeCoachOpenUI(input.openui);
+  const reply = clampText(input.reply, 280);
   if (!reply) return null;
   return {
     reply,
-    uiBlocks,
+    openui,
     sleepMode: input.sleepMode === true,
     operations: normalizeCoachOperations(input.operations),
     artifacts: isCasualCoachMessage(message)
@@ -2087,14 +1485,14 @@ async function generateCoachChatWithOpenAi({
     apiKey,
     model,
     label: `coach_chat.${domain}`,
-    system: `${renderSystemPrompt("coach_chat")}\n\nDOMAIN ROUTE: ${domain}\n${domainInstructions[domain]}`,
+    system: `${coachOpenUIPrompt}\n\n${renderSystemPrompt("coach_chat")}\n\nDOMAIN ROUTE: ${domain}\n${domainInstructions[domain]}`,
     user: JSON.stringify({
       context,
       workspace: sliceWorkspaceForDomain(workspace, domain),
       focusInsight,
       mealPhoto: mealPhoto
         ? {
-            note: "Foods detected in the attached photo, matched against the food database. Build an interactive_card to log the meal from these matched entries — use their macros as the base, scale by the estimated quantity with a quantity stepper, and state assumptions. Fall back to your own estimate only for items with no match.",
+            note: "Foods detected in the attached photo, matched against the food database. Use MealLog to preview and log the meal from these matched entries, with per-serving macros and explicit assumptions. Fall back to your own estimate only for items with no match.",
             ...mealPhoto,
           }
         : undefined,
@@ -2103,178 +1501,8 @@ async function generateCoachChatWithOpenAi({
       message,
       responseShape: {
         reply:
-          "one short orienting sentence; put recommendations and details in uiBlocks",
-        uiBlocks: [
-          {
-            type: "stat_group",
-            title: "short title",
-            stats: [
-              {
-                label: "metric label",
-                value: "display value",
-                detail: "optional short context",
-                trend: "up | down | flat",
-              },
-            ],
-          },
-          {
-            type: "card",
-            label: "short category",
-            title: "specific headline",
-            detail: "one recommendation tied to the metrics",
-          },
-          {
-            type: "checklist",
-            title: "short title",
-            items: [
-              {
-                label: "task",
-                detail: "optional short context",
-                done: false,
-              },
-            ],
-          },
-          {
-            type: "goal",
-            title: "time-boxed goal title",
-            detail: "what success looks like and why this scope fits",
-            durationDays: 7,
-            tasks: [
-              {
-                title: "specific repeatable task",
-                detail: "frequency, duration, or measurable minimum",
-                completed: false,
-              },
-            ],
-          },
-          {
-            type: "interactive_card",
-            label: "short context label",
-            title: "custom card title",
-            detail: "optional concise orientation",
-            accent: "nutrition | training | progress | neutral",
-            elements: [
-              {
-                type: "section",
-                title: "section heading",
-                detail: "optional section context",
-              },
-              { type: "divider", label: "optional divider label" },
-              {
-                type: "key_value",
-                items: [
-                  {
-                    label: "compact fact",
-                    value: "display value",
-                    detail: "optional context",
-                  },
-                ],
-              },
-              {
-                type: "progress",
-                label: "bounded progress",
-                value: 3,
-                max: 5,
-                unit: "sessions",
-                detail: "optional context",
-              },
-              {
-                type: "list",
-                style: "bullet | number | timeline",
-                items: [{ title: "list item", detail: "optional item detail" }],
-              },
-              {
-                type: "metric_group",
-                metrics: [
-                  {
-                    label: "Calories",
-                    value: 520,
-                    unit: "kcal",
-                    detail: "estimate",
-                    scaleWith: "quantity",
-                  },
-                ],
-              },
-              {
-                type: "stepper",
-                id: "quantity",
-                label: "Serving size",
-                value: 1,
-                min: 0.25,
-                max: 6,
-                step: 0.25,
-                unit: "servings",
-              },
-              {
-                type: "range",
-                id: "intensity",
-                label: "Intensity",
-                value: 5,
-                min: 1,
-                max: 10,
-                step: 1,
-                unit: "RPE",
-                lowLabel: "Easy",
-                highLabel: "Hard",
-              },
-              {
-                type: "choice",
-                id: "meal",
-                label: "Add to",
-                value: "Lunch",
-                options: ["Breakfast", "Lunch", "Dinner", "Snack"],
-              },
-              {
-                type: "rating",
-                id: "readiness",
-                label: "Readiness",
-                value: 3,
-                max: 5,
-                lowLabel: "Low",
-                highLabel: "High",
-              },
-              {
-                type: "toggle",
-                id: "optional-control",
-                label: "Custom boolean choice",
-                detail: "only include when useful",
-                value: false,
-              },
-              {
-                type: "text",
-                text: "Optional custom note inside the card",
-                emphasis: "quiet | strong",
-              },
-            ],
-            submit: {
-              type: "log_nutrition",
-              label: "Log meal",
-              name: "meal name",
-              meal: "Lunch",
-              date: "optional YYYY-MM-DD",
-              calories: 520,
-              protein: 35,
-              carbs: 58,
-              fat: 16,
-              quantityControlId: "quantity",
-              baseQuantity: 1,
-              mealControlId: "meal",
-              assumptions: ["brief estimate assumption"],
-            },
-            actions: [{ label: "optional link", action: "open_nutrition" }],
-          },
-          {
-            type: "action_row",
-            title: "short title",
-            actions: [
-              {
-                label: "button label",
-                action:
-                  "open_nutrition | open_workouts | open_progress | open_settings | open_workout_builder | open_recipe_builder | open_supplements | log_food",
-              },
-            ],
-          },
-        ],
+          "one short orienting sentence; put recommendations and details in openui",
+        openui: 'OpenUI Lang source, e.g. root = Stack([TextContent("Your recommendation")]); empty string when no UI is useful',
         operations: [
           {
             type: "save_recipe",
@@ -3068,9 +2296,9 @@ export const generateCoachChatMessage = action({
     // catalog model that errors or answers unusably should degrade to a real
     // model's answer, not to the canned templates below — those are a last
     // resort for "no provider at all", not a personality.
-    const modelAttempts: Array<string | undefined> = args.model
-      ? [args.model, undefined]
-      : [undefined];
+    const defaultModel = defaultOpenRouterModel();
+    const modelAttempts = [...new Set([args.model ?? defaultModel, defaultModel])];
+    let providerFailure: AiProviderError | undefined;
     for (const model of modelAttempts) {
       try {
         const response = await generateCoachChatWithOpenAi({
@@ -3087,7 +2315,8 @@ export const generateCoachChatMessage = action({
         });
         if (response) return { ...response, source: "openai" };
       } catch (error) {
-        console.warn("Falling back to server coach chat", {
+        if (error instanceof AiProviderError) providerFailure = error;
+        console.warn("Coach model attempt failed", {
           model: model ?? "default",
           error: error instanceof Error ? error.message : String(error),
         });
@@ -3097,6 +2326,8 @@ export const generateCoachChatMessage = action({
     // A failed chat request is not an answer. In particular, do not turn
     // template advice into recommendation cards or executable operations.
     // Rejecting also lets the client retain the prompt for its retry control.
+    if (providerFailure?.status === 429) throw new ConvexError("The AI provider is temporarily rate-limiting this model. Please wait a moment and try again, or choose another model. Your message is saved for retry.");
+    if (providerFailure?.status === 402) throw new ConvexError("The AI provider has insufficient credits. Check your AI billing or API key settings, then try again.");
     throw new ConvexError(
       "Coach couldn’t answer your message right now. Please try again in a moment.",
     );

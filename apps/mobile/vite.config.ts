@@ -151,6 +151,8 @@ export default defineConfig(({ command, mode }) => {
         output: {
           manualChunks(id) {
             if (!id.includes("node_modules")) return undefined
+            // Keep the OpenUI runtime in its own chunk for generated responses.
+            if (id.includes("@openuidev")) return "openui-vendor"
             if (
               /node_modules\/(?:@remix-run|react|react-dom|react-router|scheduler)\//.test(
                 id

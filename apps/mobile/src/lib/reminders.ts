@@ -6,6 +6,14 @@ import {
   supportsNotificationChannels,
 } from "./notification-channels"
 
+let recoveryReminderPolicy = { training: false, food: false }
+export function setRecoveryReminderPolicy(policy: {
+  training: boolean
+  food: boolean
+}) {
+  recoveryReminderPolicy = policy
+}
+
 export type ReminderConfig = {
   enabled: boolean
   hour: number
@@ -122,15 +130,35 @@ export type EntryReminderKind = "workout" | "food"
  * the user pointed at, then never again. Ids live in their own band
  * (96000+) so cancelling or syncing the daily set can never touch them.
  */
-export async function scheduleEntryReminder(
+export function scheduleEntryReminder(
   kind: EntryReminderKind,
   at: Date
-): Promise<"scheduled" | "unsupported" | "denied"> {
+): Promise<ReminderSyncResult> {
+  const task = reminderSyncQueue
+    .catch(() => undefined)
+    .then(() => scheduleEntryReminderNow(kind, at))
+  reminderSyncQueue = task
+  return task
+}
+async function scheduleEntryReminderNow(
+  kind: EntryReminderKind,
+  at: Date
+): Promise<ReminderSyncResult> {
   if (Capacitor.getPlatform() === "web") return "unsupported"
+  if (
+    (kind === "workout" && recoveryReminderPolicy.training) ||
+    (kind === "food" && recoveryReminderPolicy.food)
+  )
+    return "disabled"
 
   await ensureNotificationChannels()
   const permission = await LocalNotifications.requestPermissions()
   if (permission.display !== "granted") return "denied"
+  if (
+    (kind === "workout" && recoveryReminderPolicy.training) ||
+    (kind === "food" && recoveryReminderPolicy.food)
+  )
+    return "disabled"
 
   const channelId = supportsNotificationChannels()
     ? NOTIFICATION_CHANNELS.reminders
@@ -145,6 +173,7 @@ export async function scheduleEntryReminder(
             ? "You planned a session for around now. Start it while it fits."
             : "You planned to eat around now — log it while you remember what it was.",
         schedule: { at, allowWhileIdle: true },
+        extra: { recoveryReminderKind: kind },
         channelId,
       },
     ],
@@ -180,16 +209,53 @@ export function formatReminderLabel(reminder: ReminderConfig) {
   return `Daily at ${formatReminderTime(reminder)}`
 }
 
-export async function syncPushReminders(
-  settings: ReminderSettings
-): Promise<"scheduled" | "disabled" | "unsupported" | "denied"> {
+type ReminderSyncResult = "scheduled" | "disabled" | "unsupported" | "denied"
+let reminderSyncQueue: Promise<unknown> = Promise.resolve()
+export function syncPushReminders(
+  settings: ReminderSettings,
+  requestPermission = true
+): Promise<ReminderSyncResult> {
+  const policy = { ...recoveryReminderPolicy }
+  const task = reminderSyncQueue
+    .catch(() => undefined)
+    .then(() => syncPushRemindersNow(settings, requestPermission, policy))
+  reminderSyncQueue = task
+  return task
+}
+async function syncPushRemindersNow(
+  settings: ReminderSettings,
+  requestPermission: boolean,
+  policy: typeof recoveryReminderPolicy
+): Promise<ReminderSyncResult> {
   if (Capacitor.getPlatform() === "web") {
     return "unsupported"
   }
 
   const enabledEntries = (
     Object.entries(settings) as [keyof ReminderSettings, ReminderConfig][]
-  ).filter(([, reminder]) => reminder.enabled)
+  ).filter(
+    ([kind, reminder]) =>
+      reminder.enabled &&
+      !(kind === "workout" && policy.training) &&
+      !(kind === "meal" && policy.food)
+  )
+
+  if (policy.training || policy.food) {
+    const pending = await LocalNotifications.getPending()
+    const paused = pending.notifications.filter(
+      (notification) =>
+        (policy.training &&
+          (notification.extra?.recoveryReminderKind === "workout" ||
+            notification.title === "Scheduled workout")) ||
+        (policy.food &&
+          (notification.extra?.recoveryReminderKind === "food" ||
+            notification.title === "Meal log reminder"))
+    )
+    if (paused.length)
+      await LocalNotifications.cancel({
+        notifications: paused.map(({ id }) => ({ id })),
+      })
+  }
 
   if (enabledEntries.length === 0) {
     const ids = Object.values(REMINDER_COPY).map(({ id }) => ({ id }))
@@ -197,14 +263,16 @@ export async function syncPushReminders(
     return "disabled"
   }
 
+  await LocalNotifications.cancel({
+    notifications: Object.values(REMINDER_COPY).map(({ id }) => ({ id })),
+  })
   await ensureNotificationChannels()
-  const permission = await LocalNotifications.requestPermissions()
+  const permission = requestPermission
+    ? await LocalNotifications.requestPermissions()
+    : await LocalNotifications.checkPermissions()
   if (permission.display !== "granted") {
     return "denied"
   }
-
-  const ids = Object.values(REMINDER_COPY).map(({ id }) => ({ id }))
-  await LocalNotifications.cancel({ notifications: ids })
 
   const channelId = supportsNotificationChannels()
     ? NOTIFICATION_CHANNELS.reminders

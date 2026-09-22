@@ -1,3 +1,4 @@
+import { recoveryDates } from "../lib/illnessRecovery";
 import { v } from "convex/values";
 import { mutation, query } from "../_generated/server";
 import { getAuthUser, safeGetAuthUser } from "../lib/auth";
@@ -24,7 +25,8 @@ export const listSince = query({
       )
       .collect();
 
-    return rows.map((row) => row.date);
+    const episodes = await ctx.db.query("recoveryEpisodes").withIndex("by_userId_and_startedOn", q => q.eq("userId", user._id)).order("desc").take(90);
+    return [...new Set([...rows.map((row) => row.date), ...recoveryDates(episodes, args.since, new Date(Date.now() + 86400000).toISOString().slice(0, 10))])];
   },
 });
 

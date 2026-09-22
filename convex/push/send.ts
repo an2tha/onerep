@@ -1,3 +1,4 @@
+import { activeRecovery } from "../lib/illnessRecovery";
 /**
  * The one door every coach-initiated message goes through.
  *
@@ -65,7 +66,9 @@ export const loadGateState = internalQuery({
         .collect(),
     ]);
 
+    const recovery = await activeRecovery(ctx, args.userId);
     return {
+      recoveryPaused: args.kind === "training_lapse" ? (!!recovery?.quietTraining || !!recovery?.deferTraining) : args.kind === "missed_log" ? !!recovery?.simpleFood : false,
       settings: mergeOutreachSettings(preferences?.coachOutreach),
       timezone: preferences?.lastActiveTimezone,
       alreadySent: duplicate !== null,
@@ -119,6 +122,7 @@ export const sendCoachTouch = internalAction({
   handler: async (ctx, args): Promise<CoachTouchOutcome> => {
     const kind = args.kind as CoachTouchKind;
     const gate: {
+      recoveryPaused: boolean;
       settings: ReturnType<typeof mergeOutreachSettings>;
       timezone?: string;
       alreadySent: boolean;
@@ -129,6 +133,7 @@ export const sendCoachTouch = internalAction({
       dedupeKey: args.dedupeKey,
     });
 
+    if (gate.recoveryPaused) return { sent: false, reason: "recovery mode", delivered: 0 };
     if (gate.alreadySent) {
       return { sent: false, reason: "already sent", delivered: 0 };
     }

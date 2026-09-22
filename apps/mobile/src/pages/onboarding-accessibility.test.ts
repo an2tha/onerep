@@ -118,7 +118,7 @@ describe("Onboarding production contract", () => {
     // re-implement a text-only chat that silently drops structured output.
     assert.match(pageSource, /from "@\/lib\/coach-chat"/)
     for (const component of [
-      "<CoachUiBlocks",
+      "<CoachGeneratedUI",
       "<CoachArtifacts",
       "<CoachProposal",
       "<CoachOperationResults",

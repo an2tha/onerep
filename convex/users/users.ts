@@ -982,6 +982,8 @@ export const exportMyData = query({
       healthMetrics,
       sleepPreferences,
       sleepReviews,
+      recoveryEpisodes,
+      recoveryCheckIns,
       dailyCheckIns,
       coachMemories,
       coachCheckIns,
@@ -1067,6 +1069,8 @@ export const exportMyData = query({
         .collect(),
       ctx.db.query("sleepPreferences").withIndex("by_userId", q => q.eq("userId", user._id)).take(1),
       ctx.db.query("sleepReviews").withIndex("by_userId", q => q.eq("userId", user._id)).take(2000),
+      ctx.db.query("recoveryEpisodes").withIndex("by_userId", q => q.eq("userId", user._id)).take(2000),
+      ctx.db.query("recoveryCheckIns").withIndex("by_userId", q => q.eq("userId", user._id)).take(2000),
       ctx.db
         .query("dailyCheckIns")
         .withIndex("by_userId", (q) => q.eq("userId", user._id))
@@ -1182,6 +1186,8 @@ export const exportMyData = query({
         healthMetrics,
         sleepPreferences,
         sleepReviews,
+      recoveryEpisodes,
+      recoveryCheckIns,
         dailyCheckIns,
         coachMemories,
         coachCheckIns,

@@ -1,0 +1,668 @@
+[
+  {
+    "slide": 1,
+    "text": "OneRep",
+    "height": 62.0,
+    "capacity": 65
+  },
+  {
+    "slide": 1,
+    "text": "Training and nutrition<br/>One shared picture",
+    "height": 104.16,
+    "capacity": 145
+  },
+  {
+    "slide": 1,
+    "text": "A working fitness app with an optional<br/>AI Coach built around the user\u2019s own log.",
+    "height": 52.08,
+    "capacity": 80
+  },
+  {
+    "slide": 1,
+    "text": "Investor introduction / September 2026",
+    "height": 17.36,
+    "capacity": 25
+  },
+  {
+    "slide": 1,
+    "text": "Product image: demonstration account, captured 3 August 2026. UI has since evolved.",
+    "height": 13,
+    "capacity": 27
+  },
+  {
+    "slide": 2,
+    "text": "The first customer",
+    "height": 39.68,
+    "capacity": 40
+  },
+  {
+    "slide": 2,
+    "text": "INITIAL CUSTOMER HYPOTHESIS",
+    "height": 16.12,
+    "capacity": 25
+  },
+  {
+    "slide": 2,
+    "text": "People who already lift<br/>and track what they eat.",
+    "height": 86.8,
+    "capacity": 110
+  },
+  {
+    "slide": 2,
+    "text": "They have a routine. The opportunity is to make daily logging and weekly decisions easier to keep up.",
+    "height": 85.56,
+    "capacity": 120
+  },
+  {
+    "slide": 2,
+    "text": "The daily task",
+    "height": 26.04,
+    "capacity": 31
+  },
+  {
+    "slide": 2,
+    "text": "Keep workouts and food in one usable record.",
+    "height": 44.64,
+    "capacity": 85
+  },
+  {
+    "slide": 2,
+    "text": "The weekly decision",
+    "height": 26.04,
+    "capacity": 31
+  },
+  {
+    "slide": 2,
+    "text": "Understand what changed before adjusting training or nutrition.",
+    "height": 44.64,
+    "capacity": 85
+  },
+  {
+    "slide": 2,
+    "text": "Proposed customer focus. Customer interviews, cohort retention and willingness to pay remain to be validated.",
+    "height": 13,
+    "capacity": 27
+  },
+  {
+    "slide": 3,
+    "text": "A working product across the daily routine",
+    "height": 39.68,
+    "capacity": 40
+  },
+  {
+    "slide": 3,
+    "text": "Training",
+    "height": 26.04,
+    "capacity": 28
+  },
+  {
+    "slide": 3,
+    "text": "Routines and workout logs",
+    "height": 18.6,
+    "capacity": 24
+  },
+  {
+    "slide": 3,
+    "text": "Nutrition",
+    "height": 26.04,
+    "capacity": 28
+  },
+  {
+    "slide": 3,
+    "text": "Food logging and macros",
+    "height": 18.6,
+    "capacity": 24
+  },
+  {
+    "slide": 3,
+    "text": "Progress",
+    "height": 26.04,
+    "capacity": 28
+  },
+  {
+    "slide": 3,
+    "text": "Trends and measurements",
+    "height": 18.6,
+    "capacity": 24
+  },
+  {
+    "slide": 3,
+    "text": "Actual OneRep demo-account captures from 3 August 2026. Illustrative account values, not customer outcomes.",
+    "height": 13,
+    "capacity": 27
+  },
+  {
+    "slide": 4,
+    "text": "Coach works inside the log",
+    "height": 39.68,
+    "capacity": 40
+  },
+  {
+    "slide": 4,
+    "text": "Context from the account",
+    "height": 26.04,
+    "capacity": 31
+  },
+  {
+    "slide": 4,
+    "text": "Coach can use training, food and goals rather than asking users to reconstruct their history.",
+    "height": 44.64,
+    "capacity": 85
+  },
+  {
+    "slide": 4,
+    "text": "Suggestions that become entries",
+    "height": 26.04,
+    "capacity": 31
+  },
+  {
+    "slide": 4,
+    "text": "Supported actions can create workouts or food records through an approval flow.",
+    "height": 44.64,
+    "capacity": 85
+  },
+  {
+    "slide": 4,
+    "text": "User control",
+    "height": 26.04,
+    "capacity": 31
+  },
+  {
+    "slide": 4,
+    "text": "AI sharing is opt-in. Core tracking works without Coach, and users can export their data.",
+    "height": 44.64,
+    "capacity": 85
+  },
+  {
+    "slide": 4,
+    "text": "Implemented product capabilities. Demo screenshot: 3 August 2026. No claim of clinical effectiveness or improved outcomes.",
+    "height": 13,
+    "capacity": 27
+  },
+  {
+    "slide": 5,
+    "text": "A large category, a narrow starting point",
+    "height": 39.68,
+    "capacity": 40
+  },
+  {
+    "slide": 5,
+    "text": "81 million",
+    "height": 91.76,
+    "capacity": 110
+  },
+  {
+    "slide": 5,
+    "text": "US fitness-facility members in 2025",
+    "height": 29.759999999999998,
+    "capacity": 70
+  },
+  {
+    "slide": 5,
+    "text": "HFA also reports that free weights led equipment usage growth since 2021.",
+    "height": 47.12,
+    "capacity": 80
+  },
+  {
+    "slide": 5,
+    "text": "OneRep\u2019s starting audience",
+    "height": 26.04,
+    "capacity": 31
+  },
+  {
+    "slide": 5,
+    "text": "Self-directed adults who combine strength training with regular food tracking.",
+    "height": 66.96000000000001,
+    "capacity": 85
+  },
+  {
+    "slide": 5,
+    "text": "What still needs proof",
+    "height": 26.04,
+    "capacity": 31
+  },
+  {
+    "slide": 5,
+    "text": "How many of these users will switch, stay active and pay for Coach.",
+    "height": 44.64,
+    "capacity": 85
+  },
+  {
+    "slide": 5,
+    "text": "Source: HFA, 2026 US Health & Fitness Consumer Report. US membership includes ages 6+. Category context, not OneRep\u2019s addressable market.",
+    "height": 13,
+    "capacity": 27
+  },
+  {
+    "slide": 6,
+    "text": "Competition is already converging",
+    "height": 39.68,
+    "capacity": 40
+  },
+  {
+    "slide": 6,
+    "text": "PRODUCT",
+    "height": 16.12,
+    "capacity": 25
+  },
+  {
+    "slide": 6,
+    "text": "EXISTING OFFER",
+    "height": 16.12,
+    "capacity": 25
+  },
+  {
+    "slide": 6,
+    "text": "IMPLICATION FOR ONEREP",
+    "height": 16.12,
+    "capacity": 25
+  },
+  {
+    "slide": 6,
+    "text": "Hevy",
+    "height": 28.52,
+    "capacity": 40
+  },
+  {
+    "slide": 6,
+    "text": "Workout logging, routines and a fitness community.",
+    "height": 44.64,
+    "capacity": 77
+  },
+  {
+    "slide": 6,
+    "text": "Workout tracking alone must meet a high usability bar.",
+    "height": 44.64,
+    "capacity": 77
+  },
+  {
+    "slide": 6,
+    "text": "MacroFactor",
+    "height": 28.52,
+    "capacity": 40
+  },
+  {
+    "slide": 6,
+    "text": "Nutrition and workout apps, with a combined subscription.",
+    "height": 44.64,
+    "capacity": 77
+  },
+  {
+    "slide": 6,
+    "text": "Combining training and food is already a competitive category.",
+    "height": 44.64,
+    "capacity": 77
+  },
+  {
+    "slide": 6,
+    "text": "OneRep",
+    "height": 28.52,
+    "capacity": 40
+  },
+  {
+    "slide": 6,
+    "text": "Free core tracking, a shared account and optional AI actions.",
+    "height": 44.64,
+    "capacity": 77
+  },
+  {
+    "slide": 6,
+    "text": "The proposed advantage is less logging friction and more useful context.",
+    "height": 66.96000000000001,
+    "capacity": 77
+  },
+  {
+    "slide": 6,
+    "text": "Retention and useful coaching will determine whether users switch.",
+    "height": 26.04,
+    "capacity": 34
+  },
+  {
+    "slide": 6,
+    "text": "Sources: Hevy official site; MacroFactor Workouts and pricing pages; OneRep product and code. Competitive position remains a hypothesis.",
+    "height": 13,
+    "capacity": 27
+  },
+  {
+    "slide": 7,
+    "text": "Free tracking, optional paid Coach",
+    "height": 39.68,
+    "capacity": 40
+  },
+  {
+    "slide": 7,
+    "text": "CORE",
+    "height": 16.12,
+    "capacity": 25
+  },
+  {
+    "slide": 7,
+    "text": "\u20ac0",
+    "height": 79.36,
+    "capacity": 83
+  },
+  {
+    "slide": 7,
+    "text": "Workout, nutrition and progress tracking.<br/>10 AI requests per month.",
+    "height": 81.84,
+    "capacity": 92
+  },
+  {
+    "slide": 7,
+    "text": "COACH / PUBLISHED WEB PRICE",
+    "height": 16.12,
+    "capacity": 25
+  },
+  {
+    "slide": 7,
+    "text": "\u20ac4.99",
+    "height": 79.36,
+    "capacity": 83
+  },
+  {
+    "slide": 7,
+    "text": "per month",
+    "height": 23.56,
+    "capacity": 27
+  },
+  {
+    "slide": 7,
+    "text": "500 AI requests per month.<br/>Recurring subscription.",
+    "height": 54.56,
+    "capacity": 83
+  },
+  {
+    "slide": 7,
+    "text": "At 1,000 paying subscribers: \u20ac4,990 in monthly gross billings.",
+    "height": 27.28,
+    "capacity": 35
+  },
+  {
+    "slide": 7,
+    "text": "Illustrative arithmetic, not a forecast. Before taxes, fees, AI, hosting and support costs. Published web offer; regional store prices may vary.",
+    "height": 13,
+    "capacity": 27
+  },
+  {
+    "slide": 8,
+    "text": "A working product, an early commercial stage",
+    "height": 39.68,
+    "capacity": 40
+  },
+  {
+    "slide": 8,
+    "text": "0",
+    "height": 179.8,
+    "capacity": 182
+  },
+  {
+    "slide": 8,
+    "text": "paying subscribers",
+    "height": 38.44,
+    "capacity": 50
+  },
+  {
+    "slide": 8,
+    "text": "As of 20 September 2026",
+    "height": 22.32,
+    "capacity": 58
+  },
+  {
+    "slide": 8,
+    "text": "Product available",
+    "height": 26.04,
+    "capacity": 31
+  },
+  {
+    "slide": 8,
+    "text": "Web app available. iOS in TestFlight beta, with the App Store release still pending.",
+    "height": 66.96000000000001,
+    "capacity": 85
+  },
+  {
+    "slide": 8,
+    "text": "Next proof points",
+    "height": 26.04,
+    "capacity": 31
+  },
+  {
+    "slide": 8,
+    "text": "Reliable checkout, repeat weekly use and the first paid renewals.",
+    "height": 44.64,
+    "capacity": 85
+  },
+  {
+    "slide": 8,
+    "text": "Current focus: establish repeat use, subscription conversion and paid renewals.",
+    "height": 13,
+    "capacity": 27
+  },
+  {
+    "slide": 9,
+    "text": "A focused distribution plan",
+    "height": 39.68,
+    "capacity": 40
+  },
+  {
+    "slide": 9,
+    "text": "PROPOSED TESTS",
+    "height": 16.12,
+    "capacity": 25
+  },
+  {
+    "slide": 9,
+    "text": "Start with small cohorts.<br/>Learn before buying reach.",
+    "height": 86.8,
+    "capacity": 100
+  },
+  {
+    "slide": 9,
+    "text": "Direct recruiting",
+    "height": 26.04,
+    "capacity": 31
+  },
+  {
+    "slide": 9,
+    "text": "Invite lifters through relevant communities and coach-led introductions. Offer hands-on onboarding.",
+    "height": 66.96000000000001,
+    "capacity": 85
+  },
+  {
+    "slide": 9,
+    "text": "Search and useful content",
+    "height": 26.04,
+    "capacity": 31
+  },
+  {
+    "slide": 9,
+    "text": "Use the existing exercise library and practical training content to reach people with a specific need.",
+    "height": 66.96000000000001,
+    "capacity": 85
+  },
+  {
+    "slide": 9,
+    "text": "Planned experiments, not established channels or partnerships. Measure activation, four-week retention and conversion by acquisition source.",
+    "height": 13,
+    "capacity": 27
+  },
+  {
+    "slide": 10,
+    "text": "The milestones that justify the next stage",
+    "height": 39.68,
+    "capacity": 40
+  },
+  {
+    "slide": 10,
+    "text": "PROPOSED PRIORITIES FOR INVESTMENT",
+    "height": 16.12,
+    "capacity": 25
+  },
+  {
+    "slide": 10,
+    "text": "Reliable purchase and onboarding",
+    "height": 26.04,
+    "capacity": 31
+  },
+  {
+    "slide": 10,
+    "text": "Complete subscription purchase validation and the iOS release. Make the first workout and food log straightforward.",
+    "height": 66.96000000000001,
+    "capacity": 85
+  },
+  {
+    "slide": 10,
+    "text": "A retained initial cohort",
+    "height": 26.04,
+    "capacity": 31
+  },
+  {
+    "slide": 10,
+    "text": "Measure who returns to both training and nutrition after four weeks, and learn why others stop.",
+    "height": 44.64,
+    "capacity": 85
+  },
+  {
+    "slide": 10,
+    "text": "Repeat paid usage",
+    "height": 26.04,
+    "capacity": 31
+  },
+  {
+    "slide": 10,
+    "text": "Reach first paid renewals and measure AI cost per paying subscriber alongside support and platform fees.",
+    "height": 66.96000000000001,
+    "capacity": 85
+  },
+  {
+    "slide": 10,
+    "text": "A repeatable acquisition route",
+    "height": 26.04,
+    "capacity": 31
+  },
+  {
+    "slide": 10,
+    "text": "Compare cohort quality by channel before committing to a larger acquisition budget.",
+    "height": 44.64,
+    "capacity": 85
+  },
+  {
+    "slide": 10,
+    "text": "Milestones and priorities are proposed. Fundraising amount, runway, valuation and hiring plan require a separate founder discussion.",
+    "height": 13,
+    "capacity": 27
+  },
+  {
+    "slide": 11,
+    "text": "OneRep",
+    "height": 66.96,
+    "capacity": 80
+  },
+  {
+    "slide": 11,
+    "text": "A working product.<br/>Paid demand is the next proof.",
+    "height": 99.2,
+    "capacity": 125
+  },
+  {
+    "slide": 11,
+    "text": "Seeking investor conversations about the path<br/>to retained users and repeat paid subscriptions.",
+    "height": 54.56,
+    "capacity": 80
+  },
+  {
+    "slide": 11,
+    "text": "ananthahalmuttur@gmail.com",
+    "height": 29.759999999999998,
+    "capacity": 37
+  },
+  {
+    "slide": 11,
+    "text": "onerep.life     /     app.onerep.life",
+    "height": 13,
+    "capacity": 27
+  },
+  {
+    "slide": 12,
+    "text": "Sources and basis",
+    "height": 39.68,
+    "capacity": 40
+  },
+  {
+    "slide": 12,
+    "text": "Product and pricing",
+    "height": 21.08,
+    "capacity": 28
+  },
+  {
+    "slide": 12,
+    "text": "OneRep website, product source and published pricing. Accessed 20 September 2026.",
+    "height": 19,
+    "capacity": 49
+  },
+  {
+    "slide": 12,
+    "text": "Commercial status",
+    "height": 21.08,
+    "capacity": 28
+  },
+  {
+    "slide": 12,
+    "text": "OneRep reports zero paying subscribers as of 20 September 2026.",
+    "height": 19,
+    "capacity": 49
+  },
+  {
+    "slide": 12,
+    "text": "Product imagery",
+    "height": 21.08,
+    "capacity": 28
+  },
+  {
+    "slide": 12,
+    "text": "Repository demo-account captures dated 3 August 2026. Screens show demonstration data and an earlier UI.",
+    "height": 38,
+    "capacity": 49
+  },
+  {
+    "slide": 12,
+    "text": "Category context",
+    "height": 21.08,
+    "capacity": 28
+  },
+  {
+    "slide": 12,
+    "text": "HFA, \u201c81 Million Americans Were Members of a Fitness Facility in 2025,\u201d 9 April 2026.",
+    "height": 19,
+    "capacity": 49
+  },
+  {
+    "slide": 12,
+    "text": "Competition",
+    "height": 21.08,
+    "capacity": 28
+  },
+  {
+    "slide": 12,
+    "text": "Hevy (hevyapp.com). MacroFactor Workouts and pricing (macrofactor.com/workouts/price). Accessed 20 September 2026.",
+    "height": 38,
+    "capacity": 49
+  },
+  {
+    "slide": 12,
+    "text": "License and claims",
+    "height": 21.08,
+    "capacity": 28
+  },
+  {
+    "slide": 12,
+    "text": "Public source uses PolyForm Noncommercial 1.0.0. Self-hosting and source availability are distinct from unrestricted commercial use.",
+    "height": 38,
+    "capacity": 49
+  },
+  {
+    "slide": 12,
+    "text": "Plans and scenario arithmetic are explicitly labeled. Founder background, financing terms and audited operating metrics are outside this introduction.",
+    "height": 13,
+    "capacity": 27
+  }
+]

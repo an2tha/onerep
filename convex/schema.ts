@@ -5,6 +5,44 @@ import { billingPlatform, billingState } from "./billing/types";
 import { nutrientProfileValidator } from "./lib/nutritionValues";
 
 export default defineSchema({
+  recoveryEpisodes: defineTable({
+    userId: v.string(),
+    active: v.boolean(),
+    startedOn: v.string(),
+    endedOn: v.optional(v.string()),
+    phase: v.union(v.literal("resting"), v.literal("easing_back")),
+    symptoms: v.string(),
+    energy: v.union(v.literal("low"), v.literal("okay"), v.literal("good")),
+    manageable: v.string(),
+    deferTraining: v.boolean(),
+    quietTraining: v.boolean(),
+    simpleFood: v.boolean(),
+    checkInFrequency: v.union(
+      v.literal("daily"),
+      v.literal("every_other_day"),
+      v.literal("off"),
+    ),
+    lastCheckInOn: v.optional(v.string()),
+    lastTrend: v.optional(
+      v.union(v.literal("better"), v.literal("same"), v.literal("worse")),
+    ),
+    updatedAt: v.number(),
+  })
+    .index("by_userId_and_active", ["userId", "active"])
+    .index("by_userId_and_startedOn", ["userId", "startedOn"])
+    .index("by_userId", ["userId"]),
+  recoveryCheckIns: defineTable({
+    userId: v.string(),
+    episodeId: v.id("recoveryEpisodes"),
+    date: v.string(),
+    trend: v.union(v.literal("better"), v.literal("same"), v.literal("worse")),
+    symptoms: v.string(),
+    energy: v.union(v.literal("low"), v.literal("okay"), v.literal("good")),
+    manageable: v.string(),
+    updatedAt: v.number(),
+  })
+    .index("by_episodeId_and_date", ["episodeId", "date"])
+    .index("by_userId", ["userId"]),
   nutritionProgrammes: defineTable({
     userId: v.string(), goal: v.union(v.literal("maintain"), v.literal("step_down"), v.literal("step_up")),
     startDate: v.string(), weeks: v.number(), baselineCalories: v.number(), changePercent: v.number(),

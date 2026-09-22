@@ -407,3 +407,14 @@ describe("weeklyReportTrigger", () => {
     expect(result?.report.end).toBe("2026-04-19")
   })
 })
+
+
+test("weekly reports explain recovery without changing results or scoring a missed target", () => {
+  const report = buildWeeklyReport({ start: "2026-04-06", end: "2026-04-12", foodLogs: [], workoutLogs: [workout("2026-04-06")], bodyMeasurements: [], calorieTarget: 2000, proteinTarget: 120, target: 4, recoveryDates: ["2026-04-07", "2026-04-08", "2026-04-08", "2026-04-13"] })
+  expect(report.recoveryDays).toBe(2)
+  expect(report.headline).toContain("2 recovery days")
+  expect(report.training.workouts).toBe(1)
+  expect(report.target).toBe(4)
+  expect(report.metTarget).toBeNull()
+  expect(report.highlights.join(" ")).toContain("long-term goals are unchanged")
+})

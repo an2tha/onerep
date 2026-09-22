@@ -5,17 +5,13 @@ const coachSource = [
   readFileSync(new URL("./Coach.tsx", import.meta.url), "utf8"),
   readFileSync(new URL("../lib/coach-chat.tsx", import.meta.url), "utf8"),
 ].join("\n")
-const generationSource = readFileSync(
-  new URL("../../../../convex/ai/metricGeneration.ts", import.meta.url),
-  "utf8"
-)
 const generatedPrompts = readFileSync(
   new URL("../../../../convex/ai/prompts.generated.ts", import.meta.url),
   "utf8"
 )
 
 describe("Coach generative interactive cards", () => {
-  test("supports composable controls instead of a meal-only template", () => {
+  test("keeps legacy conversation controls readable", () => {
     for (const element of [
       "text",
       "section",
@@ -30,7 +26,6 @@ describe("Coach generative interactive cards", () => {
       "rating",
       "toggle",
     ]) {
-      expect(generationSource).toContain(`type: "${element}"`)
       expect(coachSource).toContain(`element.type === "${element}"`)
     }
   })
@@ -43,11 +38,10 @@ describe("Coach generative interactive cards", () => {
 
   test("directs Coach to prefer interactive quick logging", () => {
     expect(generatedPrompts).toContain(
-      "For quick meal logging, prefer one interactive_card"
+      "For quick meal logging, prefer one MealLog component"
     )
-    expect(generatedPrompts).toContain("interactive_card is a composable")
     expect(generatedPrompts).toContain(
-      "generative canvas rather than a fixed template"
+      "Generate interfaces with OpenUI Lang"
     )
   })
 })

@@ -3,6 +3,14 @@ import { beforeEach, describe, expect, mock, test } from "bun:test"
 let platform = "ios"
 const cancelMock = mock(async () => undefined)
 const requestPermissionsMock = mock(async () => ({ display: "granted" }))
+const pendingMock = mock(async () => ({
+  notifications: [] as Array<{
+    id: number
+    title: string
+    extra?: { recoveryReminderKind: string }
+  }>,
+}))
+const checkPermissionsMock = mock(async () => ({ display: "granted" }))
 const scheduleMock = mock(async () => undefined)
 const createChannelMock = mock(async () => undefined)
 
@@ -15,6 +23,8 @@ mock.module("@capacitor/core", () => ({
 
 mock.module("@capacitor/local-notifications", () => ({
   LocalNotifications: {
+    getPending: pendingMock,
+    checkPermissions: checkPermissionsMock,
     cancel: cancelMock,
     requestPermissions: requestPermissionsMock,
     schedule: scheduleMock,
@@ -24,6 +34,8 @@ mock.module("@capacitor/local-notifications", () => ({
 
 const {
   DEFAULT_REMINDERS,
+  setRecoveryReminderPolicy,
+  scheduleEntryReminder,
   formatReminderLabel,
   formatReminderTime,
   mergeReminderSettings,
@@ -33,6 +45,9 @@ const {
 
 describe("reminder settings", () => {
   beforeEach(() => {
+    setRecoveryReminderPolicy({ training: false, food: false })
+    pendingMock.mockReset()
+    pendingMock.mockImplementation(async () => ({ notifications: [] }))
     platform = "ios"
     cancelMock.mockClear()
     requestPermissionsMock.mockReset()
@@ -224,4 +239,76 @@ describe("reminder settings", () => {
       scheduledCheckInId: "check-in-creatine",
     })
   })
+})
+
+describe("recovery reminder policy", () => {
+  test("quiet reminders cancel existing one-shots, preserve water and restore saved workout choices", async () => {
+    platform = "ios"
+    scheduleMock.mockClear()
+    cancelMock.mockClear()
+    pendingMock.mockImplementationOnce(async () => ({
+      notifications: [
+        { id: 96001, title: "Scheduled workout" },
+        { id: 96002, title: "Meal log reminder" },
+        { id: 96003, title: "Unrelated reminder" },
+      ],
+    }))
+    const settings = {
+      ...DEFAULT_REMINDERS,
+      workout: { enabled: true, hour: 18, minute: 0 },
+      meal: { enabled: true, hour: 12, minute: 0 },
+      water: { enabled: true, hour: 10, minute: 0 },
+    }
+    setRecoveryReminderPolicy({ training: true, food: true })
+    await syncPushReminders(settings, false)
+    expect(cancelMock).toHaveBeenCalledWith({
+      notifications: [{ id: 96001 }, { id: 96002 }],
+    })
+    expect(
+      (
+        scheduleMock.mock.calls.at(-1) as unknown as [
+          { notifications: Array<{ id: number }> },
+        ]
+      )[0].notifications.map((n) => n.id)
+    ).toEqual([9201])
+    expect(await scheduleEntryReminder("workout", new Date())).toBe("disabled")
+    setRecoveryReminderPolicy({ training: false, food: false })
+    await syncPushReminders(settings, false)
+    expect(
+      (
+        scheduleMock.mock.calls.at(-1) as unknown as [
+          { notifications: Array<{ id: number }> },
+        ]
+      )[0].notifications.map((n) => n.id)
+    ).toEqual([9201, 9202, 9203])
+  })
+})
+
+test("starting recovery while notification permission is pending cannot leak a workout reminder", async () => {
+  platform = "ios"
+  setRecoveryReminderPolicy({ training: false, food: false })
+  scheduleMock.mockClear()
+  let releasePermission!: (value: { display: string }) => void
+  let markRequested!: () => void
+  const requested = new Promise<void>((resolve) => {
+    markRequested = resolve
+  })
+  requestPermissionsMock.mockImplementationOnce(() => {
+    markRequested()
+    return new Promise((resolve) => {
+      releasePermission = resolve
+    })
+  })
+  const pendingEntry = scheduleEntryReminder(
+    "workout",
+    new Date(Date.now() + 60000)
+  )
+  await requested
+  setRecoveryReminderPolicy({ training: true, food: true })
+  const sync = syncPushReminders(DEFAULT_REMINDERS, false)
+  releasePermission({ display: "granted" })
+  expect(await pendingEntry).toBe("disabled")
+  expect(await sync).toBe("disabled")
+  expect(scheduleMock).not.toHaveBeenCalled()
+  setRecoveryReminderPolicy({ training: false, food: false })
 })
