@@ -4,7 +4,7 @@ import { currentDateKey } from "@/lib/food-log"
 import { safeLocalStorageGet, safeLocalStorageSet } from "@/lib/utils"
 import { useRecovery } from "@/lib/use-recovery"
 import { useSmoothNavigate } from "@/lib/navigation"
-import { NudgeIllustration } from "@/components/nudge-illustration"
+import { NudgeIllustration } from "@repo/ui/mobile"
 export function RecoveryBanner({
   surface = "dashboard",
 }: {

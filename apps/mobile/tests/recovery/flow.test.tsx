@@ -1,3 +1,4 @@
+import { NudgeIllustration } from "../../../../packages/ui/src/components/nudge-illustration"
 import { afterEach, beforeEach, expect, mock, test } from "bun:test"
 import { Window } from "happy-dom"
 import { getFunctionName } from "convex/server"
@@ -48,6 +49,7 @@ let data: {
 let calls: Array<{ name: string; args: Record<string, unknown> }>
 let failNext = false
 const navigate = mock(() => {})
+mock.module("@repo/ui/mobile", () => ({ NudgeIllustration }))
 mock.module("@repo/ui", () => ({ toast: { success: mock(() => {}) } }))
 mock.module("@/lib/use-recovery", () => ({
   useRecovery: () => data,

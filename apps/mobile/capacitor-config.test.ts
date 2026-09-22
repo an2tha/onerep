@@ -2,10 +2,10 @@ import { describe, expect, test } from "bun:test"
 import config from "./capacitor.config"
 
 describe("Capacitor production config", () => {
-  test("uses a stable HTTPS origin for durable WebView auth storage", () => {
+  test("uses supported local origins for each native WebView", () => {
     expect(config.server).toMatchObject({
       hostname: "localhost",
-      iosScheme: "https",
+      iosScheme: "capacitor",
       androidScheme: "https",
     })
   })
