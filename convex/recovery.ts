@@ -1,4 +1,6 @@
 import { zonedNow } from "../packages/models/src/moments";
+import { api } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 import { v } from "convex/values";
 import { mutation, query, type MutationCtx } from "./_generated/server";
 import { getAuthUser, safeGetAuthUser } from "./lib/auth";
@@ -179,6 +181,34 @@ export const finish = mutation({
       active: false,
       endedOn: args.endedOn,
       updatedAt: Date.now(),
+    });
+  },
+});
+
+/** Explicit Coach requests use the same recovery lifecycle as the setup form. */
+export const startFromCoach = mutation({
+  args: {
+    symptoms: v.optional(v.string()),
+    energy: v.optional(details.energy),
+    manageable: v.optional(v.string()),
+  },
+  handler: async (ctx, args): Promise<Id<"recoveryEpisodes">> => {
+    const user = await getAuthUser(ctx);
+    const active = await activeRecovery(ctx, user._id);
+    if (active) return active._id;
+    const preferences = await ctx.db
+      .query("userPreferences")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .unique();
+    return await ctx.runMutation(api.recovery.start, {
+      startedOn: zonedNow(preferences?.lastActiveTimezone ?? "UTC").todayKey,
+      symptoms: args.symptoms ?? "",
+      energy: args.energy ?? "okay",
+      manageable: args.manageable ?? "",
+      deferTraining: true,
+      quietTraining: true,
+      simpleFood: true,
+      checkInFrequency: "off",
     });
   },
 });

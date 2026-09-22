@@ -221,6 +221,12 @@ function chatModel(
     modelKwargs: {
       provider: {
         only: [disclosedProvider(config.model)],
+        // The generic Azure route can be throttled while regional endpoints
+        // still have capacity. Try explicit regions first, keeping the same
+        // model, disclosed recipient, and privacy requirements.
+        ...(disclosedProvider(config.model) === "azure"
+          ? { order: ["azure/eu", "azure/us", "azure"] }
+          : {}),
         allow_fallbacks: false,
         data_collection: "deny",
         zdr: true,

@@ -360,3 +360,93 @@ test("dates use the user's timezone and reject tomorrow", async () => {
     vi.useRealTimers();
   }
 });
+
+describe("Coach recovery activation", () => {
+  const operation = {
+    type: "start_recovery",
+    confirmation: "auto",
+    summary: "Start recovery mode",
+    assumptions: [],
+    warnings: [],
+    symptoms: "Tired",
+    energy: "low",
+  };
+
+  test("approved Coach operation activates recovery and preserves an existing plan on retry", async () => {
+    const t = convexTest(schema, modules);
+    const user = t.withIdentity(identity);
+    await expect(
+      t.action(api.ai.coachOperations.applyApproved, {
+        requestId: "recovery-unauthenticated",
+        operations: [operation],
+      }),
+    ).rejects.toThrow("Unauthenticated");
+    const result = await user.action(api.ai.coachOperations.applyApproved, {
+      requestId: "recovery-coach",
+      operations: [operation],
+    });
+    expect(result).toMatchObject([
+      { type: "start_recovery", label: "Recovery mode is active" },
+    ]);
+    const first = (await user.query(api.recovery.get, {})).active!;
+    expect(first).toMatchObject({
+      symptoms: "Tired",
+      energy: "low",
+      deferTraining: true,
+      quietTraining: true,
+      simpleFood: true,
+      checkInFrequency: "off",
+    });
+    await user.mutation(api.recovery.update, {
+      episodeId: first._id,
+      phase: "easing_back",
+      ...options,
+      deferTraining: false,
+    });
+    await user.action(api.ai.coachOperations.applyApproved, {
+      requestId: "recovery-coach-again",
+      operations: [operation],
+    });
+    const after = await user.query(api.recovery.get, {});
+    expect(after.episodes).toHaveLength(1);
+    expect(after.active).toMatchObject({
+      _id: first._id,
+      phase: "easing_back",
+      deferTraining: false,
+    });
+    await user.mutation(api.recovery.finish, {
+      episodeId: first._id,
+      endedOn: first.startedOn,
+    });
+    expect((await user.query(api.recovery.get, {})).active).toBeNull();
+  });
+
+  test("Coach activation starts on the account's local date and validates details", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-21T23:30:00Z"));
+    try {
+      const t = convexTest(schema, modules);
+      const user = t.withIdentity(identity);
+      await t.run((ctx) =>
+        ctx.db.insert("userPreferences", {
+          userId: identity.tokenIdentifier,
+          lastActiveTimezone: "Europe/Berlin",
+          updatedAt: Date.now(),
+        }),
+      );
+      await expect(
+        user.mutation(api.recovery.startFromCoach, {
+          symptoms: "x".repeat(601),
+        }),
+      ).rejects.toThrow("600");
+      await user.mutation(api.recovery.startFromCoach, {});
+      expect((await user.query(api.recovery.get, {})).active?.startedOn).toBe(
+        "2026-09-22",
+      );
+      const other = t.withIdentity({ tokenIdentifier: "test|other" });
+      expect((await other.query(api.recovery.get, {})).active).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

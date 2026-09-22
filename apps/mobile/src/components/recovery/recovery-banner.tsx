@@ -1,8 +1,10 @@
 import { useState } from "react"
+import { useMutation } from "convex/react"
+import { api } from "../../../../../convex/_generated/api"
 import { X } from "@phosphor-icons/react"
 import { currentDateKey } from "@/lib/food-log"
 import { safeLocalStorageGet, safeLocalStorageSet } from "@/lib/utils"
-import { useRecovery } from "@/lib/use-recovery"
+import { useRecovery, useRecoveryToday } from "@/lib/use-recovery"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { NudgeIllustration } from "@repo/ui/mobile"
 export function RecoveryBanner({
@@ -11,6 +13,10 @@ export function RecoveryBanner({
   surface?: "dashboard" | "coach" | "training" | "nutrition" | "progress"
 }) {
   const recovery = useRecovery()
+  const finish = useMutation(api.recovery.finish)
+  const recoveryToday = useRecoveryToday()
+  const [dismissing, setDismissing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const navigate = useSmoothNavigate()
   const [dismissedOn, setDismissedOn] = useState(() =>
     safeLocalStorageGet("onerep:recovery-nudge-dismissed")
@@ -62,6 +68,31 @@ export function RecoveryBanner({
       className={`recovery-banner ${active ? "is-active" : ""}`}
       aria-label={active ? "Recovery mode" : "Feeling unwell?"}
     >
+      {active && (
+        <button
+          className="recovery-dismiss"
+          type="button"
+          aria-label="Dismiss recovery mode"
+          disabled={dismissing}
+          aria-busy={dismissing}
+          onClick={async () => {
+            if (dismissing) return
+            setDismissing(true)
+            setError(null)
+            try {
+              await finish({ episodeId: active._id, endedOn: recoveryToday })
+              safeLocalStorageSet("onerep:recovery-nudge-dismissed", today)
+              setDismissedOn(today)
+            } catch {
+              setError("Could not dismiss recovery mode. Try again.")
+            } finally {
+              setDismissing(false)
+            }
+          }}
+        >
+          <X size={16} />
+        </button>
+      )}
       {!active && surface === "dashboard" && (
         <button
           className="recovery-dismiss"
@@ -93,6 +124,7 @@ export function RecoveryBanner({
             : "Feeling unwell?"}
         </h2>
         <p>{detail}</p>
+        {error && <p role="alert">{error}</p>}
         <button type="button" onClick={() => navigate("/recovery")}>
           {active ? "Open recovery plan" : "Set up recovery"}
           <span aria-hidden="true"> →</span>

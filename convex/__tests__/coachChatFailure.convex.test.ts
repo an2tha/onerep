@@ -114,3 +114,49 @@ test("upstream throttling is actionable and the selected default model is not tr
   await expect(user.action(api.ai.metricGeneration.generateCoachChatMessage, { context, message: "Help me recover", history: [], today: "2026-09-21", model: defaultOpenRouterModel() })).rejects.toThrow("temporarily rate-limiting");
   expect(requestOpenAiJson).toHaveBeenCalledTimes(1);
 });
+
+test("an explicit recovery request preserves the executable operation through chat normalization", async () => {
+  vi.mocked(hasOpenAiApiKey).mockReturnValue(true);
+  vi.mocked(requestOpenAiJson).mockResolvedValue(
+    JSON.stringify({
+      reply: "I'll turn on recovery mode.",
+      openui: "",
+      operations: [
+        {
+          type: "start_recovery",
+          confirmation: "auto",
+          summary: "Start recovery mode",
+          assumptions: ["Defer training and quiet training reminders."],
+          warnings: [],
+          symptoms: "Sore throat",
+          energy: "low",
+        },
+      ],
+      artifacts: [],
+    }),
+  );
+  const user = convexTest(schema, modules).withIdentity({
+    tokenIdentifier: "test|coach-recovery",
+  });
+  await user.mutation(api.ai.usage.setSharingConsent, {
+    granted: true,
+    version: AI_SHARING_VERSION,
+  });
+  const response = await user.action(
+    api.ai.metricGeneration.generateCoachChatMessage,
+    {
+      context,
+      message: "I have a sore throat and low energy. Turn on recovery mode.",
+      history: [],
+      today: "2026-09-22",
+    },
+  );
+  expect(response.operations).toMatchObject([
+    {
+      type: "start_recovery",
+      confirmation: "auto",
+      symptoms: "Sore throat",
+      energy: "low",
+    },
+  ]);
+});

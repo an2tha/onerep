@@ -23,9 +23,9 @@ export interface AiAccessRequiredModalProps {
   proLimit?: number | null
   usedCount?: number | null
   isNative?: boolean
-  /** False while StoreKit has no product to sell, or Stripe is unconfigured. */
+  /** False on native devices or when web checkout is unconfigured. */
   canPurchase?: boolean
-  /** iOS only. App Review looks for this, and reinstalls need it. */
+  /** Whether the current billing surface offers a restore action. */
   canRestore?: boolean
   onClose: () => void
   onOpenPaywall: () => void

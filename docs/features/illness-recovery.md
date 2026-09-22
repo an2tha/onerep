@@ -20,3 +20,11 @@ Verification: Convex tests cover ownership, transitions, check-ins, push gates, 
 Recovery mutations are scoped to the episode displayed by the client, so stale tabs cannot change a later episode. Backfilled check-ins preserve the latest symptom/energy summary. Date validation follows the user's saved timezone. Reminder scheduling shares a queue with recovery reconciliation to avoid permission-dialog races.
 
 Run the DOM interaction suite with `bun run --cwd apps/mobile test:recovery-ui` (also included in mobile `test`). It exercises setup preview, urgent-warning handling, settings saves/retries, phase changes, check-ins and finish confirmation using React and happy-dom. It does not substitute for native notification delivery or real-browser visual verification.
+
+Users can also ask Coach to turn on recovery mode. The `start_recovery` operation
+starts today in the account timezone, defers training, quiets training reminders,
+simplifies food, and leaves recovery check-ins off. Repeated requests preserve the
+active plan. Mentioning illness alone does not authorize activation.
+
+The active recovery banner has a dismiss button that ends the episode today,
+restores normal app behavior, and preserves recovery history.

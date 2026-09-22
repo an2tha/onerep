@@ -3,8 +3,16 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import { billingPlatform, billingState } from "./billing/types";
 import { nutrientProfileValidator } from "./lib/nutritionValues";
+import { jevHandoffValidator } from "./ai/coachPreparationValidators";
 
 export default defineSchema({
+  coachPreparations: defineTable({
+    userId: v.string(),
+    requestId: v.string(),
+    handoff: jevHandoffValidator,
+    expiresAt: v.number(),
+  }).index("by_user_request", ["userId", "requestId"])
+    .index("by_userId", ["userId"]),
   recoveryEpisodes: defineTable({
     userId: v.string(),
     active: v.boolean(),

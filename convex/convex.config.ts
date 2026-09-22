@@ -9,6 +9,7 @@ const app = defineApp({
     OPENAI_MODEL: v.optional(v.string()),
     OPENROUTER_API_KEY: v.optional(v.string()),
     OPENROUTER_MODEL: v.optional(v.string()),
+    TYPESAFE_API_KEY: v.optional(v.string()),
     AI_PROCESSOR_APPROVED: v.optional(v.string()),
     // "true" removes the monthly AI request caps for every account. For
     // self-hosted installs paying for their own inference; never set on the
