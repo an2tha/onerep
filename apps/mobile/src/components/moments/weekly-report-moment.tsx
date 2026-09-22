@@ -1,4 +1,4 @@
-import { NudgeIllustration } from "@/components/nudge-illustration"
+import { NudgeIllustration } from "@repo/ui/mobile"
 import { useRecovery } from "@/lib/use-recovery"
 import { useState } from "react"
 import { useMutation } from "convex/react"

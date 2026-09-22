@@ -6,7 +6,7 @@ import { api } from "../../../../convex/_generated/api"
 import type { Doc } from "../../../../convex/_generated/dataModel"
 import { useRecovery, useRecoveryToday } from "@/lib/use-recovery"
 import { useSmoothNavigate } from "@/lib/navigation"
-import { NudgeIllustration } from "@/components/nudge-illustration"
+import { NudgeIllustration } from "@repo/ui/mobile"
 
 type Options = Pick<
   Doc<"recoveryEpisodes">,

@@ -1,4 +1,4 @@
-import { NudgeIllustration } from "@/components/nudge-illustration"
+import { NudgeIllustration } from "@repo/ui/mobile"
 import { useState } from "react"
 import { useMutation, useQuery } from "convex/react"
 import { CaretLeft, ChatCircleDots, Drop } from "@phosphor-icons/react"

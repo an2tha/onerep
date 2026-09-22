@@ -34,8 +34,8 @@ const AUTH_LOAD_TIMEOUT_MS = 6500
  *
  * The bridge stashes the untouched fetch on window.CapacitorWebFetch before
  * patching. Going through that keeps auth on the WebView's own networking,
- * which sends a real `Origin: https://localhost` — the origin this WebView
- * actually has, and one convex/lib/auth.ts already trusts.
+ * which sends the WebView origin (capacitor://localhost on iOS,
+ * https://localhost on Android), both trusted by convex/lib/auth.ts.
  */
 const nativeAuthFetch = (
   input: RequestInfo | URL,

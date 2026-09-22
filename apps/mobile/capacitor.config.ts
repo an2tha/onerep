@@ -11,7 +11,8 @@ const config: CapacitorConfig = {
   webDir: "dist",
   server: {
     hostname: "localhost",
-    iosScheme: "https",
+    // WKWebView reserves HTTP(S); Capacitor serves bundled iOS assets here.
+    iosScheme: "capacitor",
     androidScheme: "https",
   },
   ios: {
