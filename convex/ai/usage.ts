@@ -243,6 +243,78 @@ export const consumeMonthlyQuota = internalMutation({
   },
 });
 
+/**
+ * Credits back a request that was charged but never produced an answer.
+ *
+ * Consume happens before inference so a blocked user cannot start a paid
+ * call, which means provider failures would otherwise eat the allowance —
+ * the worst outcome for a free user: no answer AND one less attempt.
+ * Refunds clamp at zero and keep `lastSource` (it records the last spend,
+ * which a refund negates but does not erase from history).
+ */
+export const refundMonthlyQuota = internalMutation({
+  args: {
+    userId: v.string(),
+    source: v.union(
+      v.literal("progress_metrics"),
+      v.literal("sleep_review"),
+      v.literal("workout_preset"),
+      v.literal("workout_log"),
+      v.literal("food_snap"),
+      v.literal("form_coach"),
+      v.literal("in_workout"),
+      v.literal("data_import"),
+      v.literal("recipe_generation"),
+    ),
+  },
+  handler: async (ctx, args) => {
+    const month = utcMonthKey();
+    const existing = await ctx.db
+      .query("aiUsage")
+      .withIndex("by_userId_month", (q) =>
+        q.eq("userId", args.userId).eq("month", month),
+      )
+      .unique();
+    if (!existing) return null;
+
+    const cost = aiUsageCost(args.source);
+    const nextCount = Math.max(0, existing.count - cost);
+    await ctx.db.patch(existing._id, {
+      count: nextCount,
+      updatedAt: Date.now(),
+    });
+    return { count: nextCount, refunded: existing.count - nextCount };
+  },
+});
+
+/**
+ * Refund helper mirroring `consumeAiUsageOrThrow`: same cost table, so a
+ * failed two-cost analysis gets both credits back. Callers use this in the
+ * failure paths that throw after consuming; BYOK and unlimited deployments
+ * refund too, keeping the settings-page count honest either way.
+ */
+export async function refundAiUsage(
+  ctx: ActionCtx,
+  userId: string,
+  source: AiUsageSource,
+) {
+  try {
+    const result = await ctx.runMutation(internal.ai.usage.refundMonthlyQuota, {
+      userId,
+      source,
+    });
+    return result;
+  } catch (error) {
+    // A refund failure must never mask the provider error the user is about
+    // to see; the allowance self-corrects at the next monthly reset.
+    console.warn("AI usage refund failed", {
+      source,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return null;
+  }
+}
+
 const USAGE_RESET_MIGRATION = "aiUsage:reset-for-tiered-limits";
 const USAGE_RESET_BATCH_SIZE = 100;
 
