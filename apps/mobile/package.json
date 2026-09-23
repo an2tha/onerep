@@ -40,8 +40,6 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@fontsource-variable/instrument-sans": "^5.2.8",
     "@ionic/react": "^8.8.3",
-    "@json-render/core": "0.21.0",
-    "@json-render/react": "0.21.0",
     "@openuidev/react-lang": "0.3.0",
     "@openuidev/react-ui": "0.16.2",
     "@phosphor-icons/react": "^2.1.10",
