@@ -1,3 +1,4 @@
+import { ProfileAvatar } from "@/components/profile-avatar"
 import { RecoveryBanner } from "@/components/recovery/recovery-banner"
 import { useRecovery } from "@/lib/use-recovery"
 import { useMemo, useState, type CSSProperties } from "react"
@@ -7,7 +8,6 @@ import {
   CookingPot,
   ChatCircleDots,
   ForkKnife,
-  GearSix,
   MagnifyingGlass,
   PintGlass,
   Pill,
@@ -302,14 +302,7 @@ function Dashboard() {
                   setViewedDateKey(day === todayKey ? null : day)
                 }
               />
-              <button
-                type="button"
-                onClick={() => navigate("/settings", { motion: "forward" })}
-                aria-label="Open profile and settings"
-                className="flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground active:bg-muted/60 active:text-foreground"
-              >
-                <GearSix size={22} />
-              </button>
+              <ProfileAvatar />
             </div>
           }
           // Beside the greeting only where there is room beside the greeting.

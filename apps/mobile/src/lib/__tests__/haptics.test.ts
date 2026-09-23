@@ -33,6 +33,8 @@ const {
   HAPTICS_STRENGTH_KEY,
   hapticStrength,
   setHapticStrength,
+  hapticConfirm,
+  hapticRain,
   hapticHeavy,
   hapticMedium,
   hapticSelection,
@@ -89,79 +91,37 @@ describe("haptic preferences", () => {
     expect(hapticsEnabled()).toBe(true)
   })
 
-  test("fires native haptics while enabled", () => {
-    hapticTap()
-    hapticMedium()
-    hapticHeavy()
-    hapticSelection()
-
-    expect(impactMock).toHaveBeenCalledTimes(3)
-    expect(impactMock.mock.calls[0]?.[0]).toEqual({ style: "LIGHT" })
-    expect(impactMock.mock.calls[1]?.[0]).toEqual({ style: "MEDIUM" })
-    expect(impactMock.mock.calls[2]?.[0]).toEqual({ style: "HEAVY" })
-    // The rest of the sequence hangs off promises; the start is what fires now.
-    expect(selectionStartMock).toHaveBeenCalledTimes(1)
-  })
-
-  test("suppresses native haptics when disabled", () => {
-    setHapticsEnabled(false)
-
-    hapticTap()
-    hapticMedium()
-    hapticHeavy()
-    hapticSelection()
-
+  test("routine interactions never vibrate, even at full strength", () => {
+    setHapticStrength("full")
+    hapticTap(); hapticMedium(); hapticHeavy(); hapticSelection(); hapticRain()
     expect(impactMock).not.toHaveBeenCalled()
     expect(selectionStartMock).not.toHaveBeenCalled()
   })
 
-  test("defaults to full strength and stores the chosen level", () => {
-    expect(hapticStrength()).toBe("full")
-
-    setHapticStrength("light")
-    expect(localStorage.getItem(HAPTICS_STRENGTH_KEY)).toBe("light")
+  test("defaults to gentle feedback and preserves existing opt out", () => {
     expect(hapticStrength()).toBe("light")
-    // The legacy key follows along so an older build still buzzes.
-    expect(localStorage.getItem(HAPTICS_ENABLED_KEY)).toBe("true")
-  })
-
-  test("honours a pre-dial opt-out stored under the old key", () => {
     localStorage.setItem(HAPTICS_ENABLED_KEY, "false")
     expect(hapticStrength()).toBe("off")
-    expect(hapticsEnabled()).toBe(false)
-  })
-
-  test("clamps every impact to the chosen strength", () => {
-    setHapticStrength("light")
-    hapticTap()
-    hapticMedium()
-    hapticHeavy()
-    expect(impactMock.mock.calls.map((call) => call[0])).toEqual([
-      { style: "LIGHT" },
-      { style: "LIGHT" },
-      { style: "LIGHT" },
-    ])
-
-    impactMock.mockClear()
-    setHapticStrength("medium")
-    hapticTap()
-    hapticMedium()
-    hapticHeavy()
-    expect(impactMock.mock.calls.map((call) => call[0])).toEqual([
-      { style: "LIGHT" },
-      { style: "MEDIUM" },
-      { style: "MEDIUM" },
-    ])
-  })
-
-  test("off silences impacts and selection alike", () => {
-    setHapticStrength("off")
-
-    hapticTap()
-    hapticHeavy()
-    hapticSelection()
-
+    hapticConfirm()
     expect(impactMock).not.toHaveBeenCalled()
-    expect(selectionStartMock).not.toHaveBeenCalled()
+  })
+
+  test("essential confirmations are light and rate limited", () => {
+    const originalNow = Date.now
+    let now = 100000
+    Date.now = () => now
+    try {
+      setHapticStrength("full")
+      hapticConfirm(); hapticConfirm()
+      expect(impactMock).toHaveBeenCalledTimes(1)
+      expect(impactMock.mock.calls[0]?.[0]).toEqual({ style: "LIGHT" })
+      now += 701
+      hapticConfirm()
+      expect(impactMock).toHaveBeenCalledTimes(2)
+      setHapticStrength("off")
+      now += 701
+      hapticConfirm()
+      expect(impactMock).toHaveBeenCalledTimes(2)
+    } finally { Date.now = originalNow }
   })
 })

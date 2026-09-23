@@ -1,3 +1,4 @@
+import { ProfileAvatar } from "@/components/profile-avatar"
 import { RecoveryBanner } from "@/components/recovery/recovery-banner"
 import { useRecovery } from "@/lib/use-recovery"
 import { useEffect, useMemo, useRef, useState } from "react"
@@ -1332,14 +1333,7 @@ export default function LegacyApp() {
                   <Plus size={22} weight="bold" />
                 </button>
               </TourAnchor>
-              <button
-                type="button"
-                aria-label="Open profile and settings"
-                onClick={() => navigate("/settings", { motion: "forward" })}
-                className="native-toolbar-button px-0"
-              >
-                <UserCircle size={22} weight="regular" />
-              </button>
+              <ProfileAvatar />
             </div>
           }
         >

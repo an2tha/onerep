@@ -1,3 +1,5 @@
+import { CollapsingPageBar } from "./components/collapsing-page-bar"
+import Journal from "./pages/Journal"
 import Recovery from "./pages/Recovery"
 import { RecoveryReminderSync } from "./components/recovery/recovery-reminder-sync"
 import { RouteActivityContext } from "./lib/route-activity"
@@ -389,6 +391,11 @@ function NavSync() {
   const edge = 28
   const threshold = 72
   const showBottomBar = shouldShowBottomBar(location.pathname)
+  const { isAuthenticated } = useConvexAuth()
+  const showPageBar =
+    isAuthenticated &&
+    location.pathname !== "/" &&
+    !/^\/(auth|login|signup|onboarding|reset-password|verify-email)/.test(location.pathname)
   // On iOS the floating native bar replaces the web one entirely; the web app
   // keeps routing, the native layer only draws and reports taps.
   const nativeTabBarActive = useNativeTabBar({
@@ -643,6 +650,7 @@ function NavSync() {
                 key={location.key}
                 ref={activeRouteFrameRef}
                 className="app-route-frame app-route-frame-current"
+                data-page-bar={showPageBar ? "true" : undefined}
                 data-route-path={location.pathname}
                 data-route-kind={routeTransition?.kind}
                 data-route-direction={routeTransition?.direction}
@@ -655,6 +663,7 @@ function NavSync() {
               </div>
             </div>
           </div>
+          {showPageBar && <CollapsingPageBar pathname={location.pathname} />}
           {showBottomBar && !nativeTabBarActive && (
             <BottomBar
               pathname={location.pathname}
@@ -775,6 +784,16 @@ const router = createBrowserRouter([
   {
     element: <NavSync />,
     children: [
+      {
+        path: "/journal",
+        element: (
+          <AuthGuard>
+            <ErrorBoundary label="Journal">
+              <Journal />
+            </ErrorBoundary>
+          </AuthGuard>
+        ),
+      },
       {
         path: "/",
         element: (

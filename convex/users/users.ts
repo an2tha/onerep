@@ -974,6 +974,7 @@ export const exportMyData = query({
       schedules,
       workoutLogs,
       foodLogs,
+      journalEntries,
       waterLogs,
       supplementLogs,
       supplementItems,
@@ -1043,6 +1044,7 @@ export const exportMyData = query({
         .query("foodLogs")
         .withIndex("by_userId_date", (q) => q.eq("userId", user._id))
         .collect(),
+      ctx.db.query("journalEntries").withIndex("by_userId_and_date", q => q.eq("userId", user._id)).take(2000),
       ctx.db
         .query("waterLogs")
         .withIndex("by_userId_date", (q) => q.eq("userId", user._id))
@@ -1178,6 +1180,7 @@ export const exportMyData = query({
         schedules,
         workoutLogs,
         foodLogs,
+        journalEntries,
         waterLogs,
         supplementLogs,
         supplementItems,

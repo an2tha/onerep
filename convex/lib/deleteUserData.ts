@@ -176,6 +176,7 @@ export async function deleteUserDataBatch(
     ["mcpOauthClients", "by_createdByUserId", "createdByUserId"],
     ["foodLogs", "by_userId_date"],
     ["waterLogs", "by_userId_date"],
+    ["journalEntries", "by_userId_and_date"],
     ["supplementLogs", "by_userId_date"],
     ["supplementItems", "by_userId"],
     ["supplementIntakeLogs", "by_userId_and_date"],

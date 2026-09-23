@@ -7,12 +7,12 @@ import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.util.TypedValue
 import android.view.Gravity
-import android.view.HapticFeedbackConstants
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.TextView
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.getcapacitor.JSObject
@@ -50,6 +50,8 @@ class NativeTabBarPlugin : Plugin() {
     private var chipSeated = false
     private var buttons: List<Pair<Item, ImageView>> = emptyList()
     private var items: List<Item> = emptyList()
+    private var expanded = false
+    private var toggleButton: ImageView? = null
     private var selectedId = ""
     private var visible = true
 
@@ -145,123 +147,87 @@ class NativeTabBarPlugin : Plugin() {
 
     private fun rebuild() {
         container?.let { (it.parent as? ViewGroup)?.removeView(it) }
-        container = null
-        pill = null
-        orb = null
-        highlight = null
-        chipSeated = false
-        buttons = emptyList()
-
-        // The activity's content frame, not the WebView's parent: it reliably
-        // honours FrameLayout gravity and sits above the whole layout.
         val host = activity.findViewById<ViewGroup>(android.R.id.content) ?: return
         if (items.isEmpty()) return
-
-        val pillItems = items.filter { !it.prominent }
-        val prominent = items.firstOrNull { it.prominent }
-        val collected = mutableListOf<Pair<Item, ImageView>>()
-
-        // A plain FrameLayout is already a passthrough: it is not clickable, so
-        // taps that miss the pill fall through to the WebView underneath.
+        expanded = false
         val container = FrameLayout(activity).apply {
             clipChildren = false
-            clipToPadding = false
-            layoutParams = FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(barHeight), Gravity.BOTTOM
-            )
+            layoutParams = FrameLayout.LayoutParams(dp(232f), dp(items.size * 48f + 84f), Gravity.BOTTOM or Gravity.START).apply { leftMargin = dp(16f) }
         }
-
-        // Pill and orb ride in one centred row, so the pair reads as a single
-        // composition rather than two floating things. The alignment that
-        // matters is inside the pill: every icon owns an identical slot, so
-        // the selection chip always lands dead-centre on the icon it moves to.
-        val row = LinearLayout(activity).apply {
-            orientation = LinearLayout.HORIZONTAL
-            clipChildren = false
-            clipToPadding = false
-            layoutParams = FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                Gravity.CENTER
-            )
-        }
-
-        // Six destinations at the resting slot width are wider than a phone,
-        // so the slot is what gives: the pill keeps its margins and the orb
-        // keeps its size, and the icons sit closer together instead of the
-        // right-hand end of the bar walking off the screen.
-        val slotWidth = fittedItemWidth(pillItems.size, prominent != null)
-
-        // WRAP_CONTENT, not a computed width: the capsule then hugs the icon
-        // row exactly, so the row's midpoint and the capsule's midpoint are
-        // the same pixel and the chip centres on the icon, not on whatever a
-        // rounded-up width left over.
-        val pill = FrameLayout(activity).apply {
+        val menu = FrameLayout(activity).apply {
             elevation = dp(8f).toFloat()
-            setPadding(dp(6f), 0, dp(6f), 0)
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, dp(barHeight)
-            )
-        }
-
-        // The moving selection chip sits behind the icons inside the pill. A
-        // squircle, not a capsule: a rounded tile inside a pill, as iOS has it.
-        val highlight = View(activity).apply {
-            layoutParams = FrameLayout.LayoutParams(
-                dp(slotWidth - chipInsetX * 2), dp(barHeight - chipInsetY * 2),
-                Gravity.START or Gravity.CENTER_VERTICAL
-            )
+            layoutParams = FrameLayout.LayoutParams(dp(232f), dp(items.size * 48f + 12f), Gravity.BOTTOM).apply { bottomMargin = dp(72f) }
+            visibility = View.GONE
             alpha = 0f
         }
-        pill.addView(highlight)
-
         val strip = LinearLayout(activity).apply {
-            orientation = LinearLayout.HORIZONTAL
-            layoutParams = FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT
-            )
+            orientation = LinearLayout.VERTICAL
+            setPadding(0, dp(6f), 0, dp(6f))
         }
-        pillItems.forEach { item ->
-            val button = makeButton(item, slotWidth = slotWidth, iconSize = 22f)
-            button.layoutParams =
-                LinearLayout.LayoutParams(dp(slotWidth), ViewGroup.LayoutParams.MATCH_PARENT)
-            strip.addView(button)
-            collected += item to button
-        }
-        pill.addView(strip)
-        row.addView(pill)
-
-        if (prominent != null) {
-            val orbView = FrameLayout(activity).apply {
-                elevation = dp(8f).toFloat()
-                layoutParams = LinearLayout.LayoutParams(dp(barHeight), dp(barHeight))
-                    .apply { marginStart = dp(10f) }
+        val collected = mutableListOf<Pair<Item, ImageView>>()
+        items.forEach { item ->
+            val row = LinearLayout(activity).apply {
+                gravity = Gravity.CENTER_VERTICAL
+                layoutParams = LinearLayout.LayoutParams(-1, dp(48f))
+                contentDescription = item.label
+                isFocusable = true
+                setOnClickListener { didTap(item.id) }
             }
-            val button = makeButton(prominent, slotWidth = barHeight, iconSize = 25f)
-            button.layoutParams = FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT
-            )
-            orbView.addView(button)
-            row.addView(orbView)
-            collected += prominent to button
-            orb = orbView
+            val icon = makeButton(item, 48f, 22f).apply {
+                layoutParams = LinearLayout.LayoutParams(dp(48f), dp(48f))
+                setPadding(dp(13f), dp(13f), dp(13f), dp(13f))
+                isClickable = false
+                isFocusable = false
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+            }
+            row.addView(icon)
+            row.addView(TextView(activity).apply {
+                text = item.label
+                textSize = 16f
+                setTextColor(iconTint(isDark(), true))
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+                tag = "navigation-label"
+            })
+            strip.addView(row)
+            collected += item to icon
         }
-
-        container.addView(row)
-        container.alpha = if (visible) 1f else 0f
-        container.visibility = if (visible) View.VISIBLE else View.GONE
+        menu.addView(strip)
+        container.addView(menu)
+        val orb = FrameLayout(activity).apply {
+            elevation = dp(8f).toFloat()
+            layoutParams = FrameLayout.LayoutParams(dp(60f), dp(60f), Gravity.BOTTOM or Gravity.START)
+        }
+        val toggle = ImageView(activity).apply {
+            layoutParams = FrameLayout.LayoutParams(-1, -1)
+            setPadding(dp(18f), dp(18f), dp(18f), dp(18f))
+            isFocusable = true
+            setOnClickListener { setExpanded(!expanded) }
+        }
+        orb.addView(toggle)
+        container.addView(orb)
         host.addView(container)
-
         this.container = container
-        this.pill = pill
-        this.highlight = highlight
+        this.pill = menu
+        this.orb = orb
+        this.toggleButton = toggle
         this.buttons = collected
-
         applyColors()
         applyInsets(container)
-        // Slot geometry is only known post-layout, so seat the chip then.
-        container.post { applySelection(selectedId, animated = false) }
+        applySelection(selectedId, false)
+        container.visibility = if (visible) View.VISIBLE else View.GONE
+    }
+
+    private fun setExpanded(next: Boolean) {
+        expanded = next
+        val menu = pill ?: return
+        menu.animate().cancel()
+        if (next) menu.visibility = View.VISIBLE
+        menu.importantForAccessibility = if (next) View.IMPORTANT_FOR_ACCESSIBILITY_AUTO else View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+        toggleButton?.contentDescription = if (next) "Close navigation" else "Open navigation"
+        toggleButton?.setImageResource(if (next) android.R.drawable.ic_menu_close_clear_cancel else iconFor(items.firstOrNull { it.id == selectedId }?.symbol ?: "house.fill"))
+        menu.animate().alpha(if (next) 1f else 0f).translationY(if (next) 0f else dp(12f).toFloat()).setDuration(240).withEndAction {
+            if (!expanded) menu.visibility = View.GONE
+        }.start()
     }
 
     /**
@@ -310,14 +276,14 @@ class NativeTabBarPlugin : Plugin() {
             isClickable = true
             isFocusable = true
             setOnClickListener { view ->
-                view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                didTap(item.id)
+                    didTap(item.id)
             }
         }
 
     /** SF Symbol names in, Android vectors out. */
     private fun iconFor(symbol: String): Int = when (symbol) {
         "house" , "house.fill" -> R.drawable.ic_tab_house
+        "book.closed.fill" -> R.drawable.ic_tab_journal
         "fork.knife" -> R.drawable.ic_tab_fork_knife
         "dumbbell" , "dumbbell.fill" -> R.drawable.ic_tab_dumbbell
         "bicycle" -> R.drawable.ic_tab_bicycle
@@ -380,45 +346,16 @@ class NativeTabBarPlugin : Plugin() {
 
     private fun applySelection(id: String, animated: Boolean) {
         selectedId = id
-        val dark = isDark()
         buttons.forEach { (item, button) ->
-            val active = item.id == id
-            button.setColorFilter(iconTint(dark, active))
-            button.isSelected = active
+            button.setColorFilter(iconTint(isDark(), item.id == id))
+            (button.parent as? View)?.isSelected = item.id == id
         }
-
-        val highlight = highlight ?: return
-        val target = buttons.firstOrNull { it.first.id == id && !it.first.prominent }
-        if (target == null) {
-            // Selection moved to the prominent orb (or nowhere): retire the chip.
-            highlight.animate().alpha(0f).setDuration(if (animated) 200 else 0).start()
-            return
-        }
-
-        // The chip's laid-out origin is already the pill's padded content
-        // edge (gravity START inside a padded FrameLayout), so the offset to
-        // the slot is the button's own left plus the slot inset — adding the
-        // padding here too would shove the chip ~6dp right of the icon, and
-        // the highlight would never sit centred on what it highlights.
-        val x = (target.second.left + dp(chipInsetX)).toFloat()
-        highlight.alpha = 1f
-        val shouldAnimate = animated && chipSeated
-        chipSeated = true
-        if (shouldAnimate) {
-            // No overshoot interpolator here: the chip must arrive ON the
-            // icon, not swing past it and spring back — past the target is
-            // exactly the misalignment this bar keeps getting blamed for.
-            ValueAnimator.ofFloat(highlight.translationX, x).apply {
-                duration = 300
-                addUpdateListener { highlight.translationX = it.animatedValue as Float }
-            }.start()
-        } else {
-            highlight.translationX = x
-        }
+        setExpanded(false)
     }
 
     private fun applyVisibility(next: Boolean) {
         visible = next
+        if (!next) setExpanded(false)
         val container = container ?: return
         // Alpha alone leaves a fully transparent but still-touchable view on
         // top of the WebView, silently eating taps on whatever it's hiding.

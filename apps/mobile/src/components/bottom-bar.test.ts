@@ -94,7 +94,7 @@ describe("bottom bar accessibility contract", () => {
     )
 
     expect(nativeTabs).toContain(
-      '{ id: "/coach", symbol: "sparkles", label: "Coach", prominent: true }'
+      '{ id: "/coach", symbol: "sparkles", label: "Coach" }'
     )
     expect(iosPlugin).toContain(
       '?? UIImage(systemName: "sparkles", withConfiguration: config)'

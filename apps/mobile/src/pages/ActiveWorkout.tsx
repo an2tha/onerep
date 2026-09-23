@@ -1,3 +1,4 @@
+import { hapticConfirm } from "@/lib/haptics"
 import { ActiveRouteOnly } from "@/lib/route-activity"
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { readCachedWeightUnit } from "@/lib/use-weight-unit"
@@ -2244,7 +2245,7 @@ function ActiveWorkoutSession() {
     window.setTimeout(() => {
       setCompletedPulseKey((current) => (current === pulseKey ? null : current))
     }, 520)
-    hapticMedium()
+    hapticConfirm()
     if (!currentSet.completed && currentSet.restSeconds > 0) {
       startRest(currentSet.restSeconds)
     }

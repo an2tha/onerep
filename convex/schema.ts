@@ -5,6 +5,14 @@ import { billingPlatform, billingState } from "./billing/types";
 import { nutrientProfileValidator } from "./lib/nutritionValues";
 
 export default defineSchema({
+  journalEntries: defineTable({
+    userId: v.string(), date: v.string(),
+    alcohol: v.optional(v.number()), caffeine: v.optional(v.number()),
+    mood: v.optional(v.number()),
+    lowCarb: v.optional(v.union(v.boolean(), v.null())),
+    addedSugar: v.optional(v.union(v.boolean(), v.null())),
+    notes: v.optional(v.string()), updatedAt: v.number(),
+  }).index("by_userId_and_date", ["userId", "date"]),
   recoveryEpisodes: defineTable({
     userId: v.string(),
     active: v.boolean(),
