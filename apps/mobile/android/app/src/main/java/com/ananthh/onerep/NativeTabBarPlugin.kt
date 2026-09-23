@@ -12,7 +12,6 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
-import android.widget.TextView
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.getcapacitor.JSObject
@@ -22,16 +21,7 @@ import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.CapacitorPlugin
 import kotlin.math.max
 
-/**
- * The Android counterpart of `NativeTabBarPlugin.swift`: a floating pill of
- * destinations with a detached round button on its right, laid over the
- * WebView. Same JS surface, same geometry, same event.
- *
- * Where iOS asks the system for glass, Android has nothing to give — real
- * behind-the-view blur is a window-level trick that a child view cannot have —
- * so the pill wears a heavy translucent fill and an elevation shadow instead.
- * Everything else is a straight port.
- */
+/** A left-anchored button that expands into a horizontal native tab bar. */
 @CapacitorPlugin(name = "NativeTabBar")
 class NativeTabBarPlugin : Plugin() {
 
@@ -44,7 +34,8 @@ class NativeTabBarPlugin : Plugin() {
 
     private var container: FrameLayout? = null
     private var pill: FrameLayout? = null
-    private var orb: FrameLayout? = null
+    private var tabStrip: LinearLayout? = null
+    private var expansionAnimator: ValueAnimator? = null
     private var highlight: View? = null
     /** The chip has no resting position until a slot has been measured. */
     private var chipSeated = false
@@ -65,7 +56,7 @@ class NativeTabBarPlugin : Plugin() {
 
     /** Repaints when the system flips light/dark under a running app. */
     private val themeWatcher = object : ComponentCallbacks {
-        override fun onConfigurationChanged(newConfig: Configuration) = applyColors()
+        override fun onConfigurationChanged(newConfig: Configuration) = rebuild()
         override fun onLowMemory() = Unit
     }
 
@@ -140,114 +131,102 @@ class NativeTabBarPlugin : Plugin() {
         activity.application.unregisterComponentCallbacks(themeWatcher)
         container?.let { (it.parent as? ViewGroup)?.removeView(it) }
         container = null
+        expansionAnimator?.cancel()
         super.handleOnDestroy()
     }
 
     // ── construction ──────────────────────────────────────────────────────────
 
     private fun rebuild() {
+        expansionAnimator?.cancel()
         container?.let { (it.parent as? ViewGroup)?.removeView(it) }
         val host = activity.findViewById<ViewGroup>(android.R.id.content) ?: return
         if (items.isEmpty()) return
         expanded = false
         val container = FrameLayout(activity).apply {
-            clipChildren = false
-            layoutParams = FrameLayout.LayoutParams(dp(232f), dp(items.size * 48f + 84f), Gravity.BOTTOM or Gravity.START).apply { leftMargin = dp(16f) }
+            layoutParams = FrameLayout.LayoutParams(-1, dp(barHeight), Gravity.BOTTOM).apply {
+                leftMargin = dp(16f)
+                rightMargin = dp(16f)
+            }
         }
-        val menu = FrameLayout(activity).apply {
+        val pill = FrameLayout(activity).apply {
             elevation = dp(8f).toFloat()
-            layoutParams = FrameLayout.LayoutParams(dp(232f), dp(items.size * 48f + 12f), Gravity.BOTTOM).apply { bottomMargin = dp(72f) }
-            visibility = View.GONE
-            alpha = 0f
+            clipToOutline = true
+            layoutParams = FrameLayout.LayoutParams(dp(barHeight), dp(barHeight), Gravity.START)
         }
         val strip = LinearLayout(activity).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(0, dp(6f), 0, dp(6f))
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(dp(6f), dp(6f), dp(6f), dp(6f))
+            alpha = 0f
+            visibility = View.GONE
         }
-        val collected = mutableListOf<Pair<Item, ImageView>>()
-        items.forEach { item ->
-            val row = LinearLayout(activity).apply {
-                gravity = Gravity.CENTER_VERTICAL
-                layoutParams = LinearLayout.LayoutParams(-1, dp(48f))
-                contentDescription = item.label
-                isFocusable = true
-                setOnClickListener { didTap(item.id) }
+        buttons = items.map { item ->
+            val button = makeButton(item, 48f, 22f).apply {
+                layoutParams = LinearLayout.LayoutParams(0, -1, 1f)
+                setPadding(dp(10f), dp(13f), dp(10f), dp(13f))
             }
-            val icon = makeButton(item, 48f, 22f).apply {
-                layoutParams = LinearLayout.LayoutParams(dp(48f), dp(48f))
-                setPadding(dp(13f), dp(13f), dp(13f), dp(13f))
-                isClickable = false
-                isFocusable = false
-                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
-            }
-            row.addView(icon)
-            row.addView(TextView(activity).apply {
-                text = item.label
-                textSize = 16f
-                setTextColor(iconTint(isDark(), true))
-                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
-                tag = "navigation-label"
-            })
-            strip.addView(row)
-            collected += item to icon
+            strip.addView(button)
+            item to button
         }
-        menu.addView(strip)
-        container.addView(menu)
-        val orb = FrameLayout(activity).apply {
-            elevation = dp(8f).toFloat()
-            layoutParams = FrameLayout.LayoutParams(dp(60f), dp(60f), Gravity.BOTTOM or Gravity.START)
-        }
+        pill.addView(strip, FrameLayout.LayoutParams(0, -1))
         val toggle = ImageView(activity).apply {
-            layoutParams = FrameLayout.LayoutParams(-1, -1)
+            layoutParams = FrameLayout.LayoutParams(dp(barHeight), dp(barHeight))
             setPadding(dp(18f), dp(18f), dp(18f), dp(18f))
+            contentDescription = "Open navigation"
             isFocusable = true
-            setOnClickListener { setExpanded(!expanded) }
+            setOnClickListener { setExpanded(true) }
         }
-        orb.addView(toggle)
-        container.addView(orb)
+        pill.addView(toggle)
+        container.addView(pill)
         host.addView(container)
         this.container = container
-        this.pill = menu
-        this.orb = orb
+        this.pill = pill
+        this.tabStrip = strip
         this.toggleButton = toggle
-        this.buttons = collected
+        container.addOnLayoutChangeListener { _, left, _, right, _, _, _, _, _ ->
+            val width = right - left
+            if (width > 0 && strip.layoutParams.width != width) {
+                strip.layoutParams = strip.layoutParams.apply { this.width = width }
+                if (expanded) pill.layoutParams = pill.layoutParams.apply { this.width = width }
+            }
+        }
         applyColors()
         applyInsets(container)
         applySelection(selectedId, false)
         container.visibility = if (visible) View.VISIBLE else View.GONE
     }
 
-    private fun setExpanded(next: Boolean) {
+    private fun setExpanded(next: Boolean, animated: Boolean = true) {
+        val pill = pill ?: return
+        val strip = tabStrip ?: return
+        val toggle = toggleButton ?: return
+        expansionAnimator?.cancel()
         expanded = next
-        val menu = pill ?: return
-        menu.animate().cancel()
-        if (next) menu.visibility = View.VISIBLE
-        menu.importantForAccessibility = if (next) View.IMPORTANT_FOR_ACCESSIBILITY_AUTO else View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
-        toggleButton?.contentDescription = if (next) "Close navigation" else "Open navigation"
-        toggleButton?.setImageResource(if (next) android.R.drawable.ic_menu_close_clear_cancel else iconFor(items.firstOrNull { it.id == selectedId }?.symbol ?: "house.fill"))
-        menu.animate().alpha(if (next) 1f else 0f).translationY(if (next) 0f else dp(12f).toFloat()).setDuration(240).withEndAction {
-            if (!expanded) menu.visibility = View.GONE
-        }.start()
+        strip.visibility = View.VISIBLE
+        toggle.visibility = View.VISIBLE
+        strip.importantForAccessibility = if (next) View.IMPORTANT_FOR_ACCESSIBILITY_AUTO else View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+        toggle.importantForAccessibility = if (next) View.IMPORTANT_FOR_ACCESSIBILITY_NO else View.IMPORTANT_FOR_ACCESSIBILITY_AUTO
+        toggle.isClickable = !next
+        buttons.forEach { it.second.isClickable = next }
+        val target = if (next) container?.width ?: dp(barHeight) else dp(barHeight)
+        val start = pill.layoutParams.width
+        val startAlpha = strip.alpha
+        expansionAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
+            duration = if (animated) 300 else 0
+            addUpdateListener {
+                val fraction = it.animatedValue as Float
+                pill.layoutParams = pill.layoutParams.apply { width = (start + (target - start) * fraction).toInt() }
+                strip.alpha = startAlpha + ((if (next) 1f else 0f) - startAlpha) * fraction
+                toggle.alpha = 1f - strip.alpha
+                if (fraction == 1f) {
+                    strip.visibility = if (expanded) View.VISIBLE else View.GONE
+                    toggle.visibility = if (expanded) View.GONE else View.VISIBLE
+                }
+            }
+            start()
+        }
     }
 
-    /**
-     * The resting slot width, tightened until pill + orb fit the screen with
-     * a 16dp margin either side. Never wider than `itemWidth`: on a big phone
-     * the bar should stay the size it was designed at, not stretch.
-     */
-    private fun fittedItemWidth(count: Int, hasOrb: Boolean): Float {
-        if (count <= 0) return itemWidth
-        val screen = activity.resources.displayMetrics.widthPixels /
-            activity.resources.displayMetrics.density
-        val orbRoom = if (hasOrb) barHeight + 10f else 0f
-        val available = screen - 32f - orbRoom - 12f
-        return itemWidth.coerceAtMost(available / count).coerceAtLeast(34f)
-    }
-
-    /**
-     * The bar deliberately hangs 8dp below the safe area, into the gesture
-     * handle's strip — floating chrome, not a docked bar.
-     */
     private fun applyInsets(container: View) {
         ViewCompat.setOnApplyWindowInsetsListener(container) { view, insets ->
             val bottom = insets.getInsets(
@@ -310,7 +289,6 @@ class NativeTabBarPlugin : Plugin() {
         val hairline = if (dark) Color.argb(46, 255, 255, 255) else Color.argb(20, 0, 0, 0)
 
         pill?.background = capsule(dp(barHeight / 2).toFloat(), surface, hairline)
-        orb?.background = capsule(dp(barHeight / 2).toFloat(), surface, hairline)
 
         highlight?.background = GradientDrawable().apply {
             cornerRadius = dp((barHeight - chipInsetY * 2) / 3).toFloat()
@@ -319,8 +297,10 @@ class NativeTabBarPlugin : Plugin() {
             )
         }
 
+        toggleButton?.setColorFilter(iconTint(dark, true))
         buttons.forEach { (item, button) ->
             button.setColorFilter(iconTint(dark, active = item.id == selectedId))
+            button.background = if (item.id == selectedId) capsule(dp(18f).toFloat(), if (dark) Color.argb(115, 0, 0, 0) else Color.argb(26, 0, 0, 0), Color.TRANSPARENT) else null
         }
     }
 
@@ -348,9 +328,11 @@ class NativeTabBarPlugin : Plugin() {
         selectedId = id
         buttons.forEach { (item, button) ->
             button.setColorFilter(iconTint(isDark(), item.id == id))
-            (button.parent as? View)?.isSelected = item.id == id
+            button.isSelected = item.id == id
+            button.background = if (item.id == id) capsule(dp(18f).toFloat(), if (isDark()) Color.argb(115, 0, 0, 0) else Color.argb(26, 0, 0, 0), Color.TRANSPARENT) else null
         }
-        setExpanded(false)
+        toggleButton?.setImageResource(iconFor(items.firstOrNull { it.id == id }?.symbol ?: "house.fill"))
+        setExpanded(false, animated)
     }
 
     private fun applyVisibility(next: Boolean) {

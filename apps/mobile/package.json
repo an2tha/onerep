@@ -18,7 +18,8 @@
     "ios:watch:fast": "./scripts/run-watch.sh --no-build",
     "dev:watch": "concurrently -n vite,sim -c blue,green \"vite --host\" \"wait-on tcp:5173 && ./scripts/run-watch.sh\"",
     "test:recovery-ui": "bun test ./tests/recovery",
-    "test:billing-ui": "bun test ./tests/billing"
+    "test:billing-ui": "bun test ./tests/billing",
+    "test:journal-ui": "bun test ./tests/journal"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.4",

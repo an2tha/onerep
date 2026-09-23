@@ -71,7 +71,8 @@
   opacity: 1;
   transform: translateY(0);
 }
-.app-route-frame-current[data-page-bar="true"] {
+/* Keep the page backdrop behind the status area. Only its content is inset. */
+.app-route-frame-current[data-page-bar="true"] > :first-child {
   padding-top: 60px;
 }
 @media (min-width: 1024px) {
