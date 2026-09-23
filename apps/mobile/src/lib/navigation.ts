@@ -34,6 +34,7 @@ export const ROUTE_TRANSITION_MS = 900
  */
 export const PRIMARY_TAB_ORDER = [
   "/",
+  "/journal",
   "/nutrition",
   "/workouts",
   "/progress",
@@ -68,6 +69,7 @@ export function isTaskRoute(pathname: string) {
 export function shouldShowBottomBar(pathname: string) {
   return (
     pathname === "/" ||
+    pathname === "/journal" ||
     pathname === "/nutrition" ||
     pathname === "/recipes" ||
     pathname === "/workouts" ||

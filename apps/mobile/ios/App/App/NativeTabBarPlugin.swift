@@ -10,12 +10,8 @@ private final class PassthroughView: UIView {
     }
 }
 
-/// The floating native tab bar: a glass pill of destinations plus a detached
-/// circular button on the right. On iOS 26 the pill wears the system's liquid
-/// glass; earlier systems get the closest chrome material.
-///
-/// The web app stays the source of truth — this bar only reports taps through
-/// `tabSelected` events and mirrors whatever selection the app pushes back.
+/// A single navigation button anchored left, with an animated destination menu.
+/// The web app owns routing and reports selection and visibility through the bridge.
 @objc(NativeTabBarPlugin)
 public class NativeTabBarPlugin: CAPPlugin, CAPBridgedPlugin {
     public let identifier = "NativeTabBarPlugin"
@@ -39,6 +35,8 @@ public class NativeTabBarPlugin: CAPPlugin, CAPBridgedPlugin {
     private var highlight: UIView?
     private var buttons: [(item: Item, button: UIButton)] = []
     private var items: [Item] = []
+    private var expanded = false
+    private var toggleButton: UIButton?
     private var selectedId = ""
     private var visible = true
     /// Some screens (Coach) paint their own dark backdrop regardless of the
@@ -134,131 +132,89 @@ public class NativeTabBarPlugin: CAPPlugin, CAPBridgedPlugin {
     private func rebuild() {
         container?.removeFromSuperview()
         buttons = []
-        highlight = nil
-        pill = nil
-
-        guard let host = bridge?.viewController?.view, !items.isEmpty else {
-            container = nil
-            return
-        }
-
+        expanded = false
+        guard let host = bridge?.viewController?.view, !items.isEmpty else { return }
         let container = PassthroughView()
         container.translatesAutoresizingMaskIntoConstraints = false
         container.overrideUserInterfaceStyle = appearance
         host.addSubview(container)
         NSLayoutConstraint.activate([
-            container.leadingAnchor.constraint(equalTo: host.leadingAnchor),
-            container.trailingAnchor.constraint(equalTo: host.trailingAnchor),
-            // Sits below the safe-area line, into the home-indicator strip —
-            // floating chrome, not a docked bar.
-            container.bottomAnchor.constraint(
-                equalTo: host.safeAreaLayoutGuide.bottomAnchor, constant: 8),
-            container.heightAnchor.constraint(equalToConstant: barHeight)
+            container.leadingAnchor.constraint(equalTo: host.leadingAnchor, constant: 16),
+            container.widthAnchor.constraint(equalToConstant: 232),
+            container.bottomAnchor.constraint(equalTo: host.safeAreaLayoutGuide.bottomAnchor, constant: -8),
+            container.heightAnchor.constraint(equalToConstant: CGFloat(items.count) * 48 + 84)
         ])
         self.container = container
-
-        let pillItems = items.filter { !$0.prominent }
-        let prominentItems = items.filter { $0.prominent }
-
-        // The glass pill of ordinary destinations.
         let pill = UIVisualEffectView(effect: glassEffect())
         pill.translatesAutoresizingMaskIntoConstraints = false
-        pill.layer.cornerRadius = barHeight / 2
-        pill.layer.cornerCurve = .continuous
+        pill.layer.cornerRadius = 24
         pill.clipsToBounds = true
         container.addSubview(pill)
-
-        // The moving selection chip sits behind the icons inside the pill.
-        let highlight = UIView()
-        highlight.backgroundColor = chipColor
-        // A squircle, not a capsule: the chip should read as a rounded tile
-        // sitting inside the pill, the way the system does it.
-        highlight.layer.cornerRadius = (barHeight - chipInsetY * 2) / 3
-        highlight.layer.cornerCurve = .continuous
-        highlight.frame = .zero
-        pill.contentView.addSubview(highlight)
-        self.highlight = highlight
-
+        self.pill = pill
         let stack = UIStackView()
-        stack.axis = .horizontal
+        stack.axis = .vertical
         stack.distribution = .fillEqually
         stack.translatesAutoresizingMaskIntoConstraints = false
         pill.contentView.addSubview(stack)
-
-        for item in pillItems {
-            let button = makeButton(for: item, pointSize: 17)
+        for item in items {
+            let button = makeButton(for: item, pointSize: 20)
+            button.setTitle("  " + item.label, for: .normal)
+            button.setTitleColor(.label, for: .normal)
+            button.titleLabel?.font = .systemFont(ofSize: 16, weight: .medium)
+            button.contentHorizontalAlignment = .leading
+            button.contentEdgeInsets = UIEdgeInsets(top: 0, left: 18, bottom: 0, right: 12)
             stack.addArrangedSubview(button)
             buttons.append((item, button))
         }
-
-        // Preferred, not required: six destinations at the resting slot width
-        // are wider than a phone, and a required width would push the orb off
-        // the right edge rather than tighten the slots. The minimum inset below
-        // wins, the stack divides whatever is left, and the chip follows the
-        // measured frame either way.
-        let restingWidth = pill.widthAnchor.constraint(
-            equalToConstant: CGFloat(pillItems.count) * itemWidth + 12)
-        restingWidth.priority = .defaultHigh
-
-        var constraints: [NSLayoutConstraint] = [
-            pill.heightAnchor.constraint(equalToConstant: barHeight),
-            restingWidth,
-            pill.leadingAnchor.constraint(
-                greaterThanOrEqualTo: container.leadingAnchor, constant: 16),
-            pill.centerYAnchor.constraint(equalTo: container.centerYAnchor),
-            stack.topAnchor.constraint(equalTo: pill.contentView.topAnchor),
-            stack.bottomAnchor.constraint(equalTo: pill.contentView.bottomAnchor),
-            stack.leadingAnchor.constraint(
-                equalTo: pill.contentView.leadingAnchor, constant: 6),
-            stack.trailingAnchor.constraint(
-                equalTo: pill.contentView.trailingAnchor, constant: -6)
-        ]
-
-        // The detached round button (Coach), to the pill's right.
-        if let prominent = prominentItems.first {
-            let orb = UIVisualEffectView(effect: glassEffect())
-            orb.translatesAutoresizingMaskIntoConstraints = false
-            orb.layer.cornerRadius = barHeight / 2
-            orb.layer.cornerCurve = .continuous
-            orb.clipsToBounds = true
-            container.addSubview(orb)
-
-            let button = makeButton(for: prominent, pointSize: 20)
-            button.translatesAutoresizingMaskIntoConstraints = false
-            orb.contentView.addSubview(button)
-            buttons.append((prominent, button))
-
-            constraints.append(contentsOf: [
-                orb.widthAnchor.constraint(equalToConstant: barHeight),
-                orb.heightAnchor.constraint(equalToConstant: barHeight),
-                orb.centerYAnchor.constraint(equalTo: container.centerYAnchor),
-                orb.leadingAnchor.constraint(
-                    equalTo: pill.trailingAnchor, constant: 10),
-                button.topAnchor.constraint(equalTo: orb.contentView.topAnchor),
-                button.bottomAnchor.constraint(equalTo: orb.contentView.bottomAnchor),
-                button.leadingAnchor.constraint(equalTo: orb.contentView.leadingAnchor),
-                button.trailingAnchor.constraint(equalTo: orb.contentView.trailingAnchor),
-                orb.trailingAnchor.constraint(
-                    lessThanOrEqualTo: container.trailingAnchor, constant: -16),
-                // Pill + orb sit centred as one composition.
-                pill.centerXAnchor.constraint(
-                    equalTo: container.centerXAnchor,
-                    constant: -(barHeight + 10) / 2)
-            ])
-        } else {
-            constraints.append(contentsOf: [
-                pill.centerXAnchor.constraint(equalTo: container.centerXAnchor),
-                pill.trailingAnchor.constraint(
-                    lessThanOrEqualTo: container.trailingAnchor, constant: -16)
-            ])
-        }
-
-        NSLayoutConstraint.activate(constraints)
-        self.pill = pill
-
-        container.alpha = visible ? 1 : 0
-        host.layoutIfNeeded()
+        let orb = UIVisualEffectView(effect: glassEffect())
+        orb.translatesAutoresizingMaskIntoConstraints = false
+        orb.layer.cornerRadius = 30
+        orb.clipsToBounds = true
+        container.addSubview(orb)
+        let toggle = UIButton(type: .system)
+        toggle.translatesAutoresizingMaskIntoConstraints = false
+        toggle.tintColor = .label
+        toggle.addAction(UIAction { [weak self] _ in self?.setExpanded(!(self?.expanded ?? false)) }, for: .touchUpInside)
+        orb.contentView.addSubview(toggle)
+        toggleButton = toggle
+        NSLayoutConstraint.activate([
+            orb.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            orb.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+            orb.widthAnchor.constraint(equalToConstant: 60),
+            orb.heightAnchor.constraint(equalToConstant: 60),
+            pill.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            pill.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            pill.bottomAnchor.constraint(equalTo: orb.topAnchor, constant: -12),
+            pill.heightAnchor.constraint(equalToConstant: CGFloat(items.count) * 48 + 12),
+            stack.leadingAnchor.constraint(equalTo: pill.contentView.leadingAnchor),
+            stack.trailingAnchor.constraint(equalTo: pill.contentView.trailingAnchor),
+            stack.topAnchor.constraint(equalTo: pill.contentView.topAnchor, constant: 6),
+            stack.bottomAnchor.constraint(equalTo: pill.contentView.bottomAnchor, constant: -6),
+            toggle.leadingAnchor.constraint(equalTo: orb.contentView.leadingAnchor),
+            toggle.trailingAnchor.constraint(equalTo: orb.contentView.trailingAnchor),
+            toggle.topAnchor.constraint(equalTo: orb.contentView.topAnchor),
+            toggle.bottomAnchor.constraint(equalTo: orb.contentView.bottomAnchor)
+        ])
+        pill.alpha = 0
+        pill.isHidden = true
+        container.isHidden = !visible
         applySelection(selectedId, animated: false)
+    }
+
+    private func setExpanded(_ next: Bool) {
+        expanded = next
+        guard let pill else { return }
+        if next { pill.isHidden = false }
+        pill.isUserInteractionEnabled = next
+        pill.accessibilityElementsHidden = !next
+        toggleButton?.accessibilityLabel = next ? "Close navigation" : "Open navigation"
+        toggleButton?.setImage(UIImage(systemName: next ? "xmark" : (items.first { $0.id == selectedId }?.symbol ?? "line.3.horizontal")), for: .normal)
+        UIView.animate(withDuration: UIAccessibility.isReduceMotionEnabled ? 0 : 0.28, delay: 0, options: [.beginFromCurrentState, .curveEaseInOut]) {
+            pill.alpha = next ? 1 : 0
+            pill.transform = next ? .identity : CGAffineTransform(translationX: 0, y: 12)
+        } completion: { [weak self] _ in
+            pill.isHidden = !(self?.expanded ?? false)
+        }
     }
 
     private func makeButton(for item: Item, pointSize: CGFloat) -> UIButton {
@@ -285,7 +241,7 @@ public class NativeTabBarPlugin: CAPPlugin, CAPBridgedPlugin {
     // ── behaviour ─────────────────────────────────────────────────────────────
 
     private func didTap(_ id: String) {
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        setExpanded(false)
         applySelection(id, animated: true)
         notifyListeners("tabSelected", data: ["id": id])
     }
@@ -293,37 +249,16 @@ public class NativeTabBarPlugin: CAPPlugin, CAPBridgedPlugin {
     private func applySelection(_ id: String, animated: Bool) {
         selectedId = id
         for (item, button) in buttons {
-            let active = item.id == id
-            button.tintColor = iconTint(active: active)
-            button.accessibilityTraits = active ? [.button, .selected] : [.button]
+            button.tintColor = iconTint(active: item.id == id)
+            button.accessibilityTraits = item.id == id ? [.button, .selected] : [.button]
         }
-
-        guard let highlight, let pill else { return }
-        guard let target = buttons.first(where: { $0.item.id == id && !$0.item.prominent }) else {
-            // Selection moved to the prominent orb (or nowhere): retire the chip.
-            UIView.animate(withDuration: animated ? 0.2 : 0) { highlight.alpha = 0 }
-            return
-        }
-
-        let frame = target.button.superview!
-            .convert(target.button.frame, to: pill.contentView)
-            .insetBy(dx: chipInsetX, dy: chipInsetY)
-        let apply = {
-            highlight.alpha = 1
-            highlight.frame = frame
-        }
-        if animated {
-            UIView.animate(
-                withDuration: 0.35, delay: 0,
-                usingSpringWithDamping: 0.8, initialSpringVelocity: 0.4,
-                options: [.allowUserInteraction], animations: apply)
-        } else {
-            apply()
-        }
+        setExpanded(false)
     }
 
     private func applyVisibility(_ next: Bool) {
         visible = next
+        if !next { setExpanded(false) }
+        self.container?.isHidden = !next
         guard let container else { return }
         UIView.animate(
             withDuration: 0.25, delay: 0, options: [.curveEaseOut]

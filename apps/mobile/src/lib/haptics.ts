@@ -68,7 +68,7 @@ function isStrength(value: string | null): value is HapticStrength {
 export function hapticStrength(): HapticStrength {
   const stored = safeLocalStorageGet(HAPTICS_STRENGTH_KEY)
   if (isStrength(stored)) return stored
-  return safeLocalStorageGet(HAPTICS_ENABLED_KEY) === "false" ? "off" : "full"
+  return safeLocalStorageGet(HAPTICS_ENABLED_KEY) === "false" ? "off" : "light"
 }
 
 export function setHapticStrength(strength: HapticStrength) {
@@ -83,7 +83,7 @@ export function hapticsEnabled() {
 }
 
 export function setHapticsEnabled(enabled: boolean) {
-  return setHapticStrength(enabled ? "full" : "off")
+  return setHapticStrength(enabled ? "light" : "off")
 }
 
 /**
@@ -103,53 +103,19 @@ function impact(level: HapticLevel) {
   Haptics.impact({ style: IMPACT_STYLE[clamped] }).catch(() => {})
 }
 
-export function hapticTap() {
-  impact("light")
-}
+// Routine navigation, selection and decorative effects stay silent.
+// Keep these exports for existing callers; only explicit confirmations vibrate.
+export function hapticTap() {}
+export function hapticMedium() {}
+export function hapticHeavy() {}
+export function hapticSelection() {}
+export function hapticRain() {}
 
-export function hapticMedium() {
-  impact("medium")
-}
-
-export function hapticHeavy() {
-  impact("heavy")
-}
-
-/**
- * `selectionChanged` on its own is a lie on iOS: the plugin only builds its
- * feedback generator inside `selectionStart`, so calling the middle of the
- * sequence against a nil generator buzzes precisely nothing and resolves as
- * though it worked. Run the whole start/change/end sequence, fire-and-forget
- * like the impacts above.
- */
-export function hapticSelection() {
+let lastConfirmation = -Infinity
+export function hapticConfirm() {
   if (!isNative() || !hapticsEnabled()) return
-  Haptics.selectionStart()
-    .then(() => Haptics.selectionChanged())
-    .then(() => Haptics.selectionEnd())
-    .catch(() => {})
-}
-
-/**
- * Rain, as the vibration motor understands it: one medium impact for the
- * splash, then a few lighter ones falling out of time with each other so it
- * reads as scattered drops rather than a metronome. Timers are unowned by
- * design — the whole thing is over in a third of a second, and cancelling a
- * finished buzz helps nobody.
- *
- * At the lowest strength the drizzle is cut to two drops: four gentle taps in
- * a row on a phone tuned down to gentle is just the buzz the user turned off,
- * spread thin.
- */
-export function hapticRain() {
-  if (!isNative()) return
-  const strength = hapticStrength()
-  if (strength === "off") return
-  impact("medium")
-  const delays = strength === "light" ? [90, 200] : [70, 135, 185, 260]
-  for (const delay of delays) {
-    window.setTimeout(() => {
-      impact("light")
-    }, delay)
-  }
+  const now = Date.now()
+  if (now - lastConfirmation < 700) return
+  lastConfirmation = now
+  impact("light")
 }

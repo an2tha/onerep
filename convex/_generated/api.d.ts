@@ -106,6 +106,7 @@ import type * as logs_foodLogs from "../logs/foodLogs.js";
 import type * as logs_groceryLists from "../logs/groceryLists.js";
 import type * as logs_healthMetrics from "../logs/healthMetrics.js";
 import type * as logs_healthWorkouts from "../logs/healthWorkouts.js";
+import type * as logs_journal from "../logs/journal.js";
 import type * as logs_logAgent from "../logs/logAgent.js";
 import type * as logs_mealPrep from "../logs/mealPrep.js";
 import type * as logs_mealPresets from "../logs/mealPresets.js";
@@ -259,6 +260,7 @@ declare const fullApi: ApiFromModules<{
   "logs/groceryLists": typeof logs_groceryLists;
   "logs/healthMetrics": typeof logs_healthMetrics;
   "logs/healthWorkouts": typeof logs_healthWorkouts;
+  "logs/journal": typeof logs_journal;
   "logs/logAgent": typeof logs_logAgent;
   "logs/mealPrep": typeof logs_mealPrep;
   "logs/mealPresets": typeof logs_mealPresets;

@@ -9,6 +9,7 @@ import {
 import { useLocation } from "react-router"
 import { useTranslation } from "react-i18next"
 import {
+  BookOpen,
   Barbell,
   ChartLine,
   ForkKnife,
@@ -66,6 +67,7 @@ type TabDef = {
 
 const BASE_TABS: TabDef[] = [
   { path: "/", Icon: House, labelKey: "nav.today" },
+  { path: "/journal", Icon: BookOpen, labelKey: "Journal" },
   { path: "/nutrition", Icon: ForkKnife, labelKey: "nav.nutrition" },
   { path: "/workouts", Icon: Barbell, labelKey: "nav.training" },
   { path: "/progress", Icon: ChartLine, labelKey: "nav.progress" },

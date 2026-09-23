@@ -1,3 +1,4 @@
+import { hapticConfirm } from "@/lib/haptics"
 /**
  * One set, one row. The old layout spent four full-width rows on every set
  * (label, weight, reps, rest); three sets of it and the card no longer fit on
@@ -83,7 +84,10 @@ export function ActiveSetRow({
   function toggleDone() {
     const next = !set.completed
     onUpdate({ ...set, completed: next })
-    if (next) setCompletionPulse(true)
+    if (next) {
+      setCompletionPulse(true)
+      hapticConfirm()
+    }
     if (next && set.restSeconds > 0) onComplete(set.restSeconds)
   }
 
