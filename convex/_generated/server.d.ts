@@ -58,7 +58,6 @@ type Env = {
   readonly STRIPE_PRICE_ID_MONTHLY: string | undefined;
   readonly STRIPE_SECRET_KEY: string | undefined;
   readonly STRIPE_WEBHOOK_SECRET: string | undefined;
-  readonly TYPESAFE_API_KEY: string | undefined;
 };
 
 /**

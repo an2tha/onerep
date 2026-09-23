@@ -169,8 +169,7 @@ test("outbound AI requests enforce the disclosed recipient and privacy controls"
     await requestOpenAiJson({ system: "test", user: "test", model: "openai/gpt-5.6-luna", maxTokens: 10 });
     expect(requests).toHaveLength(1);
     expect(requests[0]?.provider).toEqual({
-      only: ["azure"], order: ["azure/eu", "azure/us", "azure"],
-      allow_fallbacks: false, data_collection: "deny", zdr: true,
+      only: ["azure"], allow_fallbacks: false, data_collection: "deny", zdr: true,
     });
   } finally {
     globalThis.fetch = previousFetch;
