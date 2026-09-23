@@ -10,7 +10,7 @@ private final class PassthroughView: UIView {
     }
 }
 
-/// A single navigation button anchored left, with an animated destination menu.
+/// A single navigation button anchored left, with an expanding horizontal tab bar.
 /// The web app owns routing and reports selection and visibility through the bridge.
 @objc(NativeTabBarPlugin)
 public class NativeTabBarPlugin: CAPPlugin, CAPBridgedPlugin {
@@ -32,7 +32,9 @@ public class NativeTabBarPlugin: CAPPlugin, CAPBridgedPlugin {
 
     private var container: PassthroughView?
     private var pill: UIVisualEffectView?
-    private var highlight: UIView?
+    private var tabStack: UIStackView?
+    private var collapsedWidth: NSLayoutConstraint?
+    private var expandedTrailing: NSLayoutConstraint?
     private var buttons: [(item: Item, button: UIButton)] = []
     private var items: [Item] = []
     private var expanded = false
@@ -139,81 +141,88 @@ public class NativeTabBarPlugin: CAPPlugin, CAPBridgedPlugin {
         container.overrideUserInterfaceStyle = appearance
         host.addSubview(container)
         NSLayoutConstraint.activate([
-            container.leadingAnchor.constraint(equalTo: host.leadingAnchor, constant: 16),
-            container.widthAnchor.constraint(equalToConstant: 232),
+            container.leadingAnchor.constraint(equalTo: host.safeAreaLayoutGuide.leadingAnchor, constant: 16),
+            container.trailingAnchor.constraint(equalTo: host.safeAreaLayoutGuide.trailingAnchor, constant: -16),
             container.bottomAnchor.constraint(equalTo: host.safeAreaLayoutGuide.bottomAnchor, constant: -8),
-            container.heightAnchor.constraint(equalToConstant: CGFloat(items.count) * 48 + 84)
+            container.heightAnchor.constraint(equalToConstant: barHeight)
         ])
         self.container = container
         let pill = UIVisualEffectView(effect: glassEffect())
         pill.translatesAutoresizingMaskIntoConstraints = false
-        pill.layer.cornerRadius = 24
+        pill.layer.cornerRadius = barHeight / 2
+        pill.layer.cornerCurve = .continuous
         pill.clipsToBounds = true
         container.addSubview(pill)
         self.pill = pill
+        collapsedWidth = pill.widthAnchor.constraint(equalToConstant: barHeight)
+        expandedTrailing = pill.trailingAnchor.constraint(equalTo: container.trailingAnchor)
+        NSLayoutConstraint.activate([
+            pill.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            pill.topAnchor.constraint(equalTo: container.topAnchor),
+            pill.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+            collapsedWidth!
+        ])
         let stack = UIStackView()
-        stack.axis = .vertical
+        stack.axis = .horizontal
         stack.distribution = .fillEqually
         stack.translatesAutoresizingMaskIntoConstraints = false
         pill.contentView.addSubview(stack)
+        tabStack = stack
         for item in items {
-            let button = makeButton(for: item, pointSize: 20)
-            button.setTitle("  " + item.label, for: .normal)
-            button.setTitleColor(.label, for: .normal)
-            button.titleLabel?.font = .systemFont(ofSize: 16, weight: .medium)
-            button.contentHorizontalAlignment = .leading
-            button.contentEdgeInsets = UIEdgeInsets(top: 0, left: 18, bottom: 0, right: 12)
+            let button = makeButton(for: item, pointSize: 21)
+            button.layer.cornerRadius = 18
+            button.layer.cornerCurve = .continuous
             stack.addArrangedSubview(button)
             buttons.append((item, button))
         }
-        let orb = UIVisualEffectView(effect: glassEffect())
-        orb.translatesAutoresizingMaskIntoConstraints = false
-        orb.layer.cornerRadius = 30
-        orb.clipsToBounds = true
-        container.addSubview(orb)
+        NSLayoutConstraint.activate([
+            stack.leadingAnchor.constraint(equalTo: pill.contentView.leadingAnchor, constant: 6),
+            stack.widthAnchor.constraint(equalTo: container.widthAnchor, constant: -12),
+            stack.topAnchor.constraint(equalTo: pill.contentView.topAnchor, constant: 6),
+            stack.bottomAnchor.constraint(equalTo: pill.contentView.bottomAnchor, constant: -6)
+        ])
         let toggle = UIButton(type: .system)
         toggle.translatesAutoresizingMaskIntoConstraints = false
         toggle.tintColor = .label
-        toggle.addAction(UIAction { [weak self] _ in self?.setExpanded(!(self?.expanded ?? false)) }, for: .touchUpInside)
-        orb.contentView.addSubview(toggle)
+        toggle.accessibilityLabel = "Open navigation"
+        toggle.addAction(UIAction { [weak self] _ in self?.setExpanded(true) }, for: .touchUpInside)
+        pill.contentView.addSubview(toggle)
         toggleButton = toggle
         NSLayoutConstraint.activate([
-            orb.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            orb.bottomAnchor.constraint(equalTo: container.bottomAnchor),
-            orb.widthAnchor.constraint(equalToConstant: 60),
-            orb.heightAnchor.constraint(equalToConstant: 60),
-            pill.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            pill.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            pill.bottomAnchor.constraint(equalTo: orb.topAnchor, constant: -12),
-            pill.heightAnchor.constraint(equalToConstant: CGFloat(items.count) * 48 + 12),
-            stack.leadingAnchor.constraint(equalTo: pill.contentView.leadingAnchor),
-            stack.trailingAnchor.constraint(equalTo: pill.contentView.trailingAnchor),
-            stack.topAnchor.constraint(equalTo: pill.contentView.topAnchor, constant: 6),
-            stack.bottomAnchor.constraint(equalTo: pill.contentView.bottomAnchor, constant: -6),
-            toggle.leadingAnchor.constraint(equalTo: orb.contentView.leadingAnchor),
-            toggle.trailingAnchor.constraint(equalTo: orb.contentView.trailingAnchor),
-            toggle.topAnchor.constraint(equalTo: orb.contentView.topAnchor),
-            toggle.bottomAnchor.constraint(equalTo: orb.contentView.bottomAnchor)
+            toggle.leadingAnchor.constraint(equalTo: pill.contentView.leadingAnchor),
+            toggle.widthAnchor.constraint(equalToConstant: barHeight),
+            toggle.topAnchor.constraint(equalTo: pill.contentView.topAnchor),
+            toggle.bottomAnchor.constraint(equalTo: pill.contentView.bottomAnchor)
         ])
-        pill.alpha = 0
-        pill.isHidden = true
+        stack.alpha = 0
+        stack.isHidden = true
         container.isHidden = !visible
+        host.layoutIfNeeded()
         applySelection(selectedId, animated: false)
     }
 
-    private func setExpanded(_ next: Bool) {
+    private func setExpanded(_ next: Bool, animated: Bool = true) {
+        guard let container, let stack = tabStack, let toggle = toggleButton else { return }
+        container.layoutIfNeeded()
         expanded = next
-        guard let pill else { return }
-        if next { pill.isHidden = false }
-        pill.isUserInteractionEnabled = next
-        pill.accessibilityElementsHidden = !next
-        toggleButton?.accessibilityLabel = next ? "Close navigation" : "Open navigation"
-        toggleButton?.setImage(UIImage(systemName: next ? "xmark" : (items.first { $0.id == selectedId }?.symbol ?? "line.3.horizontal")), for: .normal)
-        UIView.animate(withDuration: UIAccessibility.isReduceMotionEnabled ? 0 : 0.28, delay: 0, options: [.beginFromCurrentState, .curveEaseInOut]) {
-            pill.alpha = next ? 1 : 0
-            pill.transform = next ? .identity : CGAffineTransform(translationX: 0, y: 12)
+        stack.isHidden = false
+        toggle.isHidden = false
+        stack.isUserInteractionEnabled = next
+        stack.accessibilityElementsHidden = !next
+        toggle.isUserInteractionEnabled = !next
+        toggle.accessibilityElementsHidden = next
+        collapsedWidth?.isActive = false
+        expandedTrailing?.isActive = false
+        if next { expandedTrailing?.isActive = true } else { collapsedWidth?.isActive = true }
+        let duration = animated && !UIAccessibility.isReduceMotionEnabled ? 0.3 : 0
+        UIView.animate(withDuration: duration, delay: 0, options: [.beginFromCurrentState, .curveEaseInOut]) {
+            container.layoutIfNeeded()
+            stack.alpha = next ? 1 : 0
+            toggle.alpha = next ? 0 : 1
         } completion: { [weak self] _ in
-            pill.isHidden = !(self?.expanded ?? false)
+            guard let self else { return }
+            stack.isHidden = !self.expanded
+            toggle.isHidden = self.expanded
         }
     }
 
@@ -241,7 +250,6 @@ public class NativeTabBarPlugin: CAPPlugin, CAPBridgedPlugin {
     // ── behaviour ─────────────────────────────────────────────────────────────
 
     private func didTap(_ id: String) {
-        setExpanded(false)
         applySelection(id, animated: true)
         notifyListeners("tabSelected", data: ["id": id])
     }
@@ -251,8 +259,10 @@ public class NativeTabBarPlugin: CAPPlugin, CAPBridgedPlugin {
         for (item, button) in buttons {
             button.tintColor = iconTint(active: item.id == id)
             button.accessibilityTraits = item.id == id ? [.button, .selected] : [.button]
+            button.backgroundColor = item.id == id ? chipColor : .clear
         }
-        setExpanded(false)
+        toggleButton?.setImage(UIImage(systemName: items.first { $0.id == id }?.symbol ?? "line.3.horizontal", withConfiguration: UIImage.SymbolConfiguration(pointSize: 23, weight: .semibold)), for: .normal)
+        setExpanded(false, animated: animated)
     }
 
     private func applyVisibility(_ next: Bool) {

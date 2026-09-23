@@ -75,3 +75,73 @@ export const save = mutation({
       });
   },
 });
+
+/** Journal uses calendar dates, including backfilled readings from older days. */
+export const trackers = query({
+  args: { date: v.string() },
+  handler: async (ctx, { date }) => {
+    const user = await getAuthUser(ctx);
+    checkDate(date);
+    const start = new Date(`${date}T12:00:00Z`);
+    start.setUTCDate(start.getUTCDate() - 6);
+    const startKey = start.toISOString().slice(0, 10);
+    const metrics = await ctx.db
+      .query("customProgressMetrics")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .order("desc")
+      .take(100);
+    return await Promise.all(
+      metrics.map(async (metric) => ({
+        ...metric,
+        entries: await ctx.db
+          .query("customProgressMetricEntries")
+          .withIndex("by_userId_and_metricId_and_date", (q) =>
+            q
+              .eq("userId", user._id)
+              .eq("metricId", metric._id)
+              .gte("date", startKey)
+              .lte("date", date),
+          )
+          .take(7),
+      })),
+    );
+  },
+});
+
+export const incrementTracker = mutation({
+  args: { metricId: v.id("customProgressMetrics"), date: v.string() },
+  handler: async (ctx, { metricId, date }) => {
+    const user = await getAuthUser(ctx);
+    checkDate(date);
+    const metric = await ctx.db.get("customProgressMetrics", metricId);
+    if (!metric || metric.userId !== user._id)
+      throw new Error("Tracker not found");
+    if (metric.kind !== "counter")
+      throw new Error("Only daily totals support quick add");
+    const entry = await ctx.db
+      .query("customProgressMetricEntries")
+      .withIndex("by_userId_and_metricId_and_date", (q) =>
+        q.eq("userId", user._id).eq("metricId", metricId).eq("date", date),
+      )
+      .unique();
+    const value = Math.min(
+      1000000,
+      Math.round(((entry?.value ?? 0) + metric.step) * 100000) / 100000,
+    );
+    if (entry)
+      await ctx.db.patch("customProgressMetricEntries", entry._id, {
+        value,
+        manual: true,
+        updatedAt: Date.now(),
+      });
+    else
+      await ctx.db.insert("customProgressMetricEntries", {
+        userId: user._id,
+        metricId,
+        date,
+        value,
+        manual: true,
+        updatedAt: Date.now(),
+      });
+  },
+});
