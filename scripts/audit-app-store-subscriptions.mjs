@@ -48,6 +48,11 @@ async function main() {
   if (apps.length !== 1) throw new Error(`Expected one app for ${bundleId}, found ${apps.length}`);
   const app = apps[0];
   console.log(JSON.stringify({ appId: app.id, bundleId: app.attributes.bundleId, name: app.attributes.name, expectedProduct }, null, 2));
+  const bundleIds = await list(`/v1/bundleIds?filter[identifier]=${bundleId}&limit=10`);
+  for (const bundle of bundleIds) {
+    const capabilities = await list(`/v1/bundleIds/${bundle.id}/bundleIdCapabilities?limit=200`);
+    console.log(JSON.stringify({ bundleIdResource: bundle.id, identifier: bundle.attributes.identifier, capabilities: capabilities.map((c) => c.attributes) }, null, 2));
+  }
   const groups = await list(`/v1/apps/${app.id}/subscriptionGroups?limit=200`);
   let matched;
   for (const group of groups) {
@@ -63,7 +68,15 @@ async function main() {
     if (!path) continue;
     try {
       const value = await get(path);
-      console.log(JSON.stringify({ relation, data: value.data, paging: value.meta?.paging }, null, 2));
+      if (relation === "prices") {
+        console.log(JSON.stringify({ relation, total: value.meta?.paging?.total, sample: value.data.slice(0, 2) }, null, 2));
+      } else {
+        console.log(JSON.stringify({ relation, data: value.data, paging: value.meta?.paging }, null, 2));
+      }
+      if (relation === "subscriptionAvailability") {
+        const territories = await list(value.data.relationships.availableTerritories.links.related);
+        console.log(JSON.stringify({ availableTerritories: territories.map((t) => t.id) }, null, 2));
+      }
     } catch (error) {
       console.log(`${relation}: ${error.message}`);
     }
