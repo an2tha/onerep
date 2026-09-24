@@ -245,3 +245,18 @@ test("failed banner dismissal leaves recovery active and allows retry", async ()
   await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Dismiss recovery mode"]')!.click())
   expect(data.active).toBeNull()
 })
+
+test("Coach recovery suggestion dismissal persists without changing recovery data", async () => {
+  window.localStorage.clear()
+  data.active = null
+  await act(async () => root.render(<RecoveryBanner surface="coach" />))
+  const button = container.querySelector<HTMLButtonElement>('[aria-label="Dismiss recovery suggestion for today"]')
+  expect(button).not.toBeNull()
+  await act(async () => button!.click())
+  expect(container.querySelector('[aria-label="Feeling unwell?"]')).toBeNull()
+  expect(calls).toEqual([])
+  await act(async () => root.render(null))
+  await act(async () => root.render(<RecoveryBanner surface="coach" />))
+  expect(container.querySelector('[aria-label="Feeling unwell?"]')).toBeNull()
+  window.localStorage.clear()
+})

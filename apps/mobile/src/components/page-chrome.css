@@ -74,7 +74,7 @@
 /* Atmosphere heroes overlay their background and content in one grid cell.
    Inset only the content, so the background still reaches the top of the screen. */
 .app-route-frame[data-page-bar="true"]
-  > :first-child:not(.app-hero):not(.nutrition-hero),
+  > :first-child:not(.app-hero):not(.nutrition-hero):not(.coach-mobile-immersive),
 .app-route-frame[data-page-bar="true"]
   > :is(.app-hero, .nutrition-hero)
   > :is(.app-page, .journal-content) {
@@ -131,4 +131,12 @@
   width: 44px;
   min-width: 44px;
   padding-inline: 0;
+}
+
+/* Coach owns a full-viewport backdrop. Only inset its foreground controls. */
+.app-route-frame[data-page-bar="true"]
+  > .coach-mobile-immersive:not([data-coach-embedded="true"])
+  > .coach-page-slide
+  > .coach-content {
+  padding-top: calc(env(safe-area-inset-top, 0px) + 60px);
 }
