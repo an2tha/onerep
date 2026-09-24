@@ -98,7 +98,7 @@ export function useAiFeatureGate() {
       sharingAllowed,
       usage?.count,
       usage?.limit,
-    ],
+    ]
   )
 
   // Lets Developer settings preview the paywall without spending an allowance.
@@ -114,6 +114,7 @@ export function useAiFeatureGate() {
         busy={paywallBusy}
         price={billing.monthlyPrice ?? "Monthly"}
         error={billing.error ?? usageDeniedReason(usage)}
+        notice={billing.purchaseNotice}
         freeLimit={usage && !usage.isPro ? usage.limit : null}
         proLimit={usage?.proLimit ?? null}
         usedCount={usage?.count ?? null}
@@ -121,7 +122,9 @@ export function useAiFeatureGate() {
         canPurchase={billing.canPurchase}
         canRestore={billing.canRestore}
         plansLoading={billing.catalogueLoading}
-        onRetry={billing.canRestore ? () => void billing.reloadProducts() : undefined}
+        onRetry={
+          billing.canRestore ? () => void billing.reloadProducts() : undefined
+        }
         onClose={() => setModalOpen(false)}
         onOpenPaywall={() => {
           if (paywallBusy) return
@@ -155,8 +158,8 @@ export function useAiFeatureGate() {
           setPaywallBusy(true)
           void (async () => {
             try {
-              const { restored } = await billing.restorePurchases()
-              if (restored > 0) {
+              const { status } = await billing.restorePurchases()
+              if (hasOneRepPro(status)) {
                 await billing.refresh()
                 celebrateSubscription()
                 setModalOpen(false)
@@ -196,7 +199,7 @@ function usageDeniedReason(
         remaining?: number | null
       }
     | null
-    | undefined,
+    | undefined
 ): string | null {
   if (!usage) return null
   if (usage.isPro === true) {

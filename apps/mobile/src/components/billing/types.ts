@@ -18,12 +18,13 @@ export interface AiAccessRequiredModalProps {
   busy: boolean
   price: string
   error: string | null
+  notice?: string | null
   /** Free monthly allowance; present when the viewer is not on Pro. */
   freeLimit?: number | null
   proLimit?: number | null
   usedCount?: number | null
   isNative?: boolean
-  /** False on native devices or when web checkout is unconfigured. */
+  /** Whether a configured checkout or loaded App Store plan can be purchased. */
   canPurchase?: boolean
   /** Whether the current billing surface offers a restore action. */
   canRestore?: boolean
