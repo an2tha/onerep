@@ -50,7 +50,7 @@ async function main() {
   console.log(JSON.stringify({ appId: app.id, bundleId: app.attributes.bundleId, name: app.attributes.name, expectedProduct }, null, 2));
   const bundleIds = await list(`/v1/bundleIds?filter[identifier]=${bundleId}&limit=10`);
   for (const bundle of bundleIds) {
-    const capabilities = await list(`/v1/bundleIds/${bundle.id}/bundleIdCapabilities?limit=200`);
+    const capabilities = await list(`/v1/bundleIds/${bundle.id}/bundleIdCapabilities`);
     console.log(JSON.stringify({ bundleIdResource: bundle.id, identifier: bundle.attributes.identifier, capabilities: capabilities.map((c) => c.attributes) }, null, 2));
   }
   const groups = await list(`/v1/apps/${app.id}/subscriptionGroups?limit=200`);
