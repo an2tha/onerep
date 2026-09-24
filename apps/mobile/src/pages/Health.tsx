@@ -1,3 +1,4 @@
+import { PageBarActions } from "@/components/page-bar-actions"
 import { type CSSProperties, useState } from "react"
 import { HealthSleepStrainOverview } from "@/components/health-sleep-strain-overview"
 import { useWeightUnit } from "@/lib/use-weight-unit"
@@ -113,32 +114,34 @@ export default function Health() {
               figure, fix a figure, change what the page shows. Creating a
               metric is the fourth thing this page can do and it is deliberately
               not here — see the row above Trends. */}
-          <div className="flex shrink-0 items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => setLogOpen(true)}
-              aria-label="Log a custom metric"
-              className="app-translucent motion-tactile inline-flex size-10 shrink-0 items-center justify-center rounded-full"
-            >
-              <Plus size={17} weight="bold" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setEditorOpen(true)}
-              aria-label="Correct a reading"
-              className="app-translucent motion-tactile inline-flex size-10 shrink-0 items-center justify-center rounded-full"
-            >
-              <PencilSimple size={17} weight="bold" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setDialsOpen(true)}
-              aria-label="Choose which dials to show"
-              className="app-translucent motion-tactile inline-flex size-10 shrink-0 items-center justify-center rounded-full"
-            >
-              <SlidersHorizontal size={17} weight="bold" />
-            </button>
-          </div>
+          <PageBarActions>
+            <div className="flex shrink-0 items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setLogOpen(true)}
+                aria-label="Log a custom metric"
+                className="app-translucent motion-tactile inline-flex size-10 shrink-0 items-center justify-center rounded-full"
+              >
+                <Plus size={17} weight="bold" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditorOpen(true)}
+                aria-label="Correct a reading"
+                className="app-translucent motion-tactile inline-flex size-10 shrink-0 items-center justify-center rounded-full"
+              >
+                <PencilSimple size={17} weight="bold" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setDialsOpen(true)}
+                aria-label="Choose which dials to show"
+                className="app-translucent motion-tactile inline-flex size-10 shrink-0 items-center justify-center rounded-full"
+              >
+                <SlidersHorizontal size={17} weight="bold" />
+              </button>
+            </div>
+          </PageBarActions>
         </header>
 
         {data === undefined ? (

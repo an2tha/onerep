@@ -1,3 +1,4 @@
+import { PageBarActions } from "@/components/page-bar-actions"
 import { EnduranceRouteMap } from "@/components/endurance-route-map"
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
 import { LinearModeDial } from "@/components/linear-mode-dial"
@@ -323,14 +324,16 @@ export default function Endurance({ embedded = false }: { embedded?: boolean }) 
       <div className={embedded ? "" : "app-page pb-28"}>
         <header className="app-header flex items-center justify-between gap-3">
           {!embedded && <h1 className="app-title">Endurance</h1>}
-          <button
-            type="button"
-            onClick={() => setGoalsOpen(true)}
-            className="ml-auto flex size-11 items-center justify-center border-0 bg-transparent text-foreground shadow-none transition-opacity hover:opacity-75 active:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2"
-            aria-label={`Edit ${SPORT_META[sport].label.toLowerCase()} goals`}
-          >
-            <Target size={17} weight="bold" />
-          </button>
+          <PageBarActions>
+            <button
+              type="button"
+              onClick={() => setGoalsOpen(true)}
+              className="ml-auto flex size-11 items-center justify-center border-0 bg-transparent text-foreground shadow-none transition-opacity hover:opacity-75 active:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2"
+              aria-label={`Edit ${SPORT_META[sport].label.toLowerCase()} goals`}
+            >
+              <Target size={17} weight="bold" />
+            </button>
+          </PageBarActions>
         </header>
 
         <section

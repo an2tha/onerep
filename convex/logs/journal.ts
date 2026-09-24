@@ -78,12 +78,15 @@ export const save = mutation({
 
 /** Journal uses calendar dates, including backfilled readings from older days. */
 export const trackers = query({
-  args: { date: v.string() },
-  handler: async (ctx, { date }) => {
+  args: {
+    date: v.string(),
+    days: v.optional(v.union(v.literal(7), v.literal(28))),
+  },
+  handler: async (ctx, { date, days = 7 }) => {
     const user = await getAuthUser(ctx);
     checkDate(date);
     const start = new Date(`${date}T12:00:00Z`);
-    start.setUTCDate(start.getUTCDate() - 6);
+    start.setUTCDate(start.getUTCDate() - (days - 1));
     const startKey = start.toISOString().slice(0, 10);
     const metrics = await ctx.db
       .query("customProgressMetrics")
@@ -102,7 +105,7 @@ export const trackers = query({
               .gte("date", startKey)
               .lte("date", date),
           )
-          .take(7),
+          .take(days),
       })),
     );
   },

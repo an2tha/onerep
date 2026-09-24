@@ -73,9 +73,9 @@
 }
 /* Atmosphere heroes overlay their background and content in one grid cell.
    Inset only the content, so the background still reaches the top of the screen. */
-.app-route-frame-current[data-page-bar="true"]
+.app-route-frame[data-page-bar="true"]
   > :first-child:not(.app-hero):not(.nutrition-hero),
-.app-route-frame-current[data-page-bar="true"]
+.app-route-frame[data-page-bar="true"]
   > :is(.app-hero, .nutrition-hero)
   > :is(.app-page, .journal-content) {
   padding-top: 60px;
@@ -90,4 +90,45 @@
   .page-bar-title {
     transition: none;
   }
+}
+
+.page-heading-actions {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+.page-bar-tools,
+.page-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.page-bar-tools {
+  pointer-events: auto;
+}
+.page-bar-actions:empty {
+  display: none;
+}
+.page-bar-back {
+  flex-shrink: 0;
+}
+.page-bar-title {
+  min-width: 0;
+  flex: 1;
+  text-align: center;
+}
+
+.page-heading-actions[data-portaled="true"],
+.app-header:has(> .page-heading-actions[data-portaled="true"]):not(:has(h1)) {
+  display: none;
+}
+/* Keep a full row of page actions usable on narrow phones. */
+.page-bar-actions .native-toolbar-button > span {
+  display: none;
+}
+.page-bar-actions .native-toolbar-button {
+  width: 44px;
+  min-width: 44px;
+  padding-inline: 0;
 }

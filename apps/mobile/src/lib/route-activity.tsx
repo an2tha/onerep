@@ -1,7 +1,7 @@
 import { createContext, useContext, type ReactNode } from "react"
 
-// The router renders an outgoing outlet a second time for its exit animation.
-// That copy is presentation only; session owners must not mount inside it.
+// Presentation-only surfaces can suppress live session owners.
+// Route exits use frozen DOM snapshots and never mount session owners.
 export const RouteActivityContext = createContext(true)
 
 export function ActiveRouteOnly({ children }: { children: ReactNode }) {

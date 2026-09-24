@@ -15,13 +15,6 @@
 .journal-heading {
   padding: calc(env(safe-area-inset-top, 0px) + 20px) 24px 12px;
 }
-.journal-kicker {
-  font-size: 10px;
-  font-weight: 650;
-  letter-spacing: 0.12em;
-  color: var(--muted-foreground);
-  margin-bottom: 8px;
-}
 .journal-intro {
   font-size: 16px;
   color: var(--muted-foreground);
@@ -49,8 +42,17 @@
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background: var(--muted);
+  background: transparent;
+  color: var(--muted-foreground);
   overflow: hidden;
+}
+.journal-calendar:focus-within {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+.journal-calendar:active {
+  background: color-mix(in srgb, var(--foreground) 6%, transparent);
+  color: var(--foreground);
 }
 .journal-calendar input {
   position: absolute;
@@ -320,6 +322,7 @@
 }
 .journal-trend-caption {
   display: flex;
+  align-items: center;
   justify-content: space-between;
   color: var(--muted-foreground);
   font-size: 10px;
@@ -603,9 +606,12 @@
     font-size: 12px;
   }
 }
-@media (min-width: 768px) {
+@media (min-width: 1024px) {
   :root .journal-hero-wash.reactive-orb-field.app-hero-wash {
-    display: none;
+    height: 100svh;
+    min-height: 0;
+    -webkit-mask-image: linear-gradient(to bottom, black 55%, transparent 100%);
+    mask-image: linear-gradient(to bottom, black 55%, transparent 100%);
   }
 }
 @media (max-width: 767px) {
@@ -650,4 +656,128 @@
   .journal-filters button {
     padding-inline: 9px;
   }
+}
+
+.journal-history-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.journal-history-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-block: 8px;
+}
+.journal-history-summary dt {
+  font-size: 13px;
+  color: var(--muted-foreground);
+}
+.journal-history-summary dd {
+  margin: 4px 0 0;
+  font-size: 22px;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+.journal-history-rows > button {
+  display: grid;
+  grid-template-columns: 1fr minmax(0, 1fr) 16px;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  padding-block: 12px;
+  border-top: 1px solid var(--border);
+  text-align: left;
+  font-size: 14px;
+}
+.journal-history-rows strong {
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+.journal-history-rows [data-empty="true"] {
+  color: var(--muted-foreground);
+  font-weight: 400;
+}
+.journal-reuse {
+  text-align: left;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  font-size: 14px;
+}
+.journal-reuse small {
+  display: block;
+  color: var(--muted-foreground);
+  margin-top: 4px;
+}
+
+.journal-hero {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  min-height: 370px;
+  max-width: 840px;
+  margin-inline: auto;
+  padding: 32px 24px 40px;
+  text-align: center;
+}
+.journal-hero-reading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.journal-hero-reading strong {
+  font-size: clamp(76px, 10vw, 116px);
+  font-weight: 650;
+  line-height: 1;
+  letter-spacing: -0.065em;
+  font-variant-numeric: tabular-nums;
+}
+.journal-hero-reading > span {
+  font-size: 18px;
+}
+.journal-hero-detail {
+  color: var(--muted-foreground);
+  font-size: 14px;
+}
+.journal-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+.journal-hero-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  font-size: 13px;
+}
+.journal-hero-actions button:disabled {
+  opacity: 0.5;
+}
+.journal-hero-actions button:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
+}
+#journal-trackers-title {
+  scroll-margin-top: calc(env(safe-area-inset-top, 0px) + 84px);
+}
+@media (min-width: 1024px) {
+  .journal-hero { min-height: 450px; }
 }

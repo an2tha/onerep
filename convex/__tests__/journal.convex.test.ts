@@ -169,3 +169,37 @@ test("quick add rejects invalid dates, non-counters and unauthenticated access",
     t.query(api.logs.journal.trackers, { date: "2026-09-23" }),
   ).rejects.toThrow();
 });
+
+test("28-day history includes calendar backfills and excludes out-of-window readings", async () => {
+  const t = convexTest(schema, modules);
+  const owner = t.withIdentity({ name: "history-owner" });
+  const other = t.withIdentity({ name: "history-other" });
+  const id = await owner.mutation(api.customProgressMetrics.saveDefinition, {
+    title: "Energy",
+    description: "",
+    tab: "body",
+    kind: "number",
+    unit: "/ 10",
+    step: 1,
+    accent: "progress",
+  });
+  for (const date of ["2026-09-25", "2026-09-24", "2026-08-27", "2026-08-28"]) {
+    await owner.mutation(api.customProgressMetrics.setValue, {
+      metricId: id,
+      date,
+      value: 0,
+    });
+  }
+  const args = { date: "2026-09-24", days: 28 as const };
+  const history = await owner.query(api.logs.journal.trackers, args);
+  expect(history[0].entries.map((entry) => entry.date)).toEqual([
+    "2026-08-28",
+    "2026-09-24",
+  ]);
+  expect(history[0].entries.every((entry) => entry.value === 0)).toBe(true);
+  expect(await other.query(api.logs.journal.trackers, args)).toEqual([]);
+  expect(
+    (await owner.query(api.logs.journal.trackers, { date: args.date }))[0]
+      .entries,
+  ).toHaveLength(1);
+});

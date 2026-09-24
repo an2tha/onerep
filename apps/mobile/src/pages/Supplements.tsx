@@ -1,3 +1,4 @@
+import { PageBarActions } from "@/components/page-bar-actions"
 import React, { useMemo, useState } from "react"
 import {
   Barcode,
@@ -2025,26 +2026,28 @@ export default function Supplements() {
             </h1>
           </div>
 
-          <div className="flex items-center gap-1 pb-0.5">
-            <button
-              onClick={() => setDateKey((d) => offsetDateKey(d, -1))}
-              className="flex h-11 w-11 items-center justify-center text-muted-foreground active:bg-muted active:text-foreground"
-              aria-label="Previous day"
-            >
-              <CaretLeft size={13} weight="bold" />
-            </button>
-            <span className="min-w-[72px] text-center text-[13px] font-medium text-muted-foreground">
-              {dateLabel}
-            </span>
-            <button
-              onClick={() => setDateKey((d) => offsetDateKey(d, 1))}
-              disabled={isToday}
-              className="flex h-11 w-11 items-center justify-center text-muted-foreground active:bg-muted active:text-foreground disabled:opacity-30"
-              aria-label="Next day"
-            >
-              <CaretRight size={13} weight="bold" />
-            </button>
-          </div>
+          <PageBarActions>
+            <div className="flex items-center gap-1 pb-0.5">
+              <button
+                onClick={() => setDateKey((d) => offsetDateKey(d, -1))}
+                className="flex h-11 w-11 items-center justify-center text-muted-foreground active:bg-muted active:text-foreground"
+                aria-label="Previous day"
+              >
+                <CaretLeft size={13} weight="bold" />
+              </button>
+              <span className="min-w-[72px] text-center text-[13px] font-medium text-muted-foreground">
+                {dateLabel}
+              </span>
+              <button
+                onClick={() => setDateKey((d) => offsetDateKey(d, 1))}
+                disabled={isToday}
+                className="flex h-11 w-11 items-center justify-center text-muted-foreground active:bg-muted active:text-foreground disabled:opacity-30"
+                aria-label="Next day"
+              >
+                <CaretRight size={13} weight="bold" />
+              </button>
+            </div>
+          </PageBarActions>
         </header>
 
         <div className="px-[var(--app-page-x)] md:px-6">

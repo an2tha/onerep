@@ -58,4 +58,29 @@ test.describe("journal layout regression", () => {
       fullPage: true,
     })
   })
+  test("history content fits narrow screens and distinguishes missing readings", async ({
+    page,
+  }) => {
+    await page.goto("/tests/visual/fixtures/journal-history.generated.html")
+    await page.waitForFunction(
+      () => document.documentElement.dataset.stylesReady === "true"
+    )
+    await page.evaluate(() =>
+      document.documentElement.classList.toggle(
+        "dark",
+        matchMedia("(prefers-color-scheme: dark)").matches
+      )
+    )
+    await expect(page.locator(".journal-history-rows button")).toHaveCount(7)
+    await expect(page.getByText("4 h", { exact: true })).toBeVisible()
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth > innerWidth
+      )
+    ).toBe(false)
+    await page.screenshot({
+      path: `test-results/journal-history-${test.info().project.name}.png`,
+      fullPage: true,
+    })
+  })
 })

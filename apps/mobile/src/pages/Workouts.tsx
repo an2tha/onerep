@@ -1,3 +1,4 @@
+import { PageBarActions } from "@/components/page-bar-actions"
 import { useRecovery } from "@/lib/use-recovery"
 import { RecoveryBanner } from "@/components/recovery/recovery-banner"
 import * as React from "react"
@@ -1374,17 +1375,19 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
           {!embedded && <div className="min-w-0">
             <h1 className="app-title">Training</h1>
           </div>}
-          <div className="ml-auto flex items-center gap-1">
-            <DateSelectorButton
-              onInteract={hapticSelection}
-              value={dateKey}
-              todayKey={todayKey}
-              onChange={setDateKey}
-              open={dateSelectorOpen}
-              onOpenChange={setDateSelectorOpen}
-              label="Workout date"
-            />
-          </div>
+          <PageBarActions>
+            <div className="ml-auto flex items-center gap-1">
+              <DateSelectorButton
+                onInteract={hapticSelection}
+                value={dateKey}
+                todayKey={todayKey}
+                onChange={setDateKey}
+                open={dateSelectorOpen}
+                onOpenChange={setDateSelectorOpen}
+                label="Workout date"
+              />
+            </div>
+          </PageBarActions>
         </header>
         {dateKey >= todayKey && <RecoveryBanner surface="training" />}
 
