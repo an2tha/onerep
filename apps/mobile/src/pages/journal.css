@@ -1,5 +1,7 @@
-.journal-page {
+.journal-content {
   padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 112px);
+  width: 100%;
+  min-width: 0;
 }
 .journal-heading,
 .journal-body,
@@ -127,7 +129,7 @@
 }
 .journal-quick-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
   margin-top: 14px;
 }
@@ -166,22 +168,6 @@
   border-radius: 12px;
   color: var(--foreground);
   background: color-mix(in srgb, var(--foreground) 7%, transparent);
-}
-.journal-glyph[data-tone="food"] {
-  color: var(--accent-food);
-  background: color-mix(in srgb, var(--accent-food) 12%, transparent);
-}
-.journal-glyph[data-tone="water"] {
-  color: var(--accent-water);
-  background: color-mix(in srgb, var(--accent-water) 12%, transparent);
-}
-.journal-glyph[data-tone="workout"] {
-  color: var(--accent-workout);
-  background: color-mix(in srgb, var(--accent-workout) 12%, transparent);
-}
-.journal-glyph[data-tone="progress"] {
-  color: var(--accent-progress);
-  background: color-mix(in srgb, var(--accent-progress) 12%, transparent);
 }
 .journal-add {
   display: flex;
@@ -601,6 +587,9 @@
   outline-offset: 3px;
 }
 @media (min-width: 600px) {
+  .journal-quick-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
   .journal-tracker-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

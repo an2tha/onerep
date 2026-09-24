@@ -114,3 +114,6 @@ apps/mobile/public/needle/
 # Local product brainstorming drafts
 docs/nutrition-programmes.md
 docs/.local-guided-nutrition-programmes.md
+
+# Rendered from the real Journal component for layout regression tests.
+apps/mobile/tests/visual/fixtures/*.generated.html

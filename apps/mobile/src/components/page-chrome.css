@@ -71,8 +71,13 @@
   opacity: 1;
   transform: translateY(0);
 }
-/* Keep the page backdrop behind the status area. Only its content is inset. */
-.app-route-frame-current[data-page-bar="true"] > :first-child {
+/* Atmosphere heroes overlay their background and content in one grid cell.
+   Inset only the content, so the background still reaches the top of the screen. */
+.app-route-frame-current[data-page-bar="true"]
+  > :first-child:not(.app-hero):not(.nutrition-hero),
+.app-route-frame-current[data-page-bar="true"]
+  > :is(.app-hero, .nutrition-hero)
+  > :is(.app-page, .journal-content) {
   padding-top: 60px;
 }
 @media (min-width: 1024px) {
