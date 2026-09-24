@@ -9,6 +9,7 @@ import {
   currentStoreEntitlements,
   finishStoreTransaction,
   onStoreTransaction,
+  purchaseStoreProduct,
   restoreStorePurchases,
   storeKitSupported,
   type SignedTransaction,
@@ -276,18 +277,23 @@ export function subscriptionDiagnosticCopy({
 
 export function useBilling({ userId }: UseBillingOptions) {
   const isNative = isNativePurchasesAvailable()
+  const isIos = isNative && Capacitor.getPlatform() === "ios"
   const isWeb = isWebPurchasesAvailable()
   const storeKit = storeKitSupported()
 
   const subscriptionQuery = useQuery(api.billing.public.getStatus, {})
+  const subscriptionLoaded = subscriptionQuery !== undefined
   const refreshStatus = useAction(api.billing.public.refreshStatus)
   const cancelAction = useAction(api.billing.public.cancelSubscription)
   const manageAction = useAction(api.billing.public.createManagementSession)
   const createCheckout = useAction(api.billing.public.createCheckout)
+  const getStoreIdentity = useAction(api.billing.public.getStoreIdentity)
   const redeemTransaction = useAction(api.billing.public.redeemAppleTransaction)
 
   const [error, setError] = useState<string | null>(null)
   const [isBusy, setIsBusy] = useState(false)
+  const [purchaseNotice, setPurchaseNotice] = useState<string | null>(null)
+  const purchaseInFlight = useRef(false)
   const [storeProduct, setStoreProduct] = useState<StoreProduct | null>(null)
   const [storeReady, setStoreReady] = useState(false)
   const [catalogueError, setCatalogueError] = useState<string | null>(null)
@@ -333,8 +339,13 @@ export function useBilling({ userId }: UseBillingOptions) {
     setStoreProduct(null)
     setStoreReady(false)
     setCatalogueError(null)
-    if (isNative || !storeKit || !appleProvider || !monthlyProductId) {
+    if (!isIos || !storeKit || !appleProvider || !monthlyProductId) {
       setCatalogueLoading(false)
+      if (isIos && subscriptionLoaded) {
+        setCatalogueError(
+          "App Store subscriptions are unavailable right now. Please retry."
+        )
+      }
       return
     }
     setCatalogueLoading(true)
@@ -355,7 +366,7 @@ export function useBilling({ userId }: UseBillingOptions) {
       if (mounted.current && request === catalogueRequest.current)
         setCatalogueLoading(false)
     }
-  }, [appleProvider, isNative, monthlyProductId, storeKit])
+  }, [appleProvider, isIos, monthlyProductId, storeKit, subscriptionLoaded])
 
   useEffect(() => {
     void reloadProducts()
@@ -439,7 +450,7 @@ export function useBilling({ userId }: UseBillingOptions) {
    * prompts for the Apple Account password, so it only ever runs from a tap.
    */
   const restorePurchases = useCallback(async () => {
-    if (isNative || !storeKit) return { restored: 0, status: null }
+    if (!storeKit) return { restored: 0, status: null }
     setError(null)
     setIsBusy(true)
     try {
@@ -448,10 +459,13 @@ export function useBilling({ userId }: UseBillingOptions) {
       let status: BillingSubscriptionStatus | null = null
       for (const transaction of transactions) {
         const redemption = await redeem(transaction)
-        if (redemption.redeemed) {
-          restored += 1
-          status = redemption.status ?? status
+        if (!redemption.redeemed) {
+          throw new Error(
+            "Could not verify this purchase. Please retry restoring purchases."
+          )
         }
+        restored += 1
+        status = redemption.status ?? status
       }
       if (restored === 0) {
         setError("No previous purchases were found on this Apple Account.")
@@ -465,7 +479,7 @@ export function useBilling({ userId }: UseBillingOptions) {
     } finally {
       if (mounted.current) setIsBusy(false)
     }
-  }, [isNative, redeem, storeKit])
+  }, [redeem, storeKit])
 
   /**
    * Start Stripe Checkout, which navigates away.
@@ -499,10 +513,67 @@ export function useBilling({ userId }: UseBillingOptions) {
 
   const purchaseMonthly = useCallback(
     async (source = "unknown") => {
-      if (isNative) throw new Error(NATIVE_SUBSCRIPTION_MESSAGE)
-      return await purchaseWeb(source)
+      if (!isNative) return await purchaseWeb(source)
+      if (!storeKit) throw new Error(NATIVE_SUBSCRIPTION_MESSAGE)
+      if (!userId || !appleProvider || !storeReady || !storeProduct) {
+        throw new Error(
+          "The subscription is not ready yet. Please retry loading plans."
+        )
+      }
+      if (purchaseInFlight.current) return null
+      purchaseInFlight.current = true
+      setError(null)
+      setPurchaseNotice(null)
+      setIsBusy(true)
+      try {
+        const { appAccountToken } = await getStoreIdentity({})
+        const outcome = await purchaseStoreProduct({
+          productId: storeProduct.id,
+          appAccountToken,
+        })
+        if (outcome.status === "cancelled") throw new Error("Purchase canceled")
+        if (outcome.status === "pending") {
+          setPurchaseNotice(
+            "Your purchase is awaiting Apple approval. Pro will unlock after approval and verification."
+          )
+          return null
+        }
+        if (outcome.status !== "purchased") {
+          throw new Error(
+            "The App Store could not complete your purchase. Please try again."
+          )
+        }
+        const result = await redeem(outcome)
+        if (!result.redeemed) {
+          throw new Error(
+            "Your purchase could not be verified yet. Use Restore purchases to try again."
+          )
+        }
+        return result.status ?? null
+      } catch (cause) {
+        const message = billingErrorMessage(
+          cause,
+          "Could not complete your purchase"
+        )
+        if (mounted.current && message !== "Purchase canceled")
+          setError(message)
+        throw cause
+      } finally {
+        purchaseInFlight.current = false
+        if (mounted.current) setIsBusy(false)
+      }
     },
-    [isNative, purchaseWeb]
+    [
+      appleProvider,
+      getStoreIdentity,
+      isNative,
+      purchaseWeb,
+      redeem,
+      storeKit,
+      storeProduct,
+      storeReady,
+      userId,
+    ]
   )
 
   /**
@@ -513,7 +584,13 @@ export function useBilling({ userId }: UseBillingOptions) {
    * Stripe rather than reimplementing a subset in-app.
    */
   const openBillingManagement = useCallback(async () => {
-    if (isNative) throw new Error(NATIVE_SUBSCRIPTION_MESSAGE)
+    if (isNative) {
+      if (!isIos || serverStatus?.store !== "app_store") {
+        throw new Error(NATIVE_SUBSCRIPTION_MESSAGE)
+      }
+      await openExternally("https://apps.apple.com/account/subscriptions")
+      return true
+    }
     setError(null)
     setIsBusy(true)
     try {
@@ -535,10 +612,13 @@ export function useBilling({ userId }: UseBillingOptions) {
     } finally {
       if (mounted.current) setIsBusy(false)
     }
-  }, [isNative, manageAction])
+  }, [isIos, isNative, manageAction, serverStatus?.store])
 
   const cancelSubscription = useCallback(async () => {
-    if (isNative) throw new Error(NATIVE_SUBSCRIPTION_MESSAGE)
+    if (isNative) {
+      await openBillingManagement()
+      return serverStatus
+    }
     setError(null)
     setIsBusy(true)
     try {
@@ -566,7 +646,7 @@ export function useBilling({ userId }: UseBillingOptions) {
     } finally {
       if (mounted.current) setIsBusy(false)
     }
-  }, [cancelAction, isNative, serverStatus])
+  }, [cancelAction, isNative, openBillingManagement, serverStatus])
 
   const status: BillingStatus = useMemo(() => {
     if (!isNative && !isWeb) return "unsupported"
@@ -598,12 +678,18 @@ export function useBilling({ userId }: UseBillingOptions) {
       reloadProducts,
       isConfigured,
       isNative,
+      isIos,
       isWeb,
       status,
       cancelSubscription,
       openBillingManagement,
-      canPurchase: !isNative && isWeb && subscriptionQuery?.webProvider === "stripe",
-      canRestore: false,
+      canPurchase:
+        Boolean(userId) &&
+        (isNative
+          ? storeKit && appleProvider && storeReady
+          : isWeb && subscriptionQuery?.webProvider === "stripe"),
+      canRestore: storeKit && Boolean(userId),
+      purchaseNotice: hasOneRepPro(customerInfo) ? null : purchaseNotice,
       hasActiveSubscription: hasActiveSubscription(customerInfo),
       hasOneRepPro: hasOneRepPro(customerInfo),
       // StoreKit's price wins where there is one: it is localised, in the
@@ -629,14 +715,25 @@ export function useBilling({ userId }: UseBillingOptions) {
       purchaseMonthly,
       restorePurchases,
       refresh,
-      subscriptionDiagnostic: subscriptionDiagnosticCopy({
-        customerInfo,
-        error: error ?? catalogueError,
-        isConfigured,
-        isNative,
-        isWeb,
-        status,
-      }),
+      subscriptionDiagnostic:
+        purchaseNotice &&
+        !hasOneRepPro(customerInfo) &&
+        !error &&
+        !catalogueError
+          ? {
+              title: "Awaiting approval",
+              detail: purchaseNotice,
+              tone: "pending" as const,
+              canRetry: false,
+            }
+          : subscriptionDiagnosticCopy({
+              customerInfo,
+              error: error ?? catalogueError,
+              isConfigured,
+              isNative,
+              isWeb,
+              status,
+            }),
       subscriptionManagementUrl: managementUrl,
     }),
     [
@@ -650,6 +747,9 @@ export function useBilling({ userId }: UseBillingOptions) {
       error,
       isConfigured,
       isNative,
+      isIos,
+      userId,
+      purchaseNotice,
       isWeb,
       managementUrl,
       purchaseMonthly,
