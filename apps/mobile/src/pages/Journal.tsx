@@ -30,6 +30,8 @@ import { formatWater } from "@/lib/measurement-system"
 import { toast } from "@repo/ui"
 import { TrackerStudio, type JournalMetric } from "./journal/tracker-studio"
 import { metricValue, shiftDay, trackerIcon } from "./journal/trackers"
+import { TrackerHistory } from "./journal/tracker-history"
+import { PageBarActions } from "@/components/page-bar-actions"
 import "./journal.css"
 
 const moods = ["Rough", "Low", "Steady", "Good", "Great"]
@@ -49,7 +51,7 @@ export default function Journal() {
   const days = Array.from({ length: 7 }, (_, i) => shiftDay(start, i))
   const entries = useQuery(api.logs.journal.getWeek, { start, end: days[6] })
   const entry = entries?.find((item) => item.date === date)
-  const metrics = useQuery(api.logs.journal.trackers, { date })
+  const metrics = useQuery(api.logs.journal.trackers, { date, days: 28 })
   const water = useQuery(api.logs.water.getDay, { date })
   const food = useQuery(api.logs.foodLogs.getDay, { date })
   const workouts = useQuery(api.logs.workouts.getLog, { date })
@@ -63,6 +65,7 @@ export default function Journal() {
     metric: JournalMetric
     date: string
   } | null>(null)
+  const [historyMetric, setHistoryMetric] = useState<JournalMetric | null>(null)
   const [notesOpen, setNotesOpen] = useState(false)
   const [draft, setDraft] = useState("")
   const [pending, setPending] = useState(false)
@@ -71,11 +74,14 @@ export default function Journal() {
   const [filter, setFilter] = useState("all")
   const [search, setSearch] = useState("")
   const loaded = entries !== undefined && metrics !== undefined
-  function openMetric(metric: JournalMetric) {
+  function openMetric(metric: JournalMetric, readingDate = date) {
     setDraft(
-      metric.entries.find((item) => item.date === date)?.value.toString() ?? ""
+      metric.entries
+        .find((item) => item.date === readingDate)
+        ?.value.toString() ?? ""
     )
-    setEditing({ metric, date })
+    setEditing({ metric, date: readingDate })
+    setHistoryMetric(null)
     setError("")
     setStudio(null)
   }
@@ -174,25 +180,91 @@ export default function Journal() {
       <ReactiveOrbField className="journal-hero-wash progress-hero-wash" />
       <div className="journal-content">
         <header className="journal-heading">
-          <p className="journal-kicker">THE DETAILS BEHIND YOUR PROGRESS</p>
           <div className="journal-section-heading">
             <h1 className="app-title">Journal</h1>
-            <label className="journal-calendar">
-              <CalendarBlank size={22} />
-              <input
-                type="date"
-                aria-label="Choose journal date"
-                max={today}
-                value={date}
-                onChange={(event) => {
-                  if (event.target.value && event.target.value <= today)
-                    setSelected(event.target.value)
-                }}
-              />
-            </label>
+            <PageBarActions>
+              <label className="journal-calendar">
+                <CalendarBlank size={18} weight="bold" />
+                <input
+                  type="date"
+                  aria-label="Choose journal date"
+                  max={today}
+                  value={date}
+                  onChange={(event) => {
+                    if (event.target.value && event.target.value <= today)
+                      setSelected(event.target.value)
+                  }}
+                />
+              </label>
+            </PageBarActions>
           </div>
-          <p className="journal-intro">{heading}</p>
         </header>
+        <section
+          className="journal-hero"
+          aria-label="Daily check-in"
+          aria-busy={!loaded}
+        >
+          <p className="journal-intro">{heading}</p>
+          <div className="journal-hero-reading" aria-live="polite">
+            <strong>{loaded ? recorded : "…"}</strong>
+            <span>
+              {loaded
+                ? `of ${metrics?.length ?? 0} trackers logged`
+                : "Loading your trackers"}
+            </span>
+          </div>
+          <p className="journal-hero-detail">
+            {!loaded
+              ? "Your daily check-in"
+              : !metrics?.length
+                ? "Add a tracker to start your daily check-in."
+                : recorded === metrics.length
+                  ? "Every tracker logged for this day."
+                  : `${metrics.length - recorded} ${metrics.length - recorded === 1 ? "tracker" : "trackers"} left to log.`}
+          </p>
+          <div className="journal-hero-actions">
+            <button
+              disabled={!loaded}
+              onClick={() => {
+                const next = metrics?.find(
+                  (metric) => !metric.entries.some((item) => item.date === date)
+                )
+                if (next) openMetric(next)
+                else if (!metrics?.length) setStudio(true)
+                else
+                  document
+                    .getElementById("journal-trackers-title")
+                    ?.scrollIntoView({
+                      behavior: window.matchMedia(
+                        "(prefers-reduced-motion: reduce)"
+                      ).matches
+                        ? "instant"
+                        : "smooth",
+                      block: "start",
+                    })
+              }}
+            >
+              <Plus size={20} />
+              {metrics?.length && recorded === metrics.length
+                ? "Review trackers"
+                : "Log a tracker"}
+            </button>
+            <button
+              disabled={!loaded}
+              onClick={() => {
+                setDraft(entry?.notes ?? "")
+                setNotesOpen(true)
+              }}
+            >
+              <NotePencil size={20} />
+              {entry?.notes ? "Edit note" : "Write a note"}
+            </button>
+            <button disabled={!loaded} onClick={() => setStudio(true)}>
+              <PencilSimple size={20} />
+              Track anything
+            </button>
+          </div>
+        </section>
         <div className="journal-date-navigation">
           <button
             aria-label="Previous week"
@@ -495,7 +567,13 @@ export default function Journal() {
                       ))}
                     </div>
                     <div className="journal-trend-caption">
-                      <span>Last 7 days</span>
+                      <button
+                        className="journal-history-link"
+                        onClick={() => setHistoryMetric(metric)}
+                        aria-label={`View history for ${metric.title}`}
+                      >
+                        History <ArrowUpRight size={14} />
+                      </button>
                       <span>
                         {
                           history.filter((item) => item.value !== undefined)
@@ -503,8 +581,8 @@ export default function Journal() {
                         }{" "}
                         {history.filter((item) => item.value !== undefined)
                           .length === 1
-                          ? "day logged"
-                          : "days logged"}
+                          ? "day logged in 7 days"
+                          : "days logged in 7 days"}
                       </span>
                     </div>
                   </article>
@@ -579,6 +657,14 @@ export default function Journal() {
             )}
         </div>
       </div>
+      {historyMetric && (
+        <TrackerHistory
+          metric={historyMetric}
+          date={date}
+          onClose={() => setHistoryMetric(null)}
+          onEdit={(readingDate) => openMetric(historyMetric, readingDate)}
+        />
+      )}
       {studio && (
         <TrackerStudio
           metrics={metrics ?? []}
@@ -645,6 +731,33 @@ export default function Journal() {
                 />
               </label>
             )}
+            {(() => {
+              const previous = editing.metric.entries
+                .filter((item) => item.date < editing.date)
+                .sort((a, b) => b.date.localeCompare(a.date))[0]
+              return previous ? (
+                <button
+                  type="button"
+                  className="journal-reuse"
+                  disabled={pending}
+                  onClick={() => setDraft(String(previous.value))}
+                >
+                  Use previous reading:{" "}
+                  {metricValue(
+                    previous.value,
+                    editing.metric.kind,
+                    editing.metric.unit
+                  )}
+                  <small>
+                    {calendarDate(previous.date).toLocaleDateString(undefined, {
+                      month: "short",
+                      day: "numeric",
+                    })}
+                    . Review before saving.
+                  </small>
+                </button>
+              ) : null
+            })()}
             {error && (
               <p role="alert" className="text-destructive">
                 {error}

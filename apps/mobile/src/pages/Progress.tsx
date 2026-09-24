@@ -1,3 +1,4 @@
+import { PageBarActions } from "@/components/page-bar-actions"
 import { RecoveryBanner } from "@/components/recovery/recovery-banner"
 import {
   useCallback,
@@ -540,36 +541,38 @@ export default function Progress() {
       <main className="app-page pb-28">
         <header className="app-header" ref={progressHeaderRef}>
           <h1 className="app-title">Progress</h1>
-          <div
-            className="flex items-center gap-1"
-            hidden={metric === "exercises"}
-          >
-            {/* Health's pencil, in Progress's own button shape: the affordance
-                should read the same across the two pages, and a lone
-                `app-translucent` circle here looked borrowed from another
-                screen. */}
-            <button
-              type="button"
-              onClick={() => {
-                hapticSelection()
-                setReadingsOpen(true)
-              }}
-              className="native-toolbar-button"
-              aria-label="Correct a check-in"
+          <PageBarActions>
+            <div
+              className="flex items-center gap-1"
+              hidden={metric === "exercises"}
             >
-              <PencilSimple size={19} weight="bold" />
-            </button>
-            <TourAnchor anchor="progress-check-in">
+              {/* Health's pencil, in Progress's own button shape: the affordance
+                  should read the same across the two pages, and a lone
+                  `app-translucent` circle here looked borrowed from another
+                  screen. */}
               <button
                 type="button"
-                onClick={openEntry}
+                onClick={() => {
+                  hapticSelection()
+                  setReadingsOpen(true)
+                }}
                 className="native-toolbar-button"
-                aria-label="Add body measurement"
+                aria-label="Correct a check-in"
               >
-                <Plus size={22} weight="bold" />
+                <PencilSimple size={19} weight="bold" />
               </button>
-            </TourAnchor>
-          </div>
+              <TourAnchor anchor="progress-check-in">
+                <button
+                  type="button"
+                  onClick={openEntry}
+                  className="native-toolbar-button"
+                  aria-label="Add body measurement"
+                >
+                  <Plus size={22} weight="bold" />
+                </button>
+              </TourAnchor>
+            </div>
+          </PageBarActions>
         </header>
         <RecoveryBanner surface="progress" />
 

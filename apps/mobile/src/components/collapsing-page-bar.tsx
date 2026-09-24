@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useLayoutEffect, useState } from "react"
 import { ArrowLeft } from "@phosphor-icons/react"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { ProfileAvatar } from "./profile-avatar"
@@ -9,7 +9,7 @@ export function CollapsingPageBar({ pathname }: { pathname: string }) {
   const navigate = useSmoothNavigate()
   const [title, setTitle] = useState("")
   const [collapsed, setCollapsed] = useState(false)
-  useEffect(() => {
+  useLayoutEffect(() => {
     let frame = 0
     const sync = () => {
       frame = 0
@@ -59,7 +59,10 @@ export function CollapsingPageBar({ pathname }: { pathname: string }) {
       <span className="page-bar-title" aria-hidden={!collapsed}>
         {title}
       </span>
-      <ProfileAvatar />
+      <div className="page-bar-tools">
+        <div className="page-bar-actions" />
+        <ProfileAvatar />
+      </div>
     </header>
   )
 }

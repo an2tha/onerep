@@ -15,7 +15,7 @@
  * systems already; stacking another backdrop-filter over them is both visually
  * muddy and expensive on a phone GPU. */
 @media (max-width: 767px) {
-  .app-route-frame-current:not([data-route-path="/"]):not(
+  .app-route-frame:not([data-route-path="/"]):not(
       [data-route-path="/camera"]
     ):not([data-route-path="/onboarding"]):not(
       [data-route-path^="/workout/active"]
@@ -53,7 +53,7 @@
       var(--background);
   }
 
-  .app-route-frame-current:not([data-route-path="/"]):not(
+  .app-route-frame:not([data-route-path="/"]):not(
       [data-route-path="/camera"]
     ):not([data-route-path="/onboarding"]):not(
       [data-route-path^="/workout/active"]
@@ -63,7 +63,7 @@
     background: transparent;
   }
 
-  .app-route-frame-current:not([data-route-path="/"]):not(
+  .app-route-frame:not([data-route-path="/"]):not(
       [data-route-path="/camera"]
     ):not([data-route-path="/onboarding"]):not(
       [data-route-path^="/workout/active"]
@@ -85,7 +85,7 @@
   }
 
   /* Nested panels are structure inside the parent lens, not another lens. */
-  .app-route-frame-current:not([data-route-path="/"]):not(
+  .app-route-frame:not([data-route-path="/"]):not(
       [data-route-path="/camera"]
     ):not([data-route-path="/onboarding"]):not(
       [data-route-path^="/workout/active"]
@@ -99,7 +99,7 @@
     backdrop-filter: none;
   }
 
-  .app-route-frame-current:not([data-route-path="/"]):not(
+  .app-route-frame:not([data-route-path="/"]):not(
       [data-route-path="/camera"]
     ):not([data-route-path="/onboarding"]):not(
       [data-route-path^="/workout/active"]
@@ -116,7 +116,7 @@
   @supports not (
     (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
   ) {
-    .app-route-frame-current:not([data-route-path="/"]):not(
+    .app-route-frame:not([data-route-path="/"]):not(
         [data-route-path="/camera"]
       ):not([data-route-path="/onboarding"]):not(
         [data-route-path^="/workout/active"]

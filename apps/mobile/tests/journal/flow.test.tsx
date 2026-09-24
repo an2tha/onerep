@@ -9,8 +9,10 @@ for (const key of [
   "HTMLElement",
   "HTMLInputElement",
   "HTMLSelectElement",
+  "HTMLTextAreaElement",
   "Event",
   "MouseEvent",
+  "MutationObserver",
 ] as const) {
   Object.defineProperty(globalThis, key, {
     value: key === "window" ? window : window[key],
@@ -164,4 +166,130 @@ test("removing a tracker requires a separate explicit confirmation", async () =>
     args: { metricId: "metric-1" },
   })
   expect(close).toHaveBeenCalledTimes(1)
+})
+
+const { TrackerHistory, summarizeReadings } =
+  await import("../../src/pages/journal/tracker-history")
+test("history summaries count zero, exclude missing days and respect the calendar window", () => {
+  const readings = {
+    ...metric,
+    entries: [
+      { date: "2026-09-24", value: 0 },
+      { date: "2026-09-22", value: 10 },
+      { date: "2026-09-01", value: 20 },
+      { date: "2026-09-25", value: 999 },
+    ],
+  } as never
+  expect(summarizeReadings(readings, "2026-09-24", 7)).toMatchObject({
+    count: 2,
+    value: 10,
+  })
+  expect(
+    summarizeReadings(
+      {
+        ...metric,
+        kind: "number",
+        entries: [
+          { date: "2026-09-24", value: 0 },
+          { date: "2026-09-22", value: 10 },
+        ],
+      } as never,
+      "2026-09-24",
+      7
+    )
+  ).toMatchObject({ count: 2, value: 5 })
+  expect(summarizeReadings(readings, "2026-09-24", 28)).toMatchObject({
+    count: 3,
+    value: 30,
+  })
+  expect(summarizeReadings(readings, "2026-08-01", 7)).toMatchObject({
+    count: 0,
+    value: undefined,
+  })
+})
+test("history switches periods and opens the exact missing day for backfilling", async () => {
+  const edit = mock(() => {})
+  await act(async () =>
+    root.render(
+      <TrackerHistory
+        metric={{ ...metric, entries: [] } as never}
+        date="2026-09-24"
+        onClose={close}
+        onEdit={edit}
+      />
+    )
+  )
+  expect(
+    container.querySelectorAll(".journal-history-rows button")
+  ).toHaveLength(7)
+  await click("Last 28 days")
+  expect(
+    container.querySelectorAll(".journal-history-rows button")
+  ).toHaveLength(28)
+  const oldest = container.querySelector<HTMLButtonElement>(
+    '[aria-label="Edit Mobility on 2026-08-28"]'
+  )!
+  await act(async () => oldest.click())
+  expect(edit).toHaveBeenCalledWith("2026-08-28")
+  expect(calls).toHaveLength(0)
+})
+
+const { PageBarActions } = await import("../../src/components/page-bar-actions")
+test("page actions stay in the top bar before and after scrolling, without duplicates", async () => {
+  const bar = document.createElement("header")
+  bar.className = "collapsing-page-bar"
+  bar.dataset.collapsed = "false"
+  bar.innerHTML = '<div class="page-bar-actions"></div>'
+  document.body.append(bar)
+  const clicked = mock(() => {})
+  try {
+    await act(async () =>
+      root.render(
+        <PageBarActions>
+          <button onClick={clicked}>Add reading</button>
+        </PageBarActions>
+      )
+    )
+    expect(container.querySelectorAll("button")).toHaveLength(0)
+    expect(bar.querySelectorAll("button")).toHaveLength(1)
+    await act(async () => {
+      bar.dataset.collapsed = "true"
+      await new Promise((resolve) => setTimeout(resolve, 10))
+    })
+    expect(container.querySelectorAll("button")).toHaveLength(0)
+    expect(bar.querySelectorAll("button")).toHaveLength(1)
+    await act(async () => bar.querySelector("button")!.click())
+    expect(clicked).toHaveBeenCalledTimes(1)
+    await act(async () => {
+      bar.dataset.collapsed = "false"
+      await new Promise((resolve) => setTimeout(resolve, 10))
+    })
+    expect(bar.querySelectorAll("button")).toHaveLength(1)
+    expect(container.querySelectorAll("button")).toHaveLength(0)
+  } finally {
+    await act(async () => root.render(null))
+    bar.remove()
+  }
+})
+
+const { captureRouteSnapshot, restoreSnapshotScroll } =
+  await import("../../src/lib/route-snapshot")
+test("outgoing snapshots preserve edited controls and nested scroll instead of remounting a page", () => {
+  const frame = document.createElement("div")
+  frame.dataset.pageBar = "true"
+  frame.innerHTML =
+    '<input value="original"><textarea>original</textarea><select><option>A</option><option>B</option></select><div class="scroller">Content</div>'
+  frame.querySelector("input")!.value = "edited reading"
+  frame.querySelector("textarea")!.value = "Unsubmitted note"
+  frame.querySelector("select")!.selectedIndex = 1
+  frame.querySelector<HTMLElement>(".scroller")!.scrollTop = 140
+  const snapshot = captureRouteSnapshot(frame)
+  const copy = document.createElement("div")
+  copy.innerHTML = snapshot.html
+  restoreSnapshotScroll(copy, snapshot.scroll)
+  expect(snapshot.pageBar).toBe("true")
+  expect(copy.querySelector("input")!.value).toBe("edited reading")
+  expect(copy.querySelector("textarea")!.value).toBe("Unsubmitted note")
+  expect(copy.querySelector("select")!.value).toBe("B")
+  expect(copy.querySelector<HTMLElement>(".scroller")!.scrollTop).toBe(140)
 })

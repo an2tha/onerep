@@ -2,7 +2,7 @@ import { CollapsingPageBar } from "./components/collapsing-page-bar"
 import Journal from "./pages/Journal"
 import Recovery from "./pages/Recovery"
 import { RecoveryReminderSync } from "./components/recovery/recovery-reminder-sync"
-import { RouteActivityContext } from "./lib/route-activity"
+import { captureRouteSnapshot, restoreSnapshotScroll } from "./lib/route-snapshot"
 import {
   StrictMode,
   useCallback,
@@ -246,7 +246,7 @@ const ROUTE_LOADING_MARKER_WAIT_MS = 500
 const AUTH_CALLBACK_TIMEOUT_MS = 12_000
 
 type RouteTransitionState = {
-  from: ReactNode
+  snapshot: ReturnType<typeof captureRouteSnapshot>
   fromKey: string
   fromPathname: string
   toKey: string
@@ -381,13 +381,17 @@ function NavSync() {
   const [routeTransition, setRouteTransition] =
     useState<RouteTransitionState | null>(null)
   const activeRouteFrameRef = useRef<HTMLDivElement | null>(null)
-  const previousOutletRef = useRef<ReactNode>(outlet)
   const previousLocationKeyRef = useRef(location.key)
   const previousPathnameRef = useRef(location.pathname)
   const touchStartX = useRef<number | null>(null)
   const touchStartY = useRef<number | null>(null)
   const holdTimer = useRef<number | null>(null)
   const { identity, setIdentity, identities } = useTheme()
+  // Capture before React removes the old outlet or resets the window scroll.
+  const outgoingSnapshot =
+    previousLocationKeyRef.current !== location.key && activeRouteFrameRef.current
+      ? captureRouteSnapshot(activeRouteFrameRef.current)
+      : null
   const edge = 28
   const threshold = 72
   const showBottomBar = shouldShowBottomBar(location.pathname)
@@ -506,7 +510,6 @@ function NavSync() {
 
   useLayoutEffect(() => {
     const previousKey = previousLocationKeyRef.current
-    const previousOutlet = previousOutletRef.current
 
     if (previousKey !== location.key) {
       const motion = getRouteMotion() ?? "forward"
@@ -516,9 +519,9 @@ function NavSync() {
         motion
       )
       setRouteTransition(
-        previousOutlet && !prefersReducedMotion()
+        outgoingSnapshot && !prefersReducedMotion()
           ? {
-              from: previousOutlet,
+              snapshot: outgoingSnapshot,
               fromKey: previousKey,
               fromPathname: previousPathnameRef.current,
               toKey: location.key,
@@ -531,8 +534,7 @@ function NavSync() {
       previousPathnameRef.current = location.pathname
     }
 
-    previousOutletRef.current = outlet
-  }, [location.key, outlet])
+  }, [location.key, location.pathname, outgoingSnapshot])
 
   useEffect(() => {
     if (!routeTransition || routeTransition.toKey !== location.key) return
@@ -628,11 +630,22 @@ function NavSync() {
             className="app-route-shell"
           >
             <div className="app-route-stack">
-              {routeTransition?.from && (
+              {routeTransition?.snapshot && (
                 <div
                   key={`from-${routeTransition.fromKey}`}
                   className="app-route-frame app-route-frame-previous"
                   data-route-path={routeTransition.fromPathname}
+                  data-page-bar={routeTransition.snapshot.pageBar}
+                  style={{
+                    top: -routeTransition.snapshot.scrollY,
+                    bottom: "auto",
+                  }}
+                  ref={(frame) =>
+                    restoreSnapshotScroll(frame, routeTransition.snapshot.scroll)
+                  }
+                  dangerouslySetInnerHTML={{
+                    __html: routeTransition.snapshot.html,
+                  }}
                   data-route-ready={routeTransition.ready ? "true" : undefined}
                   data-route-kind={routeTransition.kind}
                   data-route-direction={routeTransition.direction}
@@ -640,11 +653,7 @@ function NavSync() {
                   // aria-hidden alone leaves the outgoing screen focusable and
                   // tappable for the length of the transition.
                   inert
-                >
-                  <RouteActivityContext.Provider value={false}>
-                    {routeTransition.from}
-                  </RouteActivityContext.Provider>
-                </div>
+                />
               )}
               <div
                 key={location.key}

@@ -1,3 +1,4 @@
+import { PageBarActions } from "@/components/page-bar-actions"
 import { useRecovery } from "@/lib/use-recovery"
 import { RecoveryBanner } from "@/components/recovery/recovery-banner"
 import {
@@ -3200,60 +3201,62 @@ export default function Nutrition() {
           <div className={cn("min-w-0")}>
             <h1 className="app-title">Nutrition</h1>
           </div>
-          <div className="ml-auto flex items-center gap-1">
-            <DateSelectorButton
-              onInteract={hapticSelection}
-              value={dateKey}
-              todayKey={todayKey}
-              onChange={(next) => {
-                setDateKey(next)
-              }}
-              open={dateSelectorOpen}
-              onOpenChange={setDateSelectorOpen}
-              label="Nutrition date"
-            />
-            <button
-              type="button"
-              onClick={() => navigate("/nutrition/report")}
-              className="app-header-icon-action"
-              aria-label="Nutrition report"
-            >
-              <Printer weight="bold" />
-            </button>
-            {isToday && (
-              <>
-                <TourAnchor
-                  anchor="nutrition-add"
-                  className="inline-flex md:hidden"
-                >
+          <PageBarActions>
+            <div className="ml-auto flex items-center gap-1">
+              <DateSelectorButton
+                onInteract={hapticSelection}
+                value={dateKey}
+                todayKey={todayKey}
+                onChange={(next) => {
+                  setDateKey(next)
+                }}
+                open={dateSelectorOpen}
+                onOpenChange={setDateSelectorOpen}
+                label="Nutrition date"
+              />
+              <button
+                type="button"
+                onClick={() => navigate("/nutrition/report")}
+                className="app-header-icon-action"
+                aria-label="Nutrition report"
+              >
+                <Printer weight="bold" />
+              </button>
+              {isToday && (
+                <>
+                  <TourAnchor
+                    anchor="nutrition-add"
+                    className="inline-flex md:hidden"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        resetLogTime()
+                        setAddOpen(true)
+                      }}
+                      className="native-toolbar-button"
+                      aria-label="Add nutrition entry"
+                    >
+                      <Plus weight="bold" />
+                      <span>Add</span>
+                    </button>
+                  </TourAnchor>
                   <button
                     type="button"
                     onClick={() => {
                       resetLogTime()
                       setAddOpen(true)
                     }}
-                    className="native-toolbar-button"
+                    className="native-toolbar-button hidden hover:bg-card md:inline-flex"
                     aria-label="Add nutrition entry"
                   >
                     <Plus weight="bold" />
-                    <span>Add</span>
+                    <span className="ml-1">Add</span>
                   </button>
-                </TourAnchor>
-                <button
-                  type="button"
-                  onClick={() => {
-                    resetLogTime()
-                    setAddOpen(true)
-                  }}
-                  className="native-toolbar-button hidden hover:bg-card md:inline-flex"
-                  aria-label="Add nutrition entry"
-                >
-                  <Plus weight="bold" />
-                  <span className="ml-1">Add</span>
-                </button>
-              </>
-            )}
-          </div>
+                </>
+              )}
+            </div>
+          </PageBarActions>
         </header>
         {isToday && <RecoveryBanner surface="nutrition" />}
         {recoverySimple && activeFast && <button type="button" className="recovery-secondary" onClick={() => setFastingOpen(true)}>Review or end your active fast</button>}
