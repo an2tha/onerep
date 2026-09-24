@@ -49,13 +49,15 @@ async function main() {
   const app = apps[0];
   console.log(JSON.stringify({ appId: app.id, bundleId: app.attributes.bundleId, name: app.attributes.name, expectedProduct }, null, 2));
   const bundleIds = await list(`/v1/bundleIds?filter[identifier]=${bundleId}&limit=10`);
-  for (const bundle of bundleIds) {
+  for (const bundle of bundleIds.filter((b) => b.attributes.identifier === bundleId)) {
     const capabilities = await list(`/v1/bundleIds/${bundle.id}/bundleIdCapabilities`);
     console.log(JSON.stringify({ bundleIdResource: bundle.id, identifier: bundle.attributes.identifier, capabilities: capabilities.map((c) => c.attributes) }, null, 2));
   }
   const groups = await list(`/v1/apps/${app.id}/subscriptionGroups?limit=200`);
   let matched;
   for (const group of groups) {
+    const localizations = await list(`/v1/subscriptionGroups/${group.id}/subscriptionGroupLocalizations`);
+    console.log(JSON.stringify({ groupId: group.id, localizations: localizations.map((l) => l.attributes) }, null, 2));
     const subscriptions = await list(`/v1/subscriptionGroups/${group.id}/subscriptions?limit=200`);
     console.log(JSON.stringify({ groupId: group.id, name: group.attributes.referenceName, subscriptions: subscriptions.map(({ id, attributes }) => ({ id, ...attributes })) }, null, 2));
     matched ??= subscriptions.find((s) => s.attributes.productId === expectedProduct);
@@ -63,6 +65,8 @@ async function main() {
   if (!matched) throw new Error(`App Store Connect has no subscription matching ${expectedProduct} for ${bundleId}`);
 
   const details = await get(`/v1/subscriptions/${matched.id}`);
+  const germanPrices = await get(`/v1/subscriptions/${matched.id}/prices?filter[territory]=DEU&include=subscriptionPricePoint,territory`);
+  console.log(JSON.stringify({ germanPrices: germanPrices.data, included: germanPrices.included, paging: germanPrices.meta?.paging }, null, 2));
   for (const relation of ["subscriptionLocalizations", "prices", "subscriptionAvailability", "appStoreReviewScreenshot"]) {
     const path = details.data.relationships?.[relation]?.links?.related;
     if (!path) continue;
