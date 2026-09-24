@@ -2349,7 +2349,7 @@ export default function Coach({
         </div>
         <div
           className={cn(
-            "relative z-10 mx-auto flex h-full w-full max-w-5xl flex-col px-[var(--app-page-x)] md:px-8",
+            "coach-content relative z-10 mx-auto flex h-full w-full max-w-5xl flex-col px-[var(--app-page-x)] md:px-8",
             embedded ? "pt-0" : "pt-[var(--app-safe-top)] lg:pt-0"
           )}
         >

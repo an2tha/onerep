@@ -47,3 +47,17 @@ test("outgoing snapshot retains screen position and edited input when navigation
   expect(await page.evaluate(() => window.scrollY)).toBe(0)
   await expect(outgoing).toHaveAttribute("data-page-bar", "true")
 })
+
+test("Coach background reaches the top while toolbar spacing stays on content", async ({ page }) => {
+  await page.goto("/tests/visual/fixtures/coach-chrome.html")
+  await page.waitForFunction(() => document.documentElement.dataset.stylesReady === "true")
+  const geometry = await page.evaluate(() => {
+    const root = document.querySelector<HTMLElement>(".coach-mobile-immersive")!
+    const backdrop = document.querySelector<HTMLElement>(".coach-background-layer")!
+    const content = document.querySelector<HTMLElement>(".coach-content")!
+    return { rootTop: root.getBoundingClientRect().top, backdropTop: backdrop.getBoundingClientRect().top, rootPadding: getComputedStyle(root).paddingTop, contentPadding: getComputedStyle(content).paddingTop }
+  })
+  expect(geometry.backdropTop).toBe(geometry.rootTop)
+  expect(geometry.rootPadding).toBe("0px")
+  expect(geometry.contentPadding).toBe("60px")
+})

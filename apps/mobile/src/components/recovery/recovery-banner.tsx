@@ -24,7 +24,7 @@ export function RecoveryBanner({
   const today = currentDateKey()
   if (!recovery) return null
   const active = recovery.active
-  if (!active && surface === "dashboard" && dismissedOn === today) return null
+  if (!active && (surface === "dashboard" || surface === "coach") && dismissedOn === today) return null
   if (
     !active &&
     surface !== "dashboard" &&
@@ -93,7 +93,7 @@ export function RecoveryBanner({
           <X size={16} />
         </button>
       )}
-      {!active && surface === "dashboard" && (
+      {!active && (surface === "dashboard" || surface === "coach") && (
         <button
           className="recovery-dismiss"
           type="button"
