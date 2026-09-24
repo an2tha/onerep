@@ -19,7 +19,8 @@
     "dev:watch": "concurrently -n vite,sim -c blue,green \"vite --host\" \"wait-on tcp:5173 && ./scripts/run-watch.sh\"",
     "test:recovery-ui": "bun test ./tests/recovery",
     "test:billing-ui": "bun test ./tests/billing",
-    "test:journal-ui": "bun test ./tests/journal"
+    "test:journal-ui": "bun test ./tests/journal && bun test ./tests/journal-layout",
+    "test:journal-layout": "JOURNAL_LAYOUT_FIXTURE=1 bun test ./tests/journal-layout && JOURNAL_LAYOUT_FIXTURE=1 playwright test tests/visual/journal-layout.spec.ts"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.4",

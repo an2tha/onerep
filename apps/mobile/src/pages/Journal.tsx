@@ -172,404 +172,412 @@ export default function Journal() {
   return (
     <main className="journal-page app-hero desktop-canvas min-h-svh bg-background text-foreground lg:pl-72">
       <ReactiveOrbField className="journal-hero-wash progress-hero-wash" />
-      <header className="journal-heading">
-        <p className="journal-kicker">THE DETAILS BEHIND YOUR PROGRESS</p>
-        <div className="journal-section-heading">
-          <h1 className="app-title">Journal</h1>
-          <label className="journal-calendar">
-            <CalendarBlank size={22} />
-            <input
-              type="date"
-              aria-label="Choose journal date"
-              max={today}
-              value={date}
-              onChange={(event) => {
-                if (event.target.value && event.target.value <= today)
-                  setSelected(event.target.value)
-              }}
-            />
-          </label>
-        </div>
-        <p className="journal-intro">{heading}</p>
-      </header>
-      <div className="journal-date-navigation">
-        <button
-          aria-label="Previous week"
-          onClick={() => setSelected(shiftDay(date, -7))}
-        >
-          <CaretLeft size={18} />
-        </button>
-        <span>
-          {calendarDate(date).toLocaleDateString(undefined, {
-            month: "long",
-            year: "numeric",
-          })}
-        </span>
-        <button
-          aria-label="Next week"
-          disabled={shiftDay(start, 7) > today}
-          onClick={() =>
-            setSelected(shiftDay(date, 7) > today ? today : shiftDay(date, 7))
-          }
-        >
-          <CaretRight size={18} />
-        </button>
-        {date !== today && (
-          <button className="journal-today" onClick={() => setSelected(null)}>
-            Today
-          </button>
-        )}
-      </div>
-      <div className="journal-week" aria-label="Journal dates">
-        {days.map((day) => {
-          const hasEntry = entries?.some(
-            (item) =>
-              item.date === day &&
-              (item.mood !== undefined ||
-                Boolean(item.notes) ||
-                item.caffeine !== undefined ||
-                item.alcohol !== undefined ||
-                item.lowCarb != null ||
-                item.addedSugar != null)
-          )
-          const hasMetric = metrics?.some((metric) =>
-            metric.entries.some((item) => item.date === day)
-          )
-          return (
-            <button
-              key={day}
-              aria-pressed={date === day}
-              aria-current={day === today ? "date" : undefined}
-              aria-label={`${calendarDate(day).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}${hasEntry || hasMetric ? ", has entries" : ""}`}
-              disabled={day > today}
-              onClick={() => setSelected(day)}
-            >
-              <span className="journal-weekday">
-                {calendarDate(day).toLocaleDateString(undefined, {
-                  weekday: "short",
-                })}
-              </span>
-              <span>{calendarDate(day).getDate()}</span>
-              <span
-                className="journal-day-dot"
-                data-logged={Boolean(hasEntry || hasMetric)}
-              />
-            </button>
-          )
-        })}
-      </div>
-      <div className="journal-body">
-        <section aria-label="Quick log">
+      <div className="journal-content">
+        <header className="journal-heading">
+          <p className="journal-kicker">THE DETAILS BEHIND YOUR PROGRESS</p>
           <div className="journal-section-heading">
-            <h2>Quick log</h2>
-            <span className="journal-caption">Already part of your day</span>
-          </div>
-          <div className="journal-quick-grid">
-            {quickLogs.map(({ id, title, Icon, detail, tone }) => (
-              <button
-                key={id}
-                className="journal-quick app-surface"
-                onClick={() => setQuickAction(id)}
-              >
-                <span className="journal-glyph" data-tone={tone}>
-                  <Icon size={25} weight="duotone" />
-                </span>
-                <strong>{title}</strong>
-                <small>{detail}</small>
-                <Plus className="journal-quick-plus" size={15} />
-              </button>
-            ))}
-          </div>
-        </section>
-        <section aria-busy={!loaded} aria-labelledby="journal-trackers-title">
-          <div className="journal-section-heading">
-            <div>
-              <h2 id="journal-trackers-title">Your trackers</h2>
-              <p className="journal-caption">
-                {loaded
-                  ? `${recorded} of ${metrics?.length ?? 0} logged · ${date === today ? "today" : calendarDate(date).toLocaleDateString()}`
-                  : "Loading your trackers…"}
-              </p>
-            </div>
-            <button
-              className="journal-add"
-              onClick={() => setStudio(true)}
-              disabled={!loaded}
-            >
-              <Plus size={18} /> Track anything
-            </button>
-          </div>
-          <div
-            className="journal-filters"
-            role="group"
-            aria-label="Filter trackers"
-          >
-            {[
-              ["all", "All"],
-              ["unlogged", "To log"],
-              ["training", "Training"],
-              ["nutrition", "Nutrition"],
-              ["body", "Wellbeing"],
-            ].map(([id, label]) => (
-              <button
-                key={id}
-                aria-pressed={filter === id}
-                onClick={() => setFilter(id)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          {(metrics?.length ?? 0) > 5 && (
-            <label className="journal-search">
-              <MagnifyingGlass size={18} />
+            <h1 className="app-title">Journal</h1>
+            <label className="journal-calendar">
+              <CalendarBlank size={22} />
               <input
-                aria-label="Find your tracker"
-                placeholder="Find your tracker…"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
+                type="date"
+                aria-label="Choose journal date"
+                max={today}
+                value={date}
+                onChange={(event) => {
+                  if (event.target.value && event.target.value <= today)
+                    setSelected(event.target.value)
+                }}
               />
             </label>
-          )}
-          {!loaded && <p role="status">Loading journal…</p>}
-          {loaded && metrics?.length === 0 && (
-            <div className="journal-empty app-surface">
-              <span className="journal-glyph" data-tone="workout">
-                <Barbell size={28} weight="duotone" />
-              </span>
-              <h3>Track what moves you.</h3>
-              <p>
-                Energy before a lift. Minutes on the trail. A habit you want to
-                keep. Start with an idea or build your own.
-              </p>
-              <button className="journal-save" onClick={() => setStudio(true)}>
-                Choose your first trackers <ArrowUpRight size={18} />
-              </button>
-              <small>
-                Readings, daily totals and yes/no habits. Built around your
-                routine.
-              </small>
-            </div>
-          )}
-          {loaded &&
-            (metrics?.length ?? 0) > 0 &&
-            visibleMetrics.length === 0 && (
-              <p className="journal-empty-filter">
-                {filter === "unlogged" && !search
-                  ? "Everything tracked for this day. You're all caught up."
-                  : "No trackers match. Try another category or search."}
-              </p>
-            )}
-          <div className="journal-tracker-grid">
-            {visibleMetrics.map((metric) => {
-              const Icon = trackerIcon(metric.title)
-              const value = metric.entries.find(
-                (item) => item.date === date
-              )?.value
-              const history = Array.from({ length: 7 }, (_, i) => ({
-                date: shiftDay(date, i - 6),
-                value: metric.entries.find(
-                  (item) => item.date === shiftDay(date, i - 6)
-                )?.value,
-              }))
-              const max = Math.max(
-                1,
-                metric.target ?? 0,
-                ...history.map((item) => item.value ?? 0)
-              )
-              return (
-                <article
-                  key={metric._id}
-                  className="journal-tracker app-surface"
-                  data-tone={metric.accent}
-                >
-                  <button
-                    className="journal-tracker-main"
-                    onClick={() => openMetric(metric)}
-                  >
-                    <span className="journal-glyph" data-tone={metric.accent}>
-                      <Icon size={23} weight="duotone" />
-                    </span>
-                    <span>
-                      <strong>{metric.title}</strong>
-                      <small>
-                        {metric.tab === "body"
-                          ? "Wellbeing"
-                          : metric.tab === "training"
-                            ? "Training"
-                            : "Nutrition"}
-                      </small>
-                    </span>
-                    <PencilSimple size={17} />
-                  </button>
-                  <div className="journal-tracker-reading">
-                    <button
-                      onClick={() => openMetric(metric)}
-                      aria-label={`Log ${metric.title}`}
-                    >
-                      <span data-empty={value === undefined}>
-                        {metricValue(value, metric.kind, metric.unit)}
-                      </span>
-                    </button>
-                    {metric.kind === "counter" ? (
-                      <button
-                        className="journal-increment"
-                        aria-label={`Add ${metric.step} ${metric.unit} to ${metric.title}`}
-                        disabled={pending}
-                        onClick={() =>
-                          void act(() =>
-                            increment({ metricId: metric._id, date })
-                          )
-                        }
-                      >
-                        +{metric.step}
-                      </button>
-                    ) : metric.kind === "toggle" ? (
-                      <div
-                        className="journal-segment"
-                        role="group"
-                        aria-label={metric.title}
-                      >
-                        {[0, 1].map((next) => (
-                          <button
-                            key={next}
-                            aria-pressed={value === next}
-                            disabled={pending}
-                            onClick={() =>
-                              void act(() =>
-                                setValue({
-                                  metricId: metric._id,
-                                  date,
-                                  value: next,
-                                })
-                              )
-                            }
-                          >
-                            {next ? <Check size={18} /> : <X size={18} />}
-                            <span className="sr-only">
-                              {next ? "Yes" : "No"}
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    ) : (
-                      <button
-                        className="journal-increment"
-                        aria-label={`Log ${metric.title}`}
-                        onClick={() => openMetric(metric)}
-                      >
-                        <Plus size={19} />
-                      </button>
-                    )}
-                  </div>
-                  {metric.target != null && metric.kind !== "toggle" && (
-                    <p className="journal-target">
-                      Target{" "}
-                      {metricValue(metric.target, metric.kind, metric.unit)}
-                      {value !== undefined && value >= metric.target && (
-                        <span>
-                          <Check size={12} /> Reached
-                        </span>
-                      )}
-                    </p>
-                  )}
-                  <div
-                    className="journal-history"
-                    role="img"
-                    aria-label={`Last seven days: ${history.map((item) => `${item.date}: ${metricValue(item.value, metric.kind, metric.unit)}`).join(", ")}`}
-                  >
-                    {history.map((item) => (
-                      <span
-                        key={item.date}
-                        data-recorded={item.value !== undefined}
-                        style={
-                          {
-                            "--bar-height": `${item.value === undefined ? 8 : Math.max(12, (item.value / max) * 100)}%`,
-                          } as React.CSSProperties
-                        }
-                      />
-                    ))}
-                  </div>
-                  <div className="journal-trend-caption">
-                    <span>Last 7 days</span>
-                    <span>
-                      {
-                        history.filter((item) => item.value !== undefined)
-                          .length
-                      }{" "}
-                      days logged
-                    </span>
-                  </div>
-                </article>
-              )
-            })}
           </div>
-        </section>
-        <section
-          className="journal-reflection app-surface"
-          aria-label="Daily reflection"
-        >
-          <div className="journal-section-heading">
-            <div>
-              <p className="journal-kicker">MORE THAN NUMBERS</p>
-              <h2>How did it feel?</h2>
-            </div>
-            <Smiley size={26} weight="duotone" />
-          </div>
-          <div
-            className="journal-mood-scale"
-            role="group"
-            aria-label="Daily mood"
-          >
-            {moods.map((mood, i) => (
-              <button
-                key={mood}
-                aria-pressed={entry?.mood === i + 1}
-                disabled={!loaded || pending}
-                onClick={() =>
-                  void act(() => save({ date, values: { mood: i + 1 } }))
-                }
-              >
-                <span>{i + 1}</span>
-                {mood}
-              </button>
-            ))}
-          </div>
+          <p className="journal-intro">{heading}</p>
+        </header>
+        <div className="journal-date-navigation">
           <button
-            className="journal-note"
-            onClick={() => {
-              setDraft(entry?.notes ?? "")
-              setError("")
-              setNotesOpen(true)
-            }}
-            disabled={!loaded}
+            aria-label="Previous week"
+            onClick={() => setSelected(shiftDay(date, -7))}
           >
-            <NotePencil size={22} />
-            <span>
-              {entry?.notes || "A win, a tough session, something to remember…"}
-            </span>
-            <PencilSimple size={17} />
+            <CaretLeft size={18} />
           </button>
-        </section>
-        {entry &&
-          (entry.caffeine !== undefined ||
-            entry.alcohol !== undefined ||
-            entry.lowCarb != null ||
-            entry.addedSugar != null) && (
-            <details className="journal-legacy">
-              <summary>Earlier journal entries</summary>
-              <p>
-                {entry.caffeine !== undefined &&
-                  `Caffeine: ${entry.caffeine} mg. `}
-                {entry.alcohol !== undefined &&
-                  `Alcohol: ${entry.alcohol} drinks. `}
-                {entry.lowCarb != null &&
-                  `Low carb: ${entry.lowCarb ? "yes" : "no"}. `}
-                {entry.addedSugar != null &&
-                  `Added sugar: ${entry.addedSugar ? "yes" : "no"}.`}
-              </p>
-            </details>
+          <span>
+            {calendarDate(date).toLocaleDateString(undefined, {
+              month: "long",
+              year: "numeric",
+            })}
+          </span>
+          <button
+            aria-label="Next week"
+            disabled={shiftDay(start, 7) > today}
+            onClick={() =>
+              setSelected(shiftDay(date, 7) > today ? today : shiftDay(date, 7))
+            }
+          >
+            <CaretRight size={18} />
+          </button>
+          {date !== today && (
+            <button className="journal-today" onClick={() => setSelected(null)}>
+              Today
+            </button>
           )}
+        </div>
+        <div className="journal-week" aria-label="Journal dates">
+          {days.map((day) => {
+            const hasEntry = entries?.some(
+              (item) =>
+                item.date === day &&
+                (item.mood !== undefined ||
+                  Boolean(item.notes) ||
+                  item.caffeine !== undefined ||
+                  item.alcohol !== undefined ||
+                  item.lowCarb != null ||
+                  item.addedSugar != null)
+            )
+            const hasMetric = metrics?.some((metric) =>
+              metric.entries.some((item) => item.date === day)
+            )
+            return (
+              <button
+                key={day}
+                aria-pressed={date === day}
+                aria-current={day === today ? "date" : undefined}
+                aria-label={`${calendarDate(day).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}${hasEntry || hasMetric ? ", has entries" : ""}`}
+                disabled={day > today}
+                onClick={() => setSelected(day)}
+              >
+                <span className="journal-weekday">
+                  {calendarDate(day).toLocaleDateString(undefined, {
+                    weekday: "short",
+                  })}
+                </span>
+                <span>{calendarDate(day).getDate()}</span>
+                <span
+                  className="journal-day-dot"
+                  data-logged={Boolean(hasEntry || hasMetric)}
+                />
+              </button>
+            )
+          })}
+        </div>
+        <div className="journal-body">
+          <section aria-label="Quick log">
+            <div className="journal-section-heading">
+              <h2>Quick log</h2>
+              <span className="journal-caption">Already part of your day</span>
+            </div>
+            <div className="journal-quick-grid">
+              {quickLogs.map(({ id, title, Icon, detail, tone }) => (
+                <button
+                  key={id}
+                  className="journal-quick app-surface"
+                  onClick={() => setQuickAction(id)}
+                >
+                  <span className="journal-glyph" data-tone={tone}>
+                    <Icon size={25} weight="duotone" />
+                  </span>
+                  <strong>{title}</strong>
+                  <small>{detail}</small>
+                  <Plus className="journal-quick-plus" size={15} />
+                </button>
+              ))}
+            </div>
+          </section>
+          <section aria-busy={!loaded} aria-labelledby="journal-trackers-title">
+            <div className="journal-section-heading">
+              <div>
+                <h2 id="journal-trackers-title">Your trackers</h2>
+                <p className="journal-caption">
+                  {loaded
+                    ? `${recorded} of ${metrics?.length ?? 0} logged · ${date === today ? "today" : calendarDate(date).toLocaleDateString()}`
+                    : "Loading your trackers…"}
+                </p>
+              </div>
+              <button
+                className="journal-add"
+                onClick={() => setStudio(true)}
+                disabled={!loaded}
+              >
+                <Plus size={18} /> Track anything
+              </button>
+            </div>
+            <div
+              className="journal-filters"
+              role="group"
+              aria-label="Filter trackers"
+            >
+              {[
+                ["all", "All"],
+                ["unlogged", "To log"],
+                ["training", "Training"],
+                ["nutrition", "Nutrition"],
+                ["body", "Wellbeing"],
+              ].map(([id, label]) => (
+                <button
+                  key={id}
+                  aria-pressed={filter === id}
+                  onClick={() => setFilter(id)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            {(metrics?.length ?? 0) > 5 && (
+              <label className="journal-search">
+                <MagnifyingGlass size={18} />
+                <input
+                  aria-label="Find your tracker"
+                  placeholder="Find your tracker…"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                />
+              </label>
+            )}
+            {!loaded && <p role="status">Loading journal…</p>}
+            {loaded && metrics?.length === 0 && (
+              <div className="journal-empty app-surface">
+                <span className="journal-glyph" data-tone="workout">
+                  <Barbell size={28} weight="duotone" />
+                </span>
+                <h3>Track what moves you.</h3>
+                <p>
+                  Energy before a lift. Minutes on the trail. A habit you want
+                  to keep. Start with an idea or build your own.
+                </p>
+                <button
+                  className="journal-save"
+                  onClick={() => setStudio(true)}
+                >
+                  Choose your first trackers <ArrowUpRight size={18} />
+                </button>
+                <small>
+                  Readings, daily totals and yes/no habits. Built around your
+                  routine.
+                </small>
+              </div>
+            )}
+            {loaded &&
+              (metrics?.length ?? 0) > 0 &&
+              visibleMetrics.length === 0 && (
+                <p className="journal-empty-filter">
+                  {filter === "unlogged" && !search
+                    ? "Everything tracked for this day. You're all caught up."
+                    : "No trackers match. Try another category or search."}
+                </p>
+              )}
+            <div className="journal-tracker-grid">
+              {visibleMetrics.map((metric) => {
+                const Icon = trackerIcon(metric.title)
+                const value = metric.entries.find(
+                  (item) => item.date === date
+                )?.value
+                const history = Array.from({ length: 7 }, (_, i) => ({
+                  date: shiftDay(date, i - 6),
+                  value: metric.entries.find(
+                    (item) => item.date === shiftDay(date, i - 6)
+                  )?.value,
+                }))
+                const max = Math.max(
+                  1,
+                  metric.target ?? 0,
+                  ...history.map((item) => item.value ?? 0)
+                )
+                return (
+                  <article
+                    key={metric._id}
+                    className="journal-tracker app-surface"
+                    data-tone={metric.accent}
+                  >
+                    <button
+                      className="journal-tracker-main"
+                      onClick={() => openMetric(metric)}
+                    >
+                      <span className="journal-glyph" data-tone={metric.accent}>
+                        <Icon size={23} weight="duotone" />
+                      </span>
+                      <span>
+                        <strong>{metric.title}</strong>
+                        <small>
+                          {metric.tab === "body"
+                            ? "Wellbeing"
+                            : metric.tab === "training"
+                              ? "Training"
+                              : "Nutrition"}
+                        </small>
+                      </span>
+                      <PencilSimple size={17} />
+                    </button>
+                    <div className="journal-tracker-reading">
+                      <button
+                        onClick={() => openMetric(metric)}
+                        aria-label={`Log ${metric.title}`}
+                      >
+                        <span data-empty={value === undefined}>
+                          {metricValue(value, metric.kind, metric.unit)}
+                        </span>
+                      </button>
+                      {metric.kind === "counter" ? (
+                        <button
+                          className="journal-increment"
+                          aria-label={`Add ${metric.step} ${metric.unit} to ${metric.title}`}
+                          disabled={pending}
+                          onClick={() =>
+                            void act(() =>
+                              increment({ metricId: metric._id, date })
+                            )
+                          }
+                        >
+                          +{metric.step}
+                        </button>
+                      ) : metric.kind === "toggle" ? (
+                        <div
+                          className="journal-segment"
+                          role="group"
+                          aria-label={metric.title}
+                        >
+                          {[0, 1].map((next) => (
+                            <button
+                              key={next}
+                              aria-pressed={value === next}
+                              disabled={pending}
+                              onClick={() =>
+                                void act(() =>
+                                  setValue({
+                                    metricId: metric._id,
+                                    date,
+                                    value: next,
+                                  })
+                                )
+                              }
+                            >
+                              {next ? <Check size={18} /> : <X size={18} />}
+                              <span className="sr-only">
+                                {next ? "Yes" : "No"}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <button
+                          className="journal-increment"
+                          aria-label={`Log ${metric.title}`}
+                          onClick={() => openMetric(metric)}
+                        >
+                          <Plus size={19} />
+                        </button>
+                      )}
+                    </div>
+                    {metric.target != null && metric.kind !== "toggle" && (
+                      <p className="journal-target">
+                        Target{" "}
+                        {metricValue(metric.target, metric.kind, metric.unit)}
+                        {value !== undefined && value >= metric.target && (
+                          <span>
+                            <Check size={12} /> Reached
+                          </span>
+                        )}
+                      </p>
+                    )}
+                    <div
+                      className="journal-history"
+                      role="img"
+                      aria-label={`Last seven days: ${history.map((item) => `${item.date}: ${metricValue(item.value, metric.kind, metric.unit)}`).join(", ")}`}
+                    >
+                      {history.map((item) => (
+                        <span
+                          key={item.date}
+                          data-recorded={item.value !== undefined}
+                          style={
+                            {
+                              "--bar-height": `${item.value === undefined ? 8 : Math.max(12, (item.value / max) * 100)}%`,
+                            } as React.CSSProperties
+                          }
+                        />
+                      ))}
+                    </div>
+                    <div className="journal-trend-caption">
+                      <span>Last 7 days</span>
+                      <span>
+                        {
+                          history.filter((item) => item.value !== undefined)
+                            .length
+                        }{" "}
+                        {history.filter((item) => item.value !== undefined)
+                          .length === 1
+                          ? "day logged"
+                          : "days logged"}
+                      </span>
+                    </div>
+                  </article>
+                )
+              })}
+            </div>
+          </section>
+          <section
+            className="journal-reflection app-surface"
+            aria-label="Daily reflection"
+          >
+            <div className="journal-section-heading">
+              <div>
+                <h2>How did it feel?</h2>
+              </div>
+              <Smiley size={26} weight="duotone" />
+            </div>
+            <div
+              className="journal-mood-scale"
+              role="group"
+              aria-label="Daily mood"
+            >
+              {moods.map((mood, i) => (
+                <button
+                  key={mood}
+                  aria-pressed={entry?.mood === i + 1}
+                  disabled={!loaded || pending}
+                  onClick={() =>
+                    void act(() => save({ date, values: { mood: i + 1 } }))
+                  }
+                >
+                  <span>{i + 1}</span>
+                  {mood}
+                </button>
+              ))}
+            </div>
+            <button
+              className="journal-note"
+              onClick={() => {
+                setDraft(entry?.notes ?? "")
+                setError("")
+                setNotesOpen(true)
+              }}
+              disabled={!loaded}
+            >
+              <NotePencil size={22} />
+              <span>
+                {entry?.notes ||
+                  "A win, a tough session, something to remember…"}
+              </span>
+              <PencilSimple size={17} />
+            </button>
+          </section>
+          {entry &&
+            (entry.caffeine !== undefined ||
+              entry.alcohol !== undefined ||
+              entry.lowCarb != null ||
+              entry.addedSugar != null) && (
+              <details className="journal-legacy">
+                <summary>Earlier journal entries</summary>
+                <p>
+                  {entry.caffeine !== undefined &&
+                    `Caffeine: ${entry.caffeine} mg. `}
+                  {entry.alcohol !== undefined &&
+                    `Alcohol: ${entry.alcohol} drinks. `}
+                  {entry.lowCarb != null &&
+                    `Low carb: ${entry.lowCarb ? "yes" : "no"}. `}
+                  {entry.addedSugar != null &&
+                    `Added sugar: ${entry.addedSugar ? "yes" : "no"}.`}
+                </p>
+              </details>
+            )}
+        </div>
       </div>
       {studio && (
         <TrackerStudio
