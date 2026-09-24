@@ -226,6 +226,8 @@ describe("@repo/ui package boundary", () => {
       // Recovery controllers read Convex state and reconcile native reminders.
       "recovery/recovery-banner.tsx",
       "recovery/recovery-reminder-sync.tsx",
+      // Moves routed page actions into the app shell toolbar before paint.
+      "page-bar-actions.tsx",
     ])
     const unexpected = sourceFiles(mobileComponents)
       .map((path) => relative(mobileComponents, path))
