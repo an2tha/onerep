@@ -1,3 +1,4 @@
+import { Message, tr, translateError } from "@repo/ui/i18n"
 import { useEffect, useState } from "react"
 import { ArrowCounterClockwise, PintGlass, Plus } from "@phosphor-icons/react"
 import { useQuery } from "convex/react"
@@ -19,7 +20,10 @@ import { WATER_BG, WATER_COLOR } from "./constants"
 import { formatWater } from "@/lib/measurement-system"
 import { useWaterUnit } from "@/lib/use-water-unit"
 
-import { reconcilePendingWater, type PendingWaterEntry } from "@/lib/pending-water"
+import {
+  reconcilePendingWater,
+  type PendingWaterEntry,
+} from "@/lib/pending-water"
 
 type WaterEntry = { id: string; amountMl: number; loggedAt: string }
 
@@ -44,7 +48,8 @@ function useWaterDay(dateKey: string, rawEntries: WaterEntry[] | undefined) {
     entries,
     loaded: rawEntries !== undefined,
     pendingMl,
-    totalMl: entries.reduce((sum, entry) => sum + entry.amountMl, 0) + pendingMl,
+    totalMl:
+      entries.reduce((sum, entry) => sum + entry.amountMl, 0) + pendingMl,
     queuePending: (entry: WaterEntry) =>
       setPending((previous) => [...previous, { ...entry, date: dateKey }]),
     clearPending: (id: string) =>
@@ -93,7 +98,7 @@ export function WaterWidget({ dateKey }: { dateKey: string }) {
     announceOrbActivity("log")
     void addWaterEntry({ date: dateKey, entry }).catch(() => {
       clearPending(entry.id)
-      toast.error("Could not save your water entry")
+      toast.error(translateError(tr("Could not save your water entry")))
     })
   }
 
@@ -135,12 +140,15 @@ export function WaterWidget({ dateKey }: { dateKey: string }) {
         <button
           type="button"
           onClick={() => navigate("/nutrition")}
-          aria-label="Open water log"
+          aria-label={tr("Open water log")}
           className="min-w-0 flex-1 text-left"
         >
-          <p className="native-row-title">Water</p>
+          <p className="native-row-title">{tr("Water")}</p>
           <p className="native-row-detail mt-0.5 tabular-nums">
-            {fmtWater(totalMl)} of {fmtWater(goalMl)}
+            <Message
+              text={"{{value0}} of {{value1}}"}
+              values={{ value0: fmtWater(totalMl), value1: fmtWater(goalMl) }}
+            />
           </p>
         </button>
 
@@ -163,7 +171,7 @@ export function WaterWidget({ dateKey }: { dateKey: string }) {
           <button
             type="button"
             onClick={removeLastEntry}
-            aria-label="Remove last water entry"
+            aria-label={tr("Remove last water entry")}
             className="flex size-11 shrink-0 items-center justify-center rounded-full text-muted-foreground active:bg-muted active:text-foreground"
           >
             <ArrowCounterClockwise size={15} weight="bold" />
@@ -173,7 +181,9 @@ export function WaterWidget({ dateKey }: { dateKey: string }) {
           type="button"
           onClick={addGlass}
           disabled={!loaded}
-          aria-label={`Add ${fmtWater(mlPerGlass)} of water`}
+          aria-label={tr("Add {{value0}} of water", {
+            value0: fmtWater(mlPerGlass),
+          })}
           className={cn(
             "motion-tactile flex size-11 shrink-0 items-center justify-center rounded-full disabled:opacity-40",
             rain.active && "water-add-splash"
@@ -226,7 +236,7 @@ export function WaterSmall({
     announceOrbActivity("log")
     void addWaterEntry({ date: dateKey, entry }).catch(() => {
       clearPending(entry.id)
-      toast.error("Could not save your water entry")
+      toast.error(translateError(tr("Could not save your water entry")))
     })
   }
 
@@ -249,7 +259,7 @@ export function WaterSmall({
       <div className="flex h-full flex-col justify-between px-3.5 py-3">
         <div className="flex items-start justify-between">
           <p className="text-[10px] font-semibold text-muted-foreground/50">
-            Water
+            {tr("Water")}
           </p>
           <p className="text-[9px] text-muted-foreground/30 tabular-nums">
             {filledCount}/{WATER_GLASS_COUNT}
@@ -284,8 +294,10 @@ export function WaterSmall({
                   }
                   aria-label={
                     filled
-                      ? "Remove glass"
-                      : `Fill to ${fmtWater(waterGlassTargetMl(goalMl, i + 1))}`
+                      ? tr("Remove glass")
+                      : tr("Fill to {{value0}}", {
+                          value0: fmtWater(waterGlassTargetMl(goalMl, i + 1)),
+                        })
                   }
                 >
                   <PintGlass

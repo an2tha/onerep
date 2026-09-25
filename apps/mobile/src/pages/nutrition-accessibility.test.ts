@@ -1,5 +1,5 @@
+import { readLocalizedSource as readFileSync } from "../../tests/helpers/localized-source"
 import { describe, expect, test } from "bun:test"
-import { readFileSync } from "node:fs"
 
 const NUTRITION_SOURCE = readFileSync(
   new URL("./Nutrition.tsx", import.meta.url),
@@ -20,7 +20,9 @@ describe("Nutrition page accessibility contract", () => {
     expect(NUTRITION_SOURCE).toContain('name="nutrition-custom-water-ml"')
     // The accessible name announces the unit the field actually converts
     // from — fl oz under imperial, ml under metric — not a fixed one.
-    expect(NUTRITION_SOURCE).toContain('? "Custom water amount in fluid ounces"')
+    expect(NUTRITION_SOURCE).toContain(
+      '? "Custom water amount in fluid ounces"'
+    )
     expect(NUTRITION_SOURCE).toContain(': "Custom water amount in milliliters"')
   })
 
@@ -81,11 +83,11 @@ describe("Nutrition page accessibility contract", () => {
       "const planMetrics = nutritionPlan?.visibleMetrics"
     )
     // Recovery temporarily simplifies today; the usual display override still applies otherwise.
-    expect(NUTRITION_SOURCE).toContain(
-      "const visibleMetrics = recoverySimple"
-    )
+    expect(NUTRITION_SOURCE).toContain("const visibleMetrics = recoverySimple")
     expect(NUTRITION_SOURCE).toContain(": showCalorieNumbers")
-    expect(NUTRITION_SOURCE).toContain("const recoverySimple = isToday && !!recovery?.active?.simpleFood")
+    expect(NUTRITION_SOURCE).toContain(
+      "const recoverySimple = isToday && !!recovery?.active?.simpleFood"
+    )
     expect(NUTRITION_SOURCE).toContain("visibleMetrics.calories")
     expect(NUTRITION_SOURCE).toContain("visibleMetrics.micros")
     expect(NUTRITION_SOURCE).toContain("nutritionPlan?.trackingMode")

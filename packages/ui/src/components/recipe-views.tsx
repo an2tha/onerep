@@ -1,3 +1,4 @@
+import { Message, tr } from "@repo/ui/i18n"
 import { CaretDown, Plus } from "@phosphor-icons/react"
 import type { ReactNode } from "react"
 import { energyDisplay, useEnergyUnitLabel } from "../lib/energy-unit"
@@ -13,18 +14,23 @@ export type RecipeMicronutrientView = {
 export function RecipeEmptyState({ onAdd }: { onAdd: () => void }) {
   return (
     <div className="border-y border-border py-8 text-center">
-      <h2 className="text-[17px] font-semibold">Add your first ingredient</h2>
+      <h2 className="text-[17px] font-semibold">
+        {tr("Add your first ingredient")}
+      </h2>
       <p className="mx-auto mt-1 max-w-sm text-[14px] leading-5 text-muted-foreground">
-        Search for each food in the recipe, then adjust its amount or serving
-        unit.
+        {tr(
+          "Search for each food in the recipe, then adjust its amount or serving unit."
+        )}
       </p>
       <button
         type="button"
         onClick={onAdd}
         className="native-primary-button mx-auto mt-4"
       >
-        <Plus size={16} weight="bold" />
-        Add ingredient
+        <Message
+          text={"{{value0}}Add ingredient"}
+          values={{ value0: <Plus size={16} weight="bold" /> }}
+        />
       </button>
     </div>
   )
@@ -44,10 +50,21 @@ export function RecipeSummary({
     <section className="mx-[var(--app-page-x)] mb-5 border-y border-border py-4 md:mx-8">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="native-section-title">Recipe nutrition</h2>
+          <h2 className="native-section-title">{tr("Recipe nutrition")}</h2>
           <p className="native-row-detail mt-0.5">
-            {ingredientCount} ingredient{ingredientCount !== 1 ? "s" : ""}
-            {microCount > 0 ? ` · ${microCount} micronutrients available` : ""}
+            <Message
+              text={"{{value0}} ingredient{{value1}}{{value2}}"}
+              values={{
+                value0: ingredientCount,
+                value1: ingredientCount !== 1 ? "s" : "",
+                value2:
+                  microCount > 0
+                    ? tr(" · {{value0}} micronutrients available", {
+                        value0: microCount,
+                      })
+                    : "",
+              }}
+            />
           </p>
         </div>
         <p className="text-right text-[22px] font-semibold tabular-nums">
@@ -59,14 +76,14 @@ export function RecipeSummary({
       </div>
       <dl className="mt-4 grid grid-cols-3 divide-x divide-border border-y border-border py-3 text-center">
         {[
-          { key: "protein" as const, label: "Protein" },
-          { key: "carbs" as const, label: "Carbs" },
-          { key: "fat" as const, label: "Fat" },
+          { key: "protein" as const, label: tr("Protein") },
+          { key: "carbs" as const, label: tr("Carbs") },
+          { key: "fat" as const, label: tr("Fat") },
         ].map(({ key, label }) => (
           <div key={key}>
             <dt className="text-[13px] text-muted-foreground">{label}</dt>
             <dd className="mt-0.5 text-[15px] font-semibold tabular-nums">
-              {totals[key]} g
+              <Message text={"{{value0}} g"} values={{ value0: totals[key] }} />
             </dd>
           </div>
         ))}
@@ -97,9 +114,15 @@ export function RecipeMicrosPanel({
         aria-expanded={open}
       >
         <div>
-          <p className="text-[15px] font-semibold">Micronutrients</p>
+          <p className="text-[15px] font-semibold">{tr("Micronutrients")}</p>
           <p className="text-[13px] text-muted-foreground">
-            {micros.length} tracked nutrient{micros.length !== 1 ? "s" : ""}
+            <Message
+              text={"{{value0}} tracked nutrient{{value1}}"}
+              values={{
+                value0: micros.length,
+                value1: micros.length !== 1 ? "s" : "",
+              }}
+            />
           </p>
         </div>
         <CaretDown

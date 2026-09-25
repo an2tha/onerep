@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 import { useState } from "react"
 import { useAppAuth } from "@/lib/auth-client"
 import { useSmoothNavigate } from "@/lib/navigation"
@@ -16,7 +17,7 @@ export function ProfileAvatar() {
     <button
       type="button"
       className="profile-avatar"
-      aria-label="Open profile and settings"
+      aria-label={tr("Open profile and settings")}
       onClick={() => navigate("/settings", { motion: "forward" })}
     >
       {user?.image && !failed ? (

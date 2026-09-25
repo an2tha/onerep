@@ -1,3 +1,4 @@
+import { Message, tr } from "@repo/ui/i18n"
 import { useState } from "react"
 import { Plus, Trash, X } from "@phosphor-icons/react"
 import { PrimaryButton, toast } from "@repo/ui"
@@ -15,10 +16,10 @@ import {
 import type { Exercise, ExerciseCategory } from "@/lib/exercise-catalog"
 
 const CATEGORY_OPTIONS: Array<{ value: ExerciseCategory; label: string }> = [
-  { value: "strength", label: "Strength" },
-  { value: "cardio", label: "Cardio" },
-  { value: "mobility", label: "Mobility" },
-  { value: "core", label: "Core" },
+  { value: "strength", label: tr("Strength") },
+  { value: "cardio", label: tr("Cardio") },
+  { value: "mobility", label: tr("Mobility") },
+  { value: "core", label: tr("Core") },
 ]
 
 /** Opens the editor from a picker, seeded with whatever the user typed. */
@@ -42,7 +43,9 @@ export function CreateExerciseButton({
       )}
     >
       <Plus size={14} weight="bold" aria-hidden />
-      {trimmed ? `Create “${trimmed}”` : "Create your own exercise"}
+      {trimmed
+        ? tr("Create “{{value0}}”", { value0: trimmed })
+        : tr("Create your own exercise")}
     </button>
   )
 }
@@ -95,7 +98,7 @@ export function CustomExerciseSheet({
         onSaved(saved as Exercise)
       } else {
         // Queued offline — there is no id to add to the workout yet.
-        toast.success("Exercise saved. It'll sync when you're back online.")
+        toast.success(tr("Exercise saved. It'll sync when you're back online."))
         onClose()
       }
     } catch (error) {
@@ -128,13 +131,13 @@ export function CustomExerciseSheet({
       <div className="px-5 pt-4 pb-8">
         <div className="mb-4 flex items-start justify-between gap-4">
           <h2 className="text-[21px] font-semibold">
-            {editing ? "Edit exercise" : "New exercise"}
+            {editing ? tr("Edit exercise") : tr("New exercise")}
           </h2>
           <button
             type="button"
             onClick={onClose}
             className="native-toolbar-button -mt-1 -mr-2 px-0 text-muted-foreground"
-            aria-label="Close exercise editor"
+            aria-label={tr("Close exercise editor")}
           >
             <X size={17} weight="bold" />
           </button>
@@ -142,12 +145,12 @@ export function CustomExerciseSheet({
 
         <div className="space-y-3">
           <label className="native-field">
-            <span className="native-field-label">Name</span>
+            <span className="native-field-label">{tr("Name")}</span>
             <input
               className="native-input"
               value={draft.name}
               onChange={(event) => update({ name: event.target.value })}
-              placeholder="Reverse hyper"
+              placeholder={tr("Reverse hyper")}
               autoFocus={!editing}
             />
             {showErrors && nameError && (
@@ -158,7 +161,7 @@ export function CustomExerciseSheet({
           </label>
 
           <fieldset>
-            <legend className="native-field-label mb-2">Type</legend>
+            <legend className="native-field-label mb-2">{tr("Type")}</legend>
             <div className="flex gap-1.5">
               {CATEGORY_OPTIONS.map(({ value, label }) => {
                 const active = draft.category === value
@@ -183,18 +186,20 @@ export function CustomExerciseSheet({
           </fieldset>
 
           <label className="native-field">
-            <span className="native-field-label">Equipment (optional)</span>
+            <span className="native-field-label">
+              {tr("Equipment (optional)")}
+            </span>
             <input
               className="native-input"
               value={draft.equipment}
               onChange={(event) => update({ equipment: event.target.value })}
-              placeholder="Barbell"
+              placeholder={tr("Barbell")}
             />
           </label>
 
           <label className="native-field">
             <span className="native-field-label">
-              Primary muscles (optional)
+              {tr("Primary muscles (optional)")}
             </span>
             <input
               className="native-input"
@@ -202,16 +207,18 @@ export function CustomExerciseSheet({
               onChange={(event) =>
                 update({ primaryMuscles: event.target.value })
               }
-              placeholder="Glutes, hamstrings"
+              placeholder={tr("Glutes, hamstrings")}
             />
             <span className="text-[12px] text-muted-foreground">
-              Comma separated. Used for your muscle volume and recovery charts.
+              {tr(
+                "Comma separated. Used for your muscle volume and recovery charts."
+              )}
             </span>
           </label>
 
           <label className="native-field">
             <span className="native-field-label">
-              Secondary muscles (optional)
+              {tr("Secondary muscles (optional)")}
             </span>
             <input
               className="native-input"
@@ -219,17 +226,17 @@ export function CustomExerciseSheet({
               onChange={(event) =>
                 update({ secondaryMuscles: event.target.value })
               }
-              placeholder="Lower back"
+              placeholder={tr("Lower back")}
             />
           </label>
 
           <label className="native-field">
-            <span className="native-field-label">Notes (optional)</span>
+            <span className="native-field-label">{tr("Notes (optional)")}</span>
             <textarea
               className="native-input min-h-20 resize-y py-2"
               value={draft.instructions}
               onChange={(event) => update({ instructions: event.target.value })}
-              placeholder={"One cue per line"}
+              placeholder={tr("One cue per line")}
             />
           </label>
         </div>
@@ -240,7 +247,11 @@ export function CustomExerciseSheet({
           disabled={saving}
           aria-busy={saving}
         >
-          {saving ? "Saving…" : editing ? "Save changes" : "Save exercise"}
+          {saving
+            ? tr("Saving…")
+            : editing
+              ? tr("Save changes")
+              : tr("Save exercise")}
         </PrimaryButton>
 
         {editing && (
@@ -250,8 +261,10 @@ export function CustomExerciseSheet({
             disabled={saving}
             className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 text-[15px] font-semibold text-destructive"
           >
-            <Trash size={16} weight="bold" aria-hidden />
-            Delete exercise
+            <Message
+              text={"{{value0}}Delete exercise"}
+              values={{ value0: <Trash size={16} weight="bold" aria-hidden /> }}
+            />
           </button>
         )}
       </div>

@@ -4,7 +4,7 @@
   "license": "PolyForm-Noncommercial-1.0.0",
   "scripts": {
     "billing:ensure": "node scripts/ensure-billing-provider.mjs",
-    "build": "bun run billing:ensure && bun run prompts:check && turbo run build",
+    "build": "bun run billing:ensure && bun run i18n:check && bun run prompts:check && turbo run build",
     "dev": "bun run billing:ensure && turbo run dev",
     "build:ios": "bun run build --filter mobile -- --mode development && cd apps/mobile && bunx cap sync ios",
     "run:ios": "cd apps/mobile && bunx cap run ios",
@@ -31,7 +31,11 @@
     "models:publish:ios": "bun scripts/pose-models/publish.ts --coreml",
     "test:ota": "bun test --max-concurrency 1 ./scripts/ota ./apps/mobile/src/lib/__tests__/ota.test.ts ./apps/mobile/src/lib/__tests__/ota-manifest.test.ts ./apps/mobile/src/lib/__tests__/service-worker.test.ts ./apps/mobile/capacitor-config.test.ts ./apps/mobile/public-assets.test.ts",
     "test:watch": "bun test --watch --path-ignore-patterns \"convex/__tests__\"",
-    "test:coverage": "bun test --coverage --path-ignore-patterns \"convex/__tests__\""
+    "test:coverage": "bun test --coverage --path-ignore-patterns \"convex/__tests__\"",
+    "i18n:extract": "node scripts/i18n/catalog.mjs",
+    "i18n:check": "node scripts/i18n/catalog.mjs --check",
+    "i18n:native": "node scripts/i18n/native.mjs",
+    "test:i18n": "bun run i18n:check && bun test ./apps/mobile/tests/i18n"
   },
   "devDependencies": {
     "@edge-runtime/vm": "^5.0.0",

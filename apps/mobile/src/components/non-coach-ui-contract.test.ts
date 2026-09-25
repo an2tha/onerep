@@ -1,6 +1,7 @@
+import { readLocalizedSource as readFileSync } from "../../tests/helpers/localized-source"
 import { describe, test } from "node:test"
 import assert from "node:assert/strict"
-import { existsSync, readFileSync, readdirSync } from "node:fs"
+import { existsSync, readdirSync } from "node:fs"
 
 function source(path: string) {
   return readFileSync(new URL(path, import.meta.url), "utf8")

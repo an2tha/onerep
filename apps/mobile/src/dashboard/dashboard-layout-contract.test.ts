@@ -1,9 +1,15 @@
+import { readLocalizedSource as readFileSync } from "../../tests/helpers/localized-source"
 import { describe, expect, test } from "bun:test"
-import { readFileSync } from "node:fs"
 
 const app = readFileSync(new URL("../App.tsx", import.meta.url), "utf8")
-const timeline = readFileSync(new URL("./timeline.tsx", import.meta.url), "utf8")
-const weekStrip = readFileSync(new URL("./week-strip.tsx", import.meta.url), "utf8")
+const timeline = readFileSync(
+  new URL("./timeline.tsx", import.meta.url),
+  "utf8"
+)
+const weekStrip = readFileSync(
+  new URL("./week-strip.tsx", import.meta.url),
+  "utf8"
+)
 const styles = readFileSync(
   new URL("../styles/dashboard.css", import.meta.url),
   "utf8"
@@ -19,7 +25,7 @@ describe("responsive dashboard layout", () => {
   })
 
   test("uses one date control and no summary rail below desktop", () => {
-    expect(app).toContain('dashboard-day-rail mx-auto hidden')
+    expect(app).toContain("dashboard-day-rail mx-auto hidden")
     expect(app).toContain("<MobileDateSelector")
     expect(app).toContain("lg:hidden")
     expect(app).toContain("lg:flex")
@@ -29,12 +35,12 @@ describe("responsive dashboard layout", () => {
     expect(weekStrip).toContain("input.showPicker()")
     expect(weekStrip).toContain("input.click()")
     expect(app).not.toContain("shrink-0 px-6 pt-3 pb-4 lg:hidden")
-    expect(app).toContain('-mr-1 flex items-center gap-1 lg:hidden')
+    expect(app).toContain("-mr-1 flex items-center gap-1 lg:hidden")
   })
 
   test("lets the mobile timeline fill the space released by the date rail", () => {
     expect(app).toContain(
-      'dashboard-timeline-stage flex min-h-0 flex-1 justify-center'
+      "dashboard-timeline-stage flex min-h-0 flex-1 justify-center"
     )
     expect(
       styles.indexOf(".dashboard-timeline-stage .day-timeline::before")

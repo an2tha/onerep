@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.glance.LocalContext
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
@@ -59,6 +60,9 @@ private fun openApp(route: String) =
 // MARK: - Shared pieces
 
 @Composable
+private fun localized(id: Int, vararg values: Any): String = LocalContext.current.getString(id, *values)
+
+@Composable
 private fun WidgetSurface(
     route: String,
     // ColumnScope receiver, not a bare lambda: GlanceModifier.defaultWeight() is
@@ -92,7 +96,7 @@ private fun Unsynced() {
     WidgetSurface("onerep://today") {
         Spacer(GlanceModifier.defaultWeight())
         Text(
-            text = "Open OneRep to sync",
+            text = localized(R.string.widget_open_to_sync),
             style = TextStyle(
                 color = androidx.glance.unit.ColorProvider(INK),
                 fontSize = 15.sp,
@@ -101,7 +105,7 @@ private fun Unsynced() {
         )
         Spacer(GlanceModifier.height(3.dp))
         Text(
-            text = "Widget data updates from your account.",
+            text = localized(R.string.widget_updates_from_account),
             style = TextStyle(
                 color = androidx.glance.unit.ColorProvider(MUTED),
                 fontSize = 11.sp,
@@ -143,7 +147,7 @@ private fun waterSummary(snapshot: WidgetStore.Snapshot): String {
 @Composable
 private fun WaterCaption(snapshot: WidgetStore.Snapshot) {
     if (snapshot.waterGoalMl <= 0) return
-    Caption("Water ${waterSummary(snapshot)}")
+    Caption(localized(R.string.widget_water_summary, waterSummary(snapshot)))
 }
 
 @Composable
@@ -192,7 +196,7 @@ class QuickActionsWidget : GlanceAppWidget() {
                         verticalAlignment = Alignment.Vertical.CenterVertically,
                     ) {
                         Text(
-                            text = "Start workout",
+                            text = localized(R.string.widget_start_workout),
                             style = TextStyle(
                                 color = androidx.glance.unit.ColorProvider(INK),
                                 fontSize = 15.sp,
@@ -214,7 +218,7 @@ class QuickActionsWidget : GlanceAppWidget() {
                         verticalAlignment = Alignment.Vertical.CenterVertically,
                     ) {
                         Text(
-                            text = "Log a meal",
+                            text = localized(R.string.widget_log_meal),
                             style = TextStyle(
                                 color = androidx.glance.unit.ColorProvider(INK),
                                 fontSize = 15.sp,
@@ -253,7 +257,7 @@ class NutritionWidget : GlanceAppWidget() {
                                 fontWeight = FontWeight.Bold,
                             ),
                         )
-                        Caption("kcal left")
+                        Caption(localized(R.string.widget_kcal_left))
                         Spacer(GlanceModifier.height(7.dp))
                         CalorieProgress(s.calories, s.calorieGoal)
                         Spacer(GlanceModifier.height(7.dp))
@@ -327,7 +331,7 @@ class CombinedWidget : GlanceAppWidget() {
                 } else {
                     WidgetSurface("onerep://nutrition") {
                         Text(
-                            text = "${max(s.calorieGoal - s.calories, 0)} kcal left",
+                            text = localized(R.string.widget_calories_left, max(s.calorieGoal - s.calories, 0)),
                             style = TextStyle(
                                 color = androidx.glance.unit.ColorProvider(INK),
                                 fontSize = 18.sp,
@@ -335,7 +339,7 @@ class CombinedWidget : GlanceAppWidget() {
                             ),
                         )
                         Spacer(GlanceModifier.height(2.dp))
-                        Caption("${s.calories} of ${s.calorieGoal} eaten")
+                        Caption(localized(R.string.widget_calories_eaten, s.calories, s.calorieGoal))
                         Spacer(GlanceModifier.height(9.dp))
                         CalorieProgress(s.calories, s.calorieGoal)
                         Spacer(GlanceModifier.height(7.dp))
@@ -352,11 +356,11 @@ class CombinedWidget : GlanceAppWidget() {
                         )
                         Spacer(GlanceModifier.defaultWeight())
                         Row(modifier = GlanceModifier.fillMaxWidth()) {
-                            MacroCard("Protein", s.protein, s.proteinGoal)
+                            MacroCard(localized(R.string.widget_protein), s.protein, s.proteinGoal)
                             Spacer(GlanceModifier.width(7.dp))
-                            MacroCard("Carbs", s.carbs, s.carbsGoal)
+                            MacroCard(localized(R.string.widget_carbs), s.carbs, s.carbsGoal)
                             Spacer(GlanceModifier.width(7.dp))
-                            MacroCard("Fat", s.fat, s.fatGoal)
+                            MacroCard(localized(R.string.widget_fat), s.fat, s.fatGoal)
                         }
                     }
                 }

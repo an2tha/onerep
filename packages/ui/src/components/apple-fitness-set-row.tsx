@@ -1,3 +1,4 @@
+import { Message, tr } from "@repo/ui/i18n"
 import {
   ArrowCounterClockwise,
   CaretDown,
@@ -89,18 +90,21 @@ export function AppleFitnessSetRow({
             {!typeLabel ? (
               <div className="flex min-h-11 items-center">
                 <span className="text-[13px] font-bold tracking-[0.12em] text-muted-foreground uppercase">
-                  Set {index + 1}
+                  <Message
+                    text={"Set {{value0}}"}
+                    values={{ value0: index + 1 }}
+                  />
                 </span>
               </div>
             ) : typeOptions && typeValue && onTypeChange ? (
               <label className="relative inline-flex max-w-full items-center">
-                <span className="sr-only">Set type</span>
+                <span className="sr-only">{tr("Set type")}</span>
                 <select
                   value={typeValue}
                   onChange={(event) => onTypeChange(event.target.value)}
                   disabled={disabled}
                   className="h-11 max-w-full appearance-none bg-transparent pr-7 text-[15px] font-semibold text-foreground outline-none active:bg-muted/35 disabled:pointer-events-none disabled:opacity-45"
-                  aria-label={`Set ${index + 1} type`}
+                  aria-label={tr("Set {{value0}} type", { value0: index + 1 })}
                 >
                   {typeOptions.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -119,7 +123,9 @@ export function AppleFitnessSetRow({
                 type="button"
                 onClick={onCycleType}
                 disabled={disabled}
-                aria-label={`Set mode: ${typeLabel}. Tap to change.`}
+                aria-label={tr("Set mode: {{value0}}. Tap to change.", {
+                  value0: typeLabel,
+                })}
                 className="inline-flex h-11 max-w-full items-center bg-transparent pr-2 text-left text-[15px] font-semibold text-foreground transition-colors active:bg-muted/35 disabled:pointer-events-none disabled:opacity-45"
               >
                 <span className="truncate">{typeLabel}</span>
@@ -132,21 +138,24 @@ export function AppleFitnessSetRow({
             )}
             {isNext && !completed && (
               <span className="block text-[13px] font-medium text-muted-foreground">
-                Next set
+                {tr("Next set")}
               </span>
             )}
           </div>
           <div className="flex items-center gap-1.5">
             {!onToggleComplete && (
               <span className="text-[13px] font-medium text-muted-foreground">
-                Set {index + 1}
+                <Message
+                  text={"Set {{value0}}"}
+                  values={{ value0: index + 1 }}
+                />
               </span>
             )}
             {canDelete && !completed && (
               <button
                 type="button"
                 onClick={onDelete}
-                aria-label={`Delete set ${index + 1}`}
+                aria-label={tr("Delete set {{value0}}", { value0: index + 1 })}
                 className="flex h-11 w-11 shrink-0 items-center justify-center text-destructive transition-colors active:bg-destructive/10"
               >
                 <X size={12} weight="bold" />
@@ -157,7 +166,9 @@ export function AppleFitnessSetRow({
                 type="button"
                 onClick={onToggleComplete}
                 aria-label={
-                  completed ? "Mark set incomplete" : "Mark set complete"
+                  completed
+                    ? tr("Mark set incomplete")
+                    : tr("Mark set complete")
                 }
                 className={cn(
                   "flex h-11 w-11 items-center justify-center rounded-full transition-colors",
@@ -183,11 +194,11 @@ export function AppleFitnessSetRow({
               type="button"
               onClick={onWeightClick}
               disabled={disabled}
-              aria-label={`Select weight in ${unit}`}
+              aria-label={tr("Select weight in {{value0}}", { value0: unit })}
               className="flex min-h-12 min-w-0 flex-1 items-center justify-between gap-3 px-3 text-left transition-colors active:bg-muted/25 disabled:pointer-events-none"
             >
               <span className="text-[15px] font-medium text-foreground">
-                Weight
+                {tr("Weight")}
               </span>
               <span className="text-[15px] font-semibold text-muted-foreground tabular-nums">
                 {weightLabel} {unit}
@@ -207,13 +218,16 @@ export function AppleFitnessSetRow({
         ) : (
           <div className="flex min-h-12 items-center justify-between gap-3 border-t border-border px-3">
             <span className="text-[15px] font-medium text-foreground">
-              Weight
+              {tr("Weight")}
             </span>
             <div className="flex items-center gap-1.5">
               <input
                 type="number"
                 name={`set-${index + 1}-weight`}
-                aria-label={`Set ${index + 1} weight in ${unit}`}
+                aria-label={tr("Set {{value0}} weight in {{value1}}", {
+                  value0: index + 1,
+                  value1: unit,
+                })}
                 inputMode="decimal"
                 value={weightValue}
                 onChange={(event) => onWeightChange?.(event.target.value)}
@@ -228,11 +242,13 @@ export function AppleFitnessSetRow({
         )}
 
         <div className="flex min-h-12 items-center justify-between gap-3 border-t border-border px-3">
-          <span className="text-[15px] font-medium text-foreground">Reps</span>
+          <span className="text-[15px] font-medium text-foreground">
+            {tr("Reps")}
+          </span>
           <input
             type="number"
             name={`set-${index + 1}-reps`}
-            aria-label={`Set ${index + 1} reps`}
+            aria-label={tr("Set {{value0}} reps", { value0: index + 1 })}
             inputMode="numeric"
             value={repsValue}
             onChange={(event) => onRepsChange(event.target.value)}
@@ -245,10 +261,12 @@ export function AppleFitnessSetRow({
         <button
           type="button"
           onClick={onRestClick}
-          aria-label={`Set ${index + 1} rest time`}
+          aria-label={tr("Set {{value0}} rest time", { value0: index + 1 })}
           className="flex min-h-12 w-full items-center justify-between gap-3 border-t border-border px-3 text-left transition-colors active:bg-muted/25"
         >
-          <span className="text-[15px] font-medium text-foreground">Rest</span>
+          <span className="text-[15px] font-medium text-foreground">
+            {tr("Rest")}
+          </span>
           <span className="flex items-center gap-1.5 text-[15px] font-semibold text-muted-foreground tabular-nums">
             <Timer size={12} className="text-muted-foreground" />
             {restLabel}

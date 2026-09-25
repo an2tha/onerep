@@ -1,3 +1,4 @@
+import { tr, translateError } from "@repo/ui/i18n"
 import { useEffect, useRef, useState } from "react"
 import { useAction, useMutation, useQuery } from "convex/react"
 import { Copy, Plus } from "@phosphor-icons/react"
@@ -62,23 +63,26 @@ const ARM_WINDOW_MS = 4000
 
 function usedLabel(row: { scopes: Scope[]; lastUsedAt: number | null }) {
   const scope = row.scopes.includes("delete")
-    ? "full access"
+    ? tr("full access")
     : row.scopes.includes("write")
-      ? "read & write"
-      : "read only"
-  if (!row.lastUsedAt) return `${scope} · never used`
+      ? tr("read & write")
+      : tr("read only")
+  if (!row.lastUsedAt) return tr("{{value0}} · never used", { value0: scope })
   const days = Math.floor((Date.now() - row.lastUsedAt) / 86_400_000)
-  if (days === 0) return `${scope} · used today`
-  if (days === 1) return `${scope} · used yesterday`
-  return `${scope} · used ${days} days ago`
+  if (days === 0) return tr("{{value0}} · used today", { value0: scope })
+  if (days === 1) return tr("{{value0}} · used yesterday", { value0: scope })
+  return tr("{{value0}} · used {{value1}} days ago", {
+    value0: scope,
+    value1: days,
+  })
 }
 
-async function copy(value: string, what = "Copied") {
+async function copy(value: string, what = tr("Copied")) {
   try {
     await navigator.clipboard.writeText(value)
     toast.success(what)
   } catch {
-    toast.error("Couldn't copy. Select it by hand.")
+    toast.error(translateError(tr("Couldn't copy. Select it by hand.")))
   }
 }
 
@@ -119,7 +123,7 @@ function ShownOnce({
 }) {
   return (
     <div className="motion-content-in">
-      <h2 className="text-[20px] font-bold">Copy this now</h2>
+      <h2 className="text-[20px] font-bold">{tr("Copy this now")}</h2>
       <p className="native-row-detail mt-1">{note}</p>
 
       {values.map((entry) => (
@@ -127,7 +131,12 @@ function ShownOnce({
           <p className="native-field-label">{entry.label}</p>
           <button
             type="button"
-            onClick={() => void copy(entry.value, `${entry.label} copied`)}
+            onClick={() =>
+              void copy(
+                entry.value,
+                tr("{{value0}} copied", { value0: entry.label })
+              )
+            }
             className="mt-1.5 flex w-full items-center justify-between gap-3 rounded-[0.65rem] bg-muted/60 px-3 py-3 text-left"
           >
             <code className="min-w-0 font-mono text-[12px] break-all">
@@ -139,7 +148,7 @@ function ShownOnce({
       ))}
 
       <PrimaryButton className="mt-6 w-full" onClick={onDone}>
-        I've copied it
+        {tr("I've copied it")}
       </PrimaryButton>
     </div>
   )
@@ -157,17 +166,21 @@ const SCOPE_LADDER: Record<Scope, Scope[]> = {
 }
 
 const SCOPE_LABELS: Record<Scope, string> = {
-  read: "Read only",
-  write: "Read & write",
-  delete: "Full access",
+  read: tr("Read only"),
+  write: tr("Read & write"),
+  delete: tr("Full access"),
 }
 
 const SCOPE_NOTES: Record<Scope, string> = {
-  read: "Sees your log and your health data, and can never change either. Start here.",
-  write:
-    "Also adds food, water, weight, workouts and activity sessions. It cannot remove anything.",
-  delete:
-    "Also removes entries, sessions, measurements and days of health readings. Every change lands in the coach's history, so you can undo it in the app — but a key that can delete is one somebody else can delete with.",
+  read: tr(
+    "Sees your log and your health data, and can never change either. Start here."
+  ),
+  write: tr(
+    "Also adds food, water, weight, workouts and activity sessions. It cannot remove anything."
+  ),
+  delete: tr(
+    "Also removes entries, sessions, measurements and days of health readings. Every change lands in the coach's history, so you can undo it in the app — but a key that can delete is one somebody else can delete with."
+  ),
 }
 
 function NewKeySheet({ onClose }: { onClose: () => void }) {
@@ -191,7 +204,11 @@ function NewKeySheet({ onClose }: { onClose: () => void }) {
     } catch (error) {
       logDevWarn("Failed to create an API key", error)
       toast.error(
-        error instanceof Error ? error.message : "Couldn't create that key"
+        translateError(
+          error instanceof Error
+            ? error.message
+            : tr("Couldn't create that key")
+        )
       )
     } finally {
       setCreating(false)
@@ -201,14 +218,14 @@ function NewKeySheet({ onClose }: { onClose: () => void }) {
   return (
     <MobileSheet
       onClose={onClose}
-      ariaLabel="New key"
+      ariaLabel={tr("New key")}
       overlayClassName="bg-black/45"
       panelClassName="sheet-panel mx-auto w-full max-w-md rounded-t-2xl border-t border-border bg-card"
     >
       <div className="px-5 pt-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
         {issued ? (
           <ShownOnce
-            values={[{ label: "Your key", value: issued }]}
+            values={[{ label: tr("Your key"), value: issued }]}
             note="This is the only time it will be shown. Lose it and you mint another; nobody can read it back out, including us."
             onDone={onClose}
           />
@@ -219,14 +236,15 @@ function NewKeySheet({ onClose }: { onClose: () => void }) {
               void create()
             }}
           >
-            <h2 className="text-[20px] font-bold">New key</h2>
+            <h2 className="text-[20px] font-bold">{tr("New key")}</h2>
             <p className="native-row-detail mt-1">
-              For a config file you control. Assistants that can ask for access
-              themselves don't need one of these.
+              {tr(
+                "For a config file you control. Assistants that can ask for access themselves don't need one of these."
+              )}
             </p>
 
             <label className="native-field mt-5">
-              <span className="native-field-label">Name</span>
+              <span className="native-field-label">{tr("Name")}</span>
               <input
                 value={name}
                 onChange={(event) => setName(event.target.value)}
@@ -235,21 +253,21 @@ function NewKeySheet({ onClose }: { onClose: () => void }) {
                 autoComplete="off"
                 spellCheck={false}
                 className="native-input"
-                placeholder="Laptop Claude"
+                placeholder={tr("Laptop Claude")}
               />
             </label>
 
             <div className="native-field mt-4">
-              <span className="native-field-label">Access</span>
+              <span className="native-field-label">{tr("Access")}</span>
               <SegmentedControl<Scope>
-                label="Access"
+                label={tr("Access")}
                 value={scope}
                 onChange={setScope}
                 onInteract={hapticSelection}
                 options={[
-                  { value: "read", label: "Read" },
-                  { value: "write", label: "Write" },
-                  { value: "delete", label: "Full" },
+                  { value: "read", label: tr("Read") },
+                  { value: "write", label: tr("Write") },
+                  { value: "delete", label: tr("Full") },
                 ]}
               />
             </div>
@@ -262,7 +280,7 @@ function NewKeySheet({ onClose }: { onClose: () => void }) {
               aria-busy={creating}
               className="mt-6 w-full disabled:opacity-60"
             >
-              {creating ? "Creating…" : "Create key"}
+              {creating ? tr("Creating…") : tr("Create key")}
             </PrimaryButton>
           </form>
         )}
@@ -295,7 +313,11 @@ function NewClientSheet({ onClose }: { onClose: () => void }) {
     } catch (error) {
       logDevWarn("Failed to register an OAuth client", error)
       toast.error(
-        error instanceof Error ? error.message : "Couldn't register that client"
+        translateError(
+          error instanceof Error
+            ? error.message
+            : tr("Couldn't register that client")
+        )
       )
     } finally {
       setRegistering(false)
@@ -305,7 +327,7 @@ function NewClientSheet({ onClose }: { onClose: () => void }) {
   return (
     <MobileSheet
       onClose={onClose}
-      ariaLabel="Register an OAuth client"
+      ariaLabel={tr("Register an OAuth client")}
       overlayClassName="bg-black/45"
       panelClassName="sheet-panel mx-auto w-full max-w-md rounded-t-2xl border-t border-border bg-card"
     >
@@ -313,8 +335,8 @@ function NewClientSheet({ onClose }: { onClose: () => void }) {
         {registered ? (
           <ShownOnce
             values={[
-              { label: "Client ID", value: registered.clientId },
-              { label: "Client secret", value: registered.clientSecret },
+              { label: tr("Client ID"), value: registered.clientId },
+              { label: tr("Client secret"), value: registered.clientSecret },
             ]}
             note="The ID stays visible in the list. The secret is the only time it will be shown."
             onDone={onClose}
@@ -326,15 +348,17 @@ function NewClientSheet({ onClose }: { onClose: () => void }) {
               void register()
             }}
           >
-            <h2 className="text-[20px] font-bold">Register an OAuth client</h2>
+            <h2 className="text-[20px] font-bold">
+              {tr("Register an OAuth client")}
+            </h2>
             <p className="native-row-detail mt-1">
-              Only for a client that asks you for a Client ID and secret instead
-              of registering itself. If yours connected without asking, close
-              this and keep your evening.
+              {tr(
+                "Only for a client that asks you for a Client ID and secret instead of registering itself. If yours connected without asking, close this and keep your evening."
+              )}
             </p>
 
             <label className="native-field mt-5">
-              <span className="native-field-label">Name</span>
+              <span className="native-field-label">{tr("Name")}</span>
               <input
                 value={clientName}
                 onChange={(event) => setClientName(event.target.value)}
@@ -343,12 +367,12 @@ function NewClientSheet({ onClose }: { onClose: () => void }) {
                 autoComplete="off"
                 spellCheck={false}
                 className="native-input"
-                placeholder="Claude Desktop"
+                placeholder={tr("Claude Desktop")}
               />
             </label>
 
             <label className="native-field mt-4">
-              <span className="native-field-label">Redirect URI</span>
+              <span className="native-field-label">{tr("Redirect URI")}</span>
               <input
                 value={redirectUri}
                 onChange={(event) => setRedirectUri(event.target.value)}
@@ -362,9 +386,9 @@ function NewClientSheet({ onClose }: { onClose: () => void }) {
             </label>
 
             <p className="native-row-detail mt-2">
-              Copy it out of the client exactly — it must match to the
-              character. That exactness is what keeps somebody else's app from
-              catching your approval.
+              {tr(
+                "Copy it out of the client exactly — it must match to the character. That exactness is what keeps somebody else's app from catching your approval."
+              )}
             </p>
 
             <PrimaryButton
@@ -373,7 +397,7 @@ function NewClientSheet({ onClose }: { onClose: () => void }) {
               aria-busy={registering}
               className="mt-6 w-full disabled:opacity-60"
             >
-              {registering ? "Registering…" : "Register client"}
+              {registering ? tr("Registering…") : tr("Register client")}
             </PrimaryButton>
           </form>
         )}
@@ -409,16 +433,16 @@ export function ApiKeysSection({
       toast.success(done)
     } catch (error) {
       logDevWarn("Revocation failed", error)
-      toast.error("That didn't go through. Try again.")
+      toast.error(translateError(tr("That didn't go through. Try again.")))
     }
   }
 
   return (
     <>
-      <GroupedList label="Addresses">
+      <GroupedList label={tr("Addresses")}>
         {mcpEndpoint && (
           <ListRow
-            title="MCP endpoint"
+            title={tr("MCP endpoint")}
             detail={
               <code className="font-mono text-[12px]">{mcpEndpoint}</code>
             }
@@ -428,7 +452,7 @@ export function ApiKeysSection({
         )}
         {apiBaseUrl && (
           <ListRow
-            title="API base URL"
+            title={tr("API base URL")}
             detail={<code className="font-mono text-[12px]">{apiBaseUrl}</code>}
             trailing={<Copy size={16} className="text-muted-foreground" />}
             onClick={() => void copy(apiBaseUrl, "API base URL copied")}
@@ -436,27 +460,29 @@ export function ApiKeysSection({
         )}
       </GroupedList>
       <p className="native-row-detail px-[var(--app-page-x)] pt-2">
-        Point an MCP client at the endpoint and it will ask for access itself —
-        you approve a screen, it gets a token, done. The REST API takes a key
-        from the list below in an Authorization header.
+        {tr(
+          "Point an MCP client at the endpoint and it will ask for access itself — you approve a screen, it gets a token, done. The REST API takes a key from the list below in an Authorization header."
+        )}
       </p>
 
       <div className="mt-6">
-        <GroupedList label="Connected apps">
+        <GroupedList label={tr("Connected apps")}>
           {(connections ?? []).map((row) => {
             const armed = armedKey === `connection:${row.id}`
             return (
               <ListRow
                 key={row.id}
-                title={armed ? "Tap again to disconnect" : row.name}
-                detail={armed ? "It can ask you again later" : usedLabel(row)}
+                title={armed ? tr("Tap again to disconnect") : row.name}
+                detail={
+                  armed ? tr("It can ask you again later") : usedLabel(row)
+                }
                 onClick={() =>
                   arm(
                     `connection:${row.id}`,
                     () =>
                       void run(
                         () => revokeConnection({ id: row.id }),
-                        `${row.name} disconnected`
+                        tr("{{value0}} disconnected", { value0: row.name })
                       )
                   )
                 }
@@ -466,8 +492,10 @@ export function ApiKeysSection({
           })}
           {connections !== undefined && connections.length === 0 && (
             <ListRow
-              title="Nothing connected"
-              detail="Apps that ask for access appear here, with a way out"
+              title={tr("Nothing connected")}
+              detail={tr(
+                "Apps that ask for access appear here, with a way out"
+              )}
               disabled
             />
           )}
@@ -475,18 +503,23 @@ export function ApiKeysSection({
       </div>
 
       <div className="mt-6">
-        <GroupedList label="Personal keys">
+        <GroupedList label={tr("Personal keys")}>
           {(keys ?? []).map((row) => {
             const armed = armedKey === `key:${row.id}`
             return (
               <ListRow
                 key={row.id}
                 title={
-                  armed ? "Tap again to revoke" : `${row.name} · ${row.prefix}…`
+                  armed
+                    ? tr("Tap again to revoke")
+                    : tr("{{value0}} · {{value1}}…", {
+                        value0: row.name,
+                        value1: row.prefix,
+                      })
                 }
                 detail={
                   armed
-                    ? "Whatever holds it stops working immediately"
+                    ? tr("Whatever holds it stops working immediately")
                     : usedLabel(row)
                 }
                 onClick={() =>
@@ -501,8 +534,8 @@ export function ApiKeysSection({
             )
           })}
           <ListRow
-            title="New key"
-            detail="Shown once, revocable forever"
+            title={tr("New key")}
+            detail={tr("Shown once, revocable forever")}
             leading={<Plus size={18} className="text-muted-foreground" />}
             onClick={() => {
               hapticSelection()
@@ -513,16 +546,16 @@ export function ApiKeysSection({
       </div>
 
       <div className="mt-6">
-        <GroupedList label="OAuth clients">
+        <GroupedList label={tr("OAuth clients")}>
           {(clients ?? []).map((row) => {
             const armed = armedKey === `client:${row.id}`
             return (
               <ListRow
                 key={row.id}
-                title={armed ? "Tap again to remove" : row.clientName}
+                title={armed ? tr("Tap again to remove") : row.clientName}
                 detail={
                   armed
-                    ? "Every token it was issued dies with it"
+                    ? tr("Every token it was issued dies with it")
                     : row.clientId
                 }
                 onClick={() =>
@@ -540,8 +573,8 @@ export function ApiKeysSection({
             )
           })}
           <ListRow
-            title="Register an OAuth client"
-            detail="Only if a client asks you for an ID and secret"
+            title={tr("Register an OAuth client")}
+            detail={tr("Only if a client asks you for an ID and secret")}
             leading={<Plus size={18} className="text-muted-foreground" />}
             onClick={() => {
               hapticSelection()

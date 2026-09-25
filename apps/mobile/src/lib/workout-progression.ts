@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 export type ProgressionSet = {
   completed?: boolean
   reps: number
@@ -47,7 +48,7 @@ export function suggestDoubleProgression(
   }
 
   return {
-    label: `+1 rep on set ${strongestIndex + 1}`,
+    label: tr("+1 rep on set {{value0}}", { value0: strongestIndex + 1 }),
     targets,
   }
 }

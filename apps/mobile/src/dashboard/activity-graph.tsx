@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 import { useState } from "react"
 import { Card, CardTitle } from "@repo/ui"
 import { cn } from "@/lib/utils"
@@ -26,18 +27,18 @@ function cellStyle(level: number): { backgroundColor: string } {
 }
 
 const MONTHS = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
+  tr("Jan"),
+  tr("Feb"),
+  tr("Mar"),
+  tr("Apr"),
+  tr("May"),
+  tr("Jun"),
+  tr("Jul"),
+  tr("Aug"),
+  tr("Sep"),
+  tr("Oct"),
+  tr("Nov"),
+  tr("Dec"),
 ] as const
 
 /** "Apr 3" — the whole caption, and it fits where the sublabel already was. */
@@ -109,7 +110,10 @@ export function ActivityGraph({
                   current?.date === cell.date ? null : cell
                 )
               }
-              aria-label={`${shortDate(cell.date)}, ${cell.sets} sets`}
+              aria-label={tr("{{value0}}, {{value1}} sets", {
+                value0: shortDate(cell.date),
+                value1: cell.sets,
+              })}
               aria-pressed={selected?.date === cell.date}
               className={cn(
                 "aspect-square rounded-[2.5px]",
@@ -138,7 +142,9 @@ export function ActivityGraph({
   return (
     <Card className="dashboard-tile">
       <div className="px-3.5 py-2.5">
-        <CardTitle className="mb-2 text-sm font-semibold">Activity</CardTitle>
+        <CardTitle className="mb-2 text-sm font-semibold">
+          {tr("Activity")}
+        </CardTitle>
         {body}
       </div>
     </Card>

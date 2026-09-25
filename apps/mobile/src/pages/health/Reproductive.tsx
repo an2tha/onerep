@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 import { MetricAbout } from "./shared"
 import { CustomDialScreen } from "./custom-dial"
 
@@ -12,8 +13,8 @@ export default function HealthReproductive() {
   return (
     <CustomDialScreen
       dial="reproductive"
-      title="Cycle"
-      subtitle="In your own hand"
+      title={tr("Cycle")}
+      subtitle={tr("In your own hand")}
       tab="body"
       create="Recorded in your words, shown only on this dial."
       empty="Nothing filed here yet. Make a metric for the part of your cycle you want recorded, or bind one to what your phone already tracks."
@@ -22,13 +23,15 @@ export default function HealthReproductive() {
           items={[
             {
               term: "Nothing here is predicted",
-              detail:
-                "OneRep records what you log and draws it back. It does not estimate a fertile window, does not forecast a next date, and does not adjust your training on either — three claims that need clinical grounding this app does not have.",
+              detail: tr(
+                "OneRep records what you log and draws it back. It does not estimate a fertile window, does not forecast a next date, and does not adjust your training on either — three claims that need clinical grounding this app does not have."
+              ),
             },
             {
               term: "Who else sees it",
-              detail:
-                "The dial is off until you switch it on, and this data is never included in what Coach is given. It stays on the same server as the rest of your log and goes nowhere else.",
+              detail: tr(
+                "The dial is off until you switch it on, and this data is never included in what Coach is given. It stays on the same server as the rest of your log and goes nowhere else."
+              ),
             },
           ]}
         />

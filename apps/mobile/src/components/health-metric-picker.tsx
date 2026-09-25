@@ -1,3 +1,4 @@
+import { Message, tr } from "@repo/ui/i18n"
 import { Capacitor } from "@capacitor/core"
 import { Check, X } from "@phosphor-icons/react"
 import {
@@ -54,16 +55,25 @@ export function HealthMetricPicker({
     >
       <div className="flex items-start justify-between gap-4 px-5 pt-4">
         <div>
-          <h2 className="text-[20px] font-bold">Fill from {storeName}</h2>
+          <h2 className="text-[20px] font-bold">
+            <Message
+              text={"Fill from {{value0}}"}
+              values={{ value0: storeName }}
+            />
+          </h2>
           <p className="mt-1 text-[12px] leading-5 text-muted-foreground">
-            Each day is read from {storeName}. Type a figure yourself and that
-            day keeps yours.
+            <Message
+              text={
+                "Each day is read from {{value0}}. Type a figure yourself and that day keeps yours."
+              }
+              values={{ value0: storeName }}
+            />
           </p>
         </div>
         <button
           type="button"
           onClick={onClose}
-          aria-label="Close health metric picker"
+          aria-label={tr("Close health metric picker")}
           className="native-toolbar-button -mt-1 -mr-2 px-0"
         >
           <X size={14} weight="bold" />
@@ -71,17 +81,17 @@ export function HealthMetricPicker({
       </div>
 
       <div className="mt-4 flex-1 overflow-y-auto px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
-        <GroupedList label="Entry method">
+        <GroupedList label={tr("Entry method")}>
           <ListRow
-            title="Type it myself"
-            detail="No reading is pulled in"
+            title={tr("Type it myself")}
+            detail={tr("No reading is pulled in")}
             onClick={() => {
               hapticSelection()
               onSelect(null)
             }}
             trailing={
               selectedKey === null ? (
-                <Check size={16} weight="bold" aria-label="Selected" />
+                <Check size={16} weight="bold" aria-label={tr("Selected")} />
               ) : undefined
             }
           />
@@ -101,7 +111,9 @@ export function HealthMetricPicker({
                       available
                         ? metric.detail
                         : (metric.gap ??
-                          `${storeName} does not record this one.`)
+                          tr("{{value0}} does not record this one.", {
+                            value0: storeName,
+                          }))
                     }
                     value={available ? metric.unit : undefined}
                     className={available ? undefined : "opacity-55"}
@@ -115,7 +127,11 @@ export function HealthMetricPicker({
                     }
                     trailing={
                       selectedKey === metric.key ? (
-                        <Check size={16} weight="bold" aria-label="Selected" />
+                        <Check
+                          size={16}
+                          weight="bold"
+                          aria-label={tr("Selected")}
+                        />
                       ) : undefined
                     }
                   />

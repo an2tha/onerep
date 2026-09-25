@@ -1,3 +1,4 @@
+import { Message, tr, uiLocale } from "@repo/ui/i18n"
 import { useState } from "react"
 import { PencilSimple, X } from "@phosphor-icons/react"
 import { MobileSheet } from "@/components/mobile-sheet"
@@ -40,24 +41,38 @@ export function TrackerHistory({
   const summary = summarizeReadings(metric, date, days)
   const dates = Array.from({ length: days }, (_, i) => shiftDay(date, -i))
   return (
-    <MobileSheet ariaLabel={`${metric.title} history`} onClose={onClose}>
+    <MobileSheet
+      ariaLabel={tr("{{value0}} history", { value0: metric.title })}
+      onClose={onClose}
+    >
       <div className="journal-form journal-history-panel">
         <div className="journal-section-heading">
           <h2>{metric.title}</h2>
-          <button type="button" aria-label="Close history" onClick={onClose}>
+          <button
+            type="button"
+            aria-label={tr("Close history")}
+            onClick={onClose}
+          >
             <X size={22} />
           </button>
         </div>
         <p className="journal-caption">
-          History through{" "}
-          {new Date(`${date}T12:00:00`).toLocaleDateString(undefined, {
-            dateStyle: "medium",
-          })}
+          <Message
+            text={"History through {{value0}}"}
+            values={{
+              value0: new Date(`${date}T12:00:00`).toLocaleDateString(
+                uiLocale(),
+                {
+                  dateStyle: "medium",
+                }
+              ),
+            }}
+          />
         </p>
         <div
           className="journal-filters"
           role="group"
-          aria-label="History period"
+          aria-label={tr("History period")}
         >
           {[7, 28].map((period) => (
             <button
@@ -65,13 +80,16 @@ export function TrackerHistory({
               aria-pressed={days === period}
               onClick={() => setDays(period)}
             >
-              Last {period} days
+              <Message
+                text={"Last {{value0}} days"}
+                values={{ value0: period }}
+              />
             </button>
           ))}
         </div>
         <dl className="journal-history-summary">
           <div>
-            <dt>Days logged</dt>
+            <dt>{tr("Days logged")}</dt>
             <dd>
               {summary.count} / {days}
             </dd>
@@ -79,21 +97,25 @@ export function TrackerHistory({
           <div>
             <dt>
               {metric.kind === "number"
-                ? "Average reading"
+                ? tr("Average reading")
                 : metric.kind === "toggle"
-                  ? "Days marked yes"
-                  : "Total logged"}
+                  ? tr("Days marked yes")
+                  : tr("Total logged")}
             </dt>
             <dd>
               {metric.kind === "toggle"
-                ? `${summary.yes} / ${summary.count}`
+                ? tr("{{value0}} / {{value1}}", {
+                    value0: summary.yes,
+                    value1: summary.count,
+                  })
                 : metricValue(summary.value, metric.kind, metric.unit)}
             </dd>
           </div>
         </dl>
         <p className="journal-caption">
-          Missing days are excluded from summaries. Tap a day to add or correct
-          its reading.
+          {tr(
+            "Missing days are excluded from summaries. Tap a day to add or correct its reading."
+          )}
         </p>
         <div className="journal-history-rows">
           {dates.map((day) => {
@@ -104,10 +126,13 @@ export function TrackerHistory({
               <button
                 key={day}
                 onClick={() => onEdit(day)}
-                aria-label={`Edit ${metric.title} on ${day}`}
+                aria-label={tr("Edit {{value0}} on {{value1}}", {
+                  value0: metric.title,
+                  value1: day,
+                })}
               >
                 <span>
-                  {new Date(`${day}T12:00:00`).toLocaleDateString(undefined, {
+                  {new Date(`${day}T12:00:00`).toLocaleDateString(uiLocale(), {
                     weekday: "short",
                     month: "short",
                     day: "numeric",

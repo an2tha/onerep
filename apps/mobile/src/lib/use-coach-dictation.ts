@@ -1,3 +1,5 @@
+import { speechLocale } from "@repo/ui/i18n"
+import { tr, translateError } from "@repo/ui/i18n"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Capacitor, type PluginListenerHandle } from "@capacitor/core"
 import { SpeechRecognition } from "@capgo/capacitor-speech-recognition"
@@ -48,8 +50,8 @@ function appendTranscript(base: string, transcript: string) {
 
 function permissionError(code?: string) {
   return code === "not-allowed" || code === "permission-denied"
-    ? "Microphone and speech permissions are required for voice input."
-    : "Voice input stopped. Try again."
+    ? tr("Microphone and speech permissions are required for voice input.")
+    : tr("Voice input stopped. Try again.")
 }
 
 /** Biasing vocabulary for the nutrition-focused coach chat. */
@@ -142,7 +144,7 @@ export function useCoachDictation({
   }, [stopNative])
 
   const startNative = useCallback(async () => {
-    const language = navigator.language || "en-US"
+    const language = speechLocale()
     const permission = await SpeechRecognition.requestPermissions()
     if (permission.speechRecognition !== "granted") {
       throw new Error("permission-denied")
@@ -177,7 +179,7 @@ export function useCoachDictation({
         if (event.reason === "error") {
           activeRef.current = false
           setStatus("error")
-          setError(permissionError(event.errorCode))
+          setError(translateError(permissionError(event.errorCode)))
           void stopNative()
         }
       }
@@ -188,7 +190,7 @@ export function useCoachDictation({
         if (!activeRef.current) return
         activeRef.current = false
         setStatus("error")
-        setError(permissionError(event.code))
+        setError(translateError(permissionError(event.code)))
         void stopNative()
       }
     )
@@ -218,7 +220,7 @@ export function useCoachDictation({
     const recognition = new Constructor()
     recognition.continuous = true
     recognition.interimResults = true
-    recognition.lang = navigator.language || "en-US"
+    recognition.lang = speechLocale()
     recognition.onresult = (event) => {
       let interimText = ""
       for (
@@ -244,7 +246,7 @@ export function useCoachDictation({
     recognition.onerror = (event) => {
       activeRef.current = false
       setStatus("error")
-      setError(permissionError(event.error))
+      setError(translateError(permissionError(event.error)))
     }
     recognition.onend = () => {
       if (!activeRef.current) {
@@ -283,9 +285,11 @@ export function useCoachDictation({
       setStatus("error")
       const code = startError instanceof Error ? startError.message : undefined
       setError(
-        code === "unavailable"
-          ? "Voice input is not supported on this device."
-          : permissionError(code)
+        translateError(
+          code === "unavailable"
+            ? tr("Voice input is not supported on this device.")
+            : permissionError(code)
+        )
       )
     }
   }, [startNative, startWeb, stopNative, value])

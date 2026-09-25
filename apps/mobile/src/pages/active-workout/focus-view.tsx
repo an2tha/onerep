@@ -1,3 +1,4 @@
+import { Message, tr } from "@repo/ui/i18n"
 /**
  * The minimal way to run a session: one dial, one number, one button. The
  * whole workout collapses to the set in front of you — the ring counts the
@@ -129,20 +130,24 @@ export function FocusWorkoutView({
         <button
           type="button"
           onClick={onEnd}
-          aria-label="Discard or leave workout"
+          aria-label={tr("Discard or leave workout")}
           className="motion-tactile inline-flex min-h-11 items-center gap-1.5 rounded-full bg-muted/60 px-4 text-[14px] font-semibold text-muted-foreground active:text-foreground"
         >
-          <X size={15} weight="bold" />
-          End
+          <Message
+            text={"{{value0}}End"}
+            values={{ value0: <X size={15} weight="bold" /> }}
+          />
         </button>
         <button
           type="button"
           onClick={onExpand}
-          aria-label="Switch to expanded view"
+          aria-label={tr("Switch to expanded view")}
           className="motion-tactile inline-flex min-h-11 items-center gap-1.5 rounded-full bg-muted/60 px-4 text-[14px] font-semibold text-muted-foreground active:text-foreground"
         >
-          <ArrowsOut size={15} weight="bold" />
-          All sets
+          <Message
+            text={"{{value0}}All sets"}
+            values={{ value0: <ArrowsOut size={15} weight="bold" /> }}
+          />
         </button>
       </div>
 
@@ -153,11 +158,13 @@ export function FocusWorkoutView({
         <button
           type="button"
           onClick={onShowInstructions}
-          aria-label={`How to perform ${exerciseName}`}
+          aria-label={tr("How to perform {{value0}}", { value0: exerciseName })}
           className="motion-tactile inline-flex min-h-8 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium text-muted-foreground active:bg-muted/60 active:text-foreground"
         >
-          <Info size={15} weight="bold" />
-          How to
+          <Message
+            text={"{{value0}}How to"}
+            values={{ value0: <Info size={15} weight="bold" /> }}
+          />
         </button>
       </div>
 
@@ -221,15 +228,17 @@ export function FocusWorkoutView({
               <p className="text-[2.6rem] leading-none font-semibold tracking-tight tabular-nums">
                 {formatElapsed(restRemaining)}
               </p>
-              <p className="mt-2 text-[14px] text-muted-foreground">resting</p>
+              <p className="mt-2 text-[14px] text-muted-foreground">
+                {tr("resting")}
+              </p>
             </>
           ) : isCardio ? (
             <>
               <p className="text-[1.75rem] leading-tight font-semibold">
-                Cardio
+                {tr("Cardio")}
               </p>
               <p className="mt-2 max-w-[9rem] text-[14px] text-muted-foreground">
-                Log your details
+                {tr("Log your details")}
               </p>
             </>
           ) : (
@@ -238,7 +247,9 @@ export function FocusWorkoutView({
                 {setNumber}
               </p>
               <p className="mt-2 text-[14px] text-muted-foreground">
-                {setCount > 0 ? `of ${setCount} sets` : "set"}
+                {setCount > 0
+                  ? tr("of {{value0}} sets", { value0: setCount })
+                  : tr("set")}
               </p>
             </>
           )}
@@ -250,11 +261,11 @@ export function FocusWorkoutView({
       <div className="active-workout-focus-sets mt-6 w-full rounded-2xl border border-border/60 bg-card/40 p-2">
         {isCardio ? (
           <p className="px-2 py-3 text-[14px] text-muted-foreground">
-            Cardio details live in the expanded view.
+            {tr("Cardio details live in the expanded view.")}
           </p>
         ) : sets.length === 0 ? (
           <p className="px-2 py-3 text-[14px] text-muted-foreground">
-            No sets yet.
+            {tr("No sets yet.")}
           </p>
         ) : (
           <ul className="flex flex-col">
@@ -283,7 +294,13 @@ export function FocusWorkoutView({
                       <button
                         type="button"
                         onClick={() => setShowWeight(true)}
-                        aria-label={`Weight: ${toDisplay(row.weight, unit) || "not set"} ${unit}. Change it`}
+                        aria-label={tr(
+                          "Weight: {{value0}} {{value1}}. Change it",
+                          {
+                            value0: toDisplay(row.weight, unit) || "not set",
+                            value1: unit,
+                          }
+                        )}
                         className="motion-tactile min-h-10 flex-1 rounded-lg bg-background/70 px-3 text-[15px] font-semibold tabular-nums active:bg-background"
                       >
                         {toDisplay(row.weight, unit) || "—"}
@@ -295,7 +312,7 @@ export function FocusWorkoutView({
                         <button
                           type="button"
                           onClick={() => stepReps(-1)}
-                          aria-label="One rep fewer"
+                          aria-label={tr("One rep fewer")}
                           className="motion-tactile flex h-10 w-9 items-center justify-center text-muted-foreground active:text-foreground"
                         >
                           <Minus size={13} weight="bold" />
@@ -303,13 +320,13 @@ export function FocusWorkoutView({
                         <span className="text-[15px] font-semibold tabular-nums">
                           {reps || "—"}
                           <span className="ml-1 text-[13px] font-medium text-muted-foreground">
-                            reps
+                            {tr("reps")}
                           </span>
                         </span>
                         <button
                           type="button"
                           onClick={() => stepReps(1)}
-                          aria-label="One rep more"
+                          aria-label={tr("One rep more")}
                           className="motion-tactile flex h-10 w-9 items-center justify-center text-muted-foreground active:text-foreground"
                         >
                           <Plus size={13} weight="bold" />
@@ -335,7 +352,9 @@ export function FocusWorkoutView({
                     <button
                       type="button"
                       onClick={() => onUncompleteSet(index)}
-                      aria-label={`Set ${index + 1} is done. Undo it`}
+                      aria-label={tr("Set {{value0}} is done. Undo it", {
+                        value0: index + 1,
+                      })}
                       className="motion-tactile group -mr-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
                     >
                       <CheckCircle
@@ -367,12 +386,12 @@ export function FocusWorkoutView({
         className="motion-tactile mt-5 min-h-14 w-full rounded-full bg-foreground px-8 text-[16px] font-semibold text-background"
       >
         {isResting
-          ? "Skip rest"
+          ? tr("Skip rest")
           : isCardio
-            ? "Log cardio"
+            ? tr("Log cardio")
             : setCount === 0
-              ? "Add a set"
-              : "Complete set"}
+              ? tr("Add a set")
+              : tr("Complete set")}
       </button>
 
       {/* Fixed height: swapping between resting and lifting must not shunt the
@@ -382,11 +401,18 @@ export function FocusWorkoutView({
           <button
             type="button"
             onClick={() => onUncompleteSet(lastLoggedIndex)}
-            aria-label={`Undo set ${lastLoggedIndex + 1}`}
+            aria-label={tr("Undo set {{value0}}", {
+              value0: lastLoggedIndex + 1,
+            })}
             className="motion-tactile inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-[14px] font-medium text-muted-foreground active:text-foreground"
           >
-            <ArrowCounterClockwise size={14} weight="bold" />
-            Undo set {lastLoggedIndex + 1}
+            <Message
+              text={"{{value0}}Undo set {{value1}}"}
+              values={{
+                value0: <ArrowCounterClockwise size={14} weight="bold" />,
+                value1: lastLoggedIndex + 1,
+              }}
+            />
           </button>
         )}
         {!isResting && set && (
@@ -399,10 +425,10 @@ export function FocusWorkoutView({
             <button
               type="button"
               onClick={onSkipSet}
-              aria-label={`Skip set ${setNumber}`}
+              aria-label={tr("Skip set {{value0}}", { value0: setNumber })}
               className="motion-tactile min-h-11 rounded-full px-3 text-[14px] text-muted-foreground active:text-foreground"
             >
-              Skip
+              {tr("Skip")}
             </button>
             <span className="text-muted-foreground/50" aria-hidden="true">
               ·
@@ -410,18 +436,31 @@ export function FocusWorkoutView({
             <button
               type="button"
               onClick={() => setShowRest(true)}
-              aria-label={`Rest after this set: ${formatRest(set.restSeconds)}. Change it`}
+              aria-label={tr("Rest after this set: {{value0}}. Change it", {
+                value0: formatRest(set.restSeconds),
+              })}
               className="motion-tactile min-h-11 rounded-full px-3 text-[14px] text-muted-foreground active:text-foreground"
             >
-              {formatRest(set.restSeconds)} rest
+              <Message
+                text={"{{value0}} rest"}
+                values={{ value0: formatRest(set.restSeconds) }}
+              />
             </button>
           </>
         )}
       </div>
 
       <p className="mt-2 min-h-10 text-[14px] text-muted-foreground">
-        {doneSets} of {totalSets} sets done
-        {nextExerciseName ? ` · next ${nextExerciseName}` : ""}
+        <Message
+          text={"{{value0}} of {{value1}} sets done{{value2}}"}
+          values={{
+            value0: doneSets,
+            value1: totalSets,
+            value2: nextExerciseName
+              ? tr(" · next {{value0}}", { value0: nextExerciseName })
+              : "",
+          }}
+        />
       </p>
 
       {showWeight && set && (

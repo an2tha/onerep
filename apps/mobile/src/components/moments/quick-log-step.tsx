@@ -1,3 +1,4 @@
+import { Message, tr, translateError, uiLocale } from "@repo/ui/i18n"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useWeightUnit } from "@/lib/use-weight-unit"
 import { useMutation, useQuery } from "convex/react"
@@ -68,7 +69,7 @@ type PresetRow = {
 function dayWord(date: string, todayKey: string) {
   const label = fullDateLabel(date, todayKey)
   if (label === "Today" || label === "Yesterday") return label.toLowerCase()
-  return new Date(`${date}T12:00:00`).toLocaleDateString(undefined, {
+  return new Date(`${date}T12:00:00`).toLocaleDateString(uiLocale(), {
     weekday: "long",
   })
 }
@@ -165,7 +166,7 @@ export function QuickLogStep({
   }) {
     if (busy) return
     if (exercises.length === 0) {
-      toast.error("That one has no sets to log.")
+      toast.error(translateError(tr("That one has no sets to log.")))
       return
     }
 
@@ -188,16 +189,21 @@ export function QuickLogStep({
       onClose("resolved")
       toast.success(
         undoable
-          ? `Logged ${label} on ${dayWord(date, todayKey)}`
-          : `Saved for ${dayWord(date, todayKey)} — syncs when you're back online`,
+          ? tr("Logged {{value0}} on {{value1}}", {
+              value0: label,
+              value1: dayWord(date, todayKey),
+            })
+          : tr("Saved for {{value0}} — syncs when you're back online", {
+              value0: dayWord(date, todayKey),
+            }),
         undoable
           ? {
               action: {
-                label: "Undo",
+                label: tr("Undo"),
                 onClick: () => {
                   announceOrbActivity("delete", 2)
                   void removeBySlot({ date, slot }).catch(() => {
-                    toast.error("Couldn't undo that")
+                    toast.error(translateError(tr("Couldn't undo that")))
                   })
                 },
               },
@@ -206,7 +212,7 @@ export function QuickLogStep({
       )
     } catch (error) {
       logDevWarn("Failed to log a session from a moment", error)
-      toast.error("Couldn't log that workout. Try again.")
+      toast.error(translateError(tr("Couldn't log that workout. Try again.")))
       setBusy(false)
     }
   }
@@ -227,7 +233,7 @@ export function QuickLogStep({
   function logPreset(row: PresetRow) {
     const exerciseIds = flattenItems(row.items)
     if (!exerciseIds.every((id) => lookup[id])) {
-      toast.error("Still loading that preset. One second.")
+      toast.error(translateError(tr("Still loading that preset. One second.")))
       return
     }
 
@@ -268,11 +274,13 @@ export function QuickLogStep({
 
   return (
     <MomentScreen
-      title="Which day?"
+      title={tr("Which day?")}
       subtitle={
         hasOneTapOptions
-          ? "Pick the day, then the session. Numbers come from the last time you did it."
-          : "Pick the day, then add the exercises you did."
+          ? tr(
+              "Pick the day, then the session. Numbers come from the last time you did it."
+            )
+          : tr("Pick the day, then add the exercises you did.")
       }
       onClose={() => {
         hapticSelection()
@@ -282,7 +290,7 @@ export function QuickLogStep({
         <>
           <MomentSecondaryAction onClick={openBlankLogger}>
             <Plus size={14} weight="bold" className="mr-1.5" />
-            {hasOneTapOptions ? "Another exercise" : "Add exercises"}
+            {hasOneTapOptions ? tr("Another exercise") : tr("Add exercises")}
           </MomentSecondaryAction>
           <MomentSecondaryAction
             onClick={() => {
@@ -291,8 +299,14 @@ export function QuickLogStep({
             }}
             className="bg-transparent text-muted-foreground active:bg-muted/40"
           >
-            <CaretLeft size={13} weight="bold" className="mr-1.5" />
-            Back
+            <Message
+              text={"{{value0}}Back"}
+              values={{
+                value0: (
+                  <CaretLeft size={13} weight="bold" className="mr-1.5" />
+                ),
+              }}
+            />
           </MomentSecondaryAction>
         </>
       }
@@ -300,7 +314,7 @@ export function QuickLogStep({
       <DayStrip todayKey={todayKey} value={date} onChange={setDate} days={7} />
       <p className="mt-3 text-[13px] text-muted-foreground">
         {fullDateLabel(date, todayKey)}
-        {dayFull && " · two sessions already logged"}
+        {dayFull && tr(" · two sessions already logged")}
       </p>
 
       {candidates.length > 0 && (
@@ -324,8 +338,8 @@ export function QuickLogStep({
         <>
           <p className="mt-5 mb-2 px-1 text-[13px] text-muted-foreground">
             {candidates.length > 0
-              ? "Or one of your plans, as written"
-              : "Your plans, as written"}
+              ? tr("Or one of your plans, as written")
+              : tr("Your plans, as written")}
           </p>
           <div className="app-surface overflow-hidden">
             {presetRows.map((row, index) => (
@@ -351,10 +365,13 @@ export function QuickLogStep({
       */}
       {!loading && !hasOneTapOptions && (
         <div className="app-surface mt-4 px-4 py-5">
-          <p className="text-[14px] font-semibold">Nothing to repeat yet.</p>
+          <p className="text-[14px] font-semibold">
+            {tr("Nothing to repeat yet.")}
+          </p>
           <p className="mt-1 text-[13px] leading-snug text-muted-foreground">
-            Once you have saved a routine or logged a session, both show up here
-            as one tap. For now, add the exercises you did.
+            {tr(
+              "Once you have saved a routine or logged a session, both show up here as one tap. For now, add the exercises you did."
+            )}
           </p>
           <button
             type="button"
@@ -365,8 +382,14 @@ export function QuickLogStep({
             }}
             className="mt-3 inline-flex min-h-11 items-center text-[14px] font-semibold text-muted-foreground transition-colors active:text-foreground"
           >
-            Build a routine
-            <CaretRight size={11} weight="bold" className="ml-1.5" />
+            <Message
+              text={"Build a routine{{value0}}"}
+              values={{
+                value0: (
+                  <CaretRight size={11} weight="bold" className="ml-1.5" />
+                ),
+              }}
+            />
           </button>
         </div>
       )}

@@ -1,6 +1,6 @@
+import { readLocalizedSource as readFileSync } from "../../tests/helpers/localized-source"
 import { describe, test } from "node:test"
 import assert from "node:assert/strict"
-import { readFileSync } from "node:fs"
 
 const pageSource = readFileSync(
   new URL("./OnboardingMobile.tsx", import.meta.url),

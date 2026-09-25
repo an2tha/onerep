@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 /**
  * Bridge to the native floating tab bar (NativeTabBarPlugin.swift /
  * NativeTabBarPlugin.kt).
@@ -40,13 +41,13 @@ const nativeTabBar = registerPlugin<NativeTabBarPlugin>("NativeTabBar")
 
 /** Ids are the web routes, so a tap event is already a navigation target. */
 const BASE_NATIVE_TAB_ITEMS: NativeTabBarItem[] = [
-  { id: "/", symbol: "house.fill", label: "Today" },
-  { id: "/journal", symbol: "book.closed.fill", label: "Journal" },
-  { id: "/nutrition", symbol: "fork.knife", label: "Nutrition" },
-  { id: "/workouts", symbol: "dumbbell.fill", label: "Training" },
-  { id: "/progress", symbol: "chart.bar.fill", label: "Progress" },
-  { id: "/health", symbol: "heart.text.square.fill", label: "Health" },
-  { id: "/coach", symbol: "sparkles", label: "Coach" },
+  { id: "/", symbol: "house.fill", label: tr("Today") },
+  { id: "/journal", symbol: "book.closed.fill", label: tr("Journal") },
+  { id: "/nutrition", symbol: "fork.knife", label: tr("Nutrition") },
+  { id: "/workouts", symbol: "dumbbell.fill", label: tr("Training") },
+  { id: "/progress", symbol: "chart.bar.fill", label: tr("Progress") },
+  { id: "/health", symbol: "heart.text.square.fill", label: tr("Health") },
+  { id: "/coach", symbol: "sparkles", label: tr("Coach") },
 ]
 
 /** Settings is reached through the profile avatar, outside primary navigation. */

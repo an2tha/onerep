@@ -1,21 +1,22 @@
+import { tr } from "@repo/ui/i18n"
 import { useEffect, useRef, type CSSProperties } from "react"
 import { Check, X } from "@phosphor-icons/react"
 import { hapticTap } from "@/lib/haptics"
 import { useTheme, type VisualIdentity } from "@repo/ui"
 
 const DESCRIPTIONS: Record<string, string> = {
-  onerep: "The original OneRep palette",
-  dusk: "Earth tones and evening violet",
-  slate: "Cool blues and mineral neutrals",
-  forest: "Moss, green and amber",
-  ocean: "Sea blue and clear teal",
-  blossom: "Rose, lavender and fresh green"
+  onerep: tr("The original OneRep palette"),
+  dusk: tr("Earth tones and evening violet"),
+  slate: tr("Cool blues and mineral neutrals"),
+  forest: tr("Moss, green and amber"),
+  ocean: tr("Sea blue and clear teal"),
+  blossom: tr("Rose, lavender and fresh green"),
 }
 
 const APPEARANCES = [
-  { value: "light", label: "Light" },
-  { value: "dark", label: "Dark" },
-  { value: "system", label: "System" }
+  { value: "light", label: tr("Light") },
+  { value: "dark", label: tr("Dark") },
+  { value: "system", label: tr("System") },
 ] as const
 
 // Both versions are rendered so following the system appearance updates the
@@ -29,13 +30,13 @@ function paletteStyle(flavour: VisualIdentity, appearance: "light" | "dark") {
   return {
     "--swatch-training": tokens["--accent-workout"] ?? defaults[0],
     "--swatch-water": tokens["--accent-water"] ?? defaults[1],
-    "--swatch-food": tokens["--accent-food"] ?? defaults[2]
+    "--swatch-food": tokens["--accent-food"] ?? defaults[2],
   } as CSSProperties
 }
 
 export function Flavours({
   closing,
-  onClose
+  onClose,
 }: {
   closing: boolean
   onClose: () => void
@@ -86,13 +87,13 @@ export function Flavours({
       <div className="flavours-page">
         <header className="flavours-header">
           <div>
-            <h1 id="flavours-title">Flavours</h1>
-            <p>Choose a palette. Changes apply instantly.</p>
+            <h1 id="flavours-title">{tr("Flavours")}</h1>
+            <p>{tr("Choose a palette. Changes apply instantly.")}</p>
           </div>
           <button
             ref={closeRef}
             type="button"
-            aria-label="Back to settings"
+            aria-label={tr("Back to settings")}
             onClick={() => {
               hapticTap()
               onClose()
@@ -105,7 +106,7 @@ export function Flavours({
 
         <div className="flavours-content">
           <fieldset className="flavours-appearance">
-            <legend>Appearance</legend>
+            <legend>{tr("Appearance")}</legend>
             <div className="flavours-appearance-options">
               {APPEARANCES.map(({ value, label }) => (
                 <label key={value}>
@@ -127,7 +128,7 @@ export function Flavours({
           </fieldset>
 
           <fieldset className="flavours-options">
-            <legend className="sr-only">Choose flavour</legend>
+            <legend className="sr-only">{tr("Choose flavour")}</legend>
             {identities.map((flavour) => (
               <label key={flavour.id} className="flavours-option">
                 <input

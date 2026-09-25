@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 import {
   HoldToStartDial,
   TrainingStatDial,
@@ -87,7 +88,7 @@ export function DashboardDials({
     return (
       <div className="mx-auto flex w-full max-w-xs items-center justify-center gap-6 px-2 opacity-90">
         <HoldToStartDial
-          label="Open workout"
+          label={tr("Open workout")}
           primaryIcon={<Play size={18} weight="fill" />}
           icon={<Barbell size={12} weight="bold" />}
           onComplete={onStartWorkout}
@@ -102,7 +103,11 @@ export function DashboardDials({
             type="button"
             onClick={reading.onClick}
             disabled={!reading.onClick}
-            aria-label={`${reading.name}: ${reading.value}${reading.suffix}`}
+            aria-label={tr("{{value0}}: {{value1}}{{value2}}", {
+              value0: reading.name,
+              value1: reading.value,
+              value2: reading.suffix,
+            })}
             className="motion-tactile rounded-full"
           >
             <TrainingStatDial
@@ -132,7 +137,11 @@ export function DashboardDials({
             type="button"
             onClick={reading.onClick}
             disabled={!reading.onClick}
-            aria-label={`${reading.name}: ${reading.value}${reading.suffix}`}
+            aria-label={tr("{{value0}}: {{value1}}{{value2}}", {
+              value0: reading.name,
+              value1: reading.value,
+              value2: reading.suffix,
+            })}
             className="motion-tactile absolute z-0 rounded-full"
             style={{
               left: centreX + ORBIT * Math.cos(radians) - DIAL / 2,
@@ -158,7 +167,7 @@ export function DashboardDials({
         style={{ left: centreX - HOLD / 2, top: 0 }}
       >
         <HoldToStartDial
-          label="Open workout"
+          label={tr("Open workout")}
           primaryIcon={<Play size={27} weight="fill" />}
           icon={<Barbell size={15} weight="bold" />}
           onComplete={onStartWorkout}

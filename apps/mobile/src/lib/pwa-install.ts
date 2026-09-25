@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 export type PwaInstallOutcome = "accepted" | "dismissed"
 
 export type PwaBeforeInstallPromptEvent = Event & {
@@ -129,19 +130,19 @@ export function pwaInstallCopy({
 }): PwaInstallCopy {
   if (installed) {
     return {
-      actionLabel: "Installed",
-      description: "OneRep is already installed on this device.",
+      actionLabel: tr("Installed"),
+      description: tr("OneRep is already installed on this device."),
       disabled: true,
-      statusLabel: "Installed",
+      statusLabel: tr("Installed"),
     }
   }
 
   if (hasPrompt) {
     return {
-      actionLabel: "Install",
-      description: "Add OneRep to your home screen for faster launches.",
+      actionLabel: tr("Install"),
+      description: tr("Add OneRep to your home screen for faster launches."),
       disabled: false,
-      statusLabel: "Ready",
+      statusLabel: tr("Ready"),
     }
   }
 
@@ -150,41 +151,46 @@ export function pwaInstallCopy({
   switch (platform) {
     case "ios":
       return {
-        actionLabel: "How to install",
-        description: "Tap the Share button, then choose “Add to Home Screen”.",
+        actionLabel: tr("How to install"),
+        description: tr(
+          "Tap the Share button, then choose “Add to Home Screen”."
+        ),
         disabled: false,
-        statusLabel: "Manual",
+        statusLabel: tr("Manual"),
       }
     case "safari-desktop":
       return {
-        actionLabel: "How to install",
-        description: "In Safari's File menu, choose “Add to Dock”.",
+        actionLabel: tr("How to install"),
+        description: tr("In Safari's File menu, choose “Add to Dock”."),
         disabled: false,
-        statusLabel: "Manual",
+        statusLabel: tr("Manual"),
       }
     case "in-app":
       return {
-        actionLabel: "Open in browser",
-        description:
-          "This in-app browser can't install apps. Open app.onerep.life in Safari or Chrome, then install from there.",
+        actionLabel: tr("Open in browser"),
+        description: tr(
+          "This in-app browser can't install apps. Open app.onerep.life in Safari or Chrome, then install from there."
+        ),
         disabled: false,
-        statusLabel: "Blocked",
+        statusLabel: tr("Blocked"),
       }
     case "chromium":
       return {
-        actionLabel: "How to install",
-        description:
-          "Look for the install icon in the address bar, or choose “Add to Home screen” from the browser menu.",
+        actionLabel: tr("How to install"),
+        description: tr(
+          "Look for the install icon in the address bar, or choose “Add to Home screen” from the browser menu."
+        ),
         disabled: false,
-        statusLabel: "Manual",
+        statusLabel: tr("Manual"),
       }
     default:
       return {
-        actionLabel: "How to install",
-        description:
-          "Use your browser's share or menu button to add OneRep to your home screen.",
+        actionLabel: tr("How to install"),
+        description: tr(
+          "Use your browser's share or menu button to add OneRep to your home screen."
+        ),
         disabled: false,
-        statusLabel: "Manual",
+        statusLabel: tr("Manual"),
       }
   }
 }

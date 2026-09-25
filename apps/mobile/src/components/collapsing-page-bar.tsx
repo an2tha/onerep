@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 import { useLayoutEffect, useState } from "react"
 import { ArrowLeft } from "@phosphor-icons/react"
 import { useSmoothNavigate } from "@/lib/navigation"
@@ -48,7 +49,7 @@ export function CollapsingPageBar({ pathname }: { pathname: string }) {
     <header className="collapsing-page-bar" data-collapsed={collapsed}>
       <button
         type="button"
-        aria-label="Back"
+        aria-label={tr("Back")}
         className="page-bar-back"
         onClick={() =>
           window.history.length > 1 ? navigate(-1) : navigate("/")

@@ -1,3 +1,4 @@
+import { Message, tr, uiLocale } from "@repo/ui/i18n"
 import { useEffect, useRef, useState, type CSSProperties } from "react"
 import {
   ArrowLeft,
@@ -22,6 +23,7 @@ import {
   defaultMeal,
   defaultFoodPortion,
   foodPortionLabel,
+  foodPortionDisplayLabel,
   foodServingLabel,
   foodServingMultiplier,
   gramsFromFoodPortion,
@@ -63,7 +65,7 @@ function scale(per100g: number, grams: number): number {
 
 function formatNumber(value: number, maximumFractionDigits = 1) {
   const safeValue = Number.isFinite(value) ? value : 0
-  return new Intl.NumberFormat("en-US", {
+  return new Intl.NumberFormat(uiLocale(), {
     maximumFractionDigits:
       Math.abs(safeValue) >= 100 ? 0 : maximumFractionDigits,
   }).format(safeValue)
@@ -217,7 +219,7 @@ function PortionPicker({
     <section className="mx-4 mt-2 rounded-3xl border border-border bg-card p-4">
       <div className="mb-3 flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="text-[14px] font-semibold">How much?</h3>
+          <h3 className="text-[14px] font-semibold">{tr("How much?")}</h3>
         </div>
       </div>
 
@@ -267,7 +269,15 @@ function PortionPicker({
               }
             >
               <span className="max-w-full truncate leading-none">
-                {counting ? foodServingLabel(amount, p.label) : p.label}
+                {counting
+                  ? foodServingLabel(amount, p.label)
+                  : p.source === "generic"
+                    ? foodPortionDisplayLabel({
+                        amount: amountFromFoodPortionGrams(p.grams, p.unit),
+                        unit: p.unit,
+                        grams: p.grams,
+                      })
+                    : p.label}
               </span>
             </button>
           )
@@ -281,7 +291,7 @@ function PortionPicker({
             e.preventDefault()
             stepAmount(-1)
           }}
-          aria-label="Decrease portion"
+          aria-label={tr("Decrease portion")}
           className="flex h-12 items-center justify-center rounded-[10px] border border-border bg-background text-foreground transition-colors active:bg-muted"
         >
           <Minus size={14} weight="bold" />
@@ -291,7 +301,7 @@ function PortionPicker({
           <input
             type="text"
             name="food-portion-amount"
-            aria-label="Food portion amount"
+            aria-label={tr("Food portion amount")}
             inputMode="decimal"
             value={focused ? inputVal : formatInputAmount(amount)}
             onChange={(e) => setInputVal(e.target.value)}
@@ -318,7 +328,7 @@ function PortionPicker({
             )
             onPickUnit(serving ?? (value as FoodPortionUnit))
           }}
-          aria-label="Serving unit"
+          aria-label={tr("Serving unit")}
           className="max-w-[7rem] min-w-0 truncate rounded-xl bg-muted/35 px-2 text-[13px] font-semibold outline-none"
           style={activeServing ? { color: SERVING_ACCENT_TEXT } : undefined}
         >
@@ -333,7 +343,7 @@ function PortionPicker({
           ))}
           {visibleUnits.map((option) => (
             <option key={option.id} value={option.id}>
-              {option.label}
+              {tr(option.label)}
             </option>
           ))}
         </select>
@@ -344,7 +354,7 @@ function PortionPicker({
             e.preventDefault()
             stepAmount(1)
           }}
-          aria-label="Increase portion"
+          aria-label={tr("Increase portion")}
           className="flex h-12 items-center justify-center rounded-[10px] border border-border bg-background text-foreground transition-colors active:bg-muted"
         >
           <Plus size={14} weight="bold" />
@@ -434,9 +444,9 @@ function MealPicker({
       onClick={() => pendingDelete && setPendingDelete(null)}
     >
       <div className="mb-2 flex items-center justify-between gap-3 px-1">
-        <p className="text-[16px] font-semibold">Meal</p>
+        <p className="text-[16px] font-semibold">{tr("Meal")}</p>
         <p className="truncate text-[13px] text-muted-foreground">
-          {categories.find((cat) => cat.id === value)?.label ?? "Selected"}
+          {categories.find((cat) => cat.id === value)?.label ?? tr("Selected")}
         </p>
       </div>
       <div className="flex [scrollbar-width:none] gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:!hidden">
@@ -491,7 +501,9 @@ function MealPicker({
                     e.stopPropagation()
                     handleDelete(cat.id)
                   }}
-                  aria-label={`Delete ${cat.label} meal category`}
+                  aria-label={tr("Delete {{value0}} meal category", {
+                    value0: cat.label,
+                  })}
                   className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-destructive shadow-sm"
                 >
                   <X size={8} weight="bold" className="text-white" />
@@ -507,7 +519,7 @@ function MealPicker({
             <input
               ref={inputRef}
               name="new-meal-category"
-              aria-label="New meal category name"
+              aria-label={tr("New meal category name")}
               value={newLabel}
               onChange={(e) => setNewLabel(e.target.value)}
               onKeyDown={(e) => {
@@ -517,13 +529,13 @@ function MealPicker({
                   setNewLabel("")
                 }
               }}
-              placeholder="Name…"
+              placeholder={tr("Name…")}
               className="w-24 bg-transparent text-[13px] font-semibold outline-none placeholder:text-muted-foreground"
             />
             <button
               type="button"
               onClick={handleAdd}
-              aria-label="Save meal category"
+              aria-label={tr("Save meal category")}
               className="flex h-7 w-7 items-center justify-center rounded-[10px] bg-foreground transition-opacity active:opacity-70"
             >
               <Check size={9} weight="bold" className="text-background" />
@@ -533,7 +545,7 @@ function MealPicker({
           <button
             type="button"
             onClick={() => setAdding(true)}
-            aria-label="Add meal category"
+            aria-label={tr("Add meal category")}
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] border border-border bg-background text-muted-foreground transition-colors active:bg-muted"
           >
             <Plus size={12} weight="bold" />
@@ -756,23 +768,40 @@ export function FoodDetailSheet({
         foodServingMultiplier(grams, activeServing.grams),
         activeServing.label
       )
-    : foodPortionLabel(portion)
+    : foodPortionDisplayLabel(portion)
 
   const ctaLabel = saving
-    ? "Logging..."
+    ? tr("Logging...")
     : added
-      ? (addedLabel?.(mealCfg.label, portion) ?? `✓ Logged to ${mealCfg.label}`)
+      ? (addedLabel?.(mealCfg.label, portion) ??
+        tr("✓ Logged to {{value0}}", { value0: mealCfg.label }))
       : (actionLabel?.(grams, mealCfg.label, portion) ??
-        `Log ${portionSummary} to ${mealCfg.label}`)
+        tr("Log {{value0}} to {{value1}}", {
+          value0: portionSummary,
+          value1: mealCfg.label,
+        }))
   const ctaContent =
     saving || added || actionLabel ? (
       ctaLabel
     ) : (
       <>
-        Log {portionSummary}{" "}
-        <span key={meal} className="food-log-meal-transition inline-block">
-          to {mealCfg.label}
-        </span>
+        <Message
+          text={"Log {{value0}} {{value1}}"}
+          values={{
+            value0: portionSummary,
+            value1: (
+              <span
+                key={meal}
+                className="food-log-meal-transition inline-block"
+              >
+                <Message
+                  text={"to {{value0}}"}
+                  values={{ value0: mealCfg.label }}
+                />
+              </span>
+            ),
+          }}
+        />
       </>
     )
   const isPage = presentation === "page"
@@ -796,13 +825,13 @@ export function FoodDetailSheet({
             <button
               type="button"
               onClick={onClose}
-              aria-label="Back to food search"
+              aria-label={tr("Back to food search")}
               className="app-icon-button"
             >
               <ArrowLeft size={15} weight="bold" />
             </button>
             <span className="text-[13px] font-extrabold text-muted-foreground/72">
-              Review serving
+              {tr("Review serving")}
             </span>
           </div>
         ) : undefined
@@ -851,8 +880,14 @@ export function FoodDetailSheet({
                 onClick={() => onCorrectValues(detail)}
                 className="mt-2 flex min-h-9 w-full items-center justify-center gap-1.5 text-[12px] font-semibold text-muted-foreground"
               >
-                <PencilSimple size={13} weight="bold" aria-hidden />
-                Values look wrong? Correct them
+                <Message
+                  text={"{{value0}}Values look wrong? Correct them"}
+                  values={{
+                    value0: (
+                      <PencilSimple size={13} weight="bold" aria-hidden />
+                    ),
+                  }}
+                />
               </button>
             )}
           </div>
@@ -863,7 +898,7 @@ export function FoodDetailSheet({
         name={item.name}
         brand={item.brand}
         calories={calories}
-        portionLabel={foodPortionLabel(portion)}
+        portionLabel={foodPortionDisplayLabel(portion)}
         presentation={presentation}
         imageUrl={imageUrl}
         expandedImageUrl={expandedFoodImageUrl(imageUrl)}
@@ -919,9 +954,9 @@ export function FoodDetailSheet({
           {/* ── Nutrition summary ─────────────────────────────────────── */}
           <section className="mx-4 mt-4">
             <div className="mb-2 flex items-center justify-between gap-3">
-              <h3 className="text-[14px] font-semibold">Nutrition</h3>
+              <h3 className="text-[14px] font-semibold">{tr("Nutrition")}</h3>
               <p className="text-[12px] text-muted-foreground">
-                {foodPortionLabel(portion)}
+                {foodPortionDisplayLabel(portion)}
               </p>
             </div>
             <MacroStack protein={protein} carbs={carbs} fat={fat} />
@@ -930,7 +965,7 @@ export function FoodDetailSheet({
           {/* ── Nutrition table ───────────────────────────────────────── */}
           {detail?.nutrients && detail.nutrients.length > 0 && (
             <AnimatedAccordion
-              summary="Full nutrition details"
+              summary={tr("Full nutrition details")}
               className="mx-4 mt-4 overflow-hidden rounded-2xl border border-border bg-card"
               triggerClassName="px-4 py-3 text-[13px] font-semibold"
             >
@@ -938,7 +973,7 @@ export function FoodDetailSheet({
                 {/* Calories hero row */}
                 <div className="flex items-baseline justify-between border-b border-border/40 py-2.5">
                   <span className="text-[13px] font-semibold text-muted-foreground">
-                    Calories
+                    {tr("Calories")}
                   </span>
                   <span className="text-[22px] leading-none font-black tabular-nums">
                     {formatNumber(calories, 0)}
@@ -946,7 +981,7 @@ export function FoodDetailSheet({
                 </div>
                 <div className="flex justify-end py-1.5">
                   <span className="text-[13px] text-muted-foreground">
-                    % Daily Value*
+                    {tr("% Daily Value*")}
                   </span>
                 </div>
 
@@ -981,16 +1016,22 @@ export function FoodDetailSheet({
                 aria-expanded={showExtra}
                 aria-label={
                   showExtra
-                    ? "Collapse minerals and vitamins"
-                    : "Expand minerals and vitamins"
+                    ? tr("Collapse minerals and vitamins")
+                    : tr("Expand minerals and vitamins")
                 }
                 className="flex w-full items-center justify-between px-4 py-3 transition-colors active:bg-muted/40"
               >
                 <span className="text-[15px] font-semibold">
-                  Minerals & vitamins
-                  <span className="ml-1.5 text-[13px] font-normal text-muted-foreground">
-                    ({detail.extraNutrients.length})
-                  </span>
+                  <Message
+                    text={"Minerals & vitamins{{value0}}"}
+                    values={{
+                      value0: (
+                        <span className="ml-1.5 text-[13px] font-normal text-muted-foreground">
+                          ({detail.extraNutrients.length})
+                        </span>
+                      ),
+                    }}
+                  />
                 </span>
                 <CaretDown
                   size={13}

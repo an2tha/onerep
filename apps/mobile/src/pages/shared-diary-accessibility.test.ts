@@ -1,4 +1,5 @@
-import { readFileSync } from "node:fs"
+import { readLocalizedSource as readFileSync } from "../../tests/helpers/localized-source"
+
 import { describe, expect, test } from "bun:test"
 
 const SHARED_SOURCE = readFileSync(
@@ -13,7 +14,10 @@ const REPORT_SOURCE = readFileSync(
   new URL("./NutritionReport.tsx", import.meta.url),
   "utf8"
 )
-const APP_SOURCE = readFileSync(new URL("../App.legacy.tsx", import.meta.url), "utf8")
+const APP_SOURCE = readFileSync(
+  new URL("../App.legacy.tsx", import.meta.url),
+  "utf8"
+)
 const MAIN_SOURCE = readFileSync(
   new URL("../main.tsx", import.meta.url),
   "utf8"

@@ -1,3 +1,4 @@
+import { tr, uiLocale } from "@repo/ui/i18n"
 import { ChartLineUp, Minus, Plus, X } from "@phosphor-icons/react"
 import { cn } from "../../lib/utils"
 
@@ -24,7 +25,7 @@ const accentClasses: Record<CoachDashboardWidgetData["accent"], string> = {
 }
 
 function compactNumber(value: number) {
-  return new Intl.NumberFormat(undefined, {
+  return new Intl.NumberFormat(uiLocale(), {
     maximumFractionDigits: value < 10 ? 1 : 0,
     notation: value >= 10_000 ? "compact" : "standard",
   }).format(value)
@@ -64,8 +65,10 @@ function WidgetGraph({ widget }: { widget: CoachDashboardWidgetData }) {
       role="img"
       aria-label={
         widget.kind === "decay"
-          ? `Estimated ${widget.sourceMetricTitle} remaining over 12 hours`
-          : `${widget.sourceMetricTitle} recent trend`
+          ? tr("Estimated {{value0}} remaining over 12 hours", {
+              value0: widget.sourceMetricTitle,
+            })
+          : tr("{{value0}} recent trend", { value0: widget.sourceMetricTitle })
       }
     >
       <path d="M0 34 H120" stroke="currentColor" strokeOpacity="0.1" />
@@ -103,7 +106,7 @@ export function CoachDashboardWidgets({
         "mx-[var(--app-page-x)] grid gap-2 md:mx-8 md:grid-cols-2",
         className
       )}
-      aria-label="Coach highlights"
+      aria-label={tr("Coach highlights")}
     >
       {widgets.map((widget) => {
         const current = widget.entries[0]?.value ?? 0
@@ -127,7 +130,9 @@ export function CoachDashboardWidgets({
               type="button"
               onClick={() => onRemove(widget._id)}
               className="absolute top-1.5 right-1.5 grid size-8 place-items-center text-muted-foreground/45 opacity-70 transition-opacity hover:opacity-100 focus-visible:opacity-100 md:opacity-0 md:group-hover:opacity-100"
-              aria-label={`Remove ${widget.title} from dashboard`}
+              aria-label={tr("Remove {{value0}} from dashboard", {
+                value0: widget.title,
+              })}
             >
               <X size={12} weight="bold" />
             </button>
@@ -157,7 +162,14 @@ export function CoachDashboardWidgets({
                       )
                     }
                     className="motion-tactile grid size-8 place-items-center disabled:opacity-25"
-                    aria-label={`Subtract ${widget.metricStep} ${widget.unit} from ${widget.title}`}
+                    aria-label={tr(
+                      "Subtract {{value0}} {{value1}} from {{value2}}",
+                      {
+                        value0: widget.metricStep,
+                        value1: widget.unit,
+                        value2: widget.title,
+                      }
+                    )}
                   >
                     <Minus size={11} weight="bold" />
                   </button>
@@ -170,7 +182,11 @@ export function CoachDashboardWidgets({
                       )
                     }
                     className="motion-tactile grid size-8 place-items-center border-l border-border/60"
-                    aria-label={`Add ${widget.metricStep} ${widget.unit} to ${widget.title}`}
+                    aria-label={tr("Add {{value0}} {{value1}} to {{value2}}", {
+                      value0: widget.metricStep,
+                      value1: widget.unit,
+                      value2: widget.title,
+                    })}
                   >
                     <Plus size={11} weight="bold" />
                   </button>
@@ -197,8 +213,11 @@ export function CoachDashboardWidgets({
                   </p>
                   <p className="text-[9px] text-muted-foreground tabular-nums">
                     {target > 0
-                      ? `${Math.round(percentage)}% of ${compactNumber(target)}`
-                      : "No target"}
+                      ? tr("{{value0}}% of {{value1}}", {
+                          value0: Math.round(percentage),
+                          value1: compactNumber(target),
+                        })
+                      : tr("No target")}
                   </p>
                 </div>
                 <div
@@ -227,8 +246,13 @@ export function CoachDashboardWidgets({
                   </p>
                   <p className="mt-1 text-[8px] leading-tight text-muted-foreground/60">
                     {remainingAtSixHours == null
-                      ? `${widget.entries.length}-day view`
-                      : `~${compactNumber(remainingAtSixHours)} ${widget.unit} in 6h`}
+                      ? tr("{{value0}}-day view", {
+                          value0: widget.entries.length,
+                        })
+                      : tr("~{{value0}} {{value1}} in 6h", {
+                          value0: compactNumber(remainingAtSixHours),
+                          value1: widget.unit,
+                        })}
                   </p>
                 </div>
               </div>
@@ -236,7 +260,9 @@ export function CoachDashboardWidgets({
 
             <p className="mt-2 truncate text-[8.5px] text-muted-foreground/55">
               {widget.kind === "decay"
-                ? `Estimate · ${widget.halfLifeHours ?? 5}h half-life`
+                ? tr("Estimate · {{value0}}h half-life", {
+                    value0: widget.halfLifeHours ?? 5,
+                  })
                 : widget.description}
             </p>
           </article>

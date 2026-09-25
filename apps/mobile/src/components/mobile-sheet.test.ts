@@ -1,3 +1,4 @@
+import { readLocalizedSource as readFileSync } from "../../tests/helpers/localized-source"
 /**
  * Tests for the MobileSheet component logic (mobile-sheet.tsx).
  *
@@ -14,7 +15,6 @@
 
 import { test, describe } from "node:test"
 import assert from "node:assert/strict"
-import { readFileSync } from "node:fs"
 
 const SHEET_SOURCE = readFileSync(
   new URL(

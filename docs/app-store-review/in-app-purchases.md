@@ -1,9 +1,8 @@
 # iOS subscriptions
 
-OneRep Pro is available in the iOS app through StoreKit 2. Settings and the AI
-allowance paywall both offer the monthly subscription and Restore purchases.
-Prices come from the App Store for the customer's storefront. Convex verifies
-Apple's signed transaction before granting Pro or finishing the transaction.
+Native upgrades are temporarily paused by `apps/mobile/src/lib/billing-policy.ts`. iOS and Android hide upgrade entry points, skip subscription catalogue loading, and block new purchase attempts. The AI limit dialog explains the monthly allowance without offering an upgrade. Web checkout remains available. Where native subscription management is unavailable, Settings displays “Subscription management isn’t available in this app.” without an external purchase link or instruction. Apple subscribers retain the App Store management action and see “Manage your Apple subscription in the App Store.”
+
+Existing entitlements remain valid. iOS users can restore purchases in Settings, and existing Apple subscribers can manage their subscription in the App Store. Convex verifies signed Apple transactions before granting Pro or finishing a transaction.
 
 ## Release setup
 
@@ -25,7 +24,15 @@ Apple's signed transaction before granting Pro or finishing the transaction.
   first auto-renewable subscription submission. See Apple's
   [submission instructions](https://developer.apple.com/help/app-store-connect/manage-submissions-to-app-review/submit-an-in-app-purchase).
 
-## Device verification before resubmission
+## Verification while upgrades are paused
+
+1. On a free native account, confirm Settings has no upgrade banner, price, or purchase button.
+2. Reach the AI allowance limit and confirm the notice offers only dismissal. Logging remains available.
+3. On iOS, restore an existing purchase from Settings and verify access returns after server verification.
+4. As an existing Apple subscriber, verify Manage in App Store remains available.
+5. On web, verify the normal upgrade flow remains available.
+
+## Device verification before re-enabling purchases
 
 Use the release build in TestFlight with a free OneRep account:
 
@@ -44,8 +51,4 @@ Connect configuration, Apple payment sheets, or a real sandbox transaction.
 
 ## Review notes
 
-The monthly OneRep Pro subscription is available through Apple In-App Purchase
-in Settings, in the OneRep Pro section. Tap Upgrade to Pro to open Apple's
-purchase sheet. Restore purchases is beside Refresh. The AI allowance paywall
-also offers Subscribe with Apple and Restore purchases. Existing subscribers can
-use their entitlement across platforms; the same Pro features are sold in iOS.
+Describe the actual submitted build. This temporary UI pause does not establish that Apple's previous rejection is resolved, particularly while externally purchased entitlements remain accessible. Do not reuse review notes claiming native purchases are available until the pause is lifted and the live flow is verified.

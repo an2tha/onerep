@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 import { useEffect, useState } from "react"
 import { useConvexAuth } from "convex/react"
 import { handleUnauthenticatedSession } from "@/lib/auth-session"
@@ -36,10 +37,12 @@ function AuthHandoff() {
       <section aria-labelledby="auth-handoff-heading" aria-live="polite">
         <div className="mb-5 h-5 w-5 animate-spin rounded-full border-2 border-foreground/20 border-t-foreground" />
         <h1 id="auth-handoff-heading" className="native-large-title">
-          Finishing sign in
+          {tr("Finishing sign in")}
         </h1>
         <p className="native-body mt-3 text-muted-foreground">
-          Your account is verified. Securely connecting your OneRep data.
+          {tr(
+            "Your account is verified. Securely connecting your OneRep data."
+          )}
         </p>
       </section>
     </main>
@@ -127,11 +130,12 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       <main className="mx-auto flex min-h-svh w-full max-w-md flex-col justify-center px-6 py-10">
         <section aria-labelledby="auth-offline-heading" aria-live="polite">
           <h1 id="auth-offline-heading" className="native-large-title">
-            You’re offline
+            {tr("You’re offline")}
           </h1>
           <p className="native-body mt-3 text-muted-foreground">
-            OneRep needs a connection to unlock your account. Nothing on this
-            device has been touched, and anything waiting to sync still is.
+            {tr(
+              "OneRep needs a connection to unlock your account. Nothing on this device has been touched, and anything waiting to sync still is."
+            )}
           </p>
           <div className="mt-6 grid gap-3">
             <button
@@ -139,7 +143,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
               onClick={() => window.location.reload()}
               className="native-primary-button w-full"
             >
-              Retry
+              {tr("Retry")}
             </button>
           </div>
         </section>
@@ -149,18 +153,22 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
   if (!authServiceConfigured || authLoadTimedOut || handoffTimedOut) {
     const handoffError = handoffTimedOut
-      ? "You’re signed in, but OneRep couldn’t finish loading your account. Check your connection, then retry before signing in again."
+      ? tr(
+          "You’re signed in, but OneRep couldn’t finish loading your account. Check your connection, then retry before signing in again."
+        )
       : authServiceError
 
     return (
       <main className="mx-auto flex min-h-svh w-full max-w-md flex-col justify-center px-6 py-10">
         <section aria-labelledby="auth-service-heading">
           <h1 id="auth-service-heading" className="native-large-title">
-            Sign-in service unavailable
+            {tr("Sign-in service unavailable")}
           </h1>
           <p className="native-body mt-3 text-muted-foreground">
             {handoffError ??
-              "OneRep could not reach the sign-in service. Your local data is still safe."}
+              tr(
+                "OneRep could not reach the sign-in service. Your local data is still safe."
+              )}
           </p>
           <div className="mt-6 grid gap-3">
             <button
@@ -168,7 +176,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
               onClick={() => window.location.reload()}
               className="native-primary-button w-full"
             >
-              Retry
+              {tr("Retry")}
             </button>
             <button
               type="button"
@@ -180,7 +188,9 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
               }
               className="native-toolbar-button w-full border border-border"
             >
-              {isSignedIn ? "Sign out and start again" : "Go to sign in"}
+              {isSignedIn
+                ? tr("Sign out and start again")
+                : tr("Go to sign in")}
             </button>
           </div>
         </section>
@@ -192,10 +202,12 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     <main className="mx-auto flex min-h-svh w-full max-w-md flex-col justify-center px-6 py-10">
       <section aria-labelledby="signed-out-heading">
         <h1 id="signed-out-heading" className="native-large-title">
-          Taking you to sign in
+          {tr("Taking you to sign in")}
         </h1>
         <p className="native-body mt-3 text-muted-foreground">
-          Your destination is saved so you can continue after signing in.
+          {tr(
+            "Your destination is saved so you can continue after signing in."
+          )}
         </p>
         <button
           type="button"
@@ -207,7 +219,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
           }
           className="native-primary-button mt-6 w-full"
         >
-          Continue to sign in
+          {tr("Continue to sign in")}
         </button>
       </section>
     </main>

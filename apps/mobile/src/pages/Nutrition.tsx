@@ -1,3 +1,4 @@
+import { Message, choice, tr, translateError, uiLocale } from "@repo/ui/i18n"
 import { PageBarActions } from "@/components/page-bar-actions"
 import { useRecovery } from "@/lib/use-recovery"
 import { RecoveryBanner } from "@/components/recovery/recovery-banner"
@@ -9,7 +10,14 @@ import {
   isFoodLogDate,
   isFoodLogTime,
 } from "@/lib/food-log-context"
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react"
 import { useSearchParams } from "react-router"
 import { createPortal } from "react-dom"
 import {
@@ -153,94 +161,104 @@ const GOAL_FIELDS: {
   step: number
   min: number
 }[] = [
-  { key: "calories", label: "Calories", unit: "kcal", step: 50, min: 500 },
-  { key: "protein", label: "Protein", unit: "g", step: 5, min: 0 },
-  { key: "carbs", label: "Carbs", unit: "g", step: 5, min: 0 },
-  { key: "fat", label: "Fat", unit: "g", step: 5, min: 0 },
+  { key: "calories", label: tr("Calories"), unit: "kcal", step: 50, min: 500 },
+  { key: "protein", label: tr("Protein"), unit: "g", step: 5, min: 0 },
+  { key: "carbs", label: tr("Carbs"), unit: "g", step: 5, min: 0 },
+  { key: "fat", label: tr("Fat"), unit: "g", step: 5, min: 0 },
 ]
 
 const MICRO_DETAILS: Record<
   FoodMicronutrientKey,
   { label: string; unit: "g" | "mg" | "mcg"; target?: number; color: string }
 > = {
-  fiber: { label: "Fiber", unit: "g", target: 30, color: MICRO_COLORS.fiber },
-  sugar: { label: "Sugar", unit: "g", target: 50, color: MICRO_COLORS.sugar },
+  fiber: {
+    label: tr("Fiber"),
+    unit: "g",
+    target: 30,
+    color: MICRO_COLORS.fiber,
+  },
+  sugar: {
+    label: tr("Sugar"),
+    unit: "g",
+    target: 50,
+    color: MICRO_COLORS.sugar,
+  },
   saturatedFat: {
-    label: "Saturated fat",
+    label: tr("Saturated fat"),
     unit: "g",
     target: 20,
     color: MICRO_COLORS.saturatedFat,
   },
-  transFat: { label: "Trans fat", unit: "g", color: MICRO_COLORS.transFat },
+  transFat: { label: tr("Trans fat"), unit: "g", color: MICRO_COLORS.transFat },
   cholesterol: {
-    label: "Cholesterol",
+    label: tr("Cholesterol"),
     unit: "mg",
     target: 300,
     color: MICRO_COLORS.cholesterol,
   },
   sodium: {
-    label: "Sodium",
+    label: tr("Sodium"),
     unit: "mg",
     target: 2300,
     color: MICRO_COLORS.sodium,
   },
   potassium: {
-    label: "Potassium",
+    label: tr("Potassium"),
     unit: "mg",
     target: 3400,
     color: MICRO_COLORS.potassium,
   },
   calcium: {
-    label: "Calcium",
+    label: tr("Calcium"),
     unit: "mg",
     target: 1000,
     color: MICRO_COLORS.calcium,
   },
-  iron: { label: "Iron", unit: "mg", target: 18, color: MICRO_COLORS.iron },
+  iron: { label: tr("Iron"), unit: "mg", target: 18, color: MICRO_COLORS.iron },
   magnesium: {
-    label: "Magnesium",
+    label: tr("Magnesium"),
     unit: "mg",
     target: 400,
     color: MICRO_COLORS.magnesium,
   },
   phosphorus: {
-    label: "Phosphorus",
+    label: tr("Phosphorus"),
     unit: "mg",
     target: 700,
     color: MICRO_COLORS.phosphorus,
   },
-  zinc: { label: "Zinc", unit: "mg", target: 11, color: MICRO_COLORS.zinc },
+  zinc: { label: tr("Zinc"), unit: "mg", target: 11, color: MICRO_COLORS.zinc },
   vitaminC: {
-    label: "Vitamin C",
+    label: tr("Vitamin C"),
     unit: "mg",
     target: 90,
     color: MICRO_COLORS.vitaminC,
   },
   vitaminA: {
-    label: "Vitamin A",
+    label: tr("Vitamin A"),
     unit: "mcg",
     target: 900,
     color: MICRO_COLORS.vitaminA,
   },
   vitaminD: {
-    label: "Vitamin D",
+    label: tr("Vitamin D"),
     unit: "mcg",
     target: 20,
     color: MICRO_COLORS.vitaminD,
   },
   vitaminB12: {
-    label: "B12",
+    label: tr("B12"),
     unit: "mcg",
     target: 2.4,
     color: MICRO_COLORS.vitaminB12,
   },
   caffeine: {
-    label: "Caffeine",
+    label: tr("Caffeine"),
     unit: "mg",
     target: 400,
     color: MICRO_COLORS.caffeine,
   },
-  alcohol: { label: "Alcohol", unit: "g", color: MICRO_COLORS.alcohol },
+  alcohol: { label: tr("Alcohol"), unit: "g", color: MICRO_COLORS.alcohol },
 }
 
 function pct(value: number, target: number) {
@@ -249,7 +267,7 @@ function pct(value: number, target: number) {
 }
 
 function fmt(n: number) {
-  return Math.round(n).toLocaleString("en-US")
+  return Math.round(n).toLocaleString(uiLocale())
 }
 
 /** Curried so every water surface in this file formats in one chosen unit. */
@@ -262,35 +280,38 @@ function fmtFastRemaining(seconds: number) {
   const minutes = Math.max(0, Math.round(seconds / 60))
   const hours = Math.floor(minutes / 60)
   if (hours === 0) return `${minutes}m`
-  return `${hours}h ${String(minutes % 60).padStart(2, "0")}m`
+  return tr("{{value0}}h {{value1}}m", {
+    value0: hours,
+    value1: String(minutes % 60).padStart(2, "0"),
+  })
 }
 
 function fmtMicro(value: number, unit: "g" | "mg" | "mcg") {
   if (!Number.isFinite(value) || value <= 0) return `0 ${unit}`
   if (unit === "g") {
     const rounded = value >= 10 ? Math.round(value) : Number(value.toFixed(1))
-    return `${rounded.toLocaleString("en-US")} ${unit}`
+    return `${rounded.toLocaleString(uiLocale())} ${unit}`
   }
   if (value < 10)
-    return `${Number(value.toFixed(1)).toLocaleString("en-US")} ${unit}`
-  return `${Math.round(value).toLocaleString("en-US")} ${unit}`
+    return `${Number(value.toFixed(1)).toLocaleString(uiLocale())} ${unit}`
+  return `${Math.round(value).toLocaleString(uiLocale())} ${unit}`
 }
 
 function timeLabel(value: string) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return "—"
-  return date.toLocaleTimeString("en-US", {
+  return date.toLocaleTimeString(uiLocale(), {
     hour: "numeric",
     minute: "2-digit",
   })
 }
 
 function formatDateLabel(dateKey: string, todayKey: string) {
-  if (dateKey === todayKey) return "Today"
+  if (dateKey === todayKey) return tr("Today")
   const yesterday = offsetDateKey(todayKey, -1)
-  if (dateKey === yesterday) return "Yesterday"
+  if (dateKey === yesterday) return tr("Yesterday")
   const date = new Date(`${dateKey}T12:00:00Z`)
-  return date.toLocaleDateString([], {
+  return date.toLocaleDateString(uiLocale(), {
     weekday: "short",
     month: "short",
     day: "numeric",
@@ -377,7 +398,7 @@ function ProgressLine({
           <span className="font-medium text-muted-foreground">
             {" "}
             / {display(target)}
-            {format ? "" : ` ${suffix}`}
+            {format ? "" : tr(" {{value0}}", { value0: suffix })}
           </span>
         </span>
       </div>
@@ -451,7 +472,16 @@ function MacroDial({
       )}
       style={{ width: size, height: size, ...style }}
       role="img"
-      aria-label={`${name}: ${fmt(value)} of ${fmt(target)}${suffix}, ${target > 0 ? pct(value, target) : 0}% of goal`}
+      aria-label={tr(
+        "{{value0}}: {{value1}} of {{value2}}{{value3}}, {{value4}}% of goal",
+        {
+          value0: name,
+          value1: fmt(value),
+          value2: fmt(target),
+          value3: suffix,
+          value4: target > 0 ? pct(value, target) : 0,
+        }
+      )}
     >
       {rainKey > 0 && (
         <span
@@ -536,8 +566,10 @@ function MacroDial({
               className="text-[11px] leading-tight text-muted-foreground/80 tabular-nums"
               aria-hidden="true"
             >
-              of {fmt(target)}
-              {suffix}
+              <Message
+                text={"of {{value0}}{{value1}}"}
+                values={{ value0: fmt(target), value1: suffix }}
+              />
             </p>
           )}
         </div>
@@ -578,7 +610,9 @@ function MicroBreakdown({
         className="flex min-h-10 w-full items-center justify-between gap-3 text-left"
         aria-expanded={open}
       >
-        <span className="text-[15px] font-semibold">Micronutrients</span>
+        <span className="text-[15px] font-semibold">
+          {tr("Micronutrients")}
+        </span>
         <span className="flex items-center gap-2">
           {highlights.length > 0 && (
             <span className="hidden max-w-[11rem] truncate text-[13px] font-medium text-muted-foreground tabular-nums min-[390px]:block">
@@ -609,7 +643,7 @@ function MicroBreakdown({
         <div className="overflow-hidden">
           {loggedCount === 0 ? (
             <p className="border-t border-border py-3 text-[14px] leading-5 text-muted-foreground">
-              Nothing logged yet.
+              {tr("Nothing logged yet.")}
             </p>
           ) : (
             <div className="divide-y divide-border border-t border-border">
@@ -700,12 +734,12 @@ function CustomWaterSheet({
       }}
     >
       <div className="px-5 pt-1 pb-4">
-        <p className="text-[17px] font-bold">Custom water</p>
+        <p className="text-[17px] font-bold">{tr("Custom water")}</p>
         <div className="mt-4 flex items-center justify-between rounded-[1rem] bg-muted/35 p-1">
           <button
             type="button"
             onClick={() => setClamped(amount - stepMl)}
-            aria-label="Decrease custom water amount"
+            aria-label={tr("Decrease custom water amount")}
             className="flex h-11 w-11 items-center justify-center rounded-[0.8rem] bg-background text-[18px] font-bold"
           >
             −
@@ -713,8 +747,8 @@ function CustomWaterSheet({
           <label className="min-w-0 flex-1 px-3 text-center">
             <span className="sr-only">
               {flOz
-                ? "Custom water amount in fluid ounces"
-                : "Water amount in milliliters"}
+                ? tr("Custom water amount in fluid ounces")
+                : tr("Water amount in milliliters")}
             </span>
             <input
               type="number"
@@ -722,8 +756,8 @@ function CustomWaterSheet({
               name="nutrition-custom-water-ml"
               aria-label={
                 flOz
-                  ? "Custom water amount in fluid ounces"
-                  : "Custom water amount in milliliters"
+                  ? tr("Custom water amount in fluid ounces")
+                  : tr("Custom water amount in milliliters")
               }
               min={1}
               max={maxAmount}
@@ -736,13 +770,13 @@ function CustomWaterSheet({
               className="w-full bg-transparent text-center text-[1.75rem] leading-none font-extrabold tabular-nums outline-none"
             />
             <span className="mt-1 block text-[13px] font-medium text-muted-foreground">
-              {flOz ? "fl oz" : "milliliters"}
+              {flOz ? tr("fl oz") : tr("milliliters")}
             </span>
           </label>
           <button
             type="button"
             onClick={() => setClamped(amount + stepMl)}
-            aria-label="Increase custom water amount"
+            aria-label={tr("Increase custom water amount")}
             className="flex h-11 w-11 items-center justify-center rounded-[0.8rem] bg-background text-[18px] font-bold"
           >
             +
@@ -765,7 +799,10 @@ function CustomWaterSheet({
           onClick={onAdd}
           className="app-button mt-4 min-h-11 w-full justify-center bg-foreground text-background"
         >
-          Add {formatWater(amount, unit)}
+          <Message
+            text={"Add {{value0}}"}
+            values={{ value0: formatWater(amount, unit) }}
+          />
         </button>
       </div>
     </MobileSheet>
@@ -803,11 +840,11 @@ function WaterGoalSheet({
     >
       <div className="px-4 pt-1 pb-2">
         <div className="mb-4 flex items-center justify-between">
-          <p className="text-[15px] font-semibold">Daily water goal</p>
+          <p className="text-[15px] font-semibold">{tr("Daily water goal")}</p>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close daily goal"
+            aria-label={tr("Close daily goal")}
             className="flex h-11 w-11 items-center justify-center rounded-[10px] text-muted-foreground transition-colors active:bg-muted"
           >
             <X size={12} weight="bold" />
@@ -816,9 +853,9 @@ function WaterGoalSheet({
 
         <div className="flex items-center justify-between">
           <div className="flex items-baseline gap-1">
-            <span className="text-[13px] font-medium">Water</span>
+            <span className="text-[13px] font-medium">{tr("Water")}</span>
             <span className="text-[13px] text-muted-foreground">
-              {unit === "fl oz" ? "fl oz" : "ml"}
+              {unit === "fl oz" ? tr("fl oz") : tr("ml")}
             </span>
           </div>
           <div className="flex items-center rounded-xl bg-muted/50 p-0.5">
@@ -827,7 +864,7 @@ function WaterGoalSheet({
               onClick={() =>
                 setDraft((value) => Math.max(minMl, value - stepMl))
               }
-              aria-label="Decrease daily water goal"
+              aria-label={tr("Decrease daily water goal")}
               className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground/60 active:bg-background active:text-foreground"
             >
               <span className="text-[15px] leading-none">-</span>
@@ -836,7 +873,9 @@ function WaterGoalSheet({
               type="number"
               name="water-goal-ml"
               aria-label={
-                flOz ? "Daily water goal in fl oz" : "Daily water goal in ml"
+                flOz
+                  ? tr("Daily water goal in fl oz")
+                  : tr("Daily water goal in ml")
               }
               value={flOz ? Number(mlToFlOz(draft).toFixed(1)) : draft}
               onChange={(event) => {
@@ -849,7 +888,7 @@ function WaterGoalSheet({
             <button
               type="button"
               onClick={() => setDraft((value) => value + stepMl)}
-              aria-label="Increase daily water goal"
+              aria-label={tr("Increase daily water goal")}
               className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground/60 active:bg-background active:text-foreground"
             >
               <span className="text-[15px] leading-none">+</span>
@@ -867,7 +906,7 @@ function WaterGoalSheet({
           }}
           className="mt-4 w-full rounded-xl bg-foreground py-3 text-[13px] font-semibold text-background active:opacity-75 disabled:opacity-50"
         >
-          {saving ? "Saving..." : "Save"}
+          {saving ? tr("Saving...") : tr("Save")}
         </button>
       </div>
     </MobileSheet>
@@ -910,10 +949,10 @@ function MealBudgetPanel({
 
   return (
     <div>
-      <p className="app-section-title mb-2">Calories by meal</p>
+      <p className="app-section-title mb-2">{tr("Calories by meal")}</p>
       <div
         className="divide-y divide-border border-y border-border"
-        aria-label="Calories by meal"
+        aria-label={tr("Calories by meal")}
       >
         {rows.map((target) => {
           const consumed = Math.round(consumedByMeal.get(target.meal) ?? 0)
@@ -926,10 +965,15 @@ function MealBudgetPanel({
                 </span>
                 <span
                   className="native-row-detail tabular-nums"
-                  aria-label={`${mealLabel(target.meal)}: ${energyDisplay(consumed, energyUnit)} of ${energyDisplay(
-                    target.calories,
-                    energyUnit
-                  )} ${energyUnit}`}
+                  aria-label={tr(
+                    "{{value0}}: {{value1}} of {{value2}} {{value3}}",
+                    {
+                      value0: mealLabel(target.meal),
+                      value1: energyDisplay(consumed, energyUnit),
+                      value2: energyDisplay(target.calories, energyUnit),
+                      value3: energyUnit,
+                    }
+                  )}
                 >
                   {energyDisplay(consumed, energyUnit)} /{" "}
                   {energyDisplay(target.calories, energyUnit)} {energyUnit}
@@ -990,7 +1034,7 @@ function GoalsCardWrapper({
         className="flex min-h-10 w-full items-center justify-between gap-3 text-left"
         aria-expanded={editing}
       >
-        <span className="text-[15px] font-semibold">Daily goals</span>
+        <span className="text-[15px] font-semibold">{tr("Daily goals")}</span>
         <CaretDown
           size={13}
           weight="bold"
@@ -1026,7 +1070,9 @@ function GoalsCardWrapper({
                   <button
                     type="button"
                     onClick={() => adjust(key, -step)}
-                    aria-label={`Decrease ${label.toLowerCase()} goal`}
+                    aria-label={tr("Decrease {{value0}} goal", {
+                      value0: label.toLowerCase(),
+                    })}
                     className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground/60 active:bg-background active:text-foreground"
                   >
                     <span className="text-[15px] leading-none">-</span>
@@ -1034,7 +1080,7 @@ function GoalsCardWrapper({
                   <input
                     type="number"
                     name={`food-goal-${key}`}
-                    aria-label={`${label} goal`}
+                    aria-label={tr("{{value0}} goal", { value0: label })}
                     value={draft[key]}
                     onChange={(event) => {
                       const value = Number.parseInt(event.target.value)
@@ -1050,7 +1096,9 @@ function GoalsCardWrapper({
                   <button
                     type="button"
                     onClick={() => adjust(key, step)}
-                    aria-label={`Increase ${label.toLowerCase()} goal`}
+                    aria-label={tr("Increase {{value0}} goal", {
+                      value0: label.toLowerCase(),
+                    })}
                     className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground/60 active:bg-background active:text-foreground"
                   >
                     <span className="text-[15px] leading-none">+</span>
@@ -1061,8 +1109,9 @@ function GoalsCardWrapper({
           </div>
           {carbMode === "net" && (
             <p className="mt-2 text-[12px] text-muted-foreground">
-              Carbs is your total-carb goal. Net carbs display subtracts your
-              fiber target from it.
+              {tr(
+                "Carbs is your total-carb goal. Net carbs display subtracts your fiber target from it."
+              )}
             </p>
           )}
           <div className="mt-3 flex items-center gap-2">
@@ -1074,7 +1123,7 @@ function GoalsCardWrapper({
               }}
               className="app-button flex-1 justify-center bg-foreground text-background"
             >
-              Save
+              {tr("Save")}
             </button>
             {apiGoals && (
               <button
@@ -1086,7 +1135,7 @@ function GoalsCardWrapper({
                 }}
                 className="app-button app-button-secondary"
               >
-                Reset
+                {tr("Reset")}
               </button>
             )}
           </div>
@@ -1152,7 +1201,9 @@ function SmartMealPresetCard({
         )}
         <div className="min-w-0 flex-1">
           <p className="text-[13.5px] leading-snug font-semibold">
-            {isSave ? `Save usual ${meal}` : `Log usual ${meal}`}
+            {isSave
+              ? tr("Save usual {{value0}}", { value0: meal })
+              : tr("Log usual {{value0}}", { value0: meal })}
           </p>
           <p className="mt-0.5 truncate text-[13px] text-muted-foreground">
             {summary || fallbackName}
@@ -1162,8 +1213,14 @@ function SmartMealPresetCard({
               {energyDisplay(totals.calories, energyUnit)} {energyUnit}
             </span>
             <span className="text-[13px] text-muted-foreground tabular-nums">
-              P{Math.round(totals.protein)} C{Math.round(totals.carbs)} F
-              {Math.round(totals.fat)}g
+              <Message
+                text={"P{{value0}} C{{value1}} F{{value2}}g"}
+                values={{
+                  value0: Math.round(totals.protein),
+                  value1: Math.round(totals.carbs),
+                  value2: Math.round(totals.fat),
+                }}
+              />
             </span>
           </div>
         </div>
@@ -1171,7 +1228,7 @@ function SmartMealPresetCard({
           type="button"
           onClick={onDismiss}
           disabled={busy}
-          aria-label="Dismiss smart meal suggestion"
+          aria-label={tr("Dismiss smart meal suggestion")}
           className="app-icon-button h-11 w-11 bg-transparent text-muted-foreground disabled:opacity-35"
         >
           <X size={10} weight="bold" />
@@ -1190,11 +1247,11 @@ function SmartMealPresetCard({
         >
           {busy
             ? isSave
-              ? "Saving..."
-              : "Logging..."
+              ? tr("Saving...")
+              : tr("Logging...")
             : isSave
-              ? "Save as preset"
-              : `Log usual ${meal}`}
+              ? tr("Save as preset")
+              : tr("Log usual {{value0}}", { value0: meal })}
         </button>
       </div>
     </section>
@@ -1347,10 +1404,10 @@ function DescribeMealSheet({
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-[15px] leading-snug font-semibold">
-            Describe meal
+            {tr("Describe meal")}
           </p>
           <p className="mt-1 text-[13px] leading-5 text-muted-foreground">
-            AI creates a temporary recipe you can review before logging.
+            {tr("AI creates a temporary recipe you can review before logging.")}
           </p>
         </div>
         <button
@@ -1358,7 +1415,7 @@ function DescribeMealSheet({
           onClick={onClose}
           disabled={busy}
           className="app-icon-button h-9 w-9 disabled:opacity-40"
-          aria-label="Close describe meal"
+          aria-label={tr("Close describe meal")}
         >
           <X size={13} weight="bold" />
         </button>
@@ -1368,8 +1425,10 @@ function DescribeMealSheet({
         value={text}
         onChange={(event) => setText(event.target.value)}
         disabled={busy}
-        aria-label="Describe meal"
-        placeholder="chicken burrito bowl with rice, beans, salsa, cheese, and guacamole"
+        aria-label={tr("Describe meal")}
+        placeholder={tr(
+          "chicken burrito bowl with rice, beans, salsa, cheese, and guacamole"
+        )}
         className="min-h-36 w-full resize-none rounded-[10px] border border-border bg-muted/35 px-4 py-3 text-[14px] leading-relaxed outline-none placeholder:text-muted-foreground focus:border-foreground disabled:opacity-60"
       />
 
@@ -1385,7 +1444,7 @@ function DescribeMealSheet({
           weight="fill"
           className={busy ? "animate-spin" : undefined}
         />
-        {busy ? "Building recipe..." : "Create temporary recipe"}
+        {busy ? tr("Building recipe...") : tr("Create temporary recipe")}
       </button>
     </MobileSheet>
   )
@@ -1422,9 +1481,7 @@ function FoodEntrySheet({
   // own timestamp in local time, so a 23:30 entry stays on its day.
   const entryAt = new Date(entry.loggedAt)
   const [loggedAtTime, setLoggedAtTime] = useState(() =>
-    foodLogTime(
-      entryAt.getHours() * 60 + entryAt.getMinutes()
-    )
+    foodLogTime(entryAt.getHours() * 60 + entryAt.getMinutes())
   )
   const [macros, setMacros] = useState({
     calories: String(Math.round(entry.calories)),
@@ -1471,7 +1528,8 @@ function FoodEntrySheet({
   // A serving the catalogue never named reads "1 serving (85 g)", and the
   // logged weight would then print that same 85 g a second time. The weight is
   // worth the repetition only when it is not already the one in the label.
-  const labelWeightGrams = parseFoodPortionLabel(entry.servingLabel)?.grams ?? null
+  const labelWeightGrams =
+    parseFoodPortionLabel(entry.servingLabel)?.grams ?? null
   const servingLine = [
     entry.servingLabel,
     entry.quantityGrams &&
@@ -1483,12 +1541,12 @@ function FoodEntrySheet({
     .join(" · ")
 
   const sourceLine = entry.recipeId
-    ? "From a saved recipe"
+    ? tr("From a saved recipe")
     : entry.recipeDraft
-      ? "From a coach recipe"
+      ? tr("From a coach recipe")
       : entry.source === "openfoodfacts"
-        ? "Matched in the food database"
-        : "Entered manually"
+        ? tr("Matched in the food database")
+        : tr("Entered manually")
 
   return (
     <MobileSheet
@@ -1502,7 +1560,7 @@ function FoodEntrySheet({
       <div className="mb-3 flex items-start gap-3">
         <div className="min-w-0 flex-1">
           <p className="text-[15px] leading-snug font-semibold">
-            Entry details
+            {tr("Entry details")}
           </p>
           <p className="mt-1 text-[13px] leading-5 text-muted-foreground">
             {mealLabel(entry.meal)} · {timeLabel(entry.loggedAt)} · {sourceLine}
@@ -1513,7 +1571,7 @@ function FoodEntrySheet({
           onClick={onClose}
           disabled={saving}
           className="app-icon-button h-9 w-9 disabled:opacity-40"
-          aria-label="Close entry details"
+          aria-label={tr("Close entry details")}
         >
           <X size={13} weight="bold" />
         </button>
@@ -1522,7 +1580,7 @@ function FoodEntrySheet({
       <input
         value={name}
         onChange={(event) => setName(event.target.value)}
-        aria-label="Entry name"
+        aria-label={tr("Entry name")}
         className="h-11 w-full rounded-xl border border-border bg-transparent px-3 text-[15px] outline-none focus:border-foreground/40"
       />
 
@@ -1530,11 +1588,11 @@ function FoodEntrySheet({
         <select
           value={meal}
           onChange={(event) => setMeal(event.target.value)}
-          aria-label="Meal"
+          aria-label={tr("Meal")}
           className="h-11 w-full rounded-xl border border-border bg-transparent px-3 text-[14px] font-medium outline-none"
         >
           {entry.meal === "snack" && (
-            <option value="snack">Snack (legacy)</option>
+            <option value="snack">{tr("Snack (legacy)")}</option>
           )}
           {DEFAULT_MEAL_CATEGORIES.map((category) => (
             <option key={category.id} value={category.id}>
@@ -1543,12 +1601,16 @@ function FoodEntrySheet({
           ))}
         </select>
         <label className="flex h-11 items-center gap-2 rounded-xl border border-border bg-transparent px-3">
-          <Clock size={14} weight="bold" className="shrink-0 text-muted-foreground" />
+          <Clock
+            size={14}
+            weight="bold"
+            className="shrink-0 text-muted-foreground"
+          />
           <input
             type="time"
             value={loggedAtTime}
             onChange={(event) => setLoggedAtTime(event.target.value)}
-            aria-label="Logged at time"
+            aria-label={tr("Logged at time")}
             className="min-w-0 flex-1 bg-transparent text-[14px] font-medium tabular-nums outline-none"
           />
         </label>
@@ -1575,7 +1637,10 @@ function FoodEntrySheet({
                 }))
               }
               inputMode="decimal"
-              aria-label={`${label} for ${entry.name}`}
+              aria-label={tr("{{value0}} for {{value1}}", {
+                value0: label,
+                value1: entry.name,
+              })}
               className="mt-1 h-11 w-full rounded-xl border border-border bg-transparent px-2 text-center text-[15px] tabular-nums outline-none focus:border-foreground/40"
             />
           </label>
@@ -1583,12 +1648,17 @@ function FoodEntrySheet({
       </div>
 
       {servingLine && (
-        <p className="native-row-detail mt-3">Logged as {servingLine}</p>
+        <p className="native-row-detail mt-3">
+          <Message
+            text={"Logged as {{value0}}"}
+            values={{ value0: servingLine }}
+          />
+        </p>
       )}
 
       {micros.length > 0 && (
         <div className="mt-3 border-t border-border/45 pt-3">
-          <p className="app-section-title">Also in this entry</p>
+          <p className="app-section-title">{tr("Also in this entry")}</p>
           <div className="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-1">
             {micros.map((key) => {
               const detail = MICRO_DETAILS[key]
@@ -1627,7 +1697,11 @@ function FoodEntrySheet({
         }
         className="mt-4 flex min-h-12 w-full items-center justify-center rounded-2xl bg-foreground px-4 text-[14px] font-bold text-background transition-opacity active:opacity-80 disabled:opacity-35"
       >
-        {saving ? "Saving…" : changed ? "Save changes" : "Nothing to save"}
+        {saving
+          ? tr("Saving…")
+          : changed
+            ? tr("Save changes")
+            : tr("Nothing to save")}
       </button>
 
       <div className="mt-2 flex items-center justify-between gap-2">
@@ -1638,7 +1712,7 @@ function FoodEntrySheet({
             disabled={saving}
             className="min-h-11 px-1 text-[13px] font-semibold disabled:opacity-40"
           >
-            Edit the recipe
+            {tr("Edit the recipe")}
           </button>
         ) : (
           <span />
@@ -1649,7 +1723,7 @@ function FoodEntrySheet({
           disabled={saving}
           className="min-h-11 px-1 text-[13px] font-semibold text-destructive disabled:opacity-40"
         >
-          Remove entry
+          {tr("Remove entry")}
         </button>
       </div>
     </MobileSheet>
@@ -1682,13 +1756,23 @@ function RecipeLogSheet({
         paddingBottom: "max(1.5rem, env(safe-area-inset-bottom, 1.5rem))",
       }}
     >
-      <p className="text-[15px] leading-snug font-semibold">Log to...</p>
+      <p className="text-[15px] leading-snug font-semibold">
+        {tr("Log to...")}
+      </p>
       <p className="mb-0.5 truncate text-[13px] text-muted-foreground">
         {recipe.name}
       </p>
       <p className="mb-3 text-[13px] text-muted-foreground tabular-nums">
-        {energyDisplay(totals.calories, energyUnit)} {energyUnit} · P
-        {totals.protein} C{totals.carbs} F{totals.fat}g
+        <Message
+          text={"{{value0}}  {{value1}} · P{{value2}} C{{value3}} F{{value4}}g"}
+          values={{
+            value0: energyDisplay(totals.calories, energyUnit),
+            value1: energyUnit,
+            value2: totals.protein,
+            value3: totals.carbs,
+            value4: totals.fat,
+          }}
+        />
       </p>
       {onEdit && (
         <button
@@ -1697,7 +1781,7 @@ function RecipeLogSheet({
           disabled={Boolean(savingMeal)}
           className="mb-3 flex min-h-10 w-full items-center justify-center rounded-2xl bg-muted px-4 text-[13px] font-semibold text-foreground/75 transition-opacity active:opacity-75 disabled:opacity-50"
         >
-          Edit recipe
+          {tr("Edit recipe")}
         </button>
       )}
       <div className="flex flex-col gap-1.5">
@@ -1727,14 +1811,14 @@ function RecipeLogSheet({
                   opacity: cat.id === suggested ? 1 : 0.75,
                 }}
               >
-                {saving ? "Logging..." : cat.label}
+                {saving ? tr("Logging...") : cat.label}
               </span>
               {cat.id === suggested && (
                 <span
                   className="text-[13px] font-medium"
                   style={{ color: cat.color }}
                 >
-                  suggested
+                  {tr("suggested")}
                 </span>
               )}
             </button>
@@ -1767,11 +1851,11 @@ function RecipeManagementBox({
     >
       <div className="mb-3 flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <p className="app-section-title">Recipes</p>
+          <p className="app-section-title">{tr("Recipes")}</p>
           <p className="native-row-detail mt-0.5">
             {recipes.length === 0
-              ? "No saved recipes"
-              : `${recipes.length} saved`}
+              ? tr("No saved recipes")
+              : tr("{{value0}} saved", { value0: recipes.length })}
           </p>
         </div>
         <button
@@ -1779,8 +1863,10 @@ function RecipeManagementBox({
           onClick={onCreate}
           className="native-toolbar-button border-border hover:bg-card"
         >
-          <Plus size={16} weight="bold" />
-          New
+          <Message
+            text={"{{value0}}New"}
+            values={{ value0: <Plus size={16} weight="bold" /> }}
+          />
         </button>
       </div>
 
@@ -1792,8 +1878,10 @@ function RecipeManagementBox({
         >
           <BookBookmark size={20} className="text-muted-foreground" />
           <div className="text-left">
-            <p className="native-row-title">Create recipe</p>
-            <p className="native-row-detail">Save a meal you log regularly.</p>
+            <p className="native-row-title">{tr("Create recipe")}</p>
+            <p className="native-row-detail">
+              {tr("Save a meal you log regularly.")}
+            </p>
           </div>
         </button>
       ) : (
@@ -1816,16 +1904,24 @@ function RecipeManagementBox({
                 <div className="min-w-0 flex-1">
                   <p className="native-row-title truncate">{recipe.name}</p>
                   <p className="native-row-detail mt-0.5 tabular-nums">
-                    {energyDisplay(totals.calories, energyUnit)} {energyUnit} ·{" "}
-                    {recipe.ingredients.length} ingredient
-                    {recipe.ingredients.length === 1 ? "" : "s"}
+                    <Message
+                      text={
+                        "{{value0}}  {{value1}} · {{value2}} ingredient{{value3}}"
+                      }
+                      values={{
+                        value0: energyDisplay(totals.calories, energyUnit),
+                        value1: energyUnit,
+                        value2: recipe.ingredients.length,
+                        value3: recipe.ingredients.length === 1 ? "" : "s",
+                      }}
+                    />
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => onEdit(recipe)}
                   className="native-toolbar-button h-11 w-11 px-0 text-muted-foreground"
-                  aria-label={`Edit ${recipe.name}`}
+                  aria-label={tr("Edit {{value0}}", { value0: recipe.name })}
                 >
                   <PencilSimple size={17} weight="bold" />
                 </button>
@@ -1835,7 +1931,7 @@ function RecipeManagementBox({
                   disabled={deleting || !recipe._id}
                   aria-busy={deleting}
                   className="native-toolbar-button h-11 w-11 px-0 text-destructive disabled:opacity-45"
-                  aria-label={`Delete ${recipe.name}`}
+                  aria-label={tr("Delete {{value0}}", { value0: recipe.name })}
                 >
                   <Trash size={17} weight="bold" />
                 </button>
@@ -1929,10 +2025,14 @@ function RepeatMealBox({
       })
       setCreating(false)
       setDraftName("")
-      toast.success("It logs itself from tomorrow")
+      toast.success(tr("It logs itself from tomorrow"))
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Could not save this meal"
+        translateError(
+          error instanceof Error
+            ? error.message
+            : tr("Could not save this meal")
+        )
       )
     } finally {
       setSaving(false)
@@ -1945,9 +2045,9 @@ function RepeatMealBox({
     >
       <div className="mb-3 flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <p className="app-section-title">Repeat meals</p>
+          <p className="app-section-title">{tr("Repeat meals")}</p>
           <p className="native-row-detail mt-0.5">
-            Logged for you at the same time every day
+            {tr("Logged for you at the same time every day")}
           </p>
         </div>
         <button
@@ -1956,7 +2056,9 @@ function RepeatMealBox({
             hapticTap()
             setCreating((current) => !current)
           }}
-          aria-label={creating ? "Close new repeat meal" : "New repeat meal"}
+          aria-label={
+            creating ? tr("Close new repeat meal") : tr("New repeat meal")
+          }
           aria-expanded={creating}
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors active:bg-muted active:text-foreground"
         >
@@ -1973,15 +2075,15 @@ function RepeatMealBox({
           <input
             value={draftName}
             onChange={(event) => setDraftName(event.target.value)}
-            placeholder="Name it — “weekday breakfast”"
-            aria-label="Repeat meal name"
+            placeholder={tr("Name it — “weekday breakfast”")}
+            aria-label={tr("Repeat meal name")}
             className="h-11 w-full rounded-xl border border-border bg-transparent px-3 text-[15px] outline-none placeholder:text-muted-foreground focus:border-foreground/40"
           />
           <div className="mt-2 flex items-center gap-2">
             <select
               value={draftMeal}
               onChange={(event) => setDraftMeal(event.target.value)}
-              aria-label="Meal to log into"
+              aria-label={tr("Meal to log into")}
               className="h-11 min-w-0 flex-1 rounded-xl border border-border bg-transparent px-3 text-[14px] font-medium outline-none"
             >
               {DEFAULT_MEAL_CATEGORIES.map((category) => (
@@ -1994,16 +2096,19 @@ function RepeatMealBox({
               type="time"
               value={draftTime}
               onChange={(event) => setDraftTime(event.target.value)}
-              aria-label="Time of day to log it"
+              aria-label={tr("Time of day to log it")}
               className="h-11 rounded-xl border border-border bg-transparent px-3 text-[14px] font-medium tabular-nums outline-none"
             />
           </div>
           <p className="native-row-detail mt-2">
             {sourceEntries.length > 0
-              ? `Uses today's ${mealLabel(draftMeal).toLowerCase()}: ${sourceEntries
-                  .map((entry) => entry.name)
-                  .join(", ")}`
-              : `Log today's ${mealLabel(draftMeal).toLowerCase()} first — the repeat copies it.`}
+              ? tr("Uses today's {{value0}}: {{value1}}", {
+                  value0: mealLabel(draftMeal).toLowerCase(),
+                  value1: sourceEntries.map((entry) => entry.name).join(", "),
+                })
+              : tr("Log today's {{value0}} first — the repeat copies it.", {
+                  value0: mealLabel(draftMeal).toLowerCase(),
+                })}
           </p>
           <button
             type="button"
@@ -2012,15 +2117,16 @@ function RepeatMealBox({
             aria-busy={saving}
             className="mt-3 h-11 w-full rounded-xl bg-foreground text-[14px] font-semibold text-background transition-opacity active:opacity-85 disabled:opacity-40"
           >
-            {saving ? "Saving…" : "Repeat this meal daily"}
+            {saving ? tr("Saving…") : tr("Repeat this meal daily")}
           </button>
         </div>
       )}
 
       {meals.length === 0 && !creating ? (
         <p className="native-row-detail border-y border-border/60 px-1 py-4">
-          Nothing repeats yet. Log a meal you eat every day, then save it here
-          and stop typing it.
+          {tr(
+            "Nothing repeats yet. Log a meal you eat every day, then save it here and stop typing it."
+          )}
         </p>
       ) : (
         <div className="divide-y divide-border/30 border-y border-border/60">
@@ -2036,9 +2142,15 @@ function RepeatMealBox({
               <div className="min-w-0 flex-1">
                 <p className="native-row-title truncate">{meal.name}</p>
                 <p className="native-row-detail mt-0.5 truncate">
-                  {formatRepeatTime(meal.hour, meal.minute)} ·{" "}
-                  {mealLabel(meal.meal)} · {meal.entries.length} food
-                  {meal.entries.length === 1 ? "" : "s"}
+                  <Message
+                    text={"{{value0}} · {{value1}} · {{value2}} food{{value3}}"}
+                    values={{
+                      value0: formatRepeatTime(meal.hour, meal.minute),
+                      value1: mealLabel(meal.meal),
+                      value2: meal.entries.length,
+                      value3: meal.entries.length === 1 ? "" : "s",
+                    }}
+                  />
                 </p>
               </div>
               <button
@@ -2047,10 +2159,17 @@ function RepeatMealBox({
                   void setRepeatMealEnabled({
                     id: meal._id as Id<"repeatMeals">,
                     enabled: !meal.enabled,
-                  }).catch(() => toast.error("Could not update this meal"))
+                  }).catch(() =>
+                    toast.error(
+                      translateError(tr("Could not update this meal"))
+                    )
+                  )
                 }
                 aria-pressed={meal.enabled}
-                aria-label={`${meal.enabled ? "Pause" : "Resume"} ${meal.name}`}
+                aria-label={tr("{{value0}} {{value1}}", {
+                  value0: choice(meal.enabled ? "Pause" : "Resume"),
+                  value1: meal.name,
+                })}
                 className={cn(
                   "h-9 shrink-0 rounded-xl px-3 text-[12px] font-semibold transition-colors",
                   meal.enabled
@@ -2058,16 +2177,20 @@ function RepeatMealBox({
                     : "bg-foreground text-background active:opacity-85"
                 )}
               >
-                {meal.enabled ? "Pause" : "Resume"}
+                {meal.enabled ? tr("Pause") : tr("Resume")}
               </button>
               <button
                 type="button"
                 onClick={() =>
                   void removeRepeatMeal({
                     id: meal._id as Id<"repeatMeals">,
-                  }).catch(() => toast.error("Could not delete this meal"))
+                  }).catch(() =>
+                    toast.error(
+                      translateError(tr("Could not delete this meal"))
+                    )
+                  )
                 }
-                aria-label={`Delete ${meal.name}`}
+                aria-label={tr("Delete {{value0}}", { value0: meal.name })}
                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors active:bg-destructive/10 active:text-destructive"
               >
                 <Trash size={16} />
@@ -2096,7 +2219,7 @@ function GoalTile({
       <div className="min-w-0 flex-1">
         <p className="text-[15px] font-semibold">{label}</p>
         <p className="mt-0.5 truncate text-[13px] text-muted-foreground">
-          {detail} of target
+          <Message text={"{{value0}} of target"} values={{ value0: detail }} />
         </p>
       </div>
 
@@ -2141,8 +2264,8 @@ function SupplementRow({
       <div className="min-w-0 flex-1">
         <p className="truncate text-[13px] font-bold">{plan.item.name}</p>
         <p className="mt-0.5 truncate text-[13px] text-muted-foreground">
-          {taken ? "Taken" : skipped ? "Skipped" : "Due"} ·{" "}
-          {plan.item.servingLabel ?? "1 serving"}
+          {taken ? tr("Taken") : skipped ? tr("Skipped") : tr("Due")} ·{" "}
+          {plan.item.servingLabel ?? tr("1 serving")}
         </p>
       </div>
       {!taken && !skipped && (
@@ -2152,7 +2275,7 @@ function SupplementRow({
           disabled={saving}
           aria-busy={saving}
           className="app-header-icon-action"
-          aria-label={`Mark ${plan.item.name} taken`}
+          aria-label={tr("Mark {{value0}} taken", { value0: plan.item.name })}
         >
           <CheckCircle weight="bold" />
         </button>
@@ -2395,9 +2518,20 @@ export default function Nutrition() {
     water: true,
     streaks: true,
   }
-  const visibleMetrics = recoverySimple ? { ...planMetrics, calories: false, macros: false, protein: false, streaks: false, micros: false, habits: true, water: true } : showCalorieNumbers
-    ? { ...planMetrics, calories: true, macros: true, protein: true }
-    : planMetrics
+  const visibleMetrics = recoverySimple
+    ? {
+        ...planMetrics,
+        calories: false,
+        macros: false,
+        protein: false,
+        streaks: false,
+        micros: false,
+        habits: true,
+        water: true,
+      }
+    : showCalorieNumbers
+      ? { ...planMetrics, calories: true, macros: true, protein: true }
+      : planMetrics
   // Recovery mode hides the numbers on purpose, but trackingMode is a separate
   // field that onboarding always writes as "full" — so the hero used to claim
   // "full tracking mode" on a screen with every metric switched off.
@@ -2513,8 +2647,14 @@ export default function Nutrition() {
     supplementTarget === 0
       ? ""
       : supplementDone >= supplementTarget
-        ? `${supplementDone} supplement${supplementDone === 1 ? "" : "s"} taken`
-        : `${supplementDone} of ${supplementTarget} supplements`
+        ? tr("{{value0}} supplement{{value1}} taken", {
+            value0: supplementDone,
+            value1: supplementDone === 1 ? "" : "s",
+          })
+        : tr("{{value0}} of {{value1}} supplements", {
+            value0: supplementDone,
+            value1: supplementTarget,
+          })
   const dueSupplements = supplementPlan.filter(
     (plan) => plan.state === "due" || plan.state === "missed"
   )
@@ -2664,7 +2804,7 @@ export default function Nutrition() {
       if (completesGoal) setWaterGoalCelebration(true)
       return true
     } catch {
-      toast.error("Could not add water. Try again.")
+      toast.error(translateError(tr("Could not add water. Try again.")))
       return false
     } finally {
       setLoggingWaterAmount(null)
@@ -2726,7 +2866,7 @@ export default function Nutrition() {
       await setWaterUnit({ unit })
     } catch {
       clearOptimisticWaterUnit(preferences?._id ?? null)
-      toast.error("Could not save your water unit")
+      toast.error(translateError(tr("Could not save your water unit")))
     }
   }
 
@@ -2764,16 +2904,20 @@ export default function Nutrition() {
       })) as unknown as { aiResult?: SnapAiResult; matches?: SnapFoodMatch[] }
       const recipe = tempRecipeFromAiDescription(result, text)
       if (!recipe) {
-        toast.message("I couldn't match enough ingredients to log that meal")
+        toast.message(
+          tr("I couldn't match enough ingredients to log that meal")
+        )
         return
       }
       setDescribeOpen(false)
       setLoggingRecipe(recipe)
     } catch (error) {
       toast.error(
-        error instanceof Error
-          ? error.message
-          : "Couldn't read that description. Try adding more detail."
+        translateError(
+          error instanceof Error
+            ? error.message
+            : tr("Couldn't read that description. Try adding more detail.")
+        )
       )
     } finally {
       setDescribeBusy(false)
@@ -2885,7 +3029,11 @@ export default function Nutrition() {
       closeEntryDetail()
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Could not save this entry"
+        translateError(
+          error instanceof Error
+            ? error.message
+            : tr("Could not save this entry")
+        )
       )
     } finally {
       setSavingEntry(false)
@@ -2970,7 +3118,9 @@ export default function Nutrition() {
       setAddOpen(false)
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Could not log that food"
+        translateError(
+          error instanceof Error ? error.message : tr("Could not log that food")
+        )
       )
     } finally {
       setQuickRepeatBusyKey(null)
@@ -2983,27 +3133,27 @@ export default function Nutrition() {
   const logMethods = (
     <section
       className="progress-tab-enter mt-6 grid grid-cols-4 gap-2"
-      aria-label="Log a meal"
+      aria-label={tr("Log a meal")}
     >
       {[
         {
-          label: "Search",
+          label: tr("Search"),
           Icon: MagnifyingGlass,
           action: openFoodSearch,
         },
         {
-          label: "Barcode",
+          label: tr("Barcode"),
           Icon: Barcode,
           action: () => navigate(`/camera?mode=barcode&date=${dateKey}`),
         },
         {
-          label: "Snap",
+          label: tr("Snap"),
           Icon: Aperture,
           requiresAiAccess: true,
           action: openSnapCamera,
         },
         {
-          label: "Coach",
+          label: tr("Coach"),
           Icon: Sparkle,
           action: openCoach,
         },
@@ -3033,12 +3183,12 @@ export default function Nutrition() {
       className="progress-tab-enter block border-y border-border py-4"
     >
       <div className="mb-1 flex items-center justify-between gap-3">
-        <p className="app-section-title">Fasting</p>
+        <p className="app-section-title">{tr("Fasting")}</p>
         <button
           type="button"
           onClick={() => navigate("/nutrition/fasting")}
           className="native-toolbar-button px-0 text-muted-foreground"
-          aria-label="Open the fasting timer"
+          aria-label={tr("Open the fasting timer")}
         >
           <CaretRight size={16} weight="bold" />
         </button>
@@ -3048,10 +3198,10 @@ export default function Nutrition() {
         onClick={() => setFastingOpen(true)}
         aria-label={
           activeFast
-            ? `Fasting for ${formatFastDuration(
-                fastElapsed
-              )}, open the fasting timer`
-            : "Start a fast"
+            ? tr("Fasting for {{value0}}, open the fasting timer", {
+                value0: formatFastDuration(fastElapsed),
+              })
+            : tr("Start a fast")
         }
         className="mt-2 flex w-full items-center gap-4 text-left active:opacity-70"
       >
@@ -3107,20 +3257,27 @@ export default function Nutrition() {
               </span>
               <span className="native-row-detail mt-1.5 block">
                 {fastTargetSeconds === 0
-                  ? "Open-ended"
+                  ? tr("Open-ended")
                   : fastRemaining > 0
-                    ? `${fmtFastRemaining(fastRemaining)} to go`
-                    : "Target reached"}
+                    ? tr("{{value0}} to go", {
+                        value0: fmtFastRemaining(fastRemaining),
+                      })
+                    : tr("Target reached")}
               </span>
               <span className="native-row-detail block">
-                {activeFast.protocol} fast
+                <Message
+                  text={"{{value0}} fast"}
+                  values={{ value0: activeFast.protocol }}
+                />
               </span>
             </>
           ) : (
             <>
-              <span className="native-row-title block">Start a fast</span>
+              <span className="native-row-title block">
+                {tr("Start a fast")}
+              </span>
               <span className="native-row-detail mt-1 block">
-                16:8, 18:6, or a window you set.
+                {tr("16:8, 18:6, or a window you set.")}
               </span>
             </>
           )}
@@ -3134,17 +3291,17 @@ export default function Nutrition() {
       <div className="grid grid-cols-3 gap-2">
         {[
           {
-            label: "My foods",
+            label: tr("My foods"),
             Icon: ForkKnife,
             action: () => navigate(`/foods/custom?date=${dateKey}`),
           },
           {
-            label: "Meal prep",
+            label: tr("Meal prep"),
             Icon: BowlFood,
             action: () => navigate("/nutrition/meal-prep"),
           },
           {
-            label: "Groceries",
+            label: tr("Groceries"),
             Icon: ShoppingCart,
             action: () => navigate("/nutrition/groceries"),
           },
@@ -3193,13 +3350,11 @@ export default function Nutrition() {
           : undefined
       }
     >
-      {isToday && (
-          <ReactiveOrbField className="nutrition-hero-wash" />
-      )}
+      {isToday && <ReactiveOrbField className="nutrition-hero-wash" />}
       <main className="app-page">
         <header className="app-header" ref={nutritionHeaderRef}>
           <div className={cn("min-w-0")}>
-            <h1 className="app-title">Nutrition</h1>
+            <h1 className="app-title">{tr("Nutrition")}</h1>
           </div>
           <PageBarActions>
             <div className="ml-auto flex items-center gap-1">
@@ -3212,13 +3367,13 @@ export default function Nutrition() {
                 }}
                 open={dateSelectorOpen}
                 onOpenChange={setDateSelectorOpen}
-                label="Nutrition date"
+                label={tr("Nutrition date")}
               />
               <button
                 type="button"
                 onClick={() => navigate("/nutrition/report")}
                 className="app-header-icon-action"
-                aria-label="Nutrition report"
+                aria-label={tr("Nutrition report")}
               >
                 <Printer weight="bold" />
               </button>
@@ -3235,10 +3390,10 @@ export default function Nutrition() {
                         setAddOpen(true)
                       }}
                       className="native-toolbar-button"
-                      aria-label="Add nutrition entry"
+                      aria-label={tr("Add nutrition entry")}
                     >
                       <Plus weight="bold" />
-                      <span>Add</span>
+                      <span>{tr("Add")}</span>
                     </button>
                   </TourAnchor>
                   <button
@@ -3248,10 +3403,10 @@ export default function Nutrition() {
                       setAddOpen(true)
                     }}
                     className="native-toolbar-button hidden hover:bg-card md:inline-flex"
-                    aria-label="Add nutrition entry"
+                    aria-label={tr("Add nutrition entry")}
                   >
                     <Plus weight="bold" />
-                    <span className="ml-1">Add</span>
+                    <span className="ml-1">{tr("Add")}</span>
                   </button>
                 </>
               )}
@@ -3259,9 +3414,24 @@ export default function Nutrition() {
           </PageBarActions>
         </header>
         {isToday && <RecoveryBanner surface="nutrition" />}
-        {recoverySimple && activeFast && <button type="button" className="recovery-secondary" onClick={() => setFastingOpen(true)}>Review or end your active fast</button>}
+        {recoverySimple && activeFast && (
+          <button
+            type="button"
+            className="recovery-secondary"
+            onClick={() => setFastingOpen(true)}
+          >
+            {tr("Review or end your active fast")}
+          </button>
+        )}
 
-        {isToday && !recoverySimple && !caloriesHiddenBySafety && <NutritionProgramme date={dateKey} baseline={calorieTarget} protein={macroTargets.protein} fat={macroTargets.fat} />}
+        {isToday && !recoverySimple && !caloriesHiddenBySafety && (
+          <NutritionProgramme
+            date={dateKey}
+            baseline={calorieTarget}
+            protein={macroTargets.protein}
+            fat={macroTargets.fat}
+          />
+        )}
 
         {!isToday && (
           <section className="progress-tab-enter border-y border-border py-4">
@@ -3273,10 +3443,19 @@ export default function Nutrition() {
                   {energyUnit}
                 </p>
                 <p className="mt-1 text-[13px] text-muted-foreground">
-                  {entries.length} food{" "}
-                  {entries.length === 1 ? "entry" : "entries"} ·{" "}
-                  {fmtWater(waterTotal)} water ·{" "}
-                  {supplementDone} supplements
+                  <Message
+                    text={
+                      "{{value0}} food {{value1}} · {{value2}} water · {{value3}} supplements"
+                    }
+                    values={{
+                      value0: entries.length,
+                      value1: choice(
+                        entries.length === 1 ? "entry" : "entries"
+                      ),
+                      value2: fmtWater(waterTotal),
+                      value3: supplementDone,
+                    }}
+                  />
                 </p>
               </div>
               <button
@@ -3286,7 +3465,7 @@ export default function Nutrition() {
                   setAddOpen(true)
                 }}
                 className="app-header-icon-action"
-                aria-label="Add nutrition entry"
+                aria-label={tr("Add nutrition entry")}
               >
                 <Plus weight="bold" />
               </button>
@@ -3297,21 +3476,27 @@ export default function Nutrition() {
               className="mt-4 block divide-y divide-border border-y border-border"
             >
               <GoalTile
-                label="Protein"
+                label={tr("Protein")}
                 value={`${fmt(intakeTotals.protein)}g`}
-                detail={`${pct(intakeTotals.protein, macroTargets.protein)}%`}
+                detail={tr("{{value0}}%", {
+                  value0: pct(intakeTotals.protein, macroTargets.protein),
+                })}
                 complete={intakeTotals.protein >= macroTargets.protein}
               />
               <GoalTile
                 label={carbLabel(carbMode)}
                 value={`${fmt(displayedCarbs)}g`}
-                detail={`${pct(displayedCarbs, displayedCarbGoal)}%`}
+                detail={tr("{{value0}}%", {
+                  value0: pct(displayedCarbs, displayedCarbGoal),
+                })}
                 complete={displayedCarbs >= displayedCarbGoal}
               />
               <GoalTile
-                label="Fat"
+                label={tr("Fat")}
                 value={`${fmt(intakeTotals.fat)}g`}
-                detail={`${pct(intakeTotals.fat, macroTargets.fat)}%`}
+                detail={tr("{{value0}}%", {
+                  value0: pct(intakeTotals.fat, macroTargets.fat),
+                })}
                 complete={intakeTotals.fat >= macroTargets.fat}
               />
             </TourAnchor>
@@ -3324,15 +3509,17 @@ export default function Nutrition() {
               )}
               <div>
                 <div className="mb-2 flex items-center justify-between gap-3">
-                  <p className="app-section-title">Food</p>
+                  <p className="app-section-title">{tr("Food")}</p>
                   <button
                     type="button"
                     onClick={openFoodSearch}
                     className="native-toolbar-button h-11 px-3"
-                    aria-label="Add food"
+                    aria-label={tr("Add food")}
                   >
-                    <Plus size={16} weight="bold" />
-                    Add food
+                    <Message
+                      text={"{{value0}}Add food"}
+                      values={{ value0: <Plus size={16} weight="bold" /> }}
+                    />
                   </button>
                 </div>
                 {entries.length > 0 ? (
@@ -3349,16 +3536,29 @@ export default function Nutrition() {
                             setEntryDetail(entry.id)
                           }}
                           className="min-w-0 flex-1 text-left"
-                          aria-label={`Details for ${entry.name}`}
+                          aria-label={tr("Details for {{value0}}", {
+                            value0: entry.name,
+                          })}
                         >
                           <p className="native-row-title truncate">
                             {entry.name}
                           </p>
                           <p className="native-row-detail mt-0.5">
-                            {timeLabel(entry.loggedAt)} ·{" "}
-                            {fmt(energyDisplay(entry.calories, energyUnit))}{" "}
-                            {energyUnit} · {fmt(entry.protein)}P{" "}
-                            {fmt(entry.carbs)}C {fmt(entry.fat)}F
+                            <Message
+                              text={
+                                "{{value0}} · {{value1}} {{value2}} · {{value3}}P {{value4}}C {{value5}}F"
+                              }
+                              values={{
+                                value0: timeLabel(entry.loggedAt),
+                                value1: fmt(
+                                  energyDisplay(entry.calories, energyUnit)
+                                ),
+                                value2: energyUnit,
+                                value3: fmt(entry.protein),
+                                value4: fmt(entry.carbs),
+                                value5: fmt(entry.fat),
+                              }}
+                            />
                           </p>
                         </button>
                         {(entry.recipeId || entry.recipeDraft) && (
@@ -3366,7 +3566,9 @@ export default function Nutrition() {
                             type="button"
                             onClick={() => editRecipeFromLogEntry(entry)}
                             className="native-toolbar-button h-11 w-11 px-0 text-muted-foreground"
-                            aria-label={`Edit recipe for ${entry.name}`}
+                            aria-label={tr("Edit recipe for {{value0}}", {
+                              value0: entry.name,
+                            })}
                           >
                             <PencilSimple size={17} weight="bold" />
                           </button>
@@ -3375,7 +3577,9 @@ export default function Nutrition() {
                           type="button"
                           onClick={() => removeFoodEntry(entry.id)}
                           className="native-toolbar-button h-11 w-11 px-0 text-destructive"
-                          aria-label={`Remove ${entry.name}`}
+                          aria-label={tr("Remove {{value0}}", {
+                            value0: entry.name,
+                          })}
                         >
                           <Trash size={17} weight="bold" />
                         </button>
@@ -3384,14 +3588,14 @@ export default function Nutrition() {
                   </div>
                 ) : (
                   <p className="py-3 text-[14px] leading-5 text-muted-foreground">
-                    No food was logged on this day.
+                    {tr("No food was logged on this day.")}
                   </p>
                 )}
               </div>
 
               <div>
                 <div className="mb-2 flex items-center justify-between gap-3">
-                  <p className="app-section-title">Water</p>
+                  <p className="app-section-title">{tr("Water")}</p>
                   <button
                     type="button"
                     onClick={() => void addWater(oneGlassMl)}
@@ -3399,8 +3603,8 @@ export default function Nutrition() {
                     className="native-toolbar-button h-11 border border-border bg-card px-3"
                   >
                     {loggingWaterAmount === oneGlassMl
-                      ? "Adding..."
-                      : `+${fmtWater(oneGlassMl)}`}
+                      ? tr("Adding...")
+                      : tr("+{{value0}}", { value0: fmtWater(oneGlassMl) })}
                   </button>
                 </div>
                 {waterEntries.length > 0 ? (
@@ -3422,7 +3626,9 @@ export default function Nutrition() {
                           type="button"
                           onClick={() => removeWaterEntry(entry.id)}
                           className="native-toolbar-button h-11 w-11 px-0 text-destructive"
-                          aria-label={`Remove ${fmtWater(entry.amountMl)}`}
+                          aria-label={tr("Remove {{value0}}", {
+                            value0: fmtWater(entry.amountMl),
+                          })}
                         >
                           <Trash size={17} weight="bold" />
                         </button>
@@ -3431,22 +3637,24 @@ export default function Nutrition() {
                   </div>
                 ) : (
                   <p className="py-3 text-[14px] leading-5 text-muted-foreground">
-                    No water was logged on this day.
+                    {tr("No water was logged on this day.")}
                   </p>
                 )}
               </div>
 
               <div>
                 <div className="mb-2 flex items-center justify-between gap-3">
-                  <p className="app-section-title">Supplements</p>
+                  <p className="app-section-title">{tr("Supplements")}</p>
                   <button
                     type="button"
                     onClick={() => navigate("/supplements")}
                     className="native-toolbar-button h-11 px-3"
-                    aria-label="Manage supplements"
+                    aria-label={tr("Manage supplements")}
                   >
-                    <Pill size={17} weight="bold" />
-                    Manage
+                    <Message
+                      text={"{{value0}}Manage"}
+                      values={{ value0: <Pill size={17} weight="bold" /> }}
+                    />
                   </button>
                 </div>
                 {overview.logs.length + overview.legacyEntries.length > 0 ? (
@@ -3472,7 +3680,9 @@ export default function Nutrition() {
                             )
                           }
                           className="native-toolbar-button h-11 w-11 px-0 text-destructive"
-                          aria-label={`Remove ${log.name}`}
+                          aria-label={tr("Remove {{value0}}", {
+                            value0: log.name,
+                          })}
                         >
                           <Trash size={17} weight="bold" />
                         </button>
@@ -3481,7 +3691,7 @@ export default function Nutrition() {
                     {overview.legacyEntries.map((entry) => (
                       <div key={entry.id} className="min-h-14 px-1 py-2.5">
                         <p className="native-row-title truncate">
-                          {entry.name ?? "Supplement"}
+                          {entry.name ?? tr("Supplement")}
                         </p>
                         <p className="native-row-detail mt-0.5">
                           {timeLabel(entry.loggedAt)}
@@ -3491,7 +3701,7 @@ export default function Nutrition() {
                   </div>
                 ) : (
                   <p className="py-3 text-[14px] leading-5 text-muted-foreground">
-                    No supplements were logged on this day.
+                    {tr("No supplements were logged on this day.")}
                   </p>
                 )}
               </div>
@@ -3534,10 +3744,16 @@ export default function Nutrition() {
                       type="button"
                       onClick={() => setFastingOpen(true)}
                       className="motion-tactile -ml-1 inline-flex min-h-9 items-center gap-1.5 px-1 text-[13px] font-semibold text-muted-foreground active:text-foreground"
-                      aria-label="Open the fasting timer"
+                      aria-label={tr("Open the fasting timer")}
                     >
-                      <Timer size={15} weight="bold" aria-hidden="true" />
-                      Fasting
+                      <Message
+                        text={"{{value0}}Fasting"}
+                        values={{
+                          value0: (
+                            <Timer size={15} weight="bold" aria-hidden="true" />
+                          ),
+                        }}
+                      />
                     </button>
                     <p className="mt-1.5 flex items-baseline gap-1.5">
                       <span
@@ -3551,20 +3767,38 @@ export default function Nutrition() {
                       <span className="text-[1rem] font-semibold text-muted-foreground">
                         {fastTargetSeconds > 0
                           ? fastRemaining > 0
-                            ? "left"
-                            : "over"
-                          : "elapsed"}
+                            ? tr("left")
+                            : tr("over")
+                          : tr("elapsed")}
                       </span>
                     </p>
                     <p className="mt-1.5 text-[13px] text-muted-foreground tabular-nums">
-                      {formatFastDuration(fastElapsed)} in
-                      {fastTargetSeconds > 0
-                        ? ` of ${formatFastDuration(fastTargetSeconds)}`
-                        : ""}
-                      {visibleMetrics.calories
-                        ? ` · ${fmt(energyDisplay(intakeTotals.calories, energyUnit))} ${energyUnit} logged`
-                        : ""}
-                      {supplementHint ? ` · ${supplementHint}` : ""}
+                      <Message
+                        text={"{{value0}} in{{value1}}{{value2}}{{value3}}"}
+                        values={{
+                          value0: formatFastDuration(fastElapsed),
+                          value1:
+                            fastTargetSeconds > 0
+                              ? tr(" of {{value0}}", {
+                                  value0: formatFastDuration(fastTargetSeconds),
+                                })
+                              : "",
+                          value2: visibleMetrics.calories
+                            ? tr(" · {{value0}} {{value1}} logged", {
+                                value0: fmt(
+                                  energyDisplay(
+                                    intakeTotals.calories,
+                                    energyUnit
+                                  )
+                                ),
+                                value1: energyUnit,
+                              })
+                            : "",
+                          value3: supplementHint
+                            ? tr(" · {{value0}}", { value0: supplementHint })
+                            : "",
+                        }}
+                      />
                     </p>
                   </div>
 
@@ -3576,7 +3810,17 @@ export default function Nutrition() {
                     visibleMetrics.protein) && (
                     <div
                       className="flex shrink-0 items-center opacity-40 grayscale"
-                      aria-label={`Macros so far: ${fmt(intakeTotals.calories)} of ${fmt(calorieTarget)} calories, ${fmt(intakeTotals.protein)} of ${fmt(macroTargets.protein)} grams protein, ${fmt(intakeTotals.fat)} of ${fmt(macroTargets.fat)} grams fat`}
+                      aria-label={tr(
+                        "Macros so far: {{value0}} of {{value1}} calories, {{value2}} of {{value3}} grams protein, {{value4}} of {{value5}} grams fat",
+                        {
+                          value0: fmt(intakeTotals.calories),
+                          value1: fmt(calorieTarget),
+                          value2: fmt(intakeTotals.protein),
+                          value3: fmt(macroTargets.protein),
+                          value4: fmt(intakeTotals.fat),
+                          value5: fmt(macroTargets.fat),
+                        }
+                      )}
                       role="img"
                     >
                       <MacroDial
@@ -3626,14 +3870,26 @@ export default function Nutrition() {
                       {fmt(energyDisplay(Math.abs(caloriesLeft), energyUnit))}
                     </span>
                     <span className="text-[1.05rem] font-semibold text-muted-foreground">
-                      {energyUnit} {caloriesLeft >= 0 ? "left" : "over"}
+                      {energyUnit} {caloriesLeft >= 0 ? tr("left") : tr("over")}
                     </span>
                   </p>
                   <p className="mt-1.5 text-[13px] text-muted-foreground tabular-nums">
-                    {fmt(energyDisplay(intakeTotals.calories, energyUnit))} of{" "}
-                    {fmt(energyDisplay(calorieTarget, energyUnit))} {energyUnit}{" "}
-                    · {loggedToday} entries
-                    {supplementHint ? ` · ${supplementHint}` : ""}
+                    <Message
+                      text={
+                        "{{value0}} of {{value1}}  {{value2}} · {{value3}} entries{{value4}}"
+                      }
+                      values={{
+                        value0: fmt(
+                          energyDisplay(intakeTotals.calories, energyUnit)
+                        ),
+                        value1: fmt(energyDisplay(calorieTarget, energyUnit)),
+                        value2: energyUnit,
+                        value3: loggedToday,
+                        value4: supplementHint
+                          ? tr(" · {{value0}}", { value0: supplementHint })
+                          : "",
+                      }}
+                    />
                   </p>
                 </>
               ) : (
@@ -3642,8 +3898,15 @@ export default function Nutrition() {
                     {loggedToday}
                   </p>
                   <p className="mt-1.5 text-[13px] text-muted-foreground">
-                    logged today · {trackingModeLabel} tracking
-                    {supplementHint ? ` · ${supplementHint}` : ""}
+                    <Message
+                      text={"logged today · {{value0}} tracking{{value1}}"}
+                      values={{
+                        value0: trackingModeLabel,
+                        value1: supplementHint
+                          ? tr(" · {{value0}}", { value0: supplementHint })
+                          : "",
+                      }}
+                    />
                   </p>
                   {caloriesHiddenBySafety && (
                     // Numbers vanishing with no explanation reads as a broken
@@ -3654,13 +3917,14 @@ export default function Nutrition() {
                       onClick={() => navigate("/settings?view=nutrition")}
                       className="mt-2 text-[13px] font-semibold text-muted-foreground underline underline-offset-4"
                     >
-                      Calorie numbers are hidden · change
+                      {tr("Calorie numbers are hidden · change")}
                     </button>
                   )}
                 </>
               )}
 
-              {!recoverySimple && fastingHero ? null : visibleMetrics.calories ||
+              {!recoverySimple &&
+              fastingHero ? null : visibleMetrics.calories ||
                 visibleMetrics.macros ||
                 visibleMetrics.protein ? (
                 <div className="relative mt-7 flex items-center justify-center pb-2">
@@ -3707,7 +3971,7 @@ export default function Nutrition() {
                 </div>
               ) : (
                 <p className="mt-4 pb-2 text-[14px] leading-5 text-muted-foreground">
-                  Log meals and focus on consistency.
+                  {tr("Log meals and focus on consistency.")}
                 </p>
               )}
 
@@ -3716,16 +3980,21 @@ export default function Nutrition() {
                   type="button"
                   onClick={() => navigate("/workouts", { motion: "switch" })}
                   className="mt-3 flex min-h-14 w-full items-center justify-between gap-3 border-y border-border px-1 py-2.5 text-left transition-colors active:bg-muted/45"
-                  aria-label="Open today’s workout"
+                  aria-label={tr("Open today’s workout")}
                 >
                   <div className="min-w-0">
                     <p className="text-[14px] font-semibold">
-                      Training-day target
+                      {tr("Training-day target")}
                     </p>
                     <p className="mt-0.5 text-[13px] leading-5 text-muted-foreground tabular-nums">
                       {workoutAdjustmentEnabled
-                        ? `+${fmt(energyDisplay(workoutCalories, energyUnit))} ${energyUnit} for training`
-                        : "Fixed target, workout adjustment off"}
+                        ? tr("+{{value0}} {{value1}} for training", {
+                            value0: fmt(
+                              energyDisplay(workoutCalories, energyUnit)
+                            ),
+                            value1: energyUnit,
+                          })
+                        : tr("Fixed target, workout adjustment off")}
                     </p>
                   </div>
                   <CaretRight
@@ -3762,7 +4031,7 @@ export default function Nutrition() {
                 className="progress-tab-enter border-y border-border py-4"
                 style={{ animationDelay: "120ms" }}
               >
-                <p className="app-section-title mb-3">Intake</p>
+                <p className="app-section-title mb-3">{tr("Intake")}</p>
                 <div>
                   {recentFood.length > 0 ? (
                     <div className="space-y-2">
@@ -3783,7 +4052,9 @@ export default function Nutrition() {
                               hapticTap()
                               setEntryDetail(entry.id)
                             }}
-                            aria-label={`Details for ${entry.name}`}
+                            aria-label={tr("Details for {{value0}}", {
+                              value0: entry.name,
+                            })}
                             className="min-w-0 flex-1 py-1 text-left"
                           >
                             <p className="native-row-title truncate">
@@ -3804,7 +4075,9 @@ export default function Nutrition() {
                               setEntryDetail(entry.id)
                             }}
                             className="native-toolbar-button h-11 w-11 px-0 text-muted-foreground"
-                            aria-label={`Edit ${entry.name}`}
+                            aria-label={tr("Edit {{value0}}", {
+                              value0: entry.name,
+                            })}
                           >
                             <PencilSimple size={17} weight="bold" />
                           </button>
@@ -3812,7 +4085,9 @@ export default function Nutrition() {
                             type="button"
                             onClick={() => removeFoodEntry(entry.id)}
                             className="native-toolbar-button h-11 w-11 px-0 text-destructive"
-                            aria-label={`Remove ${entry.name}`}
+                            aria-label={tr("Remove {{value0}}", {
+                              value0: entry.name,
+                            })}
                           >
                             <Trash size={17} weight="bold" />
                           </button>
@@ -3827,8 +4102,10 @@ export default function Nutrition() {
                         >
                           <span>
                             {showAllFood
-                              ? "Show less"
-                              : `Show all ${entries.length}`}
+                              ? tr("Show less")
+                              : tr("Show all {{value0}}", {
+                                  value0: entries.length,
+                                })}
                           </span>
                           <CaretDown
                             size={14}
@@ -3843,7 +4120,7 @@ export default function Nutrition() {
                     </div>
                   ) : (
                     <p className="text-[14px] leading-5 text-muted-foreground">
-                      Nothing logged yet. Pick a way to log above.
+                      {tr("Nothing logged yet. Pick a way to log above.")}
                     </p>
                   )}
                 </div>
@@ -3887,35 +4164,35 @@ export default function Nutrition() {
                     </span>
                   )}
                   <div className="relative z-10 mb-3 flex items-center justify-between gap-3">
-                    <p className="app-section-title">Water</p>
+                    <p className="app-section-title">{tr("Water")}</p>
                     <div className="flex items-center gap-1">
                       {/* Water's unit belongs next to the number it formats —
                           the Settings row is the durable home, this is the one
                           people can actually reach while pouring. */}
                       <SegmentedControl
                         onInteract={hapticSelection}
-                        label="Water unit"
+                        label={tr("Water unit")}
                         value={waterUnit}
                         onChange={(value) => {
                           void chooseWaterUnit(value as WaterUnit)
                         }}
                         options={[
-                          { value: "ml", label: "ml" },
-                          { value: "fl oz", label: "fl oz" },
+                          { value: "ml", label: tr("ml") },
+                          { value: "fl oz", label: tr("fl oz") },
                         ]}
                       />
                       <button
                         type="button"
                         onClick={() => setWaterGoalOpen(true)}
                         className="native-toolbar-button px-0 text-muted-foreground"
-                        aria-label="Edit water goal"
+                        aria-label={tr("Edit water goal")}
                       >
                         <PencilSimple size={17} weight="bold" />
                       </button>
                     </div>
                   </div>
                   <ProgressLine
-                    label="Hydration"
+                    label={tr("Hydration")}
                     value={waterTotal}
                     target={waterGoal}
                     suffix={waterUnit}
@@ -3934,8 +4211,8 @@ export default function Nutrition() {
                         className="app-button app-button-quiet justify-center"
                       >
                         {loggingWaterAmount === amount
-                          ? "Adding..."
-                          : `+${fmtWater(amount)}`}
+                          ? tr("Adding...")
+                          : tr("+{{value0}}", { value0: fmtWater(amount) })}
                       </button>
                     ))}
                     <button
@@ -3944,7 +4221,7 @@ export default function Nutrition() {
                       disabled={loggingWaterAmount !== null}
                       className="app-button app-button-quiet justify-center"
                     >
-                      Custom
+                      {tr("Custom")}
                     </button>
                   </div>
                 </div>
@@ -3970,12 +4247,12 @@ export default function Nutrition() {
                     </span>
                   )}
                   <div className="relative z-10 mb-1 flex items-center justify-between gap-3">
-                    <p className="app-section-title">Supplements</p>
+                    <p className="app-section-title">{tr("Supplements")}</p>
                     <button
                       type="button"
                       onClick={() => navigate("/supplements")}
                       className="native-toolbar-button px-0 text-muted-foreground"
-                      aria-label="Manage supplements"
+                      aria-label={tr("Manage supplements")}
                     >
                       <CaretRight size={16} weight="bold" />
                     </button>
@@ -3993,7 +4270,7 @@ export default function Nutrition() {
                     </div>
                   ) : (
                     <p className="mt-2 text-[14px] leading-5 text-muted-foreground">
-                      No supplements planned.
+                      {tr("No supplements planned.")}
                     </p>
                   )}
                 </div>
@@ -4004,7 +4281,13 @@ export default function Nutrition() {
           </>
         )}
         {isToday && !recoverySimple && !caloriesHiddenBySafety && (
-          <NutritionProgramme placement="secondary" date={dateKey} baseline={calorieTarget} protein={macroTargets.protein} fat={macroTargets.fat} />
+          <NutritionProgramme
+            placement="secondary"
+            date={dateKey}
+            baseline={calorieTarget}
+            protein={macroTargets.protein}
+            fat={macroTargets.fat}
+          />
         )}
       </main>
 
@@ -4019,7 +4302,7 @@ export default function Nutrition() {
             <button
               type="button"
               className="absolute top-[calc(var(--app-safe-top)+1rem)] right-4 z-20 grid size-11 place-items-center rounded-full bg-white/10 text-white"
-              aria-label="Dismiss hydration celebration"
+              aria-label={tr("Dismiss hydration celebration")}
               onClick={() => setWaterGoalCelebration(false)}
             >
               <X size={20} weight="bold" />
@@ -4044,7 +4327,7 @@ export default function Nutrition() {
                 aria-hidden
               />
               <p className="water-goal-complete-text max-w-[18rem] text-[clamp(1.25rem,4vw,2.25rem)] font-semibold tracking-tight text-white">
-                Hydration goal complete
+                {tr("Hydration goal complete")}
               </p>
             </div>
           </div>,
@@ -4062,7 +4345,7 @@ export default function Nutrition() {
             <button
               type="button"
               className="absolute top-[calc(var(--app-safe-top)+1rem)] right-4 z-20 grid size-11 place-items-center rounded-full bg-white/10 text-white"
-              aria-label="Dismiss calorie celebration"
+              aria-label={tr("Dismiss calorie celebration")}
               onClick={() => setCalorieGoalCelebration(false)}
             >
               <X size={20} weight="bold" />
@@ -4087,7 +4370,7 @@ export default function Nutrition() {
                 aria-hidden
               />
               <p className="water-goal-complete-text max-w-[18rem] text-[clamp(1.25rem,4vw,2.25rem)] font-semibold tracking-tight text-white">
-                Calorie goal complete
+                {tr("Calorie goal complete")}
               </p>
             </div>
           </div>,
@@ -4118,7 +4401,7 @@ export default function Nutrition() {
       {coachOpen && (
         <CoachSheet
           onClose={() => setCoachOpen(false)}
-          initialInput="Create a recipe: "
+          initialInput={tr("Create a recipe: ")}
         />
       )}
 
@@ -4198,43 +4481,51 @@ export default function Nutrition() {
         >
           <div className="px-5 pt-4 pb-4">
             <div className="mb-5 flex items-start justify-between gap-4">
-              <h2 className="text-[21px] font-semibold">Add to diary</h2>
+              <h2 className="text-[21px] font-semibold">
+                {tr("Add to diary")}
+              </h2>
               <button
                 type="button"
                 onClick={closeAddSheet}
                 className="native-toolbar-button -mt-1 -mr-2 px-0 text-muted-foreground"
-                aria-label="Close add menu"
+                aria-label={tr("Close add menu")}
               >
                 <X size={17} weight="bold" />
               </button>
             </div>
-            <div
-              className="mb-4 flex items-center gap-3 rounded-xl border border-border bg-background px-3 py-2"
-            >
-              <Clock size={16} weight="bold" className="shrink-0 text-muted-foreground" />
+            <div className="mb-4 flex items-center gap-3 rounded-xl border border-border bg-background px-3 py-2">
+              <Clock
+                size={16}
+                weight="bold"
+                className="shrink-0 text-muted-foreground"
+              />
               <label
                 htmlFor="nutrition-log-time"
                 className="text-[13px] font-medium text-muted-foreground"
               >
-                Logged at
+                {tr("Logged at")}
               </label>
               <input
                 id="nutrition-log-time"
                 type="time"
                 value={logTime ?? ""}
-                placeholder="Meal default"
-                aria-description="Leave blank to use the selected meal's default time"
+                placeholder={tr("Meal default")}
+                aria-description={tr(
+                  "Leave blank to use the selected meal's default time"
+                )}
                 onChange={(event) => {
                   if (isFoodLogTime(event.target.value))
                     setLogTime(event.target.value)
                 }}
-                aria-label="Time this entry belongs at"
+                aria-label={tr("Time this entry belongs at")}
                 className="ml-auto h-9 rounded-lg border border-border bg-transparent px-2 text-[14px] font-semibold tabular-nums outline-none"
               />
             </div>
             {quickRepeatFoods.length > 0 && (
-              <section className="mb-5" aria-label="Recent foods">
-                <h3 className="native-section-title mb-2">Recent foods</h3>
+              <section className="mb-5" aria-label={tr("Recent foods")}>
+                <h3 className="native-section-title mb-2">
+                  {tr("Recent foods")}
+                </h3>
                 <div className="divide-y divide-border border-y border-border">
                   {quickRepeatFoods.map((food) => {
                     const busy = quickRepeatBusyKey === food.key
@@ -4245,13 +4536,19 @@ export default function Nutrition() {
                         onClick={() => void repeatFood(food.entry, food.key)}
                         disabled={quickRepeatBusyKey !== null}
                         aria-busy={busy}
-                        aria-label={`Log ${food.entry.name} again, ${fmt(
-                          food.entry.calories
-                        )} kilocalories${
-                          food.count > 1
-                            ? `; logged ${food.count} times recently`
-                            : ""
-                        }`}
+                        aria-label={tr(
+                          "Log {{value0}} again, {{value1}} kilocalories{{value2}}",
+                          {
+                            value0: food.entry.name,
+                            value1: fmt(food.entry.calories),
+                            value2:
+                              food.count > 1
+                                ? tr("; logged {{value0}} times recently", {
+                                    value0: food.count,
+                                  })
+                                : "",
+                          }
+                        )}
                         className="flex min-h-14 w-full items-center gap-3 px-1 text-left transition-colors active:bg-muted disabled:opacity-55"
                       >
                         <span className="flex h-6 w-6 items-center justify-center text-muted-foreground">
@@ -4271,12 +4568,14 @@ export default function Nutrition() {
                             )}{" "}
                             {energyUnit}
                             {food.count > 1
-                              ? ` · logged ${food.count} times recently`
+                              ? tr(" · logged {{value0}} times recently", {
+                                  value0: food.count,
+                                })
                               : ""}
                           </span>
                         </span>
                         <span className="text-[14px] font-semibold text-[var(--accent-food)]">
-                          Log
+                          {tr("Log")}
                         </span>
                       </button>
                     )
@@ -4287,15 +4586,15 @@ export default function Nutrition() {
             <div className="divide-y divide-border border-y border-border">
               {[
                 {
-                  label: "Search food",
-                  detail: "Manual log",
+                  label: tr("Search food"),
+                  detail: tr("Manual log"),
                   Icon: MagnifyingGlass,
                   supportsHistory: true,
                   action: openFoodSearch,
                 },
                 {
-                  label: "Scan barcode",
-                  detail: "Packaged food",
+                  label: tr("Scan barcode"),
+                  detail: tr("Packaged food"),
                   Icon: Barcode,
                   supportsHistory: true,
                   action: () => {
@@ -4306,24 +4605,24 @@ export default function Nutrition() {
                   },
                 },
                 {
-                  label: "Snap meal",
-                  detail: "Estimate from photo",
+                  label: tr("Snap meal"),
+                  detail: tr("Estimate from photo"),
                   Icon: Aperture,
                   requiresAiAccess: true,
                   supportsHistory: true,
                   action: openSnapCamera,
                 },
                 {
-                  label: "Describe meal",
-                  detail: "AI builds a temporary recipe",
+                  label: tr("Describe meal"),
+                  detail: tr("AI builds a temporary recipe"),
                   Icon: Sparkle,
                   requiresAiAccess: true,
                   supportsHistory: true,
                   action: openDescribeMeal,
                 },
                 {
-                  label: "Custom food",
-                  detail: "Enter one the database is missing",
+                  label: tr("Custom food"),
+                  detail: tr("Enter one the database is missing"),
                   Icon: PencilSimple,
                   supportsHistory: true,
                   action: () =>
@@ -4367,7 +4666,9 @@ export default function Nutrition() {
               {recipes.length > 0 && (
                 <>
                   <div className="px-1 pt-5 pb-2">
-                    <p className="native-section-title">Saved recipes</p>
+                    <p className="native-section-title">
+                      {tr("Saved recipes")}
+                    </p>
                   </div>
                   {recipes.slice(0, 5).map((recipe) => {
                     const totals = totalsForRecipe(recipe.ingredients)
@@ -4386,10 +4687,21 @@ export default function Nutrition() {
                               {recipe.name}
                             </p>
                             <p className="native-row-detail mt-0.5">
-                              {energyDisplay(totals.calories, energyUnit)}{" "}
-                              {energyUnit} · {recipe.ingredients.length}{" "}
-                              ingredient
-                              {recipe.ingredients.length === 1 ? "" : "s"}
+                              <Message
+                                text={
+                                  "{{value0}} {{value1}} · {{value2}} ingredient{{value3}}"
+                                }
+                                values={{
+                                  value0: energyDisplay(
+                                    totals.calories,
+                                    energyUnit
+                                  ),
+                                  value1: energyUnit,
+                                  value2: recipe.ingredients.length,
+                                  value3:
+                                    recipe.ingredients.length === 1 ? "" : "s",
+                                }}
+                              />
                             </p>
                           </div>
                           <CaretRight
@@ -4405,7 +4717,9 @@ export default function Nutrition() {
                               navigate(`/foods/recipe/${recipe._id}`)
                             }}
                             className="native-toolbar-button h-11 w-11 shrink-0 px-0 text-muted-foreground"
-                            aria-label={`Edit ${recipe.name}`}
+                            aria-label={tr("Edit {{value0}}", {
+                              value0: recipe.name,
+                            })}
                           >
                             <PencilSimple size={17} weight="bold" />
                           </button>

@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 /**
  * Over-the-air web bundle updates for the native shells.
  *
@@ -483,7 +484,7 @@ export async function checkForOtaUpdate(
     recordFailure()
     setState({
       phase: "error",
-      message: error instanceof Error ? error.message : "Download failed",
+      message: error instanceof Error ? error.message : tr("Download failed"),
     })
   }
 
@@ -509,7 +510,7 @@ export async function applyOtaUpdateNow(): Promise<void> {
     console.warn("OTA apply failed", error)
     setState({
       phase: "error",
-      message: error instanceof Error ? error.message : "Update failed",
+      message: error instanceof Error ? error.message : tr("Update failed"),
     })
   }
 }

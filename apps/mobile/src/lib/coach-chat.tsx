@@ -1,3 +1,4 @@
+import { Message, tr, translateError, uiLocale } from "@repo/ui/i18n"
 /**
  * Shared Coach chat surface.
  *
@@ -866,12 +867,12 @@ export function RecipeBreakdown({
         <div className="flex items-start justify-between gap-5">
           <div className="min-w-0">
             <p className="text-[9px] font-semibold tracking-[0.08em] text-foreground/50 uppercase">
-              {recipe.category || "Recipe"}
+              {recipe.category || tr("Recipe")}
             </p>
             <p className="mt-1.5 text-[13px] leading-5 font-medium text-foreground/80">
               {ingredientNames}
               {extraIngredientCount > 0
-                ? ` + ${extraIngredientCount} more`
+                ? tr(" + {{value0}} more", { value0: extraIngredientCount })
                 : ""}
             </p>
           </div>
@@ -883,9 +884,20 @@ export function RecipeBreakdown({
           />
         </div>
         <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-foreground/55">
-          <span>{totalMinutes} min total</span>
           <span>
-            {recipe.servings} serving{recipe.servings === 1 ? "" : "s"}
+            <Message
+              text={"{{value0}} min total"}
+              values={{ value0: totalMinutes }}
+            />
+          </span>
+          <span>
+            <Message
+              text={"{{value0}} serving{{value1}}"}
+              values={{
+                value0: recipe.servings,
+                value1: recipe.servings === 1 ? "" : "s",
+              }}
+            />
           </span>
           {usefulTags.map((tag) => (
             <span key={tag}>{tag}</span>
@@ -911,11 +923,11 @@ export function RecipeBreakdown({
         ))}
       </div>
       <p className="mt-1 text-right text-[8px] text-muted-foreground/70">
-        Estimated per serving
+        {tr("Estimated per serving")}
       </p>
       <div className="mt-5 grid gap-5 sm:grid-cols-2">
         <div>
-          <h4 className="text-[11px] font-bold">Ingredients</h4>
+          <h4 className="text-[11px] font-bold">{tr("Ingredients")}</h4>
           <ul className="mt-2 divide-y divide-border/35 text-[11px] text-foreground/70">
             {recipe.ingredients.map((ingredient, index) => (
               <li
@@ -924,14 +936,17 @@ export function RecipeBreakdown({
               >
                 <span>{ingredient.name}</span>
                 <span className="shrink-0 text-muted-foreground tabular-nums">
-                  {Math.round(ingredient.grams)} g
+                  <Message
+                    text={"{{value0}} g"}
+                    values={{ value0: Math.round(ingredient.grams) }}
+                  />
                 </span>
               </li>
             ))}
           </ul>
         </div>
         <div>
-          <h4 className="text-[11px] font-bold">Method</h4>
+          <h4 className="text-[11px] font-bold">{tr("Method")}</h4>
           {recipe.steps.length > 0 ? (
             <ol className="mt-2 space-y-2 text-[11px] leading-relaxed text-foreground/70">
               {recipe.steps.map((step, index) => (
@@ -945,7 +960,7 @@ export function RecipeBreakdown({
             </ol>
           ) : (
             <p className="mt-2 text-[11px] text-muted-foreground">
-              No method supplied.
+              {tr("No method supplied.")}
             </p>
           )}
         </div>
@@ -1005,7 +1020,7 @@ export function CoachOperationResults({
             1,
             result.hour,
             result.minute
-          ).toLocaleTimeString(undefined, {
+          ).toLocaleTimeString(uiLocale(), {
             hour: "numeric",
             minute: "2-digit",
           })
@@ -1022,7 +1037,7 @@ export function CoachOperationResults({
                 />
                 <div className="min-w-0 flex-1">
                   <p className="text-[10px] font-medium text-muted-foreground">
-                    Check-in created
+                    {tr("Check-in created")}
                   </p>
                   <h3 className="mt-1 text-[15px] leading-tight font-bold">
                     {result.title}
@@ -1034,19 +1049,22 @@ export function CoachOperationResults({
               </div>
               <div className="flex min-h-11 items-center gap-3 border-t border-border/45 px-4 py-2.5">
                 <span className="text-[11px] font-medium text-muted-foreground tabular-nums">
-                  Daily at {time}
+                  <Message
+                    text={"Daily at {{value0}}"}
+                    values={{ value0: time }}
+                  />
                 </span>
                 {result.notificationStatus === "denied" ? (
                   <span className="ml-auto text-[9px] font-medium text-amber-700 dark:text-amber-300">
-                    Notifications off
+                    {tr("Notifications off")}
                   </span>
                 ) : result.notificationStatus === "error" ? (
                   <span className="ml-auto text-[9px] font-medium text-amber-700 dark:text-amber-300">
-                    Alert setup failed
+                    {tr("Alert setup failed")}
                   </span>
                 ) : result.notificationStatus === "unsupported" ? (
                   <span className="ml-auto text-[9px] text-muted-foreground">
-                    Alerts on mobile
+                    {tr("Alerts on mobile")}
                   </span>
                 ) : null}
                 {result.actionId ? (
@@ -1058,7 +1076,10 @@ export function CoachOperationResults({
                     }}
                     className="ml-auto inline-flex min-h-8 items-center gap-1 px-2 text-[9px] font-medium text-muted-foreground"
                   >
-                    <ClockCounterClockwise size={12} /> Undo
+                    <Message
+                      text={"{{value0}} Undo"}
+                      values={{ value0: <ClockCounterClockwise size={12} /> }}
+                    />
                   </button>
                 ) : null}
               </div>
@@ -1073,7 +1094,10 @@ export function CoachOperationResults({
               className="border-y border-border/55 py-5"
             >
               <p className="text-[10px] font-medium text-muted-foreground">
-                Coach goal · {result.durationDays} days
+                <Message
+                  text={"Coach goal · {{value0}} days"}
+                  values={{ value0: result.durationDays }}
+                />
               </p>
               <h3 className="mt-1 text-[18px] font-bold">{result.title}</h3>
               <p className="mt-2 text-[12px] leading-relaxed text-foreground/65">
@@ -1122,7 +1146,7 @@ export function CoachOperationResults({
                   className="inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-foreground px-4 text-[11px] font-bold text-background disabled:opacity-55"
                 >
                   <PushPin size={13} weight={pinned ? "fill" : "bold"} />
-                  {pinned ? "Pinned to Today" : "Pin to Today"}
+                  {pinned ? tr("Pinned to Today") : tr("Pin to Today")}
                 </button>
                 {result.actionId ? (
                   <button
@@ -1130,7 +1154,10 @@ export function CoachOperationResults({
                     onClick={() => onUndo(result.actionId!)}
                     className="inline-flex min-h-10 items-center gap-1 px-2 text-[10px] font-medium text-muted-foreground"
                   >
-                    <ClockCounterClockwise size={13} /> Undo goal
+                    <Message
+                      text={"{{value0}} Undo goal"}
+                      values={{ value0: <ClockCounterClockwise size={13} /> }}
+                    />
                   </button>
                 ) : null}
               </div>
@@ -1145,7 +1172,7 @@ export function CoachOperationResults({
               className="border-y border-border/55 py-5"
             >
               <p className="text-[10px] font-medium text-muted-foreground">
-                Saved to Recipes
+                {tr("Saved to Recipes")}
               </p>
               <h3 className="mt-1 text-[20px] leading-tight font-bold tracking-tight">
                 {result.name}
@@ -1162,14 +1189,17 @@ export function CoachOperationResults({
                   onClick={() => onOpenRecipe(result.recipeId)}
                   className="inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-foreground px-4 text-[11px] font-bold text-background"
                 >
-                  Edit recipe <ArrowRight size={12} weight="bold" />
+                  <Message
+                    text={"Edit recipe {{value0}}"}
+                    values={{ value0: <ArrowRight size={12} weight="bold" /> }}
+                  />
                 </button>
                 <button
                   type="button"
                   onClick={() => onLogRecipe(result)}
                   className="inline-flex min-h-10 items-center rounded-xl border border-border/70 px-4 text-[11px] font-bold"
                 >
-                  Log one serving
+                  {tr("Log one serving")}
                 </button>
                 {result.actionId ? (
                   <button
@@ -1177,7 +1207,10 @@ export function CoachOperationResults({
                     onClick={() => onUndo(result.actionId!)}
                     className="inline-flex min-h-10 items-center gap-1 px-2 text-[10px] font-medium text-muted-foreground"
                   >
-                    <ClockCounterClockwise size={13} /> Undo save
+                    <Message
+                      text={"{{value0}} Undo save"}
+                      values={{ value0: <ClockCounterClockwise size={13} /> }}
+                    />
                   </button>
                 ) : null}
               </div>
@@ -1194,7 +1227,10 @@ export function CoachOperationResults({
               className="border-l-2 border-l-[var(--accent-progress)] bg-foreground/[0.025] px-4 py-4"
             >
               <p className="text-[9px] font-bold tracking-[0.14em] text-muted-foreground/55 uppercase">
-                Widget ready · {result.kind}
+                <Message
+                  text={"Widget ready · {{value0}}"}
+                  values={{ value0: result.kind }}
+                />
               </p>
               <div className="mt-1 flex items-start justify-between gap-4">
                 <div>
@@ -1211,7 +1247,7 @@ export function CoachOperationResults({
               </div>
               <div className="mt-3 border-y border-border/40 py-2.5">
                 <p className="text-[11px] font-semibold">
-                  Include this compact widget in your dashboard?
+                  {tr("Include this compact widget in your dashboard?")}
                 </p>
                 <div className="mt-2 flex flex-wrap items-center gap-3">
                   <button
@@ -1231,13 +1267,13 @@ export function CoachOperationResults({
                     className="motion-tactile min-h-10 bg-foreground px-3 text-[10px] font-bold text-background disabled:opacity-50"
                   >
                     {pinned
-                      ? "Added to dashboard"
+                      ? tr("Added to dashboard")
                       : pinning
-                        ? "Adding…"
-                        : "Add to dashboard"}
+                        ? tr("Adding…")
+                        : tr("Add to dashboard")}
                   </button>
                   <span className="text-[9px] text-muted-foreground">
-                    You can remove it from the dashboard anytime.
+                    {tr("You can remove it from the dashboard anytime.")}
                   </span>
                 </div>
               </div>
@@ -1249,7 +1285,7 @@ export function CoachOperationResults({
                 >
                   <span>
                     <span className="block text-[9px] font-bold tracking-wide text-muted-foreground/55 uppercase">
-                      Suggested follow-up
+                      {tr("Suggested follow-up")}
                     </span>
                     <span className="mt-0.5 block text-[11px] font-semibold">
                       {result.followUpTitle}
@@ -1264,7 +1300,10 @@ export function CoachOperationResults({
                   onClick={() => onUndo(result.actionId!)}
                   className="mt-2 inline-flex min-h-9 items-center gap-1 text-[9px] text-muted-foreground"
                 >
-                  <ClockCounterClockwise size={12} /> Remove widget
+                  <Message
+                    text={"{{value0}} Remove widget"}
+                    values={{ value0: <ClockCounterClockwise size={12} /> }}
+                  />
                 </button>
               ) : null}
             </article>
@@ -1275,7 +1314,7 @@ export function CoachOperationResults({
           const cadence =
             SUPPLEMENT_SCHEDULES.find(
               (option) => option.id === result.schedule.type
-            )?.label ?? "No schedule"
+            )?.label ?? tr("No schedule")
           return (
             <div
               key={`${result.type}-${result.supplementId}`}
@@ -1289,13 +1328,19 @@ export function CoachOperationResults({
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[13px] font-bold">
                   {result.brand
-                    ? `${result.brand} ${result.name}`
+                    ? tr("{{value0}} {{value1}}", {
+                        value0: result.brand,
+                        value1: result.name,
+                      })
                     : result.name}
                 </span>
                 <span className="mt-0.5 block truncate text-[10px] text-muted-foreground">
                   {result.defaultServingQuantity === 1
                     ? result.servingLabel
-                    : `${result.defaultServingQuantity} × ${result.servingLabel}`}{" "}
+                    : tr("{{value0}} × {{value1}}", {
+                        value0: result.defaultServingQuantity,
+                        value1: result.servingLabel,
+                      })}{" "}
                   · {cadence}
                 </span>
               </span>
@@ -1304,13 +1349,13 @@ export function CoachOperationResults({
                 onClick={onOpenSupplements}
                 className="min-h-9 px-2 text-[10px] font-bold"
               >
-                Open
+                {tr("Open")}
               </button>
               {result.actionId ? (
                 <button
                   type="button"
                   onClick={() => onUndo(result.actionId!)}
-                  aria-label={`Undo ${result.name}`}
+                  aria-label={tr("Undo {{value0}}", { value0: result.name })}
                 >
                   <ClockCounterClockwise size={17} />
                 </button>
@@ -1338,10 +1383,20 @@ export function CoachOperationResults({
               />
               <span className="min-w-0 flex-1">
                 <span className="block text-[13px] font-bold">
-                  {result.title} added
+                  <Message
+                    text={"{{value0}} added"}
+                    values={{ value0: result.title }}
+                  />
                 </span>
                 <span className="mt-0.5 block text-[10px] text-muted-foreground">
-                  {result.tab} · {result.step} {result.unit} controls
+                  <Message
+                    text={"{{value0}} · {{value1}}  {{value2}} controls"}
+                    values={{
+                      value0: result.tab,
+                      value1: result.step,
+                      value2: result.unit,
+                    }}
+                  />
                 </span>
               </span>
               <button
@@ -1349,13 +1404,13 @@ export function CoachOperationResults({
                 onClick={onOpenProgress}
                 className="min-h-9 px-2 text-[10px] font-bold"
               >
-                Open Progress
+                {tr("Open Progress")}
               </button>
               {result.actionId && (
                 <button
                   type="button"
                   onClick={() => onUndo(result.actionId!)}
-                  aria-label={`Undo ${result.title}`}
+                  aria-label={tr("Undo {{value0}}", { value0: result.title })}
                 >
                   <ClockCounterClockwise size={17} />
                 </button>
@@ -1384,8 +1439,10 @@ export function CoachOperationResults({
                 </span>
                 <span className="mt-0.5 block truncate text-[10px] text-muted-foreground">
                   {result.scheduledDays.length > 0
-                    ? `Every ${result.scheduledDays.join(", ")}`
-                    : "Not on your routine — start it whenever"}
+                    ? tr("Every {{value0}}", {
+                        value0: result.scheduledDays.join(", "),
+                      })
+                    : tr("Not on your routine — start it whenever")}
                 </span>
               </span>
               <button
@@ -1397,13 +1454,13 @@ export function CoachOperationResults({
                 }
                 className="min-h-9 px-2 text-[10px] font-bold"
               >
-                {result.scheduledDays.length > 0 ? "Open" : "Start"}
+                {result.scheduledDays.length > 0 ? tr("Open") : tr("Start")}
               </button>
               {result.actionId ? (
                 <button
                   type="button"
                   onClick={() => onUndo(result.actionId!)}
-                  aria-label={`Undo ${result.name}`}
+                  aria-label={tr("Undo {{value0}}", { value0: result.name })}
                 >
                   <ClockCounterClockwise size={17} />
                 </button>
@@ -1420,11 +1477,17 @@ export function CoachOperationResults({
 
         const label =
           result.type === "log_nutrition"
-            ? `${result.name} logged to ${result.meal}`
+            ? tr("{{value0}} logged to {{value1}}", {
+                value0: result.name,
+                value1: result.meal,
+              })
             : result.type === "update_routine"
-              ? `${result.assignments.length} routine day${result.assignments.length === 1 ? "" : "s"} updated`
+              ? tr("{{value0}} routine day{{value1}} updated", {
+                  value0: result.assignments.length,
+                  value1: result.assignments.length === 1 ? "" : "s",
+                })
               : result.type === "delete_nutrition"
-                ? `${result.name} removed`
+                ? tr("{{value0}} removed", { value0: result.name })
                 : result.label
         return (
           <div
@@ -1448,7 +1511,7 @@ export function CoachOperationResults({
                 }
                 className="ml-auto min-h-8 px-2 text-[9px] font-black"
               >
-                Open
+                {tr("Open")}
               </button>
             ) : null}
             {result.actionId ? (
@@ -1457,7 +1520,10 @@ export function CoachOperationResults({
                 onClick={() => onUndo(result.actionId!)}
                 className="inline-flex min-h-8 items-center gap-1 px-2 text-[9px]"
               >
-                <ClockCounterClockwise size={12} /> Undo
+                <Message
+                  text={"{{value0}} Undo"}
+                  values={{ value0: <ClockCounterClockwise size={12} /> }}
+                />
               </button>
             ) : null}
           </div>
@@ -1470,11 +1536,11 @@ export function CoachOperationResults({
 export function CoachArtifacts({ artifacts }: { artifacts?: CoachArtifact[] }) {
   if (!artifacts?.length) return null
   const labels: Record<CoachArtifact["type"], string> = {
-    today_briefing: "Today",
-    progress_explanation: "Progress explanation",
-    simulation: "Scenario",
-    validation: "Plan check",
-    recovery_adaptation: "Recovery",
+    today_briefing: tr("Today"),
+    progress_explanation: tr("Progress explanation"),
+    simulation: tr("Scenario"),
+    validation: tr("Plan check"),
+    recovery_adaptation: tr("Recovery"),
   }
   return (
     <div className="coach-generated-content mt-5 divide-y divide-border/45 border-y border-border/45">
@@ -1510,7 +1576,10 @@ export function CoachArtifacts({ artifacts }: { artifacts?: CoachArtifact[] }) {
           ) : null}
           {artifact.nextSteps.length > 0 ? (
             <p className="mt-3 text-[10px] font-bold">
-              Next: {artifact.nextSteps.join(" · ")}
+              <Message
+                text={"Next: {{value0}}"}
+                values={{ value0: artifact.nextSteps.join(" · ") }}
+              />
             </p>
           ) : null}
         </article>
@@ -1543,7 +1612,7 @@ export function CoachProposal({
       1,
       scheduledCheckIn.hour,
       scheduledCheckIn.minute
-    ).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })
+    ).toLocaleTimeString(uiLocale(), { hour: "numeric", minute: "2-digit" })
     return (
       <section className="coach-generated-content mt-5 overflow-hidden rounded-2xl border border-border/60 bg-card">
         <div className="flex items-start gap-3 px-4 py-4">
@@ -1555,8 +1624,8 @@ export function CoachProposal({
           <div className="min-w-0 flex-1">
             <p className="text-[10px] font-medium text-muted-foreground">
               {scheduledCheckIn.checkInId
-                ? "Updating check-in"
-                : "Creating check-in"}
+                ? tr("Updating check-in")
+                : tr("Creating check-in")}
             </p>
             <h3 className="mt-1 text-[15px] leading-tight font-bold">
               {scheduledCheckIn.title}
@@ -1568,7 +1637,7 @@ export function CoachProposal({
         </div>
         <div className="flex items-center justify-between gap-3 border-t border-border/45 px-4 py-3">
           <span className="text-[11px] font-medium text-muted-foreground tabular-nums">
-            Daily at {time}
+            <Message text={"Daily at {{value0}}"} values={{ value0: time }} />
           </span>
           <div className="flex items-center gap-1">
             <button
@@ -1577,7 +1646,7 @@ export function CoachProposal({
               disabled={applying}
               className="min-h-9 px-3 text-[10px] font-medium text-muted-foreground disabled:opacity-40"
             >
-              Cancel
+              {tr("Cancel")}
             </button>
             <button
               type="button"
@@ -1585,7 +1654,7 @@ export function CoachProposal({
               disabled={applying}
               className="min-h-9 rounded-xl bg-foreground px-3 text-[10px] font-bold text-background disabled:opacity-40"
             >
-              {applying ? "Saving…" : "Create check-in"}
+              {applying ? tr("Saving…") : tr("Create check-in")}
             </button>
           </div>
         </div>
@@ -1613,8 +1682,10 @@ export function CoachProposal({
       <section className="coach-generated-content mt-5 border-y border-border/55 py-5">
         <p className="text-[10px] font-medium text-muted-foreground">
           {single
-            ? "Recipe preview · nothing saved yet"
-            : `${recipes.length} recipes · nothing saved yet`}
+            ? tr("Recipe preview · nothing saved yet")
+            : tr("{{value0}} recipes · nothing saved yet", {
+                value0: recipes.length,
+              })}
         </p>
         {recipes.map((recipe, index) => (
           <div
@@ -1632,16 +1703,23 @@ export function CoachProposal({
             <RecipeBreakdown recipe={recipe} />
             {recipe.logMeal ? (
               <p className="mt-3 text-[10px] text-muted-foreground">
-                Saving will also log {recipe.servingsToLog ?? 1} serving
-                {(recipe.servingsToLog ?? 1) === 1 ? "" : "s"} to{" "}
-                {recipe.logMeal}.
+                <Message
+                  text={
+                    "Saving will also log {{value0}} serving{{value1}} to {{value2}}."
+                  }
+                  values={{
+                    value0: recipe.servingsToLog ?? 1,
+                    value1: (recipe.servingsToLog ?? 1) === 1 ? "" : "s",
+                    value2: recipe.logMeal,
+                  }}
+                />
               </p>
             ) : null}
           </div>
         ))}
         {assumptions.length > 0 ? (
           <div className="mt-5 border-l border-border/70 pl-3">
-            <p className="text-[10px] font-medium">Based on</p>
+            <p className="text-[10px] font-medium">{tr("Based on")}</p>
             {assumptions.map((item) => (
               <p key={item} className="mt-1 text-[10px] text-muted-foreground">
                 {item}
@@ -1661,16 +1739,18 @@ export function CoachProposal({
           <p className="text-[13px] font-semibold">
             {single
               ? isEdit
-                ? "Does this update look right?"
-                : "Like this recipe?"
-              : "Cook this set?"}
+                ? tr("Does this update look right?")
+                : tr("Like this recipe?")
+              : tr("Cook this set?")}
           </p>
           <p className="mt-1 text-[10px] text-muted-foreground">
             {single
               ? isEdit
-                ? "Your existing recipe changes only after you confirm."
-                : "Add it to Recipes only if it fits what you wanted."
-              : "They save together. Ask for changes instead if one of them is wrong."}
+                ? tr("Your existing recipe changes only after you confirm.")
+                : tr("Add it to Recipes only if it fits what you wanted.")
+              : tr(
+                  "They save together. Ask for changes instead if one of them is wrong."
+                )}
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             <button
@@ -1680,12 +1760,12 @@ export function CoachProposal({
               className="min-h-10 rounded-xl bg-foreground px-4 text-[11px] font-bold text-background disabled:opacity-40"
             >
               {applying
-                ? "Saving…"
+                ? tr("Saving…")
                 : single
                   ? isEdit
-                    ? "Update recipe"
-                    : "Save to Recipes"
-                  : `Save ${recipes.length} recipes`}
+                    ? tr("Update recipe")
+                    : tr("Save to Recipes")
+                  : tr("Save {{value0}} recipes", { value0: recipes.length })}
             </button>
             <button
               type="button"
@@ -1693,7 +1773,7 @@ export function CoachProposal({
               disabled={applying}
               className="min-h-10 px-3 text-[11px] font-medium text-muted-foreground"
             >
-              Not for me
+              {tr("Not for me")}
             </button>
           </div>
         </div>
@@ -1711,7 +1791,7 @@ export function CoachProposal({
   return (
     <section className="coach-generated-content mt-5 border-y border-border/55 py-4">
       <p className="text-[10px] font-medium text-muted-foreground">
-        Review changes
+        {tr("Review changes")}
       </p>
       <div className="mt-3 space-y-2">
         {previewOperations.map((operation, index) => {
@@ -1733,12 +1813,23 @@ export function CoachProposal({
                 <span className="min-w-0 flex-1">
                   <span className="block font-semibold">{operation.name}</span>
                   <span className="mt-0.5 block text-[10px] text-muted-foreground">
-                    {operation.exercises.length} exercise
-                    {operation.exercises.length === 1 ? "" : "s"} · {setCount}{" "}
-                    set{setCount === 1 ? "" : "s"} ·{" "}
-                    {operation.scheduleDays.length > 0
-                      ? `every ${operation.scheduleDays.join(", ")}`
-                      : "one-off, not scheduled"}
+                    <Message
+                      text={
+                        "{{value0}} exercise{{value1}} · {{value2}} set{{value3}} · {{value4}}"
+                      }
+                      values={{
+                        value0: operation.exercises.length,
+                        value1: operation.exercises.length === 1 ? "" : "s",
+                        value2: setCount,
+                        value3: setCount === 1 ? "" : "s",
+                        value4:
+                          operation.scheduleDays.length > 0
+                            ? tr("every {{value0}}", {
+                                value0: operation.scheduleDays.join(", "),
+                              })
+                            : tr("one-off, not scheduled"),
+                      }}
+                    />
                   </span>
                   {operation.exercises.map((exercise) => (
                     <span
@@ -1782,7 +1873,7 @@ export function CoachProposal({
       </div>
       {assumptions.length > 0 ? (
         <div className="mt-3 border-l border-border/70 pl-3">
-          <p className="text-[10px] font-medium">Assumptions</p>
+          <p className="text-[10px] font-medium">{tr("Assumptions")}</p>
           {assumptions.map((item) => (
             <p key={item} className="mt-1 text-[10px] text-muted-foreground">
               {item}
@@ -1805,7 +1896,7 @@ export function CoachProposal({
           disabled={applying}
           className="min-h-10 rounded-xl bg-foreground px-4 text-[11px] font-bold text-background disabled:opacity-40"
         >
-          {applying ? "Applying…" : "Apply changes"}
+          {applying ? tr("Applying…") : tr("Apply changes")}
         </button>
         <button
           type="button"
@@ -1813,7 +1904,7 @@ export function CoachProposal({
           disabled={applying}
           className="min-h-10 px-3 text-[11px] font-bold text-muted-foreground"
         >
-          Cancel
+          {tr("Cancel")}
         </button>
       </div>
     </section>
@@ -1871,7 +1962,7 @@ export function CoachInteractiveCard({
   }
 
   function displayNumber(value: number) {
-    return new Intl.NumberFormat(undefined, {
+    return new Intl.NumberFormat(uiLocale(), {
       maximumFractionDigits: value < 10 ? 1 : 0,
     }).format(value)
   }
@@ -1890,7 +1981,7 @@ export function CoachInteractiveCard({
       await onSubmit({
         type: "log_nutrition",
         confirmation: "auto",
-        summary: `Log ${block.submit.name}`,
+        summary: tr("Log {{value0}}", { value0: block.submit.name }),
         assumptions: block.submit.assumptions,
         warnings: [],
         name: block.submit.name,
@@ -2163,7 +2254,9 @@ export function CoachInteractiveCard({
                     onClick={() => update(-1)}
                     disabled={current <= element.min || submitted}
                     className="motion-tactile grid size-9 place-items-center disabled:opacity-25"
-                    aria-label={`Decrease ${element.label}`}
+                    aria-label={tr("Decrease {{value0}}", {
+                      value0: element.label,
+                    })}
                   >
                     <Minus size={13} weight="bold" />
                   </button>
@@ -2178,7 +2271,9 @@ export function CoachInteractiveCard({
                     onClick={() => update(1)}
                     disabled={current >= element.max || submitted}
                     className="motion-tactile grid size-9 place-items-center disabled:opacity-25"
-                    aria-label={`Increase ${element.label}`}
+                    aria-label={tr("Increase {{value0}}", {
+                      value0: element.label,
+                    })}
                   >
                     <Plus size={13} weight="bold" />
                   </button>
@@ -2289,7 +2384,11 @@ export function CoachInteractiveCard({
                       key={rating}
                       type="button"
                       disabled={submitted}
-                      aria-label={`${element.label}: ${rating} of ${element.max}`}
+                      aria-label={tr("{{value0}}: {{value1}} of {{value2}}", {
+                        value0: element.label,
+                        value1: rating,
+                        value2: element.max,
+                      })}
                       aria-pressed={current === rating}
                       onClick={() => {
                         hapticSelection()
@@ -2376,9 +2475,9 @@ export function CoachInteractiveCard({
               className="motion-tactile min-h-11 bg-foreground px-4 text-[11px] font-bold text-background disabled:opacity-55"
             >
               {submitted
-                ? "Logged"
+                ? tr("Logged")
                 : submitting
-                  ? "Logging…"
+                  ? tr("Logging…")
                   : block.submit.label}
             </button>
           ) : null}
@@ -2396,7 +2495,10 @@ export function CoachInteractiveCard({
       )}
       {block.submit?.assumptions.length ? (
         <p className="mt-3 text-[9px] leading-relaxed text-muted-foreground/55">
-          Estimate: {block.submit.assumptions.join(" · ")}
+          <Message
+            text={"Estimate: {{value0}}"}
+            values={{ value0: block.submit.assumptions.join(" · ") }}
+          />
         </p>
       ) : null}
     </section>
@@ -2480,7 +2582,7 @@ export function CoachGeneratedUI({
       <Suspense
         fallback={
           <p className="mt-3 text-sm text-muted-foreground">
-            Loading interface…
+            {tr("Loading interface…")}
           </p>
         }
       >
@@ -2669,23 +2771,26 @@ export function CoachUiBlocks({
               </div>
               {pinned ? (
                 <p className="mt-3 inline-flex min-h-10 items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
-                  <PushPin size={13} weight="fill" />
-                  Pinned to Today
+                  <Message
+                    text={"{{value0}}Pinned to Today"}
+                    values={{ value0: <PushPin size={13} weight="fill" /> }}
+                  />
                 </p>
               ) : (
                 <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1">
                   {[
                     {
                       key: todayKey,
-                      label: "Pin for today",
-                      detail: "Complete this Coach plan today.",
+                      label: tr("Pin for today"),
+                      detail: tr("Complete this Coach plan today."),
                       durationDays: 1,
                     },
                     {
                       key: weekKey,
-                      label: "Pin as a 7-day goal",
-                      detail:
-                        "Complete this Coach plan consistently for the next 7 days.",
+                      label: tr("Pin as a 7-day goal"),
+                      detail: tr(
+                        "Complete this Coach plan consistently for the next 7 days."
+                      ),
                       durationDays: 7,
                     },
                   ].map((variant) => (
@@ -2712,7 +2817,7 @@ export function CoachUiBlocks({
                     >
                       <PushPin size={13} weight="bold" />
                       {pinningGoalKey === variant.key
-                        ? "Pinning…"
+                        ? tr("Pinning…")
                         : variant.label}
                     </button>
                   ))}
@@ -2741,7 +2846,10 @@ export function CoachUiBlocks({
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <p className="text-[10px] font-medium text-muted-foreground">
-                    Coach goal · {block.durationDays} days
+                    <Message
+                      text={"Coach goal · {{value0}} days"}
+                      values={{ value0: block.durationDays }}
+                    />
                   </p>
                   <h3 className="mt-1 text-[15px] font-bold">{block.title}</h3>
                 </div>
@@ -2774,10 +2882,10 @@ export function CoachUiBlocks({
               >
                 <PushPin size={13} weight={pinned ? "fill" : "bold"} />
                 {pinned
-                  ? "Pinned to Today"
+                  ? tr("Pinned to Today")
                   : pinningGoalKey === goalKey
-                    ? "Pinning…"
-                    : "Pin to Today"}
+                    ? tr("Pinning…")
+                    : tr("Pin to Today")}
               </button>
             </div>
           )
@@ -2811,13 +2919,13 @@ export function CoachUiBlocks({
   )
 }
 export const COACH_THINKING_MESSAGES = [
-  "Reviewing recent signals…",
-  "Checking your recent patterns…",
-  "Comparing the options against your goals…",
-  "Connecting the useful details…",
-  "Looking for the clearest next step…",
-  "Pressure-testing the recommendation…",
-  "Preparing a practical response…",
+  tr("Reviewing recent signals…"),
+  tr("Checking your recent patterns…"),
+  tr("Comparing the options against your goals…"),
+  tr("Connecting the useful details…"),
+  tr("Looking for the clearest next step…"),
+  tr("Pressure-testing the recommendation…"),
+  tr("Preparing a practical response…"),
 ] as const
 
 export function ThinkingIndicator() {
@@ -2833,7 +2941,7 @@ export function ThinkingIndicator() {
   }, [])
 
   return (
-    <div className="pl-1" role="status" aria-label="Coach is thinking">
+    <div className="pl-1" role="status" aria-label={tr("Coach is thinking")}>
       <div className="inline-flex items-center gap-3 py-2 text-muted-foreground/55">
         <div className="flex h-4 items-center gap-1.5">
           {[0, 1, 2].map((dot) => (
@@ -2931,14 +3039,16 @@ export function useCoachAttachment() {
     } catch (error) {
       if (requestId !== uploadRequestRef.current) return
       const message =
-        error instanceof Error ? error.message : "Could not attach that image."
+        error instanceof Error
+          ? error.message
+          : tr("Could not attach that image.")
       setActiveAttachment({
         fileName: file.name || "Coach image",
         previewUrl,
         status: "error",
         error: message,
       })
-      toast.error(message)
+      toast.error(translateError(message))
     }
   }
 
@@ -2993,7 +3103,7 @@ export function CoachAttachmentPreview({
     >
       <img
         src={attachment.previewUrl}
-        alt="Selected Coach attachment"
+        alt={tr("Selected Coach attachment")}
         className="size-12 shrink-0 rounded-lg object-cover"
       />
       <div className="min-w-0 flex-1">
@@ -3008,18 +3118,18 @@ export function CoachAttachmentPreview({
           )}
         >
           {attachment.status === "preparing"
-            ? "Preparing image…"
+            ? tr("Preparing image…")
             : attachment.status === "uploading"
-              ? "Uploading securely…"
+              ? tr("Uploading securely…")
               : attachment.status === "ready"
-                ? "Ready for Coach"
+                ? tr("Ready for Coach")
                 : attachment.error}
         </p>
       </div>
       <button
         type="button"
         onClick={onRemove}
-        aria-label="Remove attached image"
+        aria-label={tr("Remove attached image")}
         className="motion-tactile flex size-9 shrink-0 items-center justify-center rounded-full bg-background"
       >
         <X size={14} weight="bold" />
@@ -3045,7 +3155,7 @@ export function CoachAttachButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      aria-label="Attach a picture"
+      aria-label={tr("Attach a picture")}
       className={cn(
         "motion-tactile flex shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted disabled:opacity-35",
         label ? "min-h-10" : "size-11",

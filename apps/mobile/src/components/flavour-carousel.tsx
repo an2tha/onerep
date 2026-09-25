@@ -1,3 +1,4 @@
+import { Message, tr } from "@repo/ui/i18n"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import type { CSSProperties } from "react"
 import {
@@ -34,65 +35,66 @@ type FlavourProfile = {
 }
 
 type PreviewScene =
-  | "today"
-  | "training"
-  | "progress"
-  | "supplements"
-  | "nutrition"
-  | "coach"
+  "today" | "training" | "progress" | "supplements" | "nutrition" | "coach"
 
 const FLAVOUR_PROFILES: Record<string, FlavourProfile> = {
   onerep: {
-    description:
-      "The original balance of violet, blue, green, and warm training accents.",
+    description: tr(
+      "The original balance of violet, blue, green, and warm training accents."
+    ),
     icon: Barbell,
     preview: "today",
   },
   dusk: {
-    description:
-      "Warm earth tones meet evening violet for a calmer training space.",
+    description: tr(
+      "Warm earth tones meet evening violet for a calmer training space."
+    ),
     icon: MoonStars,
     preview: "training",
   },
   slate: {
-    description:
-      "A restrained mix of cool blues and quiet, low-saturation mineral tones.",
+    description: tr(
+      "A restrained mix of cool blues and quiet, low-saturation mineral tones."
+    ),
     icon: Hexagon,
     preview: "progress",
   },
   forest: {
-    description:
-      "Grounded greens, moss, and amber bring a restorative outdoor feel.",
+    description: tr(
+      "Grounded greens, moss, and amber bring a restorative outdoor feel."
+    ),
     icon: TreeEvergreen,
     preview: "supplements",
   },
   ocean: {
-    description:
-      "Clear blues and sea-glass teal give every screen a crisp, energetic rhythm.",
+    description: tr(
+      "Clear blues and sea-glass teal give every screen a crisp, energetic rhythm."
+    ),
     icon: Waves,
     preview: "nutrition",
   },
   blossom: {
-    description:
-      "Rose, lavender, and fresh green make the interface expressive and bright.",
+    description: tr(
+      "Rose, lavender, and fresh green make the interface expressive and bright."
+    ),
     icon: FlowerLotus,
     preview: "coach",
   },
 }
 
 const FALLBACK_PROFILE: FlavourProfile = {
-  description: "A distinct visual character for your OneRep experience.",
+  description: tr("A distinct visual character for your OneRep experience."),
   icon: Barbell,
   preview: "today",
 }
 
 const PREVIEW_META: Record<PreviewScene, { label: string; icon: Icon }> = {
-  today: { label: "Today", icon: Barbell },
-  training: { label: "Training", icon: Barbell },
-  progress: { label: "Progress", icon: ChartLineUp },
-  supplements: { label: "Supplements", icon: Pill },
-  nutrition: { label: "Nutrition", icon: ForkKnife },
-  coach: { label: "Coach", icon: Sparkle },
+  today: { label: tr("Today"), icon: Barbell },
+  training: { label: tr("Training"), icon: Barbell },
+  progress: { label: tr("Progress"), icon: ChartLineUp },
+  supplements: { label: tr("Supplements"), icon: Pill },
+  nutrition: { label: tr("Nutrition"), icon: ForkKnife },
+  coach: { label: tr("Coach"), icon: Sparkle },
 }
 
 const ONE_REP_PREVIEW_TOKENS = {
@@ -129,18 +131,13 @@ function previewStyle(
     resolved === "dark" ? ONE_REP_PREVIEW_TOKENS_DARK : ONE_REP_PREVIEW_TOKENS
 
   return {
-    "--flavour-workout":
-      tokens["--accent-workout"] ?? fallback.workout,
-    "--flavour-water":
-      tokens["--accent-water"] ?? fallback.water,
-    "--flavour-food":
-      tokens["--accent-food"] ?? fallback.food,
+    "--flavour-workout": tokens["--accent-workout"] ?? fallback.workout,
+    "--flavour-water": tokens["--accent-water"] ?? fallback.water,
+    "--flavour-food": tokens["--accent-food"] ?? fallback.food,
     "--flavour-supplement":
       tokens["--accent-supplement"] ?? fallback.supplement,
-    "--flavour-surface":
-      tokens["--surface-app"] ?? fallback.surface,
-    "--flavour-radius":
-      tokens["--radius-panel"] ?? fallback.radius,
+    "--flavour-surface": tokens["--surface-app"] ?? fallback.surface,
+    "--flavour-radius": tokens["--radius-panel"] ?? fallback.radius,
     "--flavour-font": tokens["--font-sans"] ?? "inherit",
     "--flavour-heading":
       tokens["--font-heading"] ?? tokens["--font-sans"] ?? "inherit",
@@ -152,8 +149,8 @@ function PreviewSceneContent({ scene }: { scene: PreviewScene }) {
     return (
       <>
         <div className="flavour-mini-heading">
-          <strong>Today</strong>
-          <span>9 September</span>
+          <strong>{tr("Today")}</strong>
+          <span>{tr("9 September")}</span>
         </div>
         <div className="flavour-mini-week">
           {["M", "T", "W", "T", "F", "S", "S"].map((day, index) => (
@@ -166,27 +163,27 @@ function PreviewSceneContent({ scene }: { scene: PreviewScene }) {
         <div className="flavour-mini-dials">
           <span data-tone="workout">
             <b>3</b>
-            <i>sets</i>
+            <i>{tr("sets")}</i>
           </span>
           <span data-tone="water">
             <b>1.6</b>
-            <i>litres</i>
+            <i>{tr("litres")}</i>
           </span>
           <span data-tone="food">
             <b>118</b>
-            <i>protein</i>
+            <i>{tr("protein")}</i>
           </span>
         </div>
         <div className="flavour-mini-timeline">
           <span>
             <time>08:30</time>
             <i data-tone="food" />
-            <b>Breakfast</b>
+            <b>{tr("Breakfast")}</b>
           </span>
           <span>
             <time>12:00</time>
             <i data-tone="workout" />
-            <b>Upper body</b>
+            <b>{tr("Upper body")}</b>
           </span>
         </div>
       </>
@@ -197,8 +194,8 @@ function PreviewSceneContent({ scene }: { scene: PreviewScene }) {
     return (
       <>
         <div className="flavour-mini-heading">
-          <strong>Training</strong>
-          <span>This week</span>
+          <strong>{tr("Training")}</strong>
+          <span>{tr("This week")}</span>
         </div>
         <div className="flavour-mini-bars" aria-hidden="true">
           {[34, 72, 46, 88, 58, 24, 12].map((height, index) => (
@@ -208,17 +205,17 @@ function PreviewSceneContent({ scene }: { scene: PreviewScene }) {
           ))}
         </div>
         <div className="flavour-mini-section-title">
-          <strong>Today’s workout</strong>
-          <span>5 exercises</span>
+          <strong>{tr("Today’s workout")}</strong>
+          <span>{tr("5 exercises")}</span>
         </div>
         <div className="flavour-mini-set-list">
           <span>
-            <b>Back squat</b>
+            <b>{tr("Back squat")}</b>
             <i>3 × 8</i>
             <em />
           </span>
           <span>
-            <b>Romanian deadlift</b>
+            <b>{tr("Romanian deadlift")}</b>
             <i>3 × 10</i>
             <em />
           </span>
@@ -231,34 +228,34 @@ function PreviewSceneContent({ scene }: { scene: PreviewScene }) {
     return (
       <>
         <div className="flavour-mini-heading">
-          <strong>Nutrition</strong>
-          <span>Today</span>
+          <strong>{tr("Nutrition")}</strong>
+          <span>{tr("Today")}</span>
         </div>
         <div className="flavour-mini-energy">
           <span className="flavour-mini-energy-ring">
             <b>1,640</b>
-            <i>kcal</i>
+            <i>{tr("kcal")}</i>
           </span>
           <span>
-            <strong>560 left</strong>
-            <i>of 2,200 kcal</i>
+            <strong>{tr("560 left")}</strong>
+            <i>{tr("of 2,200 kcal")}</i>
           </span>
         </div>
         <div className="flavour-mini-goals">
           <span data-tone="workout">
-            <b>Protein</b>
+            <b>{tr("Protein")}</b>
             <i />
-            <em>118g</em>
+            <em>{tr("118g")}</em>
           </span>
           <span data-tone="water">
-            <b>Carbs</b>
+            <b>{tr("Carbs")}</b>
             <i />
-            <em>184g</em>
+            <em>{tr("184g")}</em>
           </span>
           <span data-tone="food">
-            <b>Fat</b>
+            <b>{tr("Fat")}</b>
             <i />
-            <em>62g</em>
+            <em>{tr("62g")}</em>
           </span>
         </div>
       </>
@@ -269,15 +266,15 @@ function PreviewSceneContent({ scene }: { scene: PreviewScene }) {
     return (
       <>
         <div className="flavour-mini-heading">
-          <strong>Progress</strong>
-          <span>12 weeks</span>
+          <strong>{tr("Progress")}</strong>
+          <span>{tr("12 weeks")}</span>
         </div>
         <div className="flavour-mini-measure">
           <span>
             <strong>78.4</strong>
-            <i>kg</i>
+            <i>{tr("kg")}</i>
           </span>
-          <b>−0.6 kg this month</b>
+          <b>{tr("−0.6 kg this month")}</b>
         </div>
         <svg
           className="flavour-mini-chart"
@@ -296,15 +293,15 @@ function PreviewSceneContent({ scene }: { scene: PreviewScene }) {
         <div className="flavour-mini-stat-row">
           <span>
             <b>12</b>
-            <i>workouts</i>
+            <i>{tr("workouts")}</i>
           </span>
           <span>
             <b>84%</b>
-            <i>consistency</i>
+            <i>{tr("consistency")}</i>
           </span>
           <span>
             <b>+7</b>
-            <i>best sets</i>
+            <i>{tr("best sets")}</i>
           </span>
         </div>
       </>
@@ -315,13 +312,13 @@ function PreviewSceneContent({ scene }: { scene: PreviewScene }) {
     return (
       <>
         <div className="flavour-mini-heading">
-          <strong>Supplements</strong>
-          <span>Today</span>
+          <strong>{tr("Supplements")}</strong>
+          <span>{tr("Today")}</span>
         </div>
         <div className="flavour-mini-adherence">
           <span>
-            <strong>3 of 4</strong>
-            <i>taken today</i>
+            <strong>{tr("3 of 4")}</strong>
+            <i>{tr("taken today")}</i>
           </span>
           <b>75%</b>
         </div>
@@ -331,12 +328,12 @@ function PreviewSceneContent({ scene }: { scene: PreviewScene }) {
             ["Creatine", true],
             ["Magnesium", false],
           ].map(([label, checked]) => (
-              <span key={String(label)} data-checked={checked}>
-                <i>{checked ? <Check size={9} weight="bold" /> : null}</i>
-                <b>{label}</b>
-                <em>{checked ? "Taken" : "Evening"}</em>
-              </span>
-            ))}
+            <span key={String(label)} data-checked={checked}>
+              <i>{checked ? <Check size={9} weight="bold" /> : null}</i>
+              <b>{label}</b>
+              <em>{checked ? tr("Taken") : tr("Evening")}</em>
+            </span>
+          ))}
         </div>
       </>
     )
@@ -345,21 +342,25 @@ function PreviewSceneContent({ scene }: { scene: PreviewScene }) {
   return (
     <>
       <div className="flavour-mini-heading">
-        <strong>Good morning.</strong>
-        <span>Coach</span>
+        <strong>{tr("Good morning.")}</strong>
+        <span>{tr("Coach")}</span>
       </div>
       <div className="flavour-mini-coach">
         <span className="flavour-mini-coach-mark">
           <Sparkle size={15} weight="fill" />
         </span>
-        <p>You’re close to your protein target. Want a simple dinner idea?</p>
+        <p>
+          {tr(
+            "You’re close to your protein target. Want a simple dinner idea?"
+          )}
+        </p>
       </div>
       <div className="flavour-mini-replies">
-        <span>Show me an idea</span>
-        <span>Check my day</span>
+        <span>{tr("Show me an idea")}</span>
+        <span>{tr("Check my day")}</span>
       </div>
       <div className="flavour-mini-composer">
-        <span>Ask OneRep</span>
+        <span>{tr("Ask OneRep")}</span>
         <Sparkle size={12} weight="fill" />
       </div>
     </>
@@ -374,10 +375,16 @@ function FlavourPreview({ profile }: { profile: FlavourProfile }) {
     <>
       <div className="flavour-preview-chrome">
         <span className="flavour-preview-brand">
-          <span>
-            <PageIcon size={12} weight="bold" />
-          </span>
-          OneRep
+          <Message
+            text={"{{value0}}OneRep"}
+            values={{
+              value0: (
+                <span>
+                  <PageIcon size={12} weight="bold" />
+                </span>
+              ),
+            }}
+          />
         </span>
         <span className="flavour-preview-page">{meta.label}</span>
       </div>
@@ -454,7 +461,7 @@ export function FlavourCarousel({
   if (identities.length === 0) return null
 
   return (
-    <section className="flavour-carousel" aria-label="Choose a flavour">
+    <section className="flavour-carousel" aria-label={tr("Choose a flavour")}>
       <Carousel opts={carouselOpts} setApi={setApi}>
         <CarouselContent>
           {identities.map((visualIdentity, index) => {
@@ -467,7 +474,9 @@ export function FlavourCarousel({
               <CarouselItem key={visualIdentity.id}>
                 <article
                   className="flavour-slide"
-                  aria-label={`${visualIdentity.label} flavour`}
+                  aria-label={tr("{{value0}} flavour", {
+                    value0: visualIdentity.label,
+                  })}
                   style={slideStyles[index]}
                 >
                   <div
@@ -489,7 +498,12 @@ export function FlavourCarousel({
                         <h3>{visualIdentity.label}</h3>
                         {selected && (
                           <span className="flavour-selected">
-                            <Check size={13} weight="bold" /> Selected
+                            <Message
+                              text={"{{value0}} Selected"}
+                              values={{
+                                value0: <Check size={13} weight="bold" />,
+                              }}
+                            />
                           </span>
                         )}
                       </div>
@@ -505,13 +519,15 @@ export function FlavourCarousel({
           <CarouselPrevious className="flavour-carousel-arrow" />
           <div
             className="flavour-carousel-dots"
-            aria-label="Choose flavour slide"
+            aria-label={tr("Choose flavour slide")}
           >
             {identities.map((visualIdentity, index) => (
               <button
                 key={visualIdentity.id}
                 type="button"
-                aria-label={`Show ${visualIdentity.label}`}
+                aria-label={tr("Show {{value0}}", {
+                  value0: visualIdentity.label,
+                })}
                 aria-pressed={selectedIndex === index}
                 onClick={() => api?.scrollTo(index)}
               />

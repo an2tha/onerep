@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 import {
   useCallback,
   useEffect,
@@ -348,12 +349,16 @@ export function TourProvider({ children }: { children: ReactNode }) {
         {tour && currentStep && (
           <>
             <span aria-live="polite" className="sr-only">
-              {`Step ${tour.index + 1} of ${tour.steps.length}. ${tour.chapter.title}.`}
+              {tr("Step {{value0}} of {{value1}}. {{value2}}.", {
+                value0: tour.index + 1,
+                value1: tour.steps.length,
+                value2: tour.chapter.title,
+              })}
             </span>
             <SpotlightOverlay
               rect={rect}
               onDismiss={skipChapter}
-              dismissLabel="Skip walkthrough"
+              dismissLabel={tr("Skip walkthrough")}
             />
             <TourPopover
               chapterTitle={tour.chapter.title}

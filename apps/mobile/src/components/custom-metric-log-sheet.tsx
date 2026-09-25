@@ -1,3 +1,4 @@
+import { Message, tr, translateError, uiLocale } from "@repo/ui/i18n"
 import { useEffect, useMemo, useState } from "react"
 import { CalendarBlank, CaretLeft, CaretRight, X } from "@phosphor-icons/react"
 import { useMutation, useQuery } from "convex/react"
@@ -47,15 +48,15 @@ type Metric = {
 const TAB_ORDER: MetricTab[] = ["body", "nutrition", "training"]
 
 const TAB_LABEL: Record<MetricTab, string> = {
-  body: "Body",
-  nutrition: "Nutrition",
-  training: "Training",
+  body: tr("Body"),
+  nutrition: tr("Nutrition"),
+  training: tr("Training"),
 }
 
 function formatDay(date: string, today: string) {
-  if (date === today) return "Today"
-  if (date === shiftDate(today, -1)) return "Yesterday"
-  return new Date(`${date}T12:00:00Z`).toLocaleDateString(undefined, {
+  if (date === today) return tr("Today")
+  if (date === shiftDate(today, -1)) return tr("Yesterday")
+  return new Date(`${date}T12:00:00Z`).toLocaleDateString(uiLocale(), {
     weekday: "long",
     day: "numeric",
     month: "short",
@@ -118,7 +119,7 @@ export function CustomMetricLogSheet({
   // Wednesday, which is the one mistake this sheet must never make.
   useEffect(() => {
     setDrafts({})
-    setError("")
+    setError(translateError(""))
   }, [date])
 
   function entryFor(metric: Metric) {
@@ -146,7 +147,7 @@ export function CustomMetricLogSheet({
   const oldest = shiftDate(today, -(EDITABLE_DAYS - 1))
 
   async function commit() {
-    setError("")
+    setError(translateError(""))
     const pending: { metric: Metric; value: number | null }[] = []
 
     for (const metric of rows) {
@@ -166,11 +167,19 @@ export function CustomMetricLogSheet({
 
       const typed = Number(trimmed.replace(",", "."))
       if (!Number.isFinite(typed)) {
-        setError(`${metric.title} needs a number.`)
+        setError(
+          translateError(
+            tr("{{value0}} needs a number.", { value0: metric.title })
+          )
+        )
         return
       }
       if (typed < 0) {
-        setError(`${metric.title} can't be negative.`)
+        setError(
+          translateError(
+            tr("{{value0}} can't be negative.", { value0: metric.title })
+          )
+        )
         return
       }
       pending.push({ metric, value: typed })
@@ -188,7 +197,11 @@ export function CustomMetricLogSheet({
       onClose()
     } catch (cause) {
       setError(
-        cause instanceof Error ? cause.message : "That did not save. Try again."
+        translateError(
+          cause instanceof Error
+            ? cause.message
+            : tr("That did not save. Try again.")
+        )
       )
     } finally {
       setSaving(false)
@@ -196,27 +209,31 @@ export function CustomMetricLogSheet({
   }
 
   function setDraft(metric: Metric, value: string) {
-    setError("")
+    setError(translateError(""))
     setDrafts((current) => ({ ...current, [metric._id]: value }))
   }
 
   return (
     <MobileSheet
-      ariaLabel="Log a metric"
+      ariaLabel={tr("Log a metric")}
       onClose={onClose}
       overlayClassName="bg-black/45"
       panelClassName="sheet-panel mx-auto flex max-h-[88vh] w-full max-w-md flex-col rounded-t-2xl border-t border-border bg-card"
     >
       <div className="flex items-start justify-between gap-4 px-5 pt-4">
         <div>
-          <h2 className="text-[20px] font-bold tracking-tight">Log a metric</h2>
+          <h2 className="text-[20px] font-bold tracking-tight">
+            {tr("Log a metric")}
+          </h2>
           <p className="mt-1 text-[12px] leading-5 text-muted-foreground">
-            Put a figure into any metric you made, for any day this week.
+            {tr(
+              "Put a figure into any metric you made, for any day this week."
+            )}
           </p>
         </div>
         <ToolbarButton
           onClick={onClose}
-          aria-label="Close"
+          aria-label={tr("Close")}
           className="-mt-1 -mr-2 px-0"
         >
           <X size={14} weight="bold" />
@@ -232,7 +249,7 @@ export function CustomMetricLogSheet({
               hapticSelection()
               setDate(shiftDate(date, -1))
             }}
-            aria-label="Previous day"
+            aria-label={tr("Previous day")}
             className="motion-tactile inline-flex size-9 shrink-0 items-center justify-center rounded-full disabled:opacity-35"
           >
             <CaretLeft size={15} weight="bold" />
@@ -246,7 +263,7 @@ export function CustomMetricLogSheet({
               hapticSelection()
               setPickingDate((open) => !open)
             }}
-            aria-label="Pick a day"
+            aria-label={tr("Pick a day")}
             aria-expanded={pickingDate}
             className={`motion-tactile inline-flex size-9 shrink-0 items-center justify-center rounded-full ${
               pickingDate ? "bg-foreground/10 text-foreground" : ""
@@ -261,7 +278,7 @@ export function CustomMetricLogSheet({
               hapticSelection()
               setDate(shiftDate(date, 1))
             }}
-            aria-label="Next day"
+            aria-label={tr("Next day")}
             className="motion-tactile inline-flex size-9 shrink-0 items-center justify-center rounded-full disabled:opacity-35"
           >
             <CaretRight size={15} weight="bold" />
@@ -285,7 +302,10 @@ export function CustomMetricLogSheet({
               }}
             />
             <p className="mt-1 text-center text-[12px] text-muted-foreground">
-              You can log the last {EDITABLE_DAYS} days.
+              <Message
+                text={"You can log the last {{value0}} days."}
+                values={{ value0: EDITABLE_DAYS }}
+              />
             </p>
           </div>
         )}
@@ -294,16 +314,17 @@ export function CustomMetricLogSheet({
       <div className="mt-3 flex-1 overflow-y-auto px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
         {metrics === undefined ? (
           <p className="py-6 text-center text-[13px] text-muted-foreground">
-            Loading your metrics…
+            {tr("Loading your metrics…")}
           </p>
         ) : rows.length === 0 ? (
           <div className="py-6">
             <p className="text-[14px] font-semibold">
-              You haven't made any metrics yet.
+              {tr("You haven't made any metrics yet.")}
             </p>
             <p className="mt-1 text-[12px] leading-5 text-muted-foreground">
-              Close this and tap "Track something new" on Health. Whatever you
-              make lands here to be filled in.
+              {tr(
+                'Close this and tap "Track something new" on Health. Whatever you make lands here to be filled in.'
+              )}
             </p>
           </div>
         ) : (
@@ -331,10 +352,10 @@ export function CustomMetricLogSheet({
                         </label>
                         <p className="mt-0.5 text-[12px] leading-4 text-muted-foreground">
                           {!entry
-                            ? "nothing recorded"
+                            ? tr("nothing recorded")
                             : entry.manual
-                              ? "you typed this"
-                              : "synced"}
+                              ? tr("you typed this")
+                              : tr("synced")}
                         </p>
                       </div>
                       {metric.kind === "toggle" ? (
@@ -355,7 +376,7 @@ export function CustomMetricLogSheet({
                               }}
                               className="motion-tactile text-[12px] font-semibold text-muted-foreground disabled:opacity-35"
                             >
-                              Clear
+                              {tr("Clear")}
                             </button>
                           )}
                           <CompactSwitch
@@ -407,14 +428,15 @@ export function CustomMetricLogSheet({
             )}
 
             <p className="mt-3 text-[12px] leading-5 text-muted-foreground">
-              A day you fill in by hand stops syncing. If the metric is tied to
-              a health reading, that reading will no longer replace what you
-              typed.
+              {tr(
+                "A day you fill in by hand stops syncing. If the metric is tied to a health reading, that reading will no longer replace what you typed."
+              )}
             </p>
 
             <p className="mt-2 text-[12px] leading-5 text-muted-foreground">
-              Empty a row to delete that day. A metric tied to a health reading
-              fills back in on the next sync; one that isn't stays empty.
+              {tr(
+                "Empty a row to delete that day. A metric tied to a health reading fills back in on the next sync; one that isn't stays empty."
+              )}
             </p>
 
             <PrimaryButton
@@ -422,7 +444,7 @@ export function CustomMetricLogSheet({
               disabled={!dirty || saving}
               className="mt-3 w-full"
             >
-              {saving ? "Saving…" : "Save"}
+              {saving ? tr("Saving…") : tr("Save")}
             </PrimaryButton>
           </>
         )}

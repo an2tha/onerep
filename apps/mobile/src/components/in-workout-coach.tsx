@@ -1,3 +1,4 @@
+import { tr, translateError } from "@repo/ui/i18n"
 import { useState } from "react"
 import { useAction } from "convex/react"
 import { Microphone } from "@phosphor-icons/react"
@@ -16,7 +17,7 @@ const COACH_DICTATION_TERMS = [
   "pounds",
   "dropset",
   "superset",
-  "one rep max",
+  tr("one rep max"),
   "deload",
 ]
 
@@ -82,7 +83,11 @@ export function InWorkoutCoach({
     } catch (error) {
       logDevWarn("In-workout coach failed", error)
       toast.error(
-        error instanceof Error ? error.message : "Couldn't reach your coach."
+        translateError(
+          error instanceof Error
+            ? error.message
+            : tr("Couldn't reach your coach.")
+        )
       )
     } finally {
       setBusy(false)
@@ -92,14 +97,15 @@ export function InWorkoutCoach({
   if (!open) return null
 
   return (
-    <MobileSheet onClose={onClose} ariaLabel="Ask your coach">
+    <MobileSheet onClose={onClose} ariaLabel={tr("Ask your coach")}>
       <div className="px-6 pt-2 pb-6">
         <h2 className="text-[20px] font-semibold tracking-tight">
-          Ask your coach
+          {tr("Ask your coach")}
         </h2>
         <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground/80">
-          One question about this session — load, reps, push or stop. It can see
-          your sets so far.
+          {tr(
+            "One question about this session — load, reps, push or stop. It can see your sets so far."
+          )}
         </p>
 
         {exchange && (
@@ -125,8 +131,10 @@ export function InWorkoutCoach({
             if (event.key === "Enter") void submit()
           }}
           disabled={busy}
-          aria-label="Your question"
-          placeholder={exchange ? "Anything else?" : "Heavier on the last set?"}
+          aria-label={tr("Your question")}
+          placeholder={
+            exchange ? tr("Anything else?") : tr("Heavier on the last set?")
+          }
           maxLength={300}
           enterKeyHint="send"
           className="mt-4 h-[52px] w-full rounded-[20px] bg-muted/40 px-4 text-[15px] outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-60"
@@ -148,8 +156,8 @@ export function InWorkoutCoach({
               type="button"
               aria-label={
                 dictation.status === "listening"
-                  ? "Stop dictation"
-                  : "Dictate your question"
+                  ? tr("Stop dictation")
+                  : tr("Dictate your question")
               }
               aria-pressed={dictation.status === "listening"}
               disabled={busy}
@@ -175,7 +183,7 @@ export function InWorkoutCoach({
             aria-busy={busy}
             className="h-[52px] flex-1 rounded-[20px] bg-foreground text-[15px] font-semibold tracking-tight text-background transition-opacity active:opacity-80 disabled:opacity-50"
           >
-            {busy ? "Asking..." : "Ask"}
+            {busy ? tr("Asking...") : tr("Ask")}
           </button>
         </div>
       </div>

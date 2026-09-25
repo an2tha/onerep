@@ -1,3 +1,4 @@
+import { Message, tr, translateError } from "@repo/ui/i18n"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useLocation, useSearchParams } from "react-router"
 import { Capacitor } from "@capacitor/core"
@@ -52,10 +53,7 @@ import { hapticMedium, hapticTap } from "@/lib/haptics"
 import { useEnergyUnit } from "@/lib/use-energy-unit"
 import { energyDisplay } from "@repo/ui"
 import type { FoodDetail, FoodResult } from "@repo/models"
-import {
-  foodCardMacros,
-  foodServingGrams,
-} from "@/lib/food-search-nutrition"
+import { foodCardMacros, foodServingGrams } from "@/lib/food-search-nutrition"
 import {
   getFoodByBarcode,
   rankAndFilterFoodResults,
@@ -130,7 +128,9 @@ type SnapPhase = "idle" | "uploading" | "results" | "error"
 export default function SnapAndLog() {
   const location = useLocation()
   const initialCapture = useRef<Blob | null>(
-    location.state?.snapCapture instanceof Blob ? location.state.snapCapture : null
+    location.state?.snapCapture instanceof Blob
+      ? location.state.snapCapture
+      : null
   )
   const navigate = useSmoothNavigate()
   const { hasAiAccess, aiAccessLoading, requireAiAccess, aiAccessModal } =
@@ -152,8 +152,7 @@ export default function SnapAndLog() {
   const logTime = isFoodLogTime(requestedTime) ? requestedTime : undefined
   // An explicit ?time= from the diary wins; otherwise the meal tag supplies
   // the default time ("breakfast" logs at the breakfast hour).
-  const logStamp = () =>
-    foodLogTimestampForMeal(date, meal, logTime)
+  const logStamp = () => foodLogTimestampForMeal(date, meal, logTime)
   const preferences = useQuery(api.users.users.getPreferences, {})
   const foodSearchLanguage = preferences?.foodSearchLanguage ?? "en"
   // Entries are added one mutation each instead of read-modify-writing the
@@ -216,9 +215,8 @@ export default function SnapAndLog() {
   // Correcting a scanned product's values: the editor draft, pre-filled from
   // what the card claims. Saving stores a private custom food carrying the
   // barcode, so every later scan of the same product logs the fixed numbers.
-  const [correctionDraft, setCorrectionDraft] = useState<CustomFoodDraft | null>(
-    null
-  )
+  const [correctionDraft, setCorrectionDraft] =
+    useState<CustomFoodDraft | null>(null)
   const [savingCorrection, setSavingCorrection] = useState(false)
 
   // Log state
@@ -412,7 +410,9 @@ export default function SnapAndLog() {
             corrected ? applyCorrectedCopy(food, corrected) : food
           )
         } else {
-          setBarcodeError(`No food found for barcode ${code}`)
+          setBarcodeError(
+            tr("No food found for barcode {{value0}}", { value0: code })
+          )
         }
       } catch (err) {
         if (
@@ -424,7 +424,7 @@ export default function SnapAndLog() {
           scanLoopRef.current = setTimeout(tick, 150)
         } else {
           setBarcodeScanning(false)
-          setBarcodeError("Scan failed. Try again.")
+          setBarcodeError(translateError(tr("Scan failed. Try again.")))
         }
       }
     }
@@ -449,7 +449,7 @@ export default function SnapAndLog() {
   async function processBarcodeBlob(blob: Blob) {
     const canvas = canvasRef.current
     if (!canvas) {
-      setBarcodeError("Scan failed. Try again.")
+      setBarcodeError(translateError(tr("Scan failed. Try again.")))
       return
     }
 
@@ -475,10 +475,12 @@ export default function SnapAndLog() {
         setBarcodeResult(corrected ? applyCorrectedCopy(food, corrected) : food)
         setBarcodeError(null)
       } else {
-        setBarcodeError(`No food found for barcode ${code}`)
+        setBarcodeError(
+          tr("No food found for barcode {{value0}}", { value0: code })
+        )
       }
     } catch {
-      setBarcodeError("Scan failed. Try again.")
+      setBarcodeError(translateError(tr("Scan failed. Try again.")))
     } finally {
       URL.revokeObjectURL(imageUrl)
     }
@@ -542,7 +544,11 @@ export default function SnapAndLog() {
       const permission = await NativeCamera.requestPermissions()
       if (permission.camera !== "granted") {
         setCameraState("denied")
-        toast.error("Camera access is off. Turn it on in Settings › OneRep.")
+        toast.error(
+          translateError(
+            tr("Camera access is off. Turn it on in Settings › OneRep.")
+          )
+        )
         return
       }
       const photo = await NativeCamera.getPhoto({
@@ -553,7 +559,7 @@ export default function SnapAndLog() {
       })
       if (!photo.webPath) {
         if (mode === "snap") setSnapPhase("error")
-        else setBarcodeError("Scan failed. Try again.")
+        else setBarcodeError(translateError(tr("Scan failed. Try again.")))
         return
       }
       const blob = await fetch(photo.webPath).then((res) => res.blob())
@@ -576,7 +582,7 @@ export default function SnapAndLog() {
       console.warn("Native camera capture failed", err)
       setCameraFailure(describeCameraError(err))
       if (mode === "snap") setSnapPhase("error")
-      else setBarcodeError("Scan failed. Try again.")
+      else setBarcodeError(translateError(tr("Scan failed. Try again.")))
     }
   }
 
@@ -605,9 +611,16 @@ export default function SnapAndLog() {
         })
         // iOS "limited" means the picker opens on a subset the user chose.
         // That is still a picker, so it still works.
-        if (permission.photos !== "granted" && permission.photos !== "limited") {
+        if (
+          permission.photos !== "granted" &&
+          permission.photos !== "limited"
+        ) {
           toast.error(
-            "Photo access is off. Turn it on in Settings › OneRep › Photos."
+            translateError(
+              tr(
+                "Photo access is off. Turn it on in Settings › OneRep › Photos."
+              )
+            )
           )
           return
         }
@@ -635,7 +648,10 @@ export default function SnapAndLog() {
       console.warn("Picking a photo from the library failed", err)
       setCameraFailure(describeCameraError(err))
       if (mode === "snap") setSnapPhase("error")
-      else setBarcodeError("That photo could not be read. Try another.")
+      else
+        setBarcodeError(
+          translateError(tr("That photo could not be read. Try another."))
+        )
     }
   }
 
@@ -688,7 +704,7 @@ export default function SnapAndLog() {
       async (blob) => {
         if (!blob) {
           setSnapPhase("error")
-          setBarcodeError("Scan failed. Try again.")
+          setBarcodeError(translateError(tr("Scan failed. Try again.")))
           return
         }
         if (mode === "barcode") {
@@ -721,7 +737,7 @@ export default function SnapAndLog() {
       // appeared to do nothing.
       const copy = customFoodFromDraft(correctionDraft)
       setCorrectionDraft(null)
-      toast.success("Corrected values saved to your foods")
+      toast.success(tr("Corrected values saved to your foods"))
       const correctedCode = copy.barcode?.trim()
       if (correctedCode) {
         setBarcodeResult((current) =>
@@ -790,17 +806,22 @@ export default function SnapAndLog() {
       // Undo removes the entry by its id rather than rewriting the day back
       // to a snapshot: with one mutation per entry, a snapshot would erase
       // anything logged after the one being undone.
-      toast.success(item.name ? `${item.name} logged` : "Food logged", {
-        action: {
-          label: "Undo",
-          onClick: () => {
-            announceOrbActivity("delete")
-            void removeFoodEntry({ date, entryId: entry.id }).catch(() =>
-              toast.error("Couldn't undo that")
-            )
+      toast.success(
+        item.name
+          ? tr("{{value0}} logged", { value0: item.name })
+          : tr("Food logged"),
+        {
+          action: {
+            label: tr("Undo"),
+            onClick: () => {
+              announceOrbActivity("delete")
+              void removeFoodEntry({ date, entryId: entry.id }).catch(() =>
+                toast.error(translateError(tr("Couldn't undo that")))
+              )
+            },
           },
-        },
-      })
+        }
+      )
       setAdded(item.id)
       setTimeout(() => setAdded(null), 1800)
     } catch (error) {
@@ -827,7 +848,7 @@ export default function SnapAndLog() {
       .filter((entry): entry is FoodLogEntry => entry !== null)
 
     if (entries.length === 0) {
-      toast.message("Pick at least one matched food to log")
+      toast.message(tr("Pick at least one matched food to log"))
       return
     }
 
@@ -837,9 +858,7 @@ export default function SnapAndLog() {
       // One mutation per detected food, fired together: no whole-day
       // read-modify-write, so a barcode add that lands mid-review can never
       // be dropped, and a failed item does not roll back the others.
-      await Promise.all(
-        entries.map((entry) => addFoodEntry({ date, entry }))
-      )
+      await Promise.all(entries.map((entry) => addFoodEntry({ date, entry })))
       announceOrbActivity("log", Math.min(entries.length, 3))
 
       captureFeatureUsage("food_logged_from_camera", {
@@ -850,17 +869,21 @@ export default function SnapAndLog() {
 
       setAdded("snap-review")
       toast.success(
-        entries.length === 1 ? "Meal logged" : `${entries.length} foods logged`,
+        entries.length === 1
+          ? tr("Meal logged")
+          : tr("{{value0}} foods logged", { value0: entries.length }),
         {
           action: {
-            label: "Undo",
+            label: tr("Undo"),
             onClick: () => {
               announceOrbActivity("delete", Math.min(entries.length, 3))
               void Promise.all(
                 entries.map((entry) =>
                   removeFoodEntry({ date, entryId: entry.id })
                 )
-              ).catch(() => toast.error("Couldn't undo that"))
+              ).catch(() =>
+                toast.error(translateError(tr("Couldn't undo that")))
+              )
             },
           },
         }
@@ -873,7 +896,7 @@ export default function SnapAndLog() {
       }, 900)
     } catch (error) {
       console.error("Failed to log snapped meal:", error)
-      toast.error("Could not log meal")
+      toast.error(translateError(tr("Could not log meal")))
     } finally {
       loggingTargetRef.current = null
       setSnapLogging(false)
@@ -932,26 +955,26 @@ export default function SnapAndLog() {
             <>
               <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/20 border-t-white/60" />
               <p className="text-[15px] font-semibold text-white">
-                Starting camera
+                {tr("Starting camera")}
               </p>
               <p className="text-[14px] text-white/75">
-                Keep OneRep open while we connect to your camera.
+                {tr("Keep OneRep open while we connect to your camera.")}
               </p>
             </>
           )}
           {cameraState === "denied" && (
             <>
               <p className="text-[17px] font-semibold text-white">
-                Camera access denied
+                {tr("Camera access denied")}
               </p>
               <p className="max-w-[280px] text-center text-[14px] leading-5 text-white/75">
-                Allow camera access in Settings to use Snap &amp; Log.
+                {tr("Allow camera access in Settings to use Snap & Log.")}
               </p>
             </>
           )}
           {cameraState === "unsupported" && (
             <p className="text-[17px] font-semibold text-white">
-              Camera not available
+              {tr("Camera not available")}
             </p>
           )}
           {(cameraState === "denied" || cameraState === "unsupported") &&
@@ -967,7 +990,7 @@ export default function SnapAndLog() {
                 onClick={retryCamera}
                 className="min-h-11 rounded-lg border border-white/25 px-4 text-[14px] font-semibold text-white"
               >
-                Try camera again
+                {tr("Try camera again")}
               </button>
               {hasNativeCameraFallback && (
                 <button
@@ -975,28 +998,32 @@ export default function SnapAndLog() {
                   onClick={() => void handleNativeCapture()}
                   className="min-h-11 rounded-lg bg-white px-4 text-[14px] font-semibold text-black"
                 >
-                  Use camera app
+                  {tr("Use camera app")}
                 </button>
               )}
               <button
                 type="button"
                 onClick={() =>
-                  navigate(`/foods/search?${foodLogContextParams(date, logTime)}`)
+                  navigate(
+                    `/foods/search?${foodLogContextParams(date, logTime)}`
+                  )
                 }
                 className="min-h-11 rounded-lg border border-white/25 px-4 text-[14px] font-semibold text-white"
               >
-                Search foods
+                {tr("Search foods")}
               </button>
               {/* The camera failing and the food being missing from the
                   database are the same dead end from the user's side. */}
               <button
                 type="button"
                 onClick={() =>
-                  navigate(`/foods/custom?new=1&log=1&${foodLogContextParams(date, logTime)}`)
+                  navigate(
+                    `/foods/custom?new=1&log=1&${foodLogContextParams(date, logTime)}`
+                  )
                 }
                 className="min-h-11 rounded-lg border border-white/25 px-4 text-[14px] font-semibold text-white"
               >
-                Enter it yourself
+                {tr("Enter it yourself")}
               </button>
             </div>
           )}
@@ -1014,13 +1041,17 @@ export default function SnapAndLog() {
           </div>
           <p className="text-[15px] font-medium text-white/80">
             {mode === "snap"
-              ? "Capture anything food-related"
-              : "Capture a barcode photo"}
+              ? tr("Capture anything food-related")
+              : tr("Capture a barcode photo")}
           </p>
           <p className="max-w-[300px] text-[14px] leading-5 text-white/75">
             {mode === "snap"
-              ? "Meals, restaurant orders, receipts, packaging, and handwritten notes all become one editable food log."
-              : "Take a clear photo of the barcode and OneRep will scan it after capture."}
+              ? tr(
+                  "Meals, restaurant orders, receipts, packaging, and handwritten notes all become one editable food log."
+                )
+              : tr(
+                  "Take a clear photo of the barcode and OneRep will scan it after capture."
+                )}
           </p>
         </div>
       )}
@@ -1091,7 +1122,9 @@ export default function SnapAndLog() {
               )}
             </div>
             <p className="mt-3 text-center text-[14px] font-medium text-white/80">
-              {barcodeScanning ? "Looking for barcode…" : "Point at a barcode"}
+              {barcodeScanning
+                ? tr("Looking for barcode…")
+                : tr("Point at a barcode")}
             </p>
           </div>
         </>
@@ -1108,7 +1141,7 @@ export default function SnapAndLog() {
           type="button"
           onClick={() => navigate(-1)}
           className="flex h-11 w-11 items-center justify-center rounded-lg border border-white/25 bg-black/70 text-white transition-opacity active:opacity-60"
-          aria-label="Close camera"
+          aria-label={tr("Close camera")}
         >
           <ArrowLeft size={16} weight="bold" />
         </button>
@@ -1124,8 +1157,10 @@ export default function SnapAndLog() {
             className={`flex min-h-11 items-center gap-2 rounded-[10px] px-3 text-[14px] font-semibold transition-colors ${mode === "snap" ? "bg-white text-black" : "text-white/80"}`}
             aria-pressed={mode === "snap"}
           >
-            <CameraIcon size={16} weight="bold" />
-            Snap
+            <Message
+              text={"{{value0}}Snap"}
+              values={{ value0: <CameraIcon size={16} weight="bold" /> }}
+            />
           </button>
           <button
             type="button"
@@ -1136,8 +1171,10 @@ export default function SnapAndLog() {
             className={`flex min-h-11 items-center gap-2 rounded-[10px] px-3 text-[14px] font-semibold transition-colors ${mode === "barcode" ? "bg-white text-black" : "text-white/80"}`}
             aria-pressed={mode === "barcode"}
           >
-            <Barcode size={16} weight="bold" />
-            Scan
+            <Message
+              text={"{{value0}}Scan"}
+              values={{ value0: <Barcode size={16} weight="bold" /> }}
+            />
           </button>
         </div>
 
@@ -1145,7 +1182,7 @@ export default function SnapAndLog() {
           type="button"
           onClick={() => setFlash((f) => !f)}
           className="flex h-11 w-11 items-center justify-center rounded-lg border border-white/25 bg-black/70 text-white transition-opacity active:opacity-60"
-          aria-label={flash ? "Turn flash off" : "Turn flash on"}
+          aria-label={flash ? tr("Turn flash off") : tr("Turn flash on")}
           aria-pressed={flash}
         >
           {flash ? (
@@ -1171,7 +1208,7 @@ export default function SnapAndLog() {
           <div className="flex items-center gap-2 rounded-[12px] border border-white/10 bg-black/70 px-3 py-2 backdrop-blur-md">
             <div className="h-3 w-3 animate-spin rounded-full border border-white/30 border-t-white/70" />
             <span className="text-[14px] font-medium text-white">
-              Reading foods…
+              {tr("Reading foods…")}
             </span>
           </div>
         </div>
@@ -1185,59 +1222,65 @@ export default function SnapAndLog() {
               className="pointer-events-none absolute left-1/2 w-[min(88vw,420px)] -translate-x-1/2 text-center text-[14px] leading-5 font-medium text-white/85"
               style={{ bottom: "calc(var(--app-safe-bottom-lg) + 6rem)" }}
             >
-              Meal, restaurant order, receipt, package, or handwritten note
+              {tr(
+                "Meal, restaurant order, receipt, package, or handwritten note"
+              )}
             </p>
           )}
           <div
-          className="absolute right-0 bottom-0 left-0 flex items-center justify-between px-10"
-          style={{
-            paddingBottom: "var(--app-safe-bottom-lg)",
-            paddingTop: "1.5rem",
-          }}
-        >
-          <button
-            type="button"
-            onClick={() =>
-              setFacingMode((f) =>
-                f === "environment" ? "user" : "environment"
-              )
-            }
-            disabled={useNativeCapture || mode !== "snap"}
-            className="flex h-11 w-11 items-center justify-center rounded-[12px] border border-white/10 bg-black/45 text-white/70 backdrop-blur-md transition-opacity active:opacity-60 disabled:opacity-30"
-            aria-label="Switch camera"
+            className="absolute right-0 bottom-0 left-0 flex items-center justify-between px-10"
+            style={{
+              paddingBottom: "var(--app-safe-bottom-lg)",
+              paddingTop: "1.5rem",
+            }}
           >
-            <ArrowsClockwise size={18} />
-          </button>
+            <button
+              type="button"
+              onClick={() =>
+                setFacingMode((f) =>
+                  f === "environment" ? "user" : "environment"
+                )
+              }
+              disabled={useNativeCapture || mode !== "snap"}
+              className="flex h-11 w-11 items-center justify-center rounded-[12px] border border-white/10 bg-black/45 text-white/70 backdrop-blur-md transition-opacity active:opacity-60 disabled:opacity-30"
+              aria-label={tr("Switch camera")}
+            >
+              <ArrowsClockwise size={18} />
+            </button>
 
-          <button
-            onClick={handleShutter}
-            disabled={!useNativeCapture && cameraState !== "active"}
-            className="motion-pressable relative flex h-[76px] w-[76px] items-center justify-center rounded-full disabled:opacity-30"
-            aria-label={mode === "barcode" ? "Capture barcode" : "Capture"}
-          >
-            <div className="absolute inset-0 rounded-full border-2 border-white/30" />
-            <div
-              className="h-[60px] w-[60px] rounded-full bg-white"
-              style={{
-                transform: fired ? "scale(0.9)" : "scale(1)",
-                transition:
-                  "transform var(--motion-fast) var(--motion-ease-out)",
-              }}
-            />
-          </button>
+            <button
+              onClick={handleShutter}
+              disabled={!useNativeCapture && cameraState !== "active"}
+              className="motion-pressable relative flex h-[76px] w-[76px] items-center justify-center rounded-full disabled:opacity-30"
+              aria-label={
+                mode === "barcode" ? tr("Capture barcode") : tr("Capture")
+              }
+            >
+              <div className="absolute inset-0 rounded-full border-2 border-white/30" />
+              <div
+                className="h-[60px] w-[60px] rounded-full bg-white"
+                style={{
+                  transform: fired ? "scale(0.9)" : "scale(1)",
+                  transition:
+                    "transform var(--motion-fast) var(--motion-ease-out)",
+                }}
+              />
+            </button>
 
-          <button
-            type="button"
-            onClick={() => void handlePickFromLibrary()}
-            className="flex h-11 w-11 items-center justify-center rounded-[12px] border border-white/10 bg-black/45 text-white/70 backdrop-blur-md transition-opacity active:opacity-60"
-            aria-label={
-              mode === "barcode"
-                ? "Scan a barcode from a photo"
-                : "Choose a meal, order, receipt, package, or note from your library"
-            }
-          >
-            <ImagesSquare size={18} />
-          </button>
+            <button
+              type="button"
+              onClick={() => void handlePickFromLibrary()}
+              className="flex h-11 w-11 items-center justify-center rounded-[12px] border border-white/10 bg-black/45 text-white/70 backdrop-blur-md transition-opacity active:opacity-60"
+              aria-label={
+                mode === "barcode"
+                  ? tr("Scan a barcode from a photo")
+                  : tr(
+                      "Choose a meal, order, receipt, package, or note from your library"
+                    )
+              }
+            >
+              <ImagesSquare size={18} />
+            </button>
           </div>
         </>
       )}
@@ -1270,7 +1313,9 @@ export default function SnapAndLog() {
             setBarcodeError(null)
             setBarcodeScanNonce((n) => n + 1)
           }}
-          onSearchManually={() => navigate(`/foods/search?${foodLogContextParams(date, logTime)}`)}
+          onSearchManually={() =>
+            navigate(`/foods/search?${foodLogContextParams(date, logTime)}`)
+          }
           onDismiss={() => {
             setSnapPhase("idle")
             setSnapReviewItems([])
@@ -1286,7 +1331,7 @@ export default function SnapAndLog() {
         <CustomFoodEditorSheet
           draft={correctionDraft}
           saving={savingCorrection}
-          title="Correct these values"
+          title={tr("Correct these values")}
           onChange={setCorrectionDraft}
           onClose={() => setCorrectionDraft(null)}
           onSave={() => void saveCorrection()}
@@ -1355,11 +1400,11 @@ function ResultsSheet({
   const snapLogged = added === "snap-review"
   const snapCanLog = selectedSnapCount > 0
   const title = hasError
-    ? "Something went wrong"
+    ? tr("Something went wrong")
     : isEmpty
-      ? "No matches found"
+      ? tr("No matches found")
       : isSnap
-        ? "Review foods"
+        ? tr("Review foods")
         : barcodeResult!.name
 
   return (
@@ -1378,8 +1423,15 @@ function ResultsSheet({
           <p className="text-[18px] font-semibold text-white">{title}</p>
           {!hasError && !isEmpty && isSnap && (
             <p className="mt-0.5 truncate text-[13px] text-white/75">
-              {selectedSnapCount} selected
-              {snapRaw ? ` · ${snapRaw}` : ""}
+              <Message
+                text={"{{value0}} selected{{value1}}"}
+                values={{
+                  value0: selectedSnapCount,
+                  value1: snapRaw
+                    ? tr(" · {{value0}}", { value0: snapRaw })
+                    : "",
+                }}
+              />
             </p>
           )}
         </div>
@@ -1387,7 +1439,7 @@ function ResultsSheet({
           type="button"
           onClick={onDismiss}
           className="flex h-11 w-11 items-center justify-center rounded-lg bg-white/10 transition-opacity active:opacity-60"
-          aria-label="Close capture results"
+          aria-label={tr("Close capture results")}
         >
           <X size={17} weight="bold" className="text-white" />
         </button>
@@ -1399,7 +1451,7 @@ function ResultsSheet({
           <p className="text-[14px] leading-5 text-white/80">
             {mode === "barcode"
               ? barcodeError
-              : "Couldn't analyse image. Try again."}
+              : tr("Couldn't analyse image. Try again.")}
           </p>
           <ResultFallbackActions
             retakeLabel={mode === "barcode" ? "Scan again" : "Retake"}
@@ -1412,8 +1464,8 @@ function ResultsSheet({
         <div className="shrink-0 px-5 pb-4">
           <p className="text-[14px] leading-5 text-white/80">
             {mode === "barcode"
-              ? "No product found for this barcode."
-              : "No matching foods found."}
+              ? tr("No product found for this barcode.")
+              : tr("No matching foods found.")}
           </p>
           <ResultFallbackActions
             retakeLabel={mode === "barcode" ? "Scan again" : "Retake"}
@@ -1433,7 +1485,7 @@ function ResultsSheet({
                 onClick={() => onMealChange(m.id)}
                 className="min-h-11 shrink-0 rounded-lg px-3 text-[14px] font-semibold transition-colors"
                 aria-pressed={meal === m.id}
-                aria-label={`Log to ${m.label}`}
+                aria-label={tr("Log to {{value0}}", { value0: m.label })}
                 style={
                   meal === m.id
                     ? { backgroundColor: m.bg, color: m.color }
@@ -1500,14 +1552,16 @@ function ResultsSheet({
                 }}
               >
                 {snapLogging
-                  ? "Logging…"
+                  ? tr("Logging…")
                   : snapLogged
-                    ? "Logged"
+                    ? tr("Logged")
                     : !snapCanLog
-                      ? "Search manually"
+                      ? tr("Search manually")
                       : selectedSnapCount === 1
-                        ? "Log 1 food"
-                        : `Log ${selectedSnapCount} foods`}
+                        ? tr("Log 1 food")
+                        : tr("Log {{value0}} foods", {
+                            value0: selectedSnapCount,
+                          })}
               </button>
             </div>
           )}
@@ -1548,7 +1602,7 @@ function SnapReviewRow({
           </p>
           <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-1.5">
             <span className="max-w-full truncate text-[13px] text-white/70">
-              {food ? item.detectedName : "No searchable match"}
+              {food ? item.detectedName : tr("No searchable match")}
             </span>
             {food?.brand && <span className="text-white/50">·</span>}
             {food?.brand && (
@@ -1568,17 +1622,17 @@ function SnapReviewRow({
                 {energyDisplay(scaled.calories, energyUnit)} {energyUnit}
               </span>
               <DarkMacroPill
-                label="Protein"
+                label={tr("Protein")}
                 value={scaled.protein}
                 color={MACRO_COLORS.protein}
               />
               <DarkMacroPill
-                label="Carbs"
+                label={tr("Carbs")}
                 value={scaled.carbs}
                 color={MACRO_COLORS.carbs}
               />
               <DarkMacroPill
-                label="Fat"
+                label={tr("Fat")}
                 value={scaled.fat}
                 color={MACRO_COLORS.fat}
               />
@@ -1597,8 +1651,8 @@ function SnapReviewRow({
           }
           aria-label={
             selected
-              ? `Exclude ${item.detectedName}`
-              : `Include ${item.detectedName}`
+              ? tr("Exclude {{value0}}", { value0: item.detectedName })
+              : tr("Include {{value0}}", { value0: item.detectedName })
           }
           className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg transition-opacity active:opacity-75 disabled:opacity-30"
           style={{
@@ -1642,7 +1696,7 @@ function SnapReviewRow({
           (!food || item.alternatives.length > 1) && (
             <div className="mt-2">
               <p className="mb-1 text-[13px] font-semibold text-white/75">
-                More matches
+                {tr("More matches")}
               </p>
               <div className="flex gap-1.5 overflow-x-auto pb-0.5 [&::-webkit-scrollbar]:hidden">
                 {item.alternatives.slice(0, 8).map((alternative) => {
@@ -1745,7 +1799,8 @@ function SnapQuantityControl({
     if (servingGrams <= 0) return false
     const multiple = presetGrams / servingGrams
     return (
-      multiple >= 0.5 && Math.abs(multiple * 2 - Math.round(multiple * 2)) < 0.01
+      multiple >= 0.5 &&
+      Math.abs(multiple * 2 - Math.round(multiple * 2)) < 0.01
     )
   }
 
@@ -1784,99 +1839,103 @@ function SnapQuantityControl({
 
   return (
     <div>
-    <div className="grid grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] items-center gap-2">
-      <button
-        type="button"
-        disabled={disabled}
-        onPointerDown={(event) => {
-          event.preventDefault()
-          step(-1)
-        }}
-        aria-label="Decrease quantity"
-        className="flex h-11 items-center justify-center rounded-lg bg-white/10 text-white/80 transition-opacity active:opacity-70 disabled:opacity-30"
-      >
-        <Minus size={12} weight="bold" />
-      </button>
-
-      <label className="flex h-11 min-w-0 items-center justify-center rounded-lg bg-white/10 px-2">
-        <input
-          type="text"
-          name="snap-food-grams"
-          inputMode="decimal"
+      <div className="grid grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] items-center gap-2">
+        <button
+          type="button"
           disabled={disabled}
-          value={inputValue}
-          onChange={(event) => setInputValue(event.target.value)}
-          onBlur={(event) => commit(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") event.currentTarget.blur()
+          onPointerDown={(event) => {
+            event.preventDefault()
+            step(-1)
           }}
-          className="h-9 min-w-0 flex-1 bg-transparent text-center text-[15px] font-semibold text-white outline-none disabled:opacity-40"
-          aria-label={
-            inServings
-              ? `Snap food quantity in servings of ${servingLabel}`
-              : imperial
-                ? "Snap food quantity in ounces"
-                : "Snap food quantity in grams"
-          }
-        />
-        <span
-          className={`ml-1 shrink-0 truncate font-semibold text-white/70 ${
-            inServings ? "max-w-[6.5rem] text-[12px]" : "text-[13px]"
-          }`}
+          aria-label={tr("Decrease quantity")}
+          className="flex h-11 items-center justify-center rounded-lg bg-white/10 text-white/80 transition-opacity active:opacity-70 disabled:opacity-30"
         >
-          {inServings ? servingLabel : imperial ? "oz" : "g"}
-        </span>
-      </label>
+          <Minus size={12} weight="bold" />
+        </button>
 
-      <button
-        type="button"
-        disabled={disabled}
-        onPointerDown={(event) => {
-          event.preventDefault()
-          step(1)
-        }}
-        aria-label="Increase quantity"
-        className="flex h-11 items-center justify-center rounded-lg bg-white/10 text-white/80 transition-opacity active:opacity-70 disabled:opacity-30"
-      >
-        <Plus size={12} weight="bold" />
-      </button>
-    </div>
+        <label className="flex h-11 min-w-0 items-center justify-center rounded-lg bg-white/10 px-2">
+          <input
+            type="text"
+            name="snap-food-grams"
+            inputMode="decimal"
+            disabled={disabled}
+            value={inputValue}
+            onChange={(event) => setInputValue(event.target.value)}
+            onBlur={(event) => commit(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") event.currentTarget.blur()
+            }}
+            className="h-9 min-w-0 flex-1 bg-transparent text-center text-[15px] font-semibold text-white outline-none disabled:opacity-40"
+            aria-label={
+              inServings
+                ? tr("Snap food quantity in servings of {{value0}}", {
+                    value0: servingLabel,
+                  })
+                : imperial
+                  ? tr("Snap food quantity in ounces")
+                  : tr("Snap food quantity in grams")
+            }
+          />
+          <span
+            className={`ml-1 shrink-0 truncate font-semibold text-white/70 ${
+              inServings ? "max-w-[6.5rem] text-[12px]" : "text-[13px]"
+            }`}
+          >
+            {inServings ? servingLabel : imperial ? tr("oz") : tr("g")}
+          </span>
+        </label>
 
-    {presets.length > 1 && (
-      <div className="mt-2 flex gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {presets.map((preset) => {
-          const active = Math.abs(preset.grams - grams) < 0.1
-          return (
-            <button
-              key={preset.label}
-              type="button"
-              disabled={disabled}
-              onClick={() => {
-                setUnit(presetCountsServings(preset.grams) ? "serving" : "measured")
-                onChange(preset.grams)
-              }}
-              aria-pressed={active}
-              className="flex h-8 shrink-0 items-center rounded-full border px-2.5 text-[12px] font-semibold transition-colors disabled:opacity-40"
-              style={
-                active
-                  ? {
-                      borderColor: "rgba(255,255,255,0.9)",
-                      backgroundColor: "rgba(255,255,255,0.92)",
-                      color: "#111",
-                    }
-                  : {
-                      borderColor: "rgba(255,255,255,0.25)",
-                      backgroundColor: "rgba(255,255,255,0.08)",
-                      color: "rgba(255,255,255,0.85)",
-                    }
-              }
-            >
-              {preset.label}
-            </button>
-          )
-        })}
+        <button
+          type="button"
+          disabled={disabled}
+          onPointerDown={(event) => {
+            event.preventDefault()
+            step(1)
+          }}
+          aria-label={tr("Increase quantity")}
+          className="flex h-11 items-center justify-center rounded-lg bg-white/10 text-white/80 transition-opacity active:opacity-70 disabled:opacity-30"
+        >
+          <Plus size={12} weight="bold" />
+        </button>
       </div>
-    )}
+
+      {presets.length > 1 && (
+        <div className="mt-2 flex [scrollbar-width:none] gap-1.5 overflow-x-auto pb-0.5 [&::-webkit-scrollbar]:hidden">
+          {presets.map((preset) => {
+            const active = Math.abs(preset.grams - grams) < 0.1
+            return (
+              <button
+                key={preset.label}
+                type="button"
+                disabled={disabled}
+                onClick={() => {
+                  setUnit(
+                    presetCountsServings(preset.grams) ? "serving" : "measured"
+                  )
+                  onChange(preset.grams)
+                }}
+                aria-pressed={active}
+                className="flex h-8 shrink-0 items-center rounded-full border px-2.5 text-[12px] font-semibold transition-colors disabled:opacity-40"
+                style={
+                  active
+                    ? {
+                        borderColor: "rgba(255,255,255,0.9)",
+                        backgroundColor: "rgba(255,255,255,0.92)",
+                        color: "#111",
+                      }
+                    : {
+                        borderColor: "rgba(255,255,255,0.25)",
+                        backgroundColor: "rgba(255,255,255,0.08)",
+                        color: "rgba(255,255,255,0.85)",
+                      }
+                }
+              >
+                {preset.label}
+              </button>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
@@ -1914,61 +1973,67 @@ function BarcodeResultRow({
 
   return (
     <div className="py-3">
-    <div className="flex items-center gap-3">
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-[15px] font-semibold text-white">
-          {item.name}
-        </p>
-        <div className="mt-0.5 flex items-center gap-1.5">
-          {item.brand && (
-            <span className="truncate text-[13px] text-white/70">
-              {item.brand}
+      <div className="flex items-center gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[15px] font-semibold text-white">
+            {item.name}
+          </p>
+          <div className="mt-0.5 flex items-center gap-1.5">
+            {item.brand && (
+              <span className="truncate text-[13px] text-white/70">
+                {item.brand}
+              </span>
+            )}
+            {item.brand && <span className="text-white/50">·</span>}
+            <span className="text-[13px] text-white/70">
+              {card.servingLabel}
             </span>
+          </div>
+          <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
+            <span className="text-[13px] font-medium text-white/80 tabular-nums">
+              {energyDisplay(scaled.calories, energyUnit)} {energyUnit}
+            </span>
+            <DarkMacroPill
+              label={tr("Protein")}
+              value={scaled.protein}
+              color={MACRO_COLORS.protein}
+            />
+            <DarkMacroPill
+              label={tr("Carbs")}
+              value={scaled.carbs}
+              color={MACRO_COLORS.carbs}
+            />
+            <DarkMacroPill
+              label={tr("Fat")}
+              value={scaled.fat}
+              color={MACRO_COLORS.fat}
+            />
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => onAdd(item, clampSnapGrams(grams))}
+          disabled={disabled}
+          aria-busy={logging}
+          className="flex h-11 min-w-11 shrink-0 items-center justify-center rounded-lg px-2 text-[14px] font-semibold transition-opacity active:opacity-75"
+          aria-label={
+            added
+              ? tr("{{value0}} added", { value0: item.name })
+              : tr("Add {{value0}}", { value0: item.name })
+          }
+          style={{
+            backgroundColor: added ? mealCfg.bg : "rgba(255,255,255,0.1)",
+          }}
+        >
+          {logging ? (
+            <span className="text-white">{tr("Logging…")}</span>
+          ) : added ? (
+            <span style={{ color: mealCfg.color }}>{tr("Added")}</span>
+          ) : (
+            <span className="text-white">{tr("Add")}</span>
           )}
-          {item.brand && <span className="text-white/50">·</span>}
-          <span className="text-[13px] text-white/70">{card.servingLabel}</span>
-        </div>
-        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
-          <span className="text-[13px] font-medium text-white/80 tabular-nums">
-            {energyDisplay(scaled.calories, energyUnit)} {energyUnit}
-          </span>
-          <DarkMacroPill
-            label="Protein"
-            value={scaled.protein}
-            color={MACRO_COLORS.protein}
-          />
-          <DarkMacroPill
-            label="Carbs"
-            value={scaled.carbs}
-            color={MACRO_COLORS.carbs}
-          />
-          <DarkMacroPill
-            label="Fat"
-            value={scaled.fat}
-            color={MACRO_COLORS.fat}
-          />
-        </div>
+        </button>
       </div>
-      <button
-        type="button"
-        onClick={() => onAdd(item, clampSnapGrams(grams))}
-        disabled={disabled}
-        aria-busy={logging}
-        className="flex h-11 min-w-11 shrink-0 items-center justify-center rounded-lg px-2 text-[14px] font-semibold transition-opacity active:opacity-75"
-        aria-label={added ? `${item.name} added` : `Add ${item.name}`}
-        style={{
-          backgroundColor: added ? mealCfg.bg : "rgba(255,255,255,0.1)",
-        }}
-      >
-        {logging ? (
-          <span className="text-white">Logging…</span>
-        ) : added ? (
-          <span style={{ color: mealCfg.color }}>Added</span>
-        ) : (
-          <span className="text-white">Add</span>
-        )}
-      </button>
-    </div>
       <div className="mt-2">
         <SnapQuantityControl
           grams={grams}
@@ -1984,7 +2049,7 @@ function BarcodeResultRow({
         disabled={disabled}
         className="mt-2 text-[13px] font-medium text-white/60 underline decoration-white/30 underline-offset-2 transition-opacity active:opacity-70"
       >
-        Values look wrong? Correct them
+        {tr("Values look wrong? Correct them")}
       </button>
     </div>
   )
@@ -2013,7 +2078,7 @@ function ResultFallbackActions({
         onClick={onSearchManually}
         className="min-h-11 rounded-lg bg-white px-3 text-[14px] font-semibold text-black transition-opacity active:opacity-80"
       >
-        Search manually
+        {tr("Search manually")}
       </button>
     </div>
   )
@@ -2033,7 +2098,9 @@ function DarkMacroPill({
       <span className="font-medium" style={{ color }}>
         {label}
       </span>
-      <span className="text-white/75">{value} g</span>
+      <span className="text-white/75">
+        <Message text={"{{value0}} g"} values={{ value0: value }} />
+      </span>
     </span>
   )
 }

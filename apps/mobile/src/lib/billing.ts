@@ -1,3 +1,4 @@
+import { tr, translateError } from "@repo/ui/i18n"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Capacitor } from "@capacitor/core"
 import { Browser } from "@capacitor/browser"
@@ -5,6 +6,8 @@ import { useAction, useQuery } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
 import { loadStoreProduct } from "@/lib/billing-catalogue"
 import { trackUmami } from "@/lib/analytics"
+import { billingPeriodLabel } from "@/lib/billing-period"
+import { canOfferProUpgrade } from "@/lib/billing-policy"
 import {
   currentStoreEntitlements,
   finishStoreTransaction,
@@ -32,8 +35,9 @@ import {
  * `api.billing.public.getStatus`.
  */
 
-export const NATIVE_SUBSCRIPTION_MESSAGE =
+export const NATIVE_SUBSCRIPTION_MESSAGE = tr(
   "Subscriptions can't be managed on this device."
+)
 
 export const ONEREP_PRO_ENTITLEMENT = "OneRep Pro"
 export const MONTHLY_PACKAGE_IDENTIFIER = "monthly"
@@ -134,12 +138,14 @@ export function billingErrorMessage(error: unknown, fallback: string) {
  */
 function subscriptionDiagnosticError(message: string) {
   if (/network|fetch|offline|disconnected|websocket|timed out/i.test(message)) {
-    return "Couldn’t reach billing. Check your connection and retry."
+    return tr("Couldn’t reach billing. Check your connection and retry.")
   }
   if (/not configured|unauthorized|forbidden|unavailable/i.test(message)) {
-    return "Billing is temporarily unavailable. Try again later."
+    return tr("Billing is temporarily unavailable. Try again later.")
   }
-  return "We couldn’t confirm your subscription. Retry, and contact support if it keeps happening."
+  return tr(
+    "We couldn’t confirm your subscription. Retry, and contact support if it keeps happening."
+  )
 }
 
 /**
@@ -154,22 +160,22 @@ function subscriptionStoreLabel(store: string | null | undefined) {
   const normalized = store?.trim().toLowerCase()
   if (!normalized) return null
   if (normalized.includes("app_store") || normalized.includes("apple")) {
-    return "App Store"
+    return tr("App Store")
   }
   if (normalized.includes("play_store") || normalized.includes("google")) {
-    return "Google Play"
+    return tr("Google Play")
   }
   if (normalized === "rc_billing" || normalized.includes("stripe")) {
-    return "Web checkout"
+    return tr("Web checkout")
   }
-  return "your store"
+  return tr("your store")
 }
 
 function subscriptionSourceLabel(source: string | undefined) {
-  if (source?.startsWith("apple")) return "App Store"
-  if (source?.startsWith("google")) return "Google Play"
-  if (source?.startsWith("stripe")) return "Stripe"
-  return "your OneRep account"
+  if (source?.startsWith("apple")) return tr("App Store")
+  if (source?.startsWith("google")) return tr("Google Play")
+  if (source?.startsWith("stripe")) return tr("Stripe")
+  return tr("your OneRep account")
 }
 
 /**
@@ -205,7 +211,7 @@ export function subscriptionDiagnosticCopy({
 
   if (error) {
     return {
-      title: "Subscription needs attention",
+      title: tr("Subscription needs attention"),
       detail: subscriptionDiagnosticError(error),
       tone: "attention",
       canRetry,
@@ -214,8 +220,8 @@ export function subscriptionDiagnosticCopy({
 
   if (status === "loading") {
     return {
-      title: "Checking subscription",
-      detail: "Your current access stays available while we check.",
+      title: tr("Checking subscription"),
+      detail: tr("Your current access stays available while we check."),
       tone: "pending",
       canRetry: false,
     }
@@ -223,8 +229,8 @@ export function subscriptionDiagnosticCopy({
 
   if (status === "unsupported") {
     return {
-      title: "Subscription unavailable",
-      detail: "Open OneRep in a browser to manage OneRep Pro.",
+      title: tr("Subscription unavailable"),
+      detail: tr("Open OneRep in a browser to manage OneRep Pro."),
       tone: "muted",
       canRetry: false,
     }
@@ -232,8 +238,10 @@ export function subscriptionDiagnosticCopy({
 
   if (!isConfigured) {
     return {
-      title: "Connecting subscriptions",
-      detail: "Status will update automatically when your account is ready.",
+      title: tr("Connecting subscriptions"),
+      detail: tr(
+        "Status will update automatically when your account is ready."
+      ),
       tone: "pending",
       canRetry,
     }
@@ -246,8 +254,8 @@ export function subscriptionDiagnosticCopy({
     customerInfo?.state === "billing_retry"
   ) {
     return {
-      title: "Payment needs attention",
-      detail: "Update your payment method to keep Pro.",
+      title: tr("Payment needs attention"),
+      detail: tr("Update your payment method to keep Pro."),
       tone: "attention",
       canRetry,
     }
@@ -255,21 +263,23 @@ export function subscriptionDiagnosticCopy({
 
   if (hasOneRepPro(customerInfo)) {
     return {
-      title: "Pro active",
+      title: tr("Pro active"),
       detail:
         customerInfo?.state === "canceled"
-          ? "Pro stays active until the end of your current period."
-          : `Your subscription is confirmed with ${origin}.`,
+          ? tr("Pro stays active until the end of your current period.")
+          : tr("Your subscription is confirmed with {{value0}}.", {
+              value0: origin,
+            }),
       tone: "success",
       canRetry: false,
     }
   }
 
   return {
-    title: "Free plan",
+    title: tr("Free plan"),
     detail: namesAnotherTill
-      ? "No active subscription on this account."
-      : `No active subscription found with ${origin}.`,
+      ? tr("No active subscription on this account.")
+      : tr("No active subscription found with {{value0}}.", { value0: origin }),
     tone: "muted",
     canRetry: false,
   }
@@ -277,6 +287,7 @@ export function subscriptionDiagnosticCopy({
 
 export function useBilling({ userId }: UseBillingOptions) {
   const isNative = isNativePurchasesAvailable()
+  const canUpgrade = canOfferProUpgrade(isNative)
   const isIos = isNative && Capacitor.getPlatform() === "ios"
   const isWeb = isWebPurchasesAvailable()
   const storeKit = storeKitSupported()
@@ -339,11 +350,20 @@ export function useBilling({ userId }: UseBillingOptions) {
     setStoreProduct(null)
     setStoreReady(false)
     setCatalogueError(null)
+
+    if (!canUpgrade) {
+      setCatalogueLoading(false)
+      return
+    }
     if (!isIos || !storeKit || !appleProvider || !monthlyProductId) {
       setCatalogueLoading(false)
       if (isIos && subscriptionLoaded) {
         setCatalogueError(
-          "App Store subscriptions are unavailable right now. Please retry."
+          translateError(
+            tr(
+              "App Store subscriptions are unavailable right now. Please retry."
+            )
+          )
         )
       }
       return
@@ -359,14 +379,21 @@ export function useBilling({ userId }: UseBillingOptions) {
       setCatalogueError(
         billingErrorMessage(
           cause,
-          "Could not load subscription plans. Please retry."
+          tr("Could not load subscription plans. Please retry.")
         )
       )
     } finally {
       if (mounted.current && request === catalogueRequest.current)
         setCatalogueLoading(false)
     }
-  }, [appleProvider, isIos, monthlyProductId, storeKit, subscriptionLoaded])
+  }, [
+    appleProvider,
+    canUpgrade,
+    isIos,
+    monthlyProductId,
+    storeKit,
+    subscriptionLoaded,
+  ])
 
   useEffect(() => {
     void reloadProducts()
@@ -435,7 +462,11 @@ export function useBilling({ userId }: UseBillingOptions) {
       if (mounted.current) setError(null)
     } catch (cause) {
       if (mounted.current) {
-        setError(billingErrorMessage(cause, "Could not refresh subscription"))
+        setError(
+          translateError(
+            billingErrorMessage(cause, tr("Could not refresh subscription"))
+          )
+        )
       }
     }
     // The Convex query is reactive, so the fresh value arrives on its own.
@@ -468,12 +499,20 @@ export function useBilling({ userId }: UseBillingOptions) {
         status = redemption.status ?? status
       }
       if (restored === 0) {
-        setError("No previous purchases were found on this Apple Account.")
+        setError(
+          translateError(
+            tr("No previous purchases were found on this Apple Account.")
+          )
+        )
       }
       return { restored, status }
     } catch (cause) {
       if (mounted.current) {
-        setError(billingErrorMessage(cause, "Could not restore purchases"))
+        setError(
+          translateError(
+            billingErrorMessage(cause, tr("Could not restore purchases"))
+          )
+        )
       }
       return { restored: 0, status: null }
     } finally {
@@ -501,7 +540,11 @@ export function useBilling({ userId }: UseBillingOptions) {
       } catch (cause) {
         trackUmami("checkout_start_failed", { source })
         if (mounted.current) {
-          setError(billingErrorMessage(cause, "Could not start checkout"))
+          setError(
+            translateError(
+              billingErrorMessage(cause, tr("Could not start checkout"))
+            )
+          )
         }
         return null
       } finally {
@@ -513,6 +556,8 @@ export function useBilling({ userId }: UseBillingOptions) {
 
   const purchaseMonthly = useCallback(
     async (source = "unknown") => {
+      if (!canOfferProUpgrade(isNative))
+        throw new Error(tr("Upgrade unavailable"))
       if (!isNative) return await purchaseWeb(source)
       if (!storeKit) throw new Error(NATIVE_SUBSCRIPTION_MESSAGE)
       if (!userId || !appleProvider || !storeReady || !storeProduct) {
@@ -534,7 +579,9 @@ export function useBilling({ userId }: UseBillingOptions) {
         if (outcome.status === "cancelled") throw new Error("Purchase canceled")
         if (outcome.status === "pending") {
           setPurchaseNotice(
-            "Your purchase is awaiting Apple approval. Pro will unlock after approval and verification."
+            tr(
+              "Your purchase is awaiting Apple approval. Pro will unlock after approval and verification."
+            )
           )
           return null
         }
@@ -553,10 +600,10 @@ export function useBilling({ userId }: UseBillingOptions) {
       } catch (cause) {
         const message = billingErrorMessage(
           cause,
-          "Could not complete your purchase"
+          tr("Could not complete your purchase")
         )
         if (mounted.current && message !== "Purchase canceled")
-          setError(message)
+          setError(translateError(message))
         throw cause
       } finally {
         purchaseInFlight.current = false
@@ -596,7 +643,7 @@ export function useBilling({ userId }: UseBillingOptions) {
     try {
       const result = await manageAction({})
       if (result.kind === "none") {
-        setError(result.reason)
+        setError(translateError(result.reason))
         return false
       }
       trackUmami("billing_portal_opened")
@@ -605,7 +652,12 @@ export function useBilling({ userId }: UseBillingOptions) {
     } catch (cause) {
       if (mounted.current) {
         setError(
-          billingErrorMessage(cause, "Could not open subscription management")
+          translateError(
+            billingErrorMessage(
+              cause,
+              tr("Could not open subscription management")
+            )
+          )
         )
       }
       return false
@@ -640,7 +692,11 @@ export function useBilling({ userId }: UseBillingOptions) {
       return serverStatus
     } catch (cause) {
       if (mounted.current) {
-        setError(billingErrorMessage(cause, "Could not cancel subscription"))
+        setError(
+          translateError(
+            billingErrorMessage(cause, tr("Could not cancel subscription"))
+          )
+        )
       }
       return null
     } finally {
@@ -684,11 +740,13 @@ export function useBilling({ userId }: UseBillingOptions) {
       cancelSubscription,
       openBillingManagement,
       canPurchase:
+        canUpgrade &&
         Boolean(userId) &&
         (isNative
           ? storeKit && appleProvider && storeReady
           : isWeb && subscriptionQuery?.webProvider === "stripe"),
       canRestore: storeKit && Boolean(userId),
+      canUpgrade,
       purchaseNotice: hasOneRepPro(customerInfo) ? null : purchaseNotice,
       hasActiveSubscription: hasActiveSubscription(customerInfo),
       hasOneRepPro: hasOneRepPro(customerInfo),
@@ -707,7 +765,7 @@ export function useBilling({ userId }: UseBillingOptions) {
       // everybody outside the eurozone.
       monthlyPrice: storeProduct
         ? storeProduct.period
-          ? `${storeProduct.displayPrice} / ${storeProduct.period}`
+          ? `${storeProduct.displayPrice} / ${billingPeriodLabel(storeProduct.period)}`
           : storeProduct.displayPrice
         : isNative
           ? null
@@ -721,7 +779,7 @@ export function useBilling({ userId }: UseBillingOptions) {
         !error &&
         !catalogueError
           ? {
-              title: "Awaiting approval",
+              title: tr("Awaiting approval"),
               detail: purchaseNotice,
               tone: "pending" as const,
               canRetry: false,
@@ -738,6 +796,7 @@ export function useBilling({ userId }: UseBillingOptions) {
     }),
     [
       appleProvider,
+      canUpgrade,
       catalogueError,
       catalogueLoading,
       reloadProducts,

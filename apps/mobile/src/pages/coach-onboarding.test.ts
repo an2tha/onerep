@@ -1,6 +1,6 @@
+import { readLocalizedSource as readFileSync } from "../../tests/helpers/localized-source"
 import { describe, test } from "node:test"
 import assert from "node:assert/strict"
-import { readFileSync } from "node:fs"
 
 // The Coach surface spans the page and the shared chat module it renders with
 // (also consumed by the onboarding Coach setup stage).
@@ -161,9 +161,7 @@ describe("Coach first-open experience", () => {
     expect(COACH_SOURCE).not.toContain("COACH_VISUALS_KEY")
     expect(COACH_SOURCE).toContain("h-svh overflow-hidden")
     expect(COACH_SOURCE).toContain("min-h-0 flex-1 flex-col overflow-y-auto")
-    expect(COACH_PROMPT_SOURCE).toContain(
-      "Return openui=\"\" for greetings"
-    )
+    expect(COACH_PROMPT_SOURCE).toContain('Return openui="" for greetings')
     expect(COACH_PROMPT_SOURCE).toContain(
       "create exactly three reusable presets"
     )

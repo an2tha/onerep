@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 import { useEffect, useState, type ReactNode } from "react"
 import { cn } from "../../lib/utils"
 
@@ -125,35 +126,50 @@ export function DashboardWeekRings({
     {
       id: "readiness",
       value: String(readiness.score),
-      label: readiness.label,
-      hint: "to train today",
+      label: tr(readiness.label),
+      hint: tr("to train today"),
       tone: READINESS_TONES[readiness.label],
       score: readiness.score,
       onOpen: onOpenTraining,
-      describe: `Readiness ${readiness.score} of 100, ${readiness.label}: how recovered you are for training today. ${readiness.advice}`,
+      describe: tr(
+        "Readiness {{value0}} of 100, {{value1}}: how recovered you are for training today. {{value2}}",
+        {
+          value0: readiness.score,
+          value1: tr(readiness.label),
+          value2: readiness.advice,
+        }
+      ),
     },
     {
       id: "health",
       value: health?.score == null ? "—" : String(health.score),
-      label: health?.band ? titleCase(health.band) : "Health",
-      hint: "7-day signals",
+      label: health?.band ? titleCase(health.band) : tr("Health"),
+      hint: tr("7-day signals"),
       tone: "var(--accent-progress)",
       score: health?.score ?? 0,
       onOpen: onOpenHealth,
       describe:
         health?.score == null
-          ? "Health score: needs about a week of readings from Apple Health or Health Connect."
-          : `Health ${health.score} of 100: sleep, activity, heart and recovery over the last week.`,
+          ? tr(
+              "Health score: needs about a week of readings from Apple Health or Health Connect."
+            )
+          : tr(
+              "Health {{value0}} of 100: sleep, activity, heart and recovery over the last week.",
+              { value0: health.score }
+            ),
     },
     {
       id: "logged",
       value: `${story.nutritionDays}/7`,
-      label: "Logged",
-      hint: "days this week",
+      label: tr("Logged"),
+      hint: tr("days this week"),
       tone: "var(--accent-food)",
       score: Math.round((story.nutritionDays / 7) * 100),
       onOpen: onOpenProgress,
-      describe: `Logged ${story.nutritionDays} of 7 days: how many days this week you recorded food.`,
+      describe: tr(
+        "Logged {{value0}} of 7 days: how many days this week you recorded food.",
+        { value0: story.nutritionDays }
+      ),
     },
   ]
 
@@ -166,7 +182,7 @@ export function DashboardWeekRings({
         "flex items-start justify-center gap-5 pb-[26px] sm:gap-8",
         className
       )}
-      aria-label="Your week at a glance"
+      aria-label={tr("Your week at a glance")}
     >
       {rings.map((ring, index) => (
         <button

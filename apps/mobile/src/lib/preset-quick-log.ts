@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 /**
  * Turning a saved plan into a completed session.
  *
@@ -159,7 +160,10 @@ export function describePresetPlan(rows: QuickRow[]) {
     0
   )
   const exercises = rows.length
-  return `${exercises} ${exercises === 1 ? "exercise" : "exercises"} · ${sets} ${
-    sets === 1 ? "set" : "sets"
-  }`
+  return tr("{{value0}} exercise{{value1}} · {{value2}} set{{value3}}", {
+    value0: exercises,
+    value1: exercises === 1 ? "" : "s",
+    value2: sets,
+    value3: sets === 1 ? "" : "s",
+  })
 }

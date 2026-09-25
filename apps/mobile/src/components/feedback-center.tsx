@@ -1,3 +1,4 @@
+import { Message, choice, tr, translateError } from "@repo/ui/i18n"
 import { useMemo, useState } from "react"
 import {
   ArrowRight,
@@ -21,18 +22,18 @@ function errorMessage(error: unknown) {
   if (error instanceof ConvexError) return String(error.data)
   return error instanceof Error
     ? error.message
-    : "Something went wrong. Try again."
+    : tr("Something went wrong. Try again.")
 }
 
 function StatusBadge({ status }: { status: string }) {
   const copy =
     status === "approved"
-      ? "On the board"
+      ? tr("On the board")
       : status === "completed"
-        ? "Completed"
+        ? tr("Completed")
         : status === "declined"
-          ? "Closed"
-          : "In review"
+          ? tr("Closed")
+          : tr("In review")
   return (
     <span className="inline-flex min-h-7 items-center rounded-full bg-muted px-2.5 text-[12px] font-semibold text-muted-foreground">
       {copy}
@@ -64,10 +65,12 @@ function SubmissionForm({ kind }: { kind: FeedbackKind }) {
       setTitle("")
       setDetails("")
       toast.success(
-        kind === "bug" ? "Bug report sent for review" : "Idea sent for review"
+        kind === "bug"
+          ? tr("Bug report sent for review")
+          : tr("Idea sent for review")
       )
     } catch (error) {
-      toast.error(errorMessage(error))
+      toast.error(translateError(errorMessage(error)))
     } finally {
       setSaving(false)
     }
@@ -78,10 +81,12 @@ function SubmissionForm({ kind }: { kind: FeedbackKind }) {
       <div className="space-y-5">
         <label className="block" htmlFor={titleId}>
           <span className="native-row-title block">
-            {kind === "bug" ? "What went wrong?" : "Give your idea a name"}
+            {kind === "bug"
+              ? tr("What went wrong?")
+              : tr("Give your idea a name")}
           </span>
           <span className="native-row-detail mt-0.5 block">
-            Keep it short so the team can scan it quickly.
+            {tr("Keep it short so the team can scan it quickly.")}
           </span>
           <input
             id={titleId}
@@ -92,8 +97,8 @@ function SubmissionForm({ kind }: { kind: FeedbackKind }) {
             required
             placeholder={
               kind === "bug"
-                ? "Workout timer stops early"
-                : "Compare two workout weeks"
+                ? tr("Workout timer stops early")
+                : tr("Compare two workout weeks")
             }
             className="native-input mt-2 w-full"
           />
@@ -102,13 +107,17 @@ function SubmissionForm({ kind }: { kind: FeedbackKind }) {
         <label className="block" htmlFor={detailsId}>
           <span className="native-row-title block">
             {kind === "bug"
-              ? "Help us reproduce it"
-              : "What would this help you do?"}
+              ? tr("Help us reproduce it")
+              : tr("What would this help you do?")}
           </span>
           <span className="native-row-detail mt-0.5 block">
             {kind === "bug"
-              ? "Tell us what you expected, what happened, and the steps just before it."
-              : "Describe the outcome you want rather than prescribing the interface."}
+              ? tr(
+                  "Tell us what you expected, what happened, and the steps just before it."
+                )
+              : tr(
+                  "Describe the outcome you want rather than prescribing the interface."
+                )}
           </span>
           <textarea
             id={detailsId}
@@ -120,8 +129,8 @@ function SubmissionForm({ kind }: { kind: FeedbackKind }) {
             rows={6}
             placeholder={
               kind === "bug"
-                ? "I started a rest timer after my third set…"
-                : "I want to compare volume across two weeks so I can…"
+                ? tr("I started a rest timer after my third set…")
+                : tr("I want to compare volume across two weeks so I can…")
             }
             className="native-input mt-2 w-full resize-y leading-6"
           />
@@ -137,13 +146,13 @@ function SubmissionForm({ kind }: { kind: FeedbackKind }) {
         className="native-primary-button mt-6 w-full disabled:opacity-45"
       >
         {saving
-          ? "Sending…"
+          ? tr("Sending…")
           : kind === "bug"
-            ? "Send bug report"
-            : "Submit feature idea"}
+            ? tr("Send bug report")
+            : tr("Submit feature idea")}
       </button>
       <p className="native-row-detail mt-3 text-center">
-        Submissions are reviewed before anything appears publicly.
+        {tr("Submissions are reviewed before anything appears publicly.")}
       </p>
     </form>
   )
@@ -162,10 +171,10 @@ function ModerationQueue() {
     try {
       await moderate({ itemId, status })
       toast.success(
-        status === "approved" ? "Added to the board" : "Feedback closed"
+        status === "approved" ? tr("Added to the board") : tr("Feedback closed")
       )
     } catch (error) {
-      toast.error(errorMessage(error))
+      toast.error(translateError(errorMessage(error)))
     } finally {
       setWorkingId(null)
     }
@@ -175,10 +184,12 @@ function ModerationQueue() {
     <section className="mt-8 border-t border-border pt-6">
       <div className="px-[var(--app-page-x)]">
         <h2 className="text-[15px] font-semibold tracking-tight">
-          Moderation queue
+          {tr("Moderation queue")}
         </h2>
         <p className="native-row-detail mt-0.5">
-          Review private reports and choose which ideas reach the public board.
+          {tr(
+            "Review private reports and choose which ideas reach the public board."
+          )}
         </p>
       </div>
       {items === undefined ? (
@@ -186,11 +197,11 @@ function ModerationQueue() {
           className="native-row-detail px-[var(--app-page-x)] py-6"
           role="status"
         >
-          Loading queue…
+          {tr("Loading queue…")}
         </p>
       ) : items.length === 0 ? (
         <p className="native-row-detail px-[var(--app-page-x)] py-6">
-          The queue is clear.
+          {tr("The queue is clear.")}
         </p>
       ) : (
         <div className="mt-3 border-y border-border">
@@ -216,8 +227,12 @@ function ModerationQueue() {
                   </p>
                   <p className="mt-2 text-[12px] text-muted-foreground">
                     {item.authorName}
-                    {item.platform ? ` · ${item.platform}` : ""}
-                    {item.appVersion ? ` · ${item.appVersion}` : ""}
+                    {item.platform
+                      ? tr(" · {{value0}}", { value0: item.platform })
+                      : ""}
+                    {item.appVersion
+                      ? tr(" · {{value0}}", { value0: item.appVersion })
+                      : ""}
                   </p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     {item.kind === "feature" && (
@@ -227,7 +242,10 @@ function ModerationQueue() {
                         onClick={() => void decide(item._id, "approved")}
                         className="feedback-small-action"
                       >
-                        <Check size={15} weight="bold" /> Approve
+                        <Message
+                          text={"{{value0}} Approve"}
+                          values={{ value0: <Check size={15} weight="bold" /> }}
+                        />
                       </button>
                     )}
                     {item.kind === "bug" && (
@@ -237,7 +255,12 @@ function ModerationQueue() {
                         onClick={() => void decide(item._id, "completed")}
                         className="feedback-small-action"
                       >
-                        <CheckCircle size={15} weight="bold" /> Resolved
+                        <Message
+                          text={"{{value0}} Resolved"}
+                          values={{
+                            value0: <CheckCircle size={15} weight="bold" />,
+                          }}
+                        />
                       </button>
                     )}
                     <button
@@ -246,7 +269,10 @@ function ModerationQueue() {
                       onClick={() => void decide(item._id, "declined")}
                       className="feedback-small-action"
                     >
-                      <X size={15} weight="bold" /> Close
+                      <Message
+                        text={"{{value0}} Close"}
+                        values={{ value0: <X size={15} weight="bold" /> }}
+                      />
                     </button>
                   </div>
                 </div>
@@ -267,15 +293,16 @@ export function FeedbackSubmit({ onOpenBoard }: { onOpenBoard: () => void }) {
   return (
     <>
       <p className="native-supporting px-[var(--app-page-x)] pb-4 md:max-w-xl">
-        Tell us what is getting in your way, or help choose what OneRep builds
-        next.
+        {tr(
+          "Tell us what is getting in your way, or help choose what OneRep builds next."
+        )}
       </p>
 
       <div className="px-[var(--app-page-x)]">
         <div
           className="feedback-kind-tabs"
           role="tablist"
-          aria-label="Feedback type"
+          aria-label={tr("Feedback type")}
         >
           <button
             type="button"
@@ -284,7 +311,10 @@ export function FeedbackSubmit({ onOpenBoard }: { onOpenBoard: () => void }) {
             onClick={() => setKind("bug")}
             className="feedback-kind-tab"
           >
-            <Bug size={18} /> Report a bug
+            <Message
+              text={"{{value0}} Report a bug"}
+              values={{ value0: <Bug size={18} /> }}
+            />
           </button>
           <button
             type="button"
@@ -293,16 +323,15 @@ export function FeedbackSubmit({ onOpenBoard }: { onOpenBoard: () => void }) {
             onClick={() => setKind("feature")}
             className="feedback-kind-tab"
           >
-            <Lightbulb size={18} /> Share an idea
+            <Message
+              text={"{{value0}} Share an idea"}
+              values={{ value0: <Lightbulb size={18} /> }}
+            />
           </button>
         </div>
       </div>
 
-      <div
-        role="tabpanel"
-        key={kind}
-        className=""
-      >
+      <div role="tabpanel" key={kind} className="">
         {kind === "feature" && (
           <button
             type="button"
@@ -311,10 +340,10 @@ export function FeedbackSubmit({ onOpenBoard }: { onOpenBoard: () => void }) {
           >
             <span>
               <span className="block text-[15px] font-semibold">
-                Vote on feature ideas
+                {tr("Vote on feature ideas")}
               </span>
               <span className="native-row-detail mt-0.5 block">
-                See what other members want most.
+                {tr("See what other members want most.")}
               </span>
             </span>
             <ArrowRight size={19} weight="bold" />
@@ -327,7 +356,7 @@ export function FeedbackSubmit({ onOpenBoard }: { onOpenBoard: () => void }) {
         <section className="mt-9">
           <div className="px-[var(--app-page-x)] pb-2">
             <h2 className="text-[15px] font-semibold tracking-tight">
-              Your recent feedback
+              {tr("Your recent feedback")}
             </h2>
           </div>
           <div className="border-y border-border">
@@ -381,7 +410,7 @@ export function FeatureBoard() {
     try {
       await toggleVote({ itemId })
     } catch (error) {
-      toast.error(errorMessage(error))
+      toast.error(translateError(errorMessage(error)))
     } finally {
       setWorkingId(null)
     }
@@ -390,12 +419,13 @@ export function FeatureBoard() {
   return (
     <>
       <p className="native-supporting px-[var(--app-page-x)] pb-4 md:max-w-xl">
-        Vote for the ideas that would make the biggest difference to you. The
-        board is ordered by community support.
+        {tr(
+          "Vote for the ideas that would make the biggest difference to you. The board is ordered by community support."
+        )}
       </p>
       <div className="px-[var(--app-page-x)] pb-4">
         <label className="relative block">
-          <span className="sr-only">Search feature ideas</span>
+          <span className="sr-only">{tr("Search feature ideas")}</span>
           <MagnifyingGlass
             className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground"
             size={18}
@@ -404,7 +434,7 @@ export function FeatureBoard() {
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search feature ideas"
+            placeholder={tr("Search feature ideas")}
             className="native-input w-full pl-10"
           />
         </label>
@@ -413,18 +443,22 @@ export function FeatureBoard() {
       {features === undefined ? (
         <div role="status" className="px-[var(--app-page-x)] py-12 text-center">
           <div className="mx-auto size-5 animate-spin rounded-full border-2 border-muted-foreground/20 border-t-muted-foreground" />
-          <p className="native-row-detail mt-3">Loading the feature board…</p>
+          <p className="native-row-detail mt-3">
+            {tr("Loading the feature board…")}
+          </p>
         </div>
       ) : visible.length === 0 ? (
         <div className="px-[var(--app-page-x)] py-12 text-center">
           <Lightbulb size={28} className="mx-auto text-muted-foreground" />
           <p className="mt-3 text-[15px] font-semibold">
-            {query ? "No ideas match that search" : "No approved ideas yet"}
+            {query
+              ? tr("No ideas match that search")
+              : tr("No approved ideas yet")}
           </p>
           <p className="native-row-detail mx-auto mt-1 max-w-[20rem]">
             {query
-              ? "Try a different word or clear the search."
-              : "New ideas will appear here after moderation."}
+              ? tr("Try a different word or clear the search.")
+              : tr("New ideas will appear here after moderation.")}
           </p>
         </div>
       ) : (
@@ -441,8 +475,13 @@ export function FeatureBoard() {
                 aria-pressed={item.hasVoted}
                 aria-label={
                   item.status === "completed"
-                    ? `Voting closed for ${item.title}`
-                    : `${item.hasVoted ? "Remove vote from" : "Vote for"} ${item.title}`
+                    ? tr("Voting closed for {{value0}}", { value0: item.title })
+                    : tr("{{value0}} {{value1}}", {
+                        value0: choice(
+                          item.hasVoted ? "Remove vote from" : "Vote for"
+                        ),
+                        value1: item.title,
+                      })
                 }
                 className="feedback-vote-button"
               >
@@ -465,7 +504,10 @@ export function FeatureBoard() {
                   {item.details}
                 </p>
                 <p className="mt-3 text-[12px] text-muted-foreground">
-                  Suggested by {item.authorName.split(/\s+/)[0]}
+                  <Message
+                    text={"Suggested by {{value0}}"}
+                    values={{ value0: item.authorName.split(/\s+/)[0] }}
+                  />
                 </p>
               </div>
             </article>

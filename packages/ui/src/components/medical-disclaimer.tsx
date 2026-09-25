@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 import { cn } from "../lib/utils"
 
 /**
@@ -22,10 +23,9 @@ export function MedicalDisclaimer({
 }) {
   const body = (
     <>
-      OneRep is a tracking tool, not a medical device. Coach responses,
-      targets, and exercise feedback are non-medical estimates. Consult a doctor
-      before making dietary or fitness changes. Stop immediately if you feel
-      pain.
+      {tr(
+        "OneRep is a tracking tool, not a medical device. Coach responses, targets, and exercise feedback are non-medical estimates. Consult a doctor before making dietary or fitness changes. Stop immediately if you feel pain."
+      )}
     </>
   )
 

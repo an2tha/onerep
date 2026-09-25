@@ -1,3 +1,4 @@
+import { tr, uiLocale } from "@repo/ui/i18n"
 import type { Icon } from "@phosphor-icons/react"
 import {
   BatteryHigh,
@@ -285,9 +286,9 @@ export function metricValue(
   kind: string,
   unit: string
 ) {
-  if (value === undefined) return "Not logged"
-  if (kind === "toggle") return value > 0 ? "Yes" : "No"
-  return `${Number(value.toFixed(2)).toLocaleString()}${unit ? ` ${unit}` : ""}`
+  if (value === undefined) return tr("Not logged")
+  if (kind === "toggle") return value > 0 ? tr("Yes") : tr("No")
+  return `${Number(value.toFixed(2)).toLocaleString(uiLocale())}${unit ? ` ${unit}` : ""}`
 }
 export function shiftDay(key: string, offset: number) {
   const date = new Date(`${key}T12:00:00Z`)

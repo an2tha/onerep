@@ -1,5 +1,6 @@
+import { readLocalizedSource as readFileSync } from "../../tests/helpers/localized-source"
 import assert from "node:assert/strict"
-import { readFileSync } from "node:fs"
+
 import { describe, test } from "node:test"
 
 function source(relativePath: string) {

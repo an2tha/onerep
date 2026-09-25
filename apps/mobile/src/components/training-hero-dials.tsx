@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 import { useCallback, useEffect, useRef, useState } from "react"
 import type { CSSProperties, ReactNode } from "react"
 import { cn } from "@/lib/utils"
@@ -47,7 +48,10 @@ export function TrainingStatDial({
   const reached = target && target > 0 ? Math.min(1, value / target) : 0
   const accessibleValue = target
     ? `${value} of ${target}${suffix}`
-    : `${value}${suffix}, no target set`
+    : tr("{{value0}}{{value1}}, no target set", {
+        value0: value,
+        value1: suffix,
+      })
   return (
     <div
       className={cn(
@@ -58,7 +62,10 @@ export function TrainingStatDial({
       )}
       style={{ width: size, height: size }}
       role="img"
-      aria-label={`${name}: ${accessibleValue}`}
+      aria-label={tr("{{value0}}: {{value1}}", {
+        value0: name,
+        value1: accessibleValue,
+      })}
     >
       <span
         className="macro-dial-glass"
@@ -270,7 +277,9 @@ export function HoldToStartDial({
         finishAttempt()
       }}
       onContextMenu={(event) => event.preventDefault()}
-      aria-label={`${label}. Press and hold for two seconds to start.`}
+      aria-label={tr("{{value0}}. Press and hold for two seconds to start.", {
+        value0: label,
+      })}
     >
       <span
         className="macro-dial-glass"
@@ -329,13 +338,13 @@ export function HoldToStartDial({
               className="text-[1.05rem] leading-tight font-extrabold tracking-tight"
               aria-hidden="true"
             >
-              {holding ? remaining : "Hold"}
+              {holding ? remaining : tr("Hold")}
             </span>
             <span
               className="mt-1 line-clamp-2 px-1 text-center text-[11px] leading-tight text-muted-foreground"
               aria-hidden="true"
             >
-              {holding ? "keep holding" : label}
+              {holding ? tr("keep holding") : label}
             </span>
           </>
         )}

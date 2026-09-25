@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 import { createPortal } from "react-dom"
 import { formatElapsed } from "@/lib/workout-logging"
 
@@ -25,7 +26,9 @@ export function NotchRestTimer({
     <button
       type="button"
       onClick={onSkip}
-      aria-label={`Resting, ${formatElapsed(remaining)} left. Skip rest`}
+      aria-label={tr("Resting, {{value0}} left. Skip rest", {
+        value0: formatElapsed(remaining),
+      })}
       className="motion-tactile fixed left-1/2 z-[70] flex -translate-x-1/2 items-center gap-2.5 rounded-full border border-white/15 bg-neutral-950/95 py-2 pr-4 pl-3 text-white shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur-xl"
       style={{
         top: "max(0.5rem, calc(env(safe-area-inset-top, 0px) + 0.4rem))",
@@ -60,7 +63,9 @@ export function NotchRestTimer({
       <span className="text-[15px] font-bold tracking-tight tabular-nums">
         {formatElapsed(remaining)}
       </span>
-      <span className="text-[12px] font-semibold text-white/65">Skip</span>
+      <span className="text-[12px] font-semibold text-white/65">
+        {tr("Skip")}
+      </span>
     </button>,
     document.body
   )

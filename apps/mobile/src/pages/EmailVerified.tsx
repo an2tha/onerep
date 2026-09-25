@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 import { Navigate, useSearchParams } from "react-router"
 import { useConvexAuth } from "convex/react"
 import {
@@ -10,12 +11,14 @@ import { useSmoothNavigate } from "@/lib/navigation"
 
 const STATUS_COPY = {
   success: {
-    title: "You're set.",
-    body: "Your email is verified. Continue into OneRep and keep logging.",
+    title: tr("You're set."),
+    body: tr("Your email is verified. Continue into OneRep and keep logging."),
   },
   error: {
-    title: "This link did not work.",
-    body: "The verification link may have expired. Sign in again and we will send a fresh one.",
+    title: tr("This link did not work."),
+    body: tr(
+      "The verification link may have expired. Sign in again and we will send a fresh one."
+    ),
   },
 }
 
@@ -31,15 +34,15 @@ export default function EmailVerified() {
     !hasError && (!isLoaded || (isSignedIn && !convexAuth.isAuthenticated))
   const copy = hasError ? STATUS_COPY.error : STATUS_COPY.success
   const body = checkingAuth
-    ? "Checking your sign-in state so we can send you to the right place."
+    ? tr("Checking your sign-in state so we can send you to the right place.")
     : copy.body
   const buttonLabel = hasError
-    ? "Back to sign in"
+    ? tr("Back to sign in")
     : isSignedIn && next === "onboarding"
-      ? "Continue"
+      ? tr("Continue")
       : isSignedIn
-        ? "Open OneRep"
-        : "Sign in"
+        ? tr("Open OneRep")
+        : tr("Sign in")
 
   function handleContinue() {
     if (hasError) {
@@ -74,7 +77,7 @@ export default function EmailVerified() {
       <main className="mx-auto flex min-h-svh w-full max-w-md flex-col justify-center px-6 py-10">
         <header className="mb-8 flex items-center gap-2.5">
           <img src="/app-icon.svg" alt="" className="size-8" />
-          <span className="native-row-title font-semibold">OneRep</span>
+          <span className="native-row-title font-semibold">{tr("OneRep")}</span>
         </header>
 
         <section
@@ -93,7 +96,7 @@ export default function EmailVerified() {
             aria-busy={checkingAuth}
             className="native-primary-button mt-7 min-h-12 w-full disabled:opacity-50"
           >
-            {checkingAuth ? "Checking..." : buttonLabel}
+            {checkingAuth ? tr("Checking...") : buttonLabel}
           </button>
         </section>
       </main>

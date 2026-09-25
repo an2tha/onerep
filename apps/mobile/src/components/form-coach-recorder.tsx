@@ -1,3 +1,4 @@
+import { Message, tr, translateError } from "@repo/ui/i18n"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Capacitor } from "@capacitor/core"
 import { Camera as NativeCamera } from "@capacitor/camera"
@@ -77,7 +78,10 @@ function pickMimeType() {
 
 function formatElapsed(ms: number) {
   const total = Math.floor(ms / 100)
-  return `${Math.floor(total / 10)}.${total % 10}s`
+  return tr("{{value0}}.{{value1}}s", {
+    value0: Math.floor(total / 10),
+    value1: total % 10,
+  })
 }
 
 // ─── Overlay ──────────────────────────────────────────────────────────────────
@@ -284,7 +288,9 @@ function FormCoachCamera({
     try {
       recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined)
     } catch {
-      toast.error("This device can't record video in the app")
+      toast.error(
+        translateError(tr("This device can't record video in the app"))
+      )
       return
     }
 
@@ -319,7 +325,7 @@ function FormCoachCamera({
       if (blob.size === 0) {
         setPhase("idle")
         setElapsed(0)
-        toast.error("Nothing was recorded. Try again")
+        toast.error(translateError(tr("Nothing was recorded. Try again")))
         return
       }
       void hapticTap()
@@ -364,11 +370,13 @@ function FormCoachCamera({
 
     const isImage = file.type.startsWith("image/")
     if (!isImage && !file.type.startsWith("video/")) {
-      toast.error("Pick a video or a photo")
+      toast.error(translateError(tr("Pick a video or a photo")))
       return
     }
     if (file.size > MAX_UPLOAD_BYTES) {
-      toast.error("That file is too large. Keep it under 64 MB")
+      toast.error(
+        translateError(tr("That file is too large. Keep it under 64 MB"))
+      )
       return
     }
 
@@ -382,7 +390,11 @@ function FormCoachCamera({
 
     const durationMs = await readVideoDuration(file)
     if (durationMs !== null && durationMs > MAX_UPLOAD_DURATION_MS) {
-      toast.error("That video is too long. Keep it to 30 seconds or less")
+      toast.error(
+        translateError(
+          tr("That video is too long. Keep it to 30 seconds or less")
+        )
+      )
       return
     }
     if (!mountedRef.current) return
@@ -412,7 +424,7 @@ function FormCoachCamera({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label={`Record your ${exerciseName} form`}
+      aria-label={tr("Record your {{value0}} form", { value0: exerciseName })}
       className="fixed inset-0 z-[60] overflow-hidden bg-black"
     >
       {/* ── Live feed ────────────────────────────────────────────────── */}
@@ -432,26 +444,26 @@ function FormCoachCamera({
             <>
               <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/20 border-t-white/60" />
               <p className="text-[15px] font-semibold text-white">
-                Starting camera
+                {tr("Starting camera")}
               </p>
               <p className="text-[14px] text-white/75">
-                Keep OneRep open while we connect to your camera.
+                {tr("Keep OneRep open while we connect to your camera.")}
               </p>
             </>
           )}
           {cameraState === "denied" && (
             <>
               <p className="text-[17px] font-semibold text-white">
-                Camera access denied
+                {tr("Camera access denied")}
               </p>
               <p className="max-w-[280px] text-[14px] leading-5 text-white/75">
-                Allow camera access in Settings to record your form.
+                {tr("Allow camera access in Settings to record your form.")}
               </p>
             </>
           )}
           {cameraState === "unsupported" && (
             <p className="text-[17px] font-semibold text-white">
-              Camera not available
+              {tr("Camera not available")}
             </p>
           )}
           {(cameraState === "denied" || cameraState === "unsupported") && (
@@ -464,21 +476,21 @@ function FormCoachCamera({
                 }}
                 className="min-h-11 rounded-lg bg-white px-4 text-[14px] font-semibold text-black"
               >
-                Try camera again
+                {tr("Try camera again")}
               </button>
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 className="min-h-11 rounded-lg border border-white/25 px-4 text-[14px] font-semibold text-white"
               >
-                Upload a video or photo
+                {tr("Upload a video or photo")}
               </button>
               <button
                 type="button"
                 onClick={closeFormCoachRecorder}
                 className="min-h-11 rounded-lg border border-white/25 px-4 text-[14px] font-semibold text-white"
               >
-                Back to workout
+                {tr("Back to workout")}
               </button>
             </div>
           )}
@@ -522,7 +534,7 @@ function FormCoachCamera({
           type="button"
           onClick={close}
           className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-white/25 bg-black/70 text-white transition-opacity active:opacity-60"
-          aria-label="Close camera"
+          aria-label={tr("Close camera")}
         >
           <ArrowLeft size={16} weight="bold" />
         </button>
@@ -532,7 +544,10 @@ function FormCoachCamera({
             {movement?.label ?? exerciseName}
           </p>
           <p className="truncate text-center text-[12px] text-white/55">
-            Angle {angleNumber}
+            <Message
+              text={"Angle {{value0}}"}
+              values={{ value0: angleNumber }}
+            />
           </p>
         </div>
 
@@ -549,7 +564,9 @@ function FormCoachCamera({
             {hint}
           </p>
           <p className="pt-1 text-center text-[13px] text-white/55">
-            One angle is enough. Or upload a video or photo you already have.
+            {tr(
+              "One angle is enough. Or upload a video or photo you already have."
+            )}
           </p>
         </div>
       )}
@@ -569,7 +586,10 @@ function FormCoachCamera({
               {formatElapsed(elapsed)}
             </span>
             <span className="text-[13px] text-white/55 tabular-nums">
-              {formatElapsed(remaining)} left
+              <Message
+                text={"{{value0}} left"}
+                values={{ value0: formatElapsed(remaining) }}
+              />
             </span>
           </div>
         </div>
@@ -590,7 +610,7 @@ function FormCoachCamera({
           }
           disabled={phase === "recording"}
           className="flex h-11 w-11 items-center justify-center rounded-[12px] border border-white/10 bg-black/45 text-white/70 backdrop-blur-md transition-opacity active:opacity-60 disabled:opacity-30"
-          aria-label="Switch camera"
+          aria-label={tr("Switch camera")}
         >
           <ArrowsClockwise size={18} />
         </button>
@@ -600,7 +620,9 @@ function FormCoachCamera({
           onClick={phase === "recording" ? stopRecording : startRecording}
           disabled={cameraState !== "active" || !canRecord}
           className="motion-pressable relative flex h-[76px] w-[76px] items-center justify-center rounded-full disabled:opacity-30"
-          aria-label={phase === "recording" ? "Stop recording" : "Record"}
+          aria-label={
+            phase === "recording" ? tr("Stop recording") : tr("Record")
+          }
         >
           <div className="absolute inset-0 rounded-full border-2 border-white/30" />
           <div
@@ -620,7 +642,7 @@ function FormCoachCamera({
           onClick={() => fileInputRef.current?.click()}
           disabled={phase === "recording"}
           className="flex h-11 w-11 items-center justify-center rounded-[12px] border border-white/10 bg-black/45 text-white/70 backdrop-blur-md transition-opacity active:opacity-60 disabled:opacity-30"
-          aria-label="Upload a video or photo instead"
+          aria-label={tr("Upload a video or photo instead")}
         >
           <UploadSimple size={18} />
         </button>
@@ -642,7 +664,7 @@ function FormCoachCamera({
         >
           <VideoCamera size={15} className="text-white/60" />
           <span className="text-[14px] text-white/80">
-            Video recording isn't supported on this device.
+            {tr("Video recording isn't supported on this device.")}
           </span>
         </div>
       )}

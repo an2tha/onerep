@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 /**
  * Live status for health syncing, for the Health & Wearables page.
  *
@@ -62,7 +63,9 @@ function load(): HealthSyncStatus {
       // set it is gone. Only the live module state may say running.
       running: false,
       phase: null,
-      recent: Array.isArray(parsed.recent) ? parsed.recent.slice(0, MAX_RECENT) : [],
+      recent: Array.isArray(parsed.recent)
+        ? parsed.recent.slice(0, MAX_RECENT)
+        : [],
     }
   } catch {
     return emptyStatus()
@@ -147,7 +150,9 @@ export function updateHealthSyncStatus(patch: Partial<HealthSyncStatus>) {
  * for diagnosis; this is what a person sees. Unknown failures degrade to a
  * plain "try again" rather than leaking a stack trace into Settings.
  */
-export function friendlyHealthError(raw: string | null | undefined): string | null {
+export function friendlyHealthError(
+  raw: string | null | undefined
+): string | null {
   if (!raw) return null
   const r = raw.toLowerCase()
   if (
@@ -155,16 +160,28 @@ export function friendlyHealthError(raw: string | null | undefined): string | nu
     r.includes("does not have permission") ||
     r.includes("permission was denied")
   ) {
-    return "Health Connect refused a read. Open Manage permissions below, re-grant access, then sync again."
+    return tr(
+      "Health Connect refused a read. Open Manage permissions below, re-grant access, then sync again."
+    )
   }
   if (r.includes("consent") || r.includes("not enabled for this account")) {
-    return "OneRep needs wearable consent for your account before importing. Finish the consent step in your profile setup."
+    return tr(
+      "OneRep needs wearable consent for your account before importing. Finish the consent step in your profile setup."
+    )
   }
-  if (r.includes("update_required") || r.includes("too old") || r.includes("unavailable")) {
-    return "Health Connect is missing or too old on this device. Install the latest version, then sync again."
+  if (
+    r.includes("update_required") ||
+    r.includes("too old") ||
+    r.includes("unavailable")
+  ) {
+    return tr(
+      "Health Connect is missing or too old on this device. Install the latest version, then sync again."
+    )
   }
   if (r.includes("network") || r.includes("fetch") || r.includes("timeout")) {
-    return "Couldn't reach OneRep's server. Check your connection and sync again."
+    return tr(
+      "Couldn't reach OneRep's server. Check your connection and sync again."
+    )
   }
-  return "Sync failed. Try again shortly."
+  return tr("Sync failed. Try again shortly.")
 }

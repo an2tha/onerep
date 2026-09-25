@@ -1,3 +1,4 @@
+import { Message, tr } from "@repo/ui/i18n"
 import { useMemo } from "react"
 import {
   MUSCLE_HEAT_FILL,
@@ -48,7 +49,7 @@ export function MuscleRecoveryPanel({
   if (muscleRecovery.length === 0) {
     return (
       <p className="py-6 text-center text-[13px] text-muted-foreground">
-        Recovery appears after your first logged workout.
+        {tr("Recovery appears after your first logged workout.")}
       </p>
     )
   }
@@ -62,7 +63,10 @@ export function MuscleRecoveryPanel({
 
       <div className="min-w-[17rem] flex-1 space-y-3">
         <p className="text-[15px] font-semibold">
-          {ready.length} of {muscleRecovery.length} muscles ready
+          <Message
+            text={"{{value0}} of {{value1}} muscles ready"}
+            values={{ value0: ready.length, value1: muscleRecovery.length }}
+          />
         </p>
 
         {underLoad.length > 0 && (
@@ -88,12 +92,13 @@ export function MuscleRecoveryPanel({
 
         <p className="text-[12px] text-muted-foreground">
           {underLoad.length === 0
-            ? "Nothing is carrying load right now."
-            : `${underLoad.length} still under load.`}
+            ? tr("Nothing is carrying load right now.")
+            : tr("{{value0}} still under load.", { value0: underLoad.length })}
           {stalest
-            ? ` Longest untouched: ${titleCase(stalest.muscle)}, ${formatAge(
-                stalest.daysSinceLastTrained
-              )}.`
+            ? tr(" Longest untouched: {{value0}}, {{value1}}.", {
+                value0: titleCase(stalest.muscle),
+                value1: formatAge(stalest.daysSinceLastTrained),
+              })
             : ""}
         </p>
       </div>

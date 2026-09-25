@@ -1,5 +1,6 @@
+import { readLocalizedSource as readFileSync } from "../../../apps/mobile/tests/helpers/localized-source"
 import { describe, expect, test } from "bun:test"
-import { existsSync, readdirSync, readFileSync } from "node:fs"
+import { existsSync, readdirSync } from "node:fs"
 import { extname, join, relative } from "node:path"
 
 const sourceRoot = join(import.meta.dir)
@@ -76,11 +77,11 @@ describe("@repo/ui package boundary", () => {
       "billing/types.ts",
       "billing/_private/payment-ui.tsx",
       "auth-shell.tsx",
-    "bottom-bar.tsx",
-    // Observes the active app route's scrolling title and binds router actions.
-    "collapsing-page-bar.tsx",
-    // Reads the authenticated profile and opens the app's settings route.
-    "profile-avatar.tsx",
+      "bottom-bar.tsx",
+      // Observes the active app route's scrolling title and binds router actions.
+      "collapsing-page-bar.tsx",
+      // Reads the authenticated profile and opens the app's settings route.
+      "profile-avatar.tsx",
       // Convex writes and haptics behind the shared sheet and button
       // primitives; the catalog it edits is app-side.
       "custom-exercise-sheet.tsx",

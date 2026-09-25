@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 import { useMemo } from "react"
 import type { EnduranceHeartRateSample } from "@/lib/endurance-workout"
 import { formatElapsed } from "@/lib/workout-logging"
@@ -12,20 +13,33 @@ type Props = {
 export function EnduranceHeartRateChart({
   samples,
   elapsedSeconds,
-  emptyTitle = "Waiting for heart rate",
-  emptyBody = "Wear your Apple Watch snugly and open OneRep on the watch.",
+  emptyTitle = tr("Waiting for heart rate"),
+  emptyBody = tr("Wear your Apple Watch snugly and open OneRep on the watch."),
 }: Props) {
   const chart = useMemo(() => {
     if (samples.length === 0) return null
-    const minimum = Math.max(40, Math.min(...samples.map((sample) => sample.bpm)) - 8)
-    const maximum = Math.max(minimum + 20, Math.max(...samples.map((sample) => sample.bpm)) + 8)
-    const duration = Math.max(elapsedSeconds, samples.at(-1)?.elapsedSeconds ?? 1, 1)
+    const minimum = Math.max(
+      40,
+      Math.min(...samples.map((sample) => sample.bpm)) - 8
+    )
+    const maximum = Math.max(
+      minimum + 20,
+      Math.max(...samples.map((sample) => sample.bpm)) + 8
+    )
+    const duration = Math.max(
+      elapsedSeconds,
+      samples.at(-1)?.elapsedSeconds ?? 1,
+      1
+    )
     const coordinates = samples.map((sample) => ({
       x: 12 + (sample.elapsedSeconds / duration) * 336,
       y: 140 - ((sample.bpm - minimum) / (maximum - minimum)) * 116,
     }))
     const line = coordinates
-      .map((point, index) => `${index === 0 ? "M" : "L"}${point.x.toFixed(1)} ${point.y.toFixed(1)}`)
+      .map(
+        (point, index) =>
+          `${index === 0 ? "M" : "L"}${point.x.toFixed(1)} ${point.y.toFixed(1)}`
+      )
       .join(" ")
     const area = `${line} L${coordinates.at(-1)?.x.toFixed(1)} 140 L12 140 Z`
     return { minimum, maximum, line, area, coordinates }
@@ -50,7 +64,14 @@ export function EnduranceHeartRateChart({
         viewBox="0 0 360 164"
         className="h-auto w-full overflow-visible"
         role="img"
-        aria-label={`Heart rate from ${Math.round(chart.minimum)} to ${Math.round(chart.maximum)} beats per minute over ${formatElapsed(elapsedSeconds)}`}
+        aria-label={tr(
+          "Heart rate from {{value0}} to {{value1}} beats per minute over {{value2}}",
+          {
+            value0: Math.round(chart.minimum),
+            value1: Math.round(chart.maximum),
+            value2: formatElapsed(elapsedSeconds),
+          }
+        )}
       >
         {[24, 82, 140].map((y) => (
           <line
@@ -82,7 +103,13 @@ export function EnduranceHeartRateChart({
             fill="var(--accent-progress)"
           />
         )}
-        <text x="12" y="159" fill="currentColor" fillOpacity="0.6" fontSize="10">
+        <text
+          x="12"
+          y="159"
+          fill="currentColor"
+          fillOpacity="0.6"
+          fontSize="10"
+        >
           0:00
         </text>
         <text

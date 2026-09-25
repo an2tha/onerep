@@ -1,3 +1,4 @@
+import { tr, translateError } from "@repo/ui/i18n"
 import { useEffect, useRef, useState } from "react"
 import L from "leaflet"
 import { Crosshair, ArrowsOut } from "@phosphor-icons/react"
@@ -147,17 +148,25 @@ export function EnduranceRouteMap({
       return
     }
     if (!navigator.geolocation) {
-      setLocationError("Location is unavailable. Pan the map to your trail.")
+      setLocationError(
+        translateError(
+          tr("Location is unavailable. Pan the map to your trail.")
+        )
+      )
       return
     }
     navigator.geolocation.getCurrentPosition(
       (p) => {
-        setLocationError("")
+        setLocationError(translateError(""))
         map.current?.setView([p.coords.latitude, p.coords.longitude], 15)
       },
       () =>
         setLocationError(
-          "Couldn't find your location. Allow location access or pan the map."
+          translateError(
+            tr(
+              "Couldn't find your location. Allow location access or pan the map."
+            )
+          )
         ),
       { timeout: 15000, maximumAge: 30000 }
     )
@@ -169,8 +178,10 @@ export function EnduranceRouteMap({
         className="absolute inset-0 z-0"
         aria-label={
           onAddPoint
-            ? "Trail planner map. Tap to add a waypoint, or use the coordinate fields below."
-            : "OpenStreetMap route map"
+            ? tr(
+                "Trail planner map. Tap to add a waypoint, or use the coordinate fields below."
+              )
+            : tr("OpenStreetMap route map")
         }
       />
       {(tileError || locationError) && (
@@ -180,8 +191,12 @@ export function EnduranceRouteMap({
         >
           {locationError ||
             (tracking
-              ? "Map tiles are unavailable. Your route is still being recorded."
-              : "Map tiles are unavailable. Check your connection; your waypoints are still on the map.")}
+              ? tr(
+                  "Map tiles are unavailable. Your route is still being recorded."
+                )
+              : tr(
+                  "Map tiles are unavailable. Check your connection; your waypoints are still on the map."
+                ))}
         </p>
       )}
       <div className="absolute right-3 bottom-9 z-[1] flex flex-col gap-2">
@@ -189,7 +204,7 @@ export function EnduranceRouteMap({
           type="button"
           onClick={fit}
           disabled={!points.length && !plannedPoints.length}
-          aria-label="Show whole route"
+          aria-label={tr("Show whole route")}
           className="flex size-11 items-center justify-center rounded-lg border border-border bg-background text-foreground disabled:opacity-40"
         >
           <ArrowsOut size={22} />
@@ -198,7 +213,9 @@ export function EnduranceRouteMap({
           type="button"
           onClick={locate}
           aria-label={
-            tracking ? "Recenter map on your position" : "Find my location"
+            tracking
+              ? tr("Recenter map on your position")
+              : tr("Find my location")
           }
           className="flex size-11 items-center justify-center rounded-lg border border-border bg-background text-foreground"
         >

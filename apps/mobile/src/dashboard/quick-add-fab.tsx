@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 /**
  * The dashboard's quick-add button: the same round black bubble the active
  * workout page carries, opened into a fan of destinations instead of a
@@ -42,7 +43,7 @@ export type QuickAddOption = {
 const HINT_SEEN_KEY = "onerep:quick-add-hint-seen"
 
 /** Said once, to the one person who has not met this button yet. */
-const HINT_TEXT = "Tap for quick actions, hold for more"
+const HINT_TEXT = tr("Tap for quick actions, hold for more")
 
 /**
  * The hold, in four beats.
@@ -600,10 +601,10 @@ export function QuickAddFab({
         }
         aria-label={
           open
-            ? "Close quick add"
+            ? tr("Close quick add")
             : hinting
-              ? `Quick add. ${HINT_TEXT}`
-              : "Quick add"
+              ? tr("Quick add. {{value0}}", { value0: HINT_TEXT })
+              : tr("Quick add")
         }
         aria-expanded={open}
         aria-busy={closing}
@@ -653,7 +654,7 @@ export function QuickAddFab({
         <>
           <button
             type="button"
-            aria-label="Close quick add"
+            aria-label={tr("Close quick add")}
             onClick={() => dismiss()}
             data-state={state}
             className="coach-fab-scrim fixed inset-0 z-40 cursor-default"
@@ -661,7 +662,7 @@ export function QuickAddFab({
           <div
             ref={panelRef}
             role="menu"
-            aria-label="Quick add"
+            aria-label={tr("Quick add")}
             data-state={state}
             style={
               {

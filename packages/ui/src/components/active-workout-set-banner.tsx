@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 import { cn } from "../lib/utils"
 
 export function ActiveWorkoutSetBanner({
@@ -33,7 +34,7 @@ export function ActiveWorkoutSetBanner({
         </p>
         {!complete && onActivate && (
           <p className="mt-1 text-[13px] font-medium text-muted-foreground">
-            View
+            {tr("View")}
           </p>
         )}
       </div>
@@ -49,7 +50,10 @@ export function ActiveWorkoutSetBanner({
           "mb-3 flex min-h-14 w-full items-center gap-3 border-y border-border py-2.5 text-left transition-colors active:bg-muted/35",
           className
         )}
-        aria-label={`Go to active set: ${exerciseName}, ${setLabel}`}
+        aria-label={tr("Go to active set: {{value0}}, {{value1}}", {
+          value0: exerciseName,
+          value1: setLabel,
+        })}
       >
         {content}
       </button>
@@ -62,7 +66,7 @@ export function ActiveWorkoutSetBanner({
         "mb-3 flex min-h-14 items-center gap-3 border-y border-border py-2.5",
         className
       )}
-      aria-label="Workout complete"
+      aria-label={tr("Workout complete")}
       aria-live="polite"
     >
       {content}

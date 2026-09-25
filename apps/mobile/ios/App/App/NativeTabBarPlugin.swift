@@ -184,7 +184,7 @@ public class NativeTabBarPlugin: CAPPlugin, CAPBridgedPlugin {
         let toggle = UIButton(type: .system)
         toggle.translatesAutoresizingMaskIntoConstraints = false
         toggle.tintColor = .label
-        toggle.accessibilityLabel = "Open navigation"
+        toggle.accessibilityLabel = String(localized: "Open navigation")
         toggle.addAction(UIAction { [weak self] _ in self?.setExpanded(true) }, for: .touchUpInside)
         pill.contentView.addSubview(toggle)
         toggleButton = toggle

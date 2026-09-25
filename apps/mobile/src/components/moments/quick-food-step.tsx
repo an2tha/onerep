@@ -1,3 +1,4 @@
+import { Message, tr, translateError } from "@repo/ui/i18n"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useMutation, useQuery } from "convex/react"
 import {
@@ -69,7 +70,11 @@ function macroLine(
   const calories = Math.round(entry.calories ?? 0)
   const protein = Math.round(entry.protein ?? 0)
   return protein > 0
-    ? `${energyDisplay(calories, energyUnit)} ${energyUnit} · ${protein}g protein`
+    ? tr("{{value0}} {{value1}} · {{value2}}g protein", {
+        value0: energyDisplay(calories, energyUnit),
+        value1: energyUnit,
+        value2: protein,
+      })
     : `${energyDisplay(calories, energyUnit)} ${energyUnit}`
 }
 
@@ -196,7 +201,10 @@ export function QuickFoodStep({
       items.push({
         key: `saved:${preset.id}`,
         name: preset.name,
-        detail: `${preset.entries.length} items · ${macroLine(totals, energyUnit)}`,
+        detail: tr("{{value0}} items · {{value1}}", {
+          value0: preset.entries.length,
+          value1: macroLine(totals, energyUnit),
+        }),
         icon: "saved",
         entries: () =>
           foodLogEntriesFromMealPreset({
@@ -211,7 +219,9 @@ export function QuickFoodStep({
       items.push({
         key: `recipe:${recipe._id}`,
         name: recipe.name,
-        detail: `One serving · ${macroLine(totals, energyUnit)}`,
+        detail: tr("One serving · {{value0}}", {
+          value0: macroLine(totals, energyUnit),
+        }),
         icon: "recipe",
         entries: () => [
           stripUndefined({
@@ -259,9 +269,9 @@ export function QuickFoodStep({
       announceOrbActivity("log", Math.min(entries.length, 3))
       hapticMedium()
       setLogged((count) => count + 1)
-      toast.success(`${choice.name} logged`, {
+      toast.success(tr("{{value0}} logged", { value0: choice.name }), {
         action: {
-          label: "Undo",
+          label: tr("Undo"),
           onClick: () => {
             setLogged((count) => Math.max(0, count - 1))
             announceOrbActivity("delete", Math.min(entries.length, 3))
@@ -269,13 +279,13 @@ export function QuickFoodStep({
               entries.map((entry) =>
                 removeFood({ date: todayKey, entryId: entry.id })
               )
-            ).catch(() => toast.error("Couldn't undo that"))
+            ).catch(() => toast.error(translateError(tr("Couldn't undo that"))))
           },
         },
       })
     } catch (error) {
       logDevWarn("Failed to log food from a moment", error)
-      toast.error("Couldn't log that. Try again.")
+      toast.error(translateError(tr("Couldn't log that. Try again.")))
     } finally {
       setBusy(false)
     }
@@ -308,21 +318,21 @@ export function QuickFoodStep({
       hapticMedium()
       setLogged((count) => count + 1)
       setDetailItem(null)
-      toast.success(`${item.name} logged`, {
+      toast.success(tr("{{value0}} logged", { value0: item.name }), {
         action: {
-          label: "Undo",
+          label: tr("Undo"),
           onClick: () => {
             setLogged((count) => Math.max(0, count - 1))
             announceOrbActivity("delete")
             void removeFood({ date: todayKey, entryId: entry.id }).catch(() =>
-              toast.error("Couldn't undo that")
+              toast.error(translateError(tr("Couldn't undo that")))
             )
           },
         },
       })
     } catch (error) {
       logDevWarn("Failed to log a searched food from a moment", error)
-      toast.error("Couldn't log that. Try again.")
+      toast.error(translateError(tr("Couldn't log that. Try again.")))
     } finally {
       setBusy(false)
     }
@@ -345,8 +355,10 @@ export function QuickFoodStep({
 
   return (
     <MomentScreen
-      title="What did you eat?"
-      subtitle="Your usual foods first, then everything else. One tap each."
+      title={tr("What did you eat?")}
+      subtitle={tr(
+        "Your usual foods first, then everything else. One tap each."
+      )}
       yielded={detailItem !== null}
       onClose={() => {
         hapticSelection()
@@ -360,7 +372,9 @@ export function QuickFoodStep({
               onClose(logged > 0 ? "resolved" : "dismissed")
             }}
           >
-            {logged > 0 ? `Done · ${logged} logged` : "Done"}
+            {logged > 0
+              ? tr("Done · {{value0}} logged", { value0: logged })
+              : tr("Done")}
           </MomentPrimaryAction>
           <MomentSecondaryAction
             onClick={() => {
@@ -369,8 +383,14 @@ export function QuickFoodStep({
             }}
             className="bg-transparent text-muted-foreground active:bg-muted/40"
           >
-            <CaretLeft size={13} weight="bold" className="mr-1.5" />
-            Back
+            <Message
+              text={"{{value0}}Back"}
+              values={{
+                value0: (
+                  <CaretLeft size={13} weight="bold" className="mr-1.5" />
+                ),
+              }}
+            />
           </MomentSecondaryAction>
         </>
       }
@@ -381,11 +401,11 @@ export function QuickFoodStep({
           weight="bold"
           className="shrink-0 text-muted-foreground"
         />
-        <span className="sr-only">Search foods</span>
+        <span className="sr-only">{tr("Search foods")}</span>
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search your foods, or anything else"
+          placeholder={tr("Search your foods, or anything else")}
           autoComplete="off"
           className="h-12 min-w-0 flex-1 bg-transparent text-[15px] outline-none placeholder:text-muted-foreground"
         />
@@ -410,12 +430,14 @@ export function QuickFoodStep({
         <>
           <p className="mt-5 mb-2 px-1 text-[13px] text-muted-foreground">
             {searchState === "loading"
-              ? "Searching…"
+              ? tr("Searching…")
               : searchState === "error"
-                ? "Search is not answering. Your own foods above still work."
+                ? tr(
+                    "Search is not answering. Your own foods above still work."
+                  )
                 : results.length > 0
-                  ? "From the food database"
-                  : "Nothing in the database matched that."}
+                  ? tr("From the food database")
+                  : tr("Nothing in the database matched that.")}
           </p>
 
           {results.length > 0 && (
@@ -464,8 +486,8 @@ export function QuickFoodStep({
       <div className="app-surface mt-3 overflow-hidden">
         <MomentRow
           icon={<MagnifyingGlass size={16} weight="bold" />}
-          title="Open the full search"
-          detail="Barcode scanning, recipes and filters."
+          title={tr("Open the full search")}
+          detail={tr("Barcode scanning, recipes and filters.")}
           onClick={openSearch}
         />
       </div>
@@ -484,8 +506,9 @@ export function QuickFoodStep({
 
       {!loading && choices.length === 0 && !searching && (
         <p className="mt-3 px-1 text-[13px] leading-snug text-muted-foreground">
-          Nothing to repeat yet — your usual foods, saved meals and recipes will
-          show up here once you have logged a few.
+          {tr(
+            "Nothing to repeat yet — your usual foods, saved meals and recipes will show up here once you have logged a few."
+          )}
         </p>
       )}
     </MomentScreen>

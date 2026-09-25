@@ -1,3 +1,4 @@
+import { tr, translateError } from "@repo/ui/i18n"
 import { useState } from "react"
 import { useMutation } from "convex/react"
 import { api } from "../../../../../convex/_generated/api"
@@ -24,7 +25,12 @@ export function RecoveryBanner({
   const today = currentDateKey()
   if (!recovery) return null
   const active = recovery.active
-  if (!active && (surface === "dashboard" || surface === "coach") && dismissedOn === today) return null
+  if (
+    !active &&
+    (surface === "dashboard" || surface === "coach") &&
+    dismissedOn === today
+  )
+    return null
   if (
     !active &&
     surface !== "dashboard" &&
@@ -34,12 +40,12 @@ export function RecoveryBanner({
     return null
   if (!active && surface === "progress") {
     return recovery.episodes.length ? (
-      <section className="recovery-history" aria-label="Recovery history">
-        <h2>Recovery periods</h2>
+      <section className="recovery-history" aria-label={tr("Recovery history")}>
+        <h2>{tr("Recovery periods")}</h2>
         {recovery.episodes.slice(0, 5).map((episode) => (
           <p key={episode._id}>
-            {episode.startedOn} – {episode.endedOn ?? "ongoing"}{" "}
-            <span>Recovery · historical results preserved</span>
+            {episode.startedOn} – {episode.endedOn ?? tr("ongoing")}{" "}
+            <span>{tr("Recovery · historical results preserved")}</span>
           </p>
         ))}
       </section>
@@ -62,17 +68,19 @@ export function RecoveryBanner({
         progress:
           "This recovery period is part of your history. Lower activity does not mean lost motivation.",
       }[surface]
-    : "We can adjust your training and quiet your reminders while you recover."
+    : tr(
+        "We can adjust your training and quiet your reminders while you recover."
+      )
   return (
     <section
       className={`recovery-banner ${active ? "is-active" : ""}`}
-      aria-label={active ? "Recovery mode" : "Feeling unwell?"}
+      aria-label={active ? tr("Recovery mode") : tr("Feeling unwell?")}
     >
       {active && (
         <button
           className="recovery-dismiss"
           type="button"
-          aria-label="Dismiss recovery mode"
+          aria-label={tr("Dismiss recovery mode")}
           disabled={dismissing}
           aria-busy={dismissing}
           onClick={async () => {
@@ -84,7 +92,11 @@ export function RecoveryBanner({
               safeLocalStorageSet("onerep:recovery-nudge-dismissed", today)
               setDismissedOn(today)
             } catch {
-              setError("Could not dismiss recovery mode. Try again.")
+              setError(
+                translateError(
+                  tr("Could not dismiss recovery mode. Try again.")
+                )
+              )
             } finally {
               setDismissing(false)
             }
@@ -97,7 +109,7 @@ export function RecoveryBanner({
         <button
           className="recovery-dismiss"
           type="button"
-          aria-label="Dismiss recovery suggestion for today"
+          aria-label={tr("Dismiss recovery suggestion for today")}
           onClick={() => {
             safeLocalStorageSet("onerep:recovery-nudge-dismissed", today)
             setDismissedOn(today)
@@ -119,14 +131,14 @@ export function RecoveryBanner({
         <h2>
           {active
             ? active.phase === "resting"
-              ? "Today, keep it simple"
-              : "Ease back at your pace"
-            : "Feeling unwell?"}
+              ? tr("Today, keep it simple")
+              : tr("Ease back at your pace")
+            : tr("Feeling unwell?")}
         </h2>
         <p>{detail}</p>
         {error && <p role="alert">{error}</p>}
         <button type="button" onClick={() => navigate("/recovery")}>
-          {active ? "Open recovery plan" : "Set up recovery"}
+          {active ? tr("Open recovery plan") : tr("Set up recovery")}
           <span aria-hidden="true"> →</span>
         </button>
       </div>

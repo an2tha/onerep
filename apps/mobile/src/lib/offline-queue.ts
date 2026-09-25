@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 import { api } from "../../../../convex/_generated/api"
 import { convexClient } from "./convex"
 import {
@@ -23,8 +24,9 @@ export type OfflineJob = {
 const STORAGE_KEY = "onerep:offline-mutation-queue:v1"
 const OWNER_KEY = "onerep:offline-owner:v1"
 const EVENT_NAME = "onerep:offline-queue-changed"
-const PERSISTENCE_ERROR_MESSAGE =
+const PERSISTENCE_ERROR_MESSAGE = tr(
   "Could not save this change for offline sync. Please reconnect and try again."
+)
 
 const MUTATION_REGISTRY = {
   "logs.foodLogs.setDay": api.logs.foodLogs.setDay,

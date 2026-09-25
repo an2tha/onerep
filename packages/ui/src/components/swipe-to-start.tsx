@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 import { useEffect, useRef, useState } from "react"
 import { ArrowRight, Check, PencilSimple } from "@phosphor-icons/react"
 import { APP_ACCENT_COLORS, tint } from "@repo/ui"
@@ -8,9 +9,9 @@ const COMPLETE_THRESHOLD = 0.78
 
 export function SwipeToStart({
   onComplete,
-  label = "Start workout",
-  readyLabel = "Release to start",
-  completingLabel = "Starting",
+  label = tr("Start workout"),
+  readyLabel = tr("Release to start"),
+  completingLabel = tr("Starting"),
   variant = "default",
   onHaptic,
 }: {
@@ -202,7 +203,9 @@ export function SwipeToStart({
           boxShadow: `0 8px 22px rgb(0 0 0 / ${0.1 + progress * 0.08})`,
         }}
         role="slider"
-        aria-label={`${label}. Slide right to confirm.`}
+        aria-label={tr("{{value0}}. Slide right to confirm.", {
+          value0: label,
+        })}
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={Math.round(progress * 100)}

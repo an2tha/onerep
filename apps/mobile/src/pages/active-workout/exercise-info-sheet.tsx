@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 /**
  * The catalog page's photos, facts, and instructions — as a sheet, because
  * mid-workout nobody wants to navigate away and find their place again. The
@@ -30,7 +31,10 @@ export function ExerciseInfoSheet({
   if (resolved === undefined) return null
 
   return (
-    <MobileSheet onClose={onClose} ariaLabel={`${exerciseName} instructions`}>
+    <MobileSheet
+      onClose={onClose}
+      ariaLabel={tr("{{value0}} instructions", { value0: exerciseName })}
+    >
       <div className="max-h-[78dvh] min-h-0 flex-1 overflow-y-auto px-6 pt-2 pb-[max(2rem,env(safe-area-inset-bottom,2rem))]">
         <h2 className="text-[20px] font-semibold tracking-tight">
           {exercise?.name ?? exerciseName}
@@ -43,8 +47,9 @@ export function ExerciseInfoSheet({
         <div className="mt-5">
           {!exercise ? (
             <p className="py-12 text-center text-[14px] text-muted-foreground">
-              This one is not in the catalog — no photos or instructions to
-              show.
+              {tr(
+                "This one is not in the catalog — no photos or instructions to show."
+              )}
             </p>
           ) : (
             <InstructionsPane exercise={exercise} />

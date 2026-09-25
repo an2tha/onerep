@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 import * as React from "react"
 import { Dialog as SheetPrimitive } from "radix-ui"
 
@@ -74,7 +75,7 @@ function SheetContent({
               size="icon-sm"
             >
               <XIcon />
-              <span className="sr-only">Close</span>
+              <span className="sr-only">{tr("Close")}</span>
             </Button>
           </SheetPrimitive.Close>
         )}

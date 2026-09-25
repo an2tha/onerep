@@ -1,3 +1,4 @@
+import { Message, tr, uiLocale } from "@repo/ui/i18n"
 import * as z from "zod"
 import { ArrowRight } from "@phosphor-icons/react"
 import type { VisualIdentity } from "@repo/ui"
@@ -126,7 +127,7 @@ export function SetupPreferences({
       {section === "preferences" && (
         <>
           <fieldset className="setup-field">
-            <legend>Appearance</legend>
+            <legend>{tr("Appearance")}</legend>
             <div className="setup-theme-options">
               {(["light", "dark", "system"] as const).map((option) => (
                 <button
@@ -142,10 +143,10 @@ export function SetupPreferences({
                   </span>
                   <strong>
                     {option === "system"
-                      ? "Match device"
+                      ? tr("Match device")
                       : option === "light"
-                        ? "Light"
-                        : "Dark"}
+                        ? tr("Light")
+                        : tr("Dark")}
                   </strong>
                 </button>
               ))}
@@ -160,38 +161,40 @@ export function SetupPreferences({
             />
           )}
           <Choices
-            label="Weight units"
+            label={tr("Weight units")}
             value={weightUnit}
             options={[
-              ["kg", "Kilograms"],
-              ["lbs", "Pounds"],
+              ["kg", tr("Kilograms")],
+              ["lbs", tr("Pounds")],
             ]}
             onChange={setWeightUnit}
           />
           <Choices
-            label="Energy units"
+            label={tr("Energy units")}
             value={value.energyUnit}
             options={[
-              ["kcal", "kcal"],
-              ["Cal", "Calories"],
-              ["kJ", "Kilojoules"],
+              ["kcal", tr("kcal")],
+              ["Cal", tr("Calories")],
+              ["kJ", tr("Kilojoules")],
             ]}
             onChange={(next) => update("energyUnit", next)}
           />
           <Choices
-            label="Training focus"
+            label={tr("Training focus")}
             value={value.workoutFocus}
             options={[
-              ["strength", "Strength"],
-              ["cardio", "Cardio"],
-              ["mobility", "Mobility"],
+              ["strength", tr("Strength")],
+              ["cardio", tr("Cardio")],
+              ["mobility", tr("Mobility")],
             ]}
             onChange={(next) => update("workoutFocus", next)}
           />
           <label className="setup-toggle">
             <span>
-              <strong>Simplified dashboard</strong>
-              <small>Keep the daily overview focused on the essentials.</small>
+              <strong>{tr("Simplified dashboard")}</strong>
+              <small>
+                {tr("Keep the daily overview focused on the essentials.")}
+              </small>
             </span>
             <input
               type="checkbox"
@@ -200,13 +203,13 @@ export function SetupPreferences({
             />
           </label>
           <Choices
-            label="Open after setup"
+            label={tr("Open after setup")}
             value={value.destination}
             options={[
-              ["/", "Today"],
-              ["/workouts", "Workouts"],
-              ["/nutrition", "Nutrition"],
-              ["/coach", "Coach"],
+              ["/", tr("Today")],
+              ["/workouts", tr("Workouts")],
+              ["/nutrition", tr("Nutrition")],
+              ["/coach", tr("Coach")],
             ]}
             onChange={(next) => update("destination", next)}
           />
@@ -215,33 +218,33 @@ export function SetupPreferences({
       {section === "nutrition" && (
         <>
           <Choices
-            label="Tracking style"
+            label={tr("Tracking style")}
             value={value.trackingMode}
             options={[
-              ["full", "Full macros"],
-              ["protein_calories", "Protein & calories"],
-              ["photo_portion", "Photos & portions"],
-              ["habit", "Habits"],
-              ["recovery", "Recovery focused"],
+              ["full", tr("Full macros")],
+              ["protein_calories", tr("Protein & calories")],
+              ["photo_portion", tr("Photos & portions")],
+              ["habit", tr("Habits")],
+              ["recovery", tr("Recovery focused")],
             ]}
             onChange={(next) => update("trackingMode", next)}
           />
           <Choices
-            label="Dietary preference"
+            label={tr("Dietary preference")}
             value={value.dietType}
             options={[
-              ["omnivore", "No preference"],
-              ["vegetarian", "Vegetarian"],
-              ["vegan", "Vegan"],
-              ["pescatarian", "Pescatarian"],
-              ["halal", "Halal"],
-              ["kosher", "Kosher"],
-              ["other", "Other"],
+              ["omnivore", tr("No preference")],
+              ["vegetarian", tr("Vegetarian")],
+              ["vegan", tr("Vegan")],
+              ["pescatarian", tr("Pescatarian")],
+              ["halal", tr("Halal")],
+              ["kosher", tr("Kosher")],
+              ["other", tr("Other")],
             ]}
             onChange={(next) => update("dietType", next)}
           />
           <fieldset className="setup-field">
-            <legend>Allergies and intolerances</legend>
+            <legend>{tr("Allergies and intolerances")}</legend>
             <div className="setup-choices">
               {[
                 "milk",
@@ -271,10 +274,12 @@ export function SetupPreferences({
                 </button>
               ))}
             </div>
-            <p>Optional. Check food labels when choosing what to eat.</p>
+            <p>
+              {tr("Optional. Check food labels when choosing what to eat.")}
+            </p>
           </fieldset>
           <fieldset className="setup-field">
-            <legend>Preferred logging tools</legend>
+            <legend>{tr("Preferred logging tools")}</legend>
             <div className="setup-choices">
               {[
                 ["barcode", "Barcode scanning"],
@@ -300,13 +305,13 @@ export function SetupPreferences({
             </div>
           </fieldset>
           <Choices
-            label="First nutrition step"
+            label={tr("First nutrition step")}
             value={value.firstNutritionAction}
             options={[
-              ["log_first_meal", "Log a meal"],
-              ["build_template", "Create a meal template"],
-              ["tomorrow_plan", "Plan tomorrow"],
-              ["skip_habit", "Start with a habit"],
+              ["log_first_meal", tr("Log a meal")],
+              ["build_template", tr("Create a meal template")],
+              ["tomorrow_plan", tr("Plan tomorrow")],
+              ["skip_habit", tr("Start with a habit")],
             ]}
             onChange={(next) => update("firstNutritionAction", next)}
           />
@@ -315,78 +320,100 @@ export function SetupPreferences({
       {section === "lifestyle" && (
         <>
           <Choices
-            label="Activity at work"
+            label={tr("Activity at work")}
             value={value.occupationActivity}
             options={[
-              ["desk", "Mostly seated"],
-              ["mixed", "A mix"],
-              ["on_feet", "On my feet"],
-              ["manual", "Physical work"],
+              ["desk", tr("Mostly seated")],
+              ["mixed", tr("A mix")],
+              ["on_feet", tr("On my feet")],
+              ["manual", tr("Physical work")],
             ]}
             onChange={(next) => update("occupationActivity", next)}
           />
           <Choices
-            label="Recent weight trend"
+            label={tr("Recent weight trend")}
             value={value.weightTrend}
             options={[
-              ["losing", "Losing"],
-              ["stable", "Stable"],
-              ["gaining", "Gaining"],
-              ["unknown", "Unsure"],
+              ["losing", tr("Losing")],
+              ["stable", tr("Stable")],
+              ["gaining", tr("Gaining")],
+              ["unknown", tr("Unsure")],
             ]}
             onChange={(next) => update("weightTrend", next)}
           />
           <Choices
-            label="Cooking experience"
+            label={tr("Cooking experience")}
             value={value.cookingSkill}
             options={[
-              ["beginner", "Simple meals"],
-              ["intermediate", "Comfortable cooking"],
-              ["advanced", "Adventurous cook"],
+              ["beginner", tr("Simple meals")],
+              ["intermediate", tr("Comfortable cooking")],
+              ["advanced", tr("Adventurous cook")],
             ]}
             onChange={(next) => update("cookingSkill", next)}
           />
           <Choices
-            label="Food budget"
+            label={tr("Food budget")}
             value={value.budget}
             options={[
-              ["low", "Budget conscious"],
-              ["moderate", "Moderate"],
-              ["flexible", "Flexible"],
+              ["low", tr("Budget conscious")],
+              ["moderate", tr("Moderate")],
+              ["flexible", tr("Flexible")],
             ]}
             onChange={(next) => update("budget", next)}
           />
           <label className="setup-field">
-            Meals per day
-            <select
-              value={value.mealFrequency}
-              onChange={(event) =>
-                update("mealFrequency", Number(event.target.value))
-              }
-            >
-              {[1, 2, 3, 4, 5, 6, 7, 8].map((count) => (
-                <option key={count} value={count}>
-                  {count} meals
-                </option>
-              ))}
-            </select>
+            <Message
+              text={"Meals per day{{value0}}"}
+              values={{
+                value0: (
+                  <select
+                    value={value.mealFrequency}
+                    onChange={(event) =>
+                      update("mealFrequency", Number(event.target.value))
+                    }
+                  >
+                    {[1, 2, 3, 4, 5, 6, 7, 8].map((count) => (
+                      <option key={count} value={count}>
+                        <Message
+                          text={"{{value0}} meals"}
+                          values={{ value0: count }}
+                        />
+                      </option>
+                    ))}
+                  </select>
+                ),
+              }}
+            />
           </label>
           <label className="setup-field">
-            Daily water goal
-            <select
-              value={waterGoalMl}
-              onChange={(event) => setWaterGoalMl(Number(event.target.value))}
-            >
-              {Array.from(
-                new Set([1500, 2000, 2500, 3000, 3500, 4000, waterGoalMl])
-              )
-                .sort((a, b) => a - b)
-                .map((amount) => (
-                  <option key={amount} value={amount}>
-                    {amount.toLocaleString()} ml
-                  </option>
-                ))}
-            </select>
+            <Message
+              text={"Daily water goal{{value0}}"}
+              values={{
+                value0: (
+                  <select
+                    value={waterGoalMl}
+                    onChange={(event) =>
+                      setWaterGoalMl(Number(event.target.value))
+                    }
+                  >
+                    {Array.from(
+                      new Set([1500, 2000, 2500, 3000, 3500, 4000, waterGoalMl])
+                    )
+                      .sort((a, b) => a - b)
+                      .map((amount) => (
+                        <option key={amount} value={amount}>
+                          <Message
+                            text={"{{value0}} ml"}
+                            values={{
+                              value0: amount.toLocaleString(uiLocale()),
+                            }}
+                          />
+                        </option>
+                      ))}
+                  </select>
+                ),
+              }}
+            />
           </label>
         </>
       )}
@@ -395,7 +422,10 @@ export function SetupPreferences({
         className="onboarding-primary-button"
         onClick={onContinue}
       >
-        Continue <ArrowRight size={18} />
+        <Message
+          text={"Continue {{value0}}"}
+          values={{ value0: <ArrowRight size={18} /> }}
+        />
       </button>
     </div>
   )

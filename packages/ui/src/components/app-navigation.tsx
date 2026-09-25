@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 import type { ReactNode, Ref } from "react"
 
 import { cn } from "../lib/utils"
@@ -47,7 +48,7 @@ export function AppNavigationChrome({
       >
         <nav
           ref={primaryNavRef}
-          aria-label="Primary"
+          aria-label={tr("Primary")}
           // Column count follows the tab list rather than a hardcoded class, so
           // adding a destination cannot silently squash the last one off-screen.
           style={{
@@ -85,7 +86,7 @@ export function AppNavigationChrome({
         >
           <button
             onClick={onToday}
-            aria-label="Go to Today"
+            aria-label={tr("Go to Today")}
             className="mb-6 flex min-h-11 items-center gap-3 px-3 py-2 text-left active:bg-muted"
           >
             <img src={appIconSrc} alt="" className="h-8 w-8 rounded-[8px]" />

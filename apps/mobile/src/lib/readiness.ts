@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 import type { MuscleRecoveryStatus } from "@/lib/muscle-volume"
 
 export type ReadinessCheckIn = {
@@ -62,31 +63,44 @@ export function computeReadiness({
   const components: ReadinessComponent[] = [
     {
       id: "checkIn",
-      label: "Check-in",
+      label: tr("Check-in"),
       score: checkInScore,
       weight: BASE_WEIGHTS.checkIn,
       detail: checkIn
-        ? `Sleep ${checkIn.sleepQuality}/5 · energy ${checkIn.energy}/5 · soreness ${checkIn.soreness}/5`
-        : "No recent check-in. Ask Coach for one",
+        ? tr(
+            "Sleep {{value0}}/5 · energy {{value1}}/5 · soreness {{value2}}/5",
+            {
+              value0: checkIn.sleepQuality,
+              value1: checkIn.energy,
+              value2: checkIn.soreness,
+            }
+          )
+        : tr("No recent check-in. Ask Coach for one"),
     },
     {
       id: "fuel",
-      label: "Fuel",
+      label: tr("Fuel"),
       score: fuelScore,
       weight: BASE_WEIGHTS.fuel,
-      detail: `Protein ${Math.round(clamp(proteinProgress))}% · water ${Math.round(clamp(waterProgress))}% of target`,
+      detail: tr("Protein {{value0}}% · water {{value1}}% of target", {
+        value0: Math.round(clamp(proteinProgress)),
+        value1: Math.round(clamp(waterProgress)),
+      }),
     },
     {
       id: "muscles",
-      label: "Muscles",
+      label: tr("Muscles"),
       score: muscleScore,
       weight: BASE_WEIGHTS.muscles,
       detail:
         muscleGroups.length === 0
-          ? "No training history yet"
+          ? tr("No training history yet")
           : recoveringCount === 0
-            ? "All muscle groups recovered"
-            : `${recoveringCount} of ${muscleGroups.length} groups still recovering`,
+            ? tr("All muscle groups recovered")
+            : tr("{{value0}} of {{value1}} groups still recovering", {
+                value0: recoveringCount,
+                value1: muscleGroups.length,
+              }),
     },
   ]
 
@@ -116,10 +130,10 @@ export function computeReadiness({
     score >= 75 ? "Ready" : score >= 45 ? "Steady" : "Recover"
   const advice =
     label === "Ready"
-      ? "Training as planned is supported."
+      ? tr("Training as planned is supported.")
       : label === "Steady"
-        ? "Keep one or two reps in reserve."
-        : "Reduce volume and prioritize recovery."
+        ? tr("Keep one or two reps in reserve.")
+        : tr("Reduce volume and prioritize recovery.")
 
   return { score, label, advice, components }
 }

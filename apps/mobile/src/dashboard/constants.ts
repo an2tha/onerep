@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 /**
  * Shared vocabulary for the Today dashboard.
  *
@@ -34,9 +35,9 @@ export const DEFAULT_DASHBOARD_WIDGETS: DashboardWidgetLayoutItem[] = [
 ]
 
 export const DASHBOARD_WIDGET_LABELS: Record<DashboardWidgetId, string> = {
-  weekPlan: "This week's plan",
-  progress: "Progress snapshot",
-  goals: "Coach goals",
+  weekPlan: tr("This week's plan"),
+  progress: tr("Progress snapshot"),
+  goals: tr("Coach goals"),
 }
 
 export type CalorieInfo = {
@@ -98,33 +99,33 @@ export const WORKOUTS: Record<
   { title: string; duration: string; steps: string[] }
 > = {
   strength: {
-    title: "Lift day",
-    duration: "45 min",
+    title: tr("Lift day"),
+    duration: tr("45 min"),
     steps: [
-      "Warm up 5 min",
-      "Squat 4 × 5",
-      "Bench press 4 × 5",
-      "Barbell row 3 × 8",
+      tr("Warm up 5 min"),
+      tr("Squat 4 × 5"),
+      tr("Bench press 4 × 5"),
+      tr("Barbell row 3 × 8"),
     ],
   },
   cardio: {
-    title: "Cardio day",
-    duration: "35 min",
+    title: tr("Cardio day"),
+    duration: tr("35 min"),
     steps: [
-      "Warm up 5 min",
-      "Zone 2 run 20 min",
-      "Intervals 6 min",
-      "Cool down 4 min",
+      tr("Warm up 5 min"),
+      tr("Zone 2 run 20 min"),
+      tr("Intervals 6 min"),
+      tr("Cool down 4 min"),
     ],
   },
   mobility: {
-    title: "Mobility day",
-    duration: "25 min",
+    title: tr("Mobility day"),
+    duration: tr("25 min"),
     steps: [
-      "Breath work 2 min",
-      "Joint flow 8 min",
-      "Deep stretch 10 min",
-      "Walk 5 min",
+      tr("Breath work 2 min"),
+      tr("Joint flow 8 min"),
+      tr("Deep stretch 10 min"),
+      tr("Walk 5 min"),
     ],
   },
 }

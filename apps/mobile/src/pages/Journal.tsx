@@ -1,3 +1,4 @@
+import { Message, choice, tr, translateError, uiLocale } from "@repo/ui/i18n"
 import { useState } from "react"
 import { useMutation, useQuery } from "convex/react"
 import {
@@ -34,7 +35,7 @@ import { TrackerHistory } from "./journal/tracker-history"
 import { PageBarActions } from "@/components/page-bar-actions"
 import "./journal.css"
 
-const moods = ["Rough", "Low", "Steady", "Good", "Great"]
+const moods = [tr("Rough"), tr("Low"), tr("Steady"), tr("Good"), tr("Great")]
 function calendarDate(key: string) {
   return new Date(`${key}T12:00:00`)
 }
@@ -82,7 +83,7 @@ export default function Journal() {
     )
     setEditing({ metric, date: readingDate })
     setHistoryMetric(null)
-    setError("")
+    setError(translateError(""))
     setStudio(null)
   }
   async function act(action: () => Promise<unknown>) {
@@ -91,7 +92,7 @@ export default function Journal() {
     try {
       await action()
     } catch {
-      toast.error("Could not save. Please try again.")
+      toast.error(translateError(tr("Could not save. Please try again.")))
     } finally {
       setPending(false)
     }
@@ -100,7 +101,7 @@ export default function Journal() {
     event.preventDefault()
     if (!editing || pending || draft.trim() === "") return
     setPending(true)
-    setError("")
+    setError(translateError(""))
     try {
       await setValue({
         metricId: editing.metric._id,
@@ -110,7 +111,11 @@ export default function Journal() {
       setEditing(null)
     } catch {
       setError(
-        "Could not save your reading. Your value is here, please try again."
+        translateError(
+          tr(
+            "Could not save your reading. Your value is here, please try again."
+          )
+        )
       )
     } finally {
       setPending(false)
@@ -132,8 +137,8 @@ export default function Journal() {
   )
   const heading =
     date === today
-      ? "Today, in your own words."
-      : calendarDate(date).toLocaleDateString(undefined, {
+      ? tr("Today, in your own words.")
+      : calendarDate(date).toLocaleDateString(uiLocale(), {
           weekday: "long",
           month: "long",
           day: "numeric",
@@ -141,18 +146,21 @@ export default function Journal() {
   const quickLogs = [
     {
       id: "food",
-      title: "Food",
+      title: tr("Food"),
       Icon: ForkKnife,
-      detail: food === undefined ? "Loading…" : `${food.length} entries`,
+      detail:
+        food === undefined
+          ? tr("Loading…")
+          : tr("{{value0}} entries", { value0: food.length }),
       tone: "food",
     },
     {
       id: "water",
-      title: "Water",
+      title: tr("Water"),
       Icon: Drop,
       detail:
         water === undefined
-          ? "Loading…"
+          ? tr("Loading…")
           : formatWater(
               water.reduce((sum, item) => sum + item.amountMl, 0),
               waterUnit
@@ -161,17 +169,19 @@ export default function Journal() {
     },
     {
       id: "workout",
-      title: "Training",
+      title: tr("Training"),
       Icon: Barbell,
       detail:
-        workouts === undefined ? "Loading…" : `${workouts.length} sessions`,
+        workouts === undefined
+          ? tr("Loading…")
+          : tr("{{value0}} sessions", { value0: workouts.length }),
       tone: "workout",
     },
     {
       id: "supplements",
-      title: "Supplements",
+      title: tr("Supplements"),
       Icon: Pill,
-      detail: "Log an intake",
+      detail: tr("Log an intake"),
       tone: "progress",
     },
   ] as const
@@ -181,13 +191,13 @@ export default function Journal() {
       <div className="journal-content">
         <header className="journal-heading">
           <div className="journal-section-heading">
-            <h1 className="app-title">Journal</h1>
+            <h1 className="app-title">{tr("Journal")}</h1>
             <PageBarActions>
               <label className="journal-calendar">
                 <CalendarBlank size={18} weight="bold" />
                 <input
                   type="date"
-                  aria-label="Choose journal date"
+                  aria-label={tr("Choose journal date")}
                   max={today}
                   value={date}
                   onChange={(event) => {
@@ -201,7 +211,7 @@ export default function Journal() {
         </header>
         <section
           className="journal-hero"
-          aria-label="Daily check-in"
+          aria-label={tr("Daily check-in")}
           aria-busy={!loaded}
         >
           <p className="journal-intro">{heading}</p>
@@ -209,18 +219,25 @@ export default function Journal() {
             <strong>{loaded ? recorded : "…"}</strong>
             <span>
               {loaded
-                ? `of ${metrics?.length ?? 0} trackers logged`
-                : "Loading your trackers"}
+                ? tr("of {{value0}} trackers logged", {
+                    value0: metrics?.length ?? 0,
+                  })
+                : tr("Loading your trackers")}
             </span>
           </div>
           <p className="journal-hero-detail">
             {!loaded
-              ? "Your daily check-in"
+              ? tr("Your daily check-in")
               : !metrics?.length
-                ? "Add a tracker to start your daily check-in."
+                ? tr("Add a tracker to start your daily check-in.")
                 : recorded === metrics.length
-                  ? "Every tracker logged for this day."
-                  : `${metrics.length - recorded} ${metrics.length - recorded === 1 ? "tracker" : "trackers"} left to log.`}
+                  ? tr("Every tracker logged for this day.")
+                  : tr("{{value0}} {{value1}} left to log.", {
+                      value0: metrics.length - recorded,
+                      value1: choice(
+                        metrics.length - recorded === 1 ? "tracker" : "trackers"
+                      ),
+                    })}
           </p>
           <div className="journal-hero-actions">
             <button
@@ -246,8 +263,8 @@ export default function Journal() {
             >
               <Plus size={20} />
               {metrics?.length && recorded === metrics.length
-                ? "Review trackers"
-                : "Log a tracker"}
+                ? tr("Review trackers")
+                : tr("Log a tracker")}
             </button>
             <button
               disabled={!loaded}
@@ -257,29 +274,31 @@ export default function Journal() {
               }}
             >
               <NotePencil size={20} />
-              {entry?.notes ? "Edit note" : "Write a note"}
+              {entry?.notes ? tr("Edit note") : tr("Write a note")}
             </button>
             <button disabled={!loaded} onClick={() => setStudio(true)}>
-              <PencilSimple size={20} />
-              Track anything
+              <Message
+                text={"{{value0}}Track anything"}
+                values={{ value0: <PencilSimple size={20} /> }}
+              />
             </button>
           </div>
         </section>
         <div className="journal-date-navigation">
           <button
-            aria-label="Previous week"
+            aria-label={tr("Previous week")}
             onClick={() => setSelected(shiftDay(date, -7))}
           >
             <CaretLeft size={18} />
           </button>
           <span>
-            {calendarDate(date).toLocaleDateString(undefined, {
+            {calendarDate(date).toLocaleDateString(uiLocale(), {
               month: "long",
               year: "numeric",
             })}
           </span>
           <button
-            aria-label="Next week"
+            aria-label={tr("Next week")}
             disabled={shiftDay(start, 7) > today}
             onClick={() =>
               setSelected(shiftDay(date, 7) > today ? today : shiftDay(date, 7))
@@ -289,11 +308,11 @@ export default function Journal() {
           </button>
           {date !== today && (
             <button className="journal-today" onClick={() => setSelected(null)}>
-              Today
+              {tr("Today")}
             </button>
           )}
         </div>
-        <div className="journal-week" aria-label="Journal dates">
+        <div className="journal-week" aria-label={tr("Journal dates")}>
           {days.map((day) => {
             const hasEntry = entries?.some(
               (item) =>
@@ -313,12 +332,19 @@ export default function Journal() {
                 key={day}
                 aria-pressed={date === day}
                 aria-current={day === today ? "date" : undefined}
-                aria-label={`${calendarDate(day).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}${hasEntry || hasMetric ? ", has entries" : ""}`}
+                aria-label={tr("{{value0}}{{value1}}", {
+                  value0: calendarDate(day).toLocaleDateString(uiLocale(), {
+                    weekday: "long",
+                    month: "long",
+                    day: "numeric",
+                  }),
+                  value1: choice(hasEntry || hasMetric ? ", has entries" : ""),
+                })}
                 disabled={day > today}
                 onClick={() => setSelected(day)}
               >
                 <span className="journal-weekday">
-                  {calendarDate(day).toLocaleDateString(undefined, {
+                  {calendarDate(day).toLocaleDateString(uiLocale(), {
                     weekday: "short",
                   })}
                 </span>
@@ -332,10 +358,12 @@ export default function Journal() {
           })}
         </div>
         <div className="journal-body">
-          <section aria-label="Quick log">
+          <section aria-label={tr("Quick log")}>
             <div className="journal-section-heading">
-              <h2>Quick log</h2>
-              <span className="journal-caption">Already part of your day</span>
+              <h2>{tr("Quick log")}</h2>
+              <span className="journal-caption">
+                {tr("Already part of your day")}
+              </span>
             </div>
             <div className="journal-quick-grid">
               {quickLogs.map(({ id, title, Icon, detail, tone }) => (
@@ -357,11 +385,18 @@ export default function Journal() {
           <section aria-busy={!loaded} aria-labelledby="journal-trackers-title">
             <div className="journal-section-heading">
               <div>
-                <h2 id="journal-trackers-title">Your trackers</h2>
+                <h2 id="journal-trackers-title">{tr("Your trackers")}</h2>
                 <p className="journal-caption">
                   {loaded
-                    ? `${recorded} of ${metrics?.length ?? 0} logged · ${date === today ? "today" : calendarDate(date).toLocaleDateString()}`
-                    : "Loading your trackers…"}
+                    ? tr("{{value0}} of {{value1}} logged · {{value2}}", {
+                        value0: recorded,
+                        value1: metrics?.length ?? 0,
+                        value2:
+                          date === today
+                            ? "today"
+                            : calendarDate(date).toLocaleDateString(uiLocale()),
+                      })
+                    : tr("Loading your trackers…")}
                 </p>
               </div>
               <button
@@ -369,13 +404,16 @@ export default function Journal() {
                 onClick={() => setStudio(true)}
                 disabled={!loaded}
               >
-                <Plus size={18} /> Track anything
+                <Message
+                  text={"{{value0}} Track anything"}
+                  values={{ value0: <Plus size={18} /> }}
+                />
               </button>
             </div>
             <div
               className="journal-filters"
               role="group"
-              aria-label="Filter trackers"
+              aria-label={tr("Filter trackers")}
             >
               {[
                 ["all", "All"],
@@ -397,33 +435,38 @@ export default function Journal() {
               <label className="journal-search">
                 <MagnifyingGlass size={18} />
                 <input
-                  aria-label="Find your tracker"
-                  placeholder="Find your tracker…"
+                  aria-label={tr("Find your tracker")}
+                  placeholder={tr("Find your tracker…")}
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
                 />
               </label>
             )}
-            {!loaded && <p role="status">Loading journal…</p>}
+            {!loaded && <p role="status">{tr("Loading journal…")}</p>}
             {loaded && metrics?.length === 0 && (
               <div className="journal-empty app-surface">
                 <span className="journal-glyph" data-tone="workout">
                   <Barbell size={28} weight="duotone" />
                 </span>
-                <h3>Track what moves you.</h3>
+                <h3>{tr("Track what moves you.")}</h3>
                 <p>
-                  Energy before a lift. Minutes on the trail. A habit you want
-                  to keep. Start with an idea or build your own.
+                  {tr(
+                    "Energy before a lift. Minutes on the trail. A habit you want to keep. Start with an idea or build your own."
+                  )}
                 </p>
                 <button
                   className="journal-save"
                   onClick={() => setStudio(true)}
                 >
-                  Choose your first trackers <ArrowUpRight size={18} />
+                  <Message
+                    text={"Choose your first trackers {{value0}}"}
+                    values={{ value0: <ArrowUpRight size={18} /> }}
+                  />
                 </button>
                 <small>
-                  Readings, daily totals and yes/no habits. Built around your
-                  routine.
+                  {tr(
+                    "Readings, daily totals and yes/no habits. Built around your routine."
+                  )}
                 </small>
               </div>
             )}
@@ -432,8 +475,10 @@ export default function Journal() {
               visibleMetrics.length === 0 && (
                 <p className="journal-empty-filter">
                   {filter === "unlogged" && !search
-                    ? "Everything tracked for this day. You're all caught up."
-                    : "No trackers match. Try another category or search."}
+                    ? tr(
+                        "Everything tracked for this day. You're all caught up."
+                      )
+                    : tr("No trackers match. Try another category or search.")}
                 </p>
               )}
             <div className="journal-tracker-grid">
@@ -470,10 +515,10 @@ export default function Journal() {
                         <strong>{metric.title}</strong>
                         <small>
                           {metric.tab === "body"
-                            ? "Wellbeing"
+                            ? tr("Wellbeing")
                             : metric.tab === "training"
-                              ? "Training"
-                              : "Nutrition"}
+                              ? tr("Training")
+                              : tr("Nutrition")}
                         </small>
                       </span>
                       <PencilSimple size={17} />
@@ -481,7 +526,9 @@ export default function Journal() {
                     <div className="journal-tracker-reading">
                       <button
                         onClick={() => openMetric(metric)}
-                        aria-label={`Log ${metric.title}`}
+                        aria-label={tr("Log {{value0}}", {
+                          value0: metric.title,
+                        })}
                       >
                         <span data-empty={value === undefined}>
                           {metricValue(value, metric.kind, metric.unit)}
@@ -490,7 +537,14 @@ export default function Journal() {
                       {metric.kind === "counter" ? (
                         <button
                           className="journal-increment"
-                          aria-label={`Add ${metric.step} ${metric.unit} to ${metric.title}`}
+                          aria-label={tr(
+                            "Add {{value0}} {{value1}} to {{value2}}",
+                            {
+                              value0: metric.step,
+                              value1: metric.unit,
+                              value2: metric.title,
+                            }
+                          )}
                           disabled={pending}
                           onClick={() =>
                             void act(() =>
@@ -523,7 +577,7 @@ export default function Journal() {
                             >
                               {next ? <Check size={18} /> : <X size={18} />}
                               <span className="sr-only">
-                                {next ? "Yes" : "No"}
+                                {next ? tr("Yes") : tr("No")}
                               </span>
                             </button>
                           ))}
@@ -531,7 +585,9 @@ export default function Journal() {
                       ) : (
                         <button
                           className="journal-increment"
-                          aria-label={`Log ${metric.title}`}
+                          aria-label={tr("Log {{value0}}", {
+                            value0: metric.title,
+                          })}
                           onClick={() => openMetric(metric)}
                         >
                           <Plus size={19} />
@@ -540,19 +596,38 @@ export default function Journal() {
                     </div>
                     {metric.target != null && metric.kind !== "toggle" && (
                       <p className="journal-target">
-                        Target{" "}
-                        {metricValue(metric.target, metric.kind, metric.unit)}
-                        {value !== undefined && value >= metric.target && (
-                          <span>
-                            <Check size={12} /> Reached
-                          </span>
-                        )}
+                        <Message
+                          text={"Target {{value0}}{{value1}}"}
+                          values={{
+                            value0: metricValue(
+                              metric.target,
+                              metric.kind,
+                              metric.unit
+                            ),
+                            value1: value !== undefined &&
+                              value >= metric.target && (
+                                <span>
+                                  <Message
+                                    text={"{{value0}} Reached"}
+                                    values={{ value0: <Check size={12} /> }}
+                                  />
+                                </span>
+                              ),
+                          }}
+                        />
                       </p>
                     )}
                     <div
                       className="journal-history"
                       role="img"
-                      aria-label={`Last seven days: ${history.map((item) => `${item.date}: ${metricValue(item.value, metric.kind, metric.unit)}`).join(", ")}`}
+                      aria-label={tr("Last seven days: {{value0}}", {
+                        value0: history
+                          .map(
+                            (item) =>
+                              `${item.date}: ${metricValue(item.value, metric.kind, metric.unit)}`
+                          )
+                          .join(", "),
+                      })}
                     >
                       {history.map((item) => (
                         <span
@@ -570,9 +645,14 @@ export default function Journal() {
                       <button
                         className="journal-history-link"
                         onClick={() => setHistoryMetric(metric)}
-                        aria-label={`View history for ${metric.title}`}
+                        aria-label={tr("View history for {{value0}}", {
+                          value0: metric.title,
+                        })}
                       >
-                        History <ArrowUpRight size={14} />
+                        <Message
+                          text={"History {{value0}}"}
+                          values={{ value0: <ArrowUpRight size={14} /> }}
+                        />
                       </button>
                       <span>
                         {
@@ -581,8 +661,8 @@ export default function Journal() {
                         }{" "}
                         {history.filter((item) => item.value !== undefined)
                           .length === 1
-                          ? "day logged in 7 days"
-                          : "days logged in 7 days"}
+                          ? tr("day logged in 7 days")
+                          : tr("days logged in 7 days")}
                       </span>
                     </div>
                   </article>
@@ -592,18 +672,18 @@ export default function Journal() {
           </section>
           <section
             className="journal-reflection app-surface"
-            aria-label="Daily reflection"
+            aria-label={tr("Daily reflection")}
           >
             <div className="journal-section-heading">
               <div>
-                <h2>How did it feel?</h2>
+                <h2>{tr("How did it feel?")}</h2>
               </div>
               <Smiley size={26} weight="duotone" />
             </div>
             <div
               className="journal-mood-scale"
               role="group"
-              aria-label="Daily mood"
+              aria-label={tr("Daily mood")}
             >
               {moods.map((mood, i) => (
                 <button
@@ -623,7 +703,7 @@ export default function Journal() {
               className="journal-note"
               onClick={() => {
                 setDraft(entry?.notes ?? "")
-                setError("")
+                setError(translateError(""))
                 setNotesOpen(true)
               }}
               disabled={!loaded}
@@ -631,7 +711,7 @@ export default function Journal() {
               <NotePencil size={22} />
               <span>
                 {entry?.notes ||
-                  "A win, a tough session, something to remember…"}
+                  tr("A win, a tough session, something to remember…")}
               </span>
               <PencilSimple size={17} />
             </button>
@@ -642,16 +722,22 @@ export default function Journal() {
               entry.lowCarb != null ||
               entry.addedSugar != null) && (
               <details className="journal-legacy">
-                <summary>Earlier journal entries</summary>
+                <summary>{tr("Earlier journal entries")}</summary>
                 <p>
                   {entry.caffeine !== undefined &&
-                    `Caffeine: ${entry.caffeine} mg. `}
+                    tr("Caffeine: {{value0}} mg. ", { value0: entry.caffeine })}
                   {entry.alcohol !== undefined &&
-                    `Alcohol: ${entry.alcohol} drinks. `}
+                    tr("Alcohol: {{value0}} drinks. ", {
+                      value0: entry.alcohol,
+                    })}
                   {entry.lowCarb != null &&
-                    `Low carb: ${entry.lowCarb ? "yes" : "no"}. `}
+                    tr("Low carb: {{value0}}. ", {
+                      value0: entry.lowCarb ? tr("yes") : tr("no"),
+                    })}
                   {entry.addedSugar != null &&
-                    `Added sugar: ${entry.addedSugar ? "yes" : "no"}.`}
+                    tr("Added sugar: {{value0}}.", {
+                      value0: entry.addedSugar ? tr("yes") : tr("no"),
+                    })}
                 </p>
               </details>
             )}
@@ -675,7 +761,7 @@ export default function Journal() {
       )}
       {editing && (
         <MobileSheet
-          ariaLabel={`Log ${editing.metric.title}`}
+          ariaLabel={tr("Log {{value0}}", { value0: editing.metric.title })}
           onClose={() => setEditing(null)}
         >
           <form className="journal-form" onSubmit={saveEntry}>
@@ -683,21 +769,21 @@ export default function Journal() {
               <h2>{editing.metric.title}</h2>
               <button
                 type="button"
-                aria-label="Close reading"
+                aria-label={tr("Close reading")}
                 onClick={() => setEditing(null)}
               >
                 <X size={22} />
               </button>
             </div>
             <p className="journal-caption">
-              {calendarDate(editing.date).toLocaleDateString(undefined, {
+              {calendarDate(editing.date).toLocaleDateString(uiLocale(), {
                 dateStyle: "long",
               })}
             </p>
             {editing.metric.description && <p>{editing.metric.description}</p>}
             {editing.metric.kind === "toggle" ? (
               <fieldset>
-                <legend>Did you do this?</legend>
+                <legend>{tr("Did you do this?")}</legend>
                 <div className="journal-moods">
                   {[0, 1].map((value) => (
                     <label key={value}>
@@ -709,14 +795,16 @@ export default function Journal() {
                         checked={draft === String(value)}
                         onChange={(event) => setDraft(event.target.value)}
                       />
-                      {value ? "Yes" : "No"}
+                      {value ? tr("Yes") : tr("No")}
                     </label>
                   ))}
                 </div>
               </fieldset>
             ) : (
               <label>
-                {editing.metric.kind === "counter" ? "Daily total" : "Reading"}
+                {editing.metric.kind === "counter"
+                  ? tr("Daily total")
+                  : tr("Reading")}
                 {editing.metric.unit && ` (${editing.metric.unit})`}
                 <input
                   autoFocus
@@ -742,19 +830,31 @@ export default function Journal() {
                   disabled={pending}
                   onClick={() => setDraft(String(previous.value))}
                 >
-                  Use previous reading:{" "}
-                  {metricValue(
-                    previous.value,
-                    editing.metric.kind,
-                    editing.metric.unit
-                  )}
-                  <small>
-                    {calendarDate(previous.date).toLocaleDateString(undefined, {
-                      month: "short",
-                      day: "numeric",
-                    })}
-                    . Review before saving.
-                  </small>
+                  <Message
+                    text={"Use previous reading: {{value0}}{{value1}}"}
+                    values={{
+                      value0: metricValue(
+                        previous.value,
+                        editing.metric.kind,
+                        editing.metric.unit
+                      ),
+                      value1: (
+                        <small>
+                          <Message
+                            text={"{{value0}}. Review before saving."}
+                            values={{
+                              value0: calendarDate(
+                                previous.date
+                              ).toLocaleDateString(uiLocale(), {
+                                month: "short",
+                                day: "numeric",
+                              }),
+                            }}
+                          />
+                        </small>
+                      ),
+                    }}
+                  />
                 </button>
               ) : null
             })()}
@@ -764,7 +864,7 @@ export default function Journal() {
               </p>
             )}
             <button className="journal-save" disabled={pending}>
-              {pending ? "Saving…" : "Save reading"}
+              {pending ? tr("Saving…") : tr("Save reading")}
             </button>
             <div className="journal-editor-actions">
               <button
@@ -775,7 +875,7 @@ export default function Journal() {
                   setEditing(null)
                 }}
               >
-                Edit tracker & target
+                {tr("Edit tracker & target")}
               </button>
               <button
                 type="button"
@@ -795,14 +895,17 @@ export default function Journal() {
                   })
                 }
               >
-                Clear this day's reading
+                {tr("Clear this day's reading")}
               </button>
             </div>
           </form>
         </MobileSheet>
       )}
       {notesOpen && (
-        <MobileSheet ariaLabel="Daily note" onClose={() => setNotesOpen(false)}>
+        <MobileSheet
+          ariaLabel={tr("Daily note")}
+          onClose={() => setNotesOpen(false)}
+        >
           <form
             className="journal-form"
             onSubmit={(event) => {
@@ -814,27 +917,33 @@ export default function Journal() {
             }}
           >
             <div className="journal-section-heading">
-              <h2>Leave a note</h2>
+              <h2>{tr("Leave a note")}</h2>
               <button
                 type="button"
-                aria-label="Close note"
+                aria-label={tr("Close note")}
                 onClick={() => setNotesOpen(false)}
               >
                 <X size={22} />
               </button>
             </div>
             <label>
-              What stood out?
-              <textarea
-                autoFocus
-                rows={6}
-                maxLength={4000}
-                value={draft}
-                onChange={(event) => setDraft(event.target.value)}
+              <Message
+                text={"What stood out?{{value0}}"}
+                values={{
+                  value0: (
+                    <textarea
+                      autoFocus
+                      rows={6}
+                      maxLength={4000}
+                      value={draft}
+                      onChange={(event) => setDraft(event.target.value)}
+                    />
+                  ),
+                }}
               />
             </label>
             <button className="journal-save" disabled={pending}>
-              {pending ? "Saving…" : "Save note"}
+              {pending ? tr("Saving…") : tr("Save note")}
             </button>
           </form>
         </MobileSheet>

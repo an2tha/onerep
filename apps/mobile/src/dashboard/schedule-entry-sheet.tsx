@@ -1,3 +1,4 @@
+import { tr, translateError, uiLocale } from "@repo/ui/i18n"
 /**
  * The sheet behind the wheel's + buttons: workout or food, at the minute the
  * wheel was pointing at. Which verb it means depends on the button. The +
@@ -38,7 +39,7 @@ export function ScheduleEntrySheet({
     0,
     0
   )
-  const timeLabel = at.toLocaleTimeString("en-US", {
+  const timeLabel = at.toLocaleTimeString(uiLocale(), {
     hour: "numeric",
     minute: "2-digit",
   })
@@ -58,13 +59,17 @@ export function ScheduleEntrySheet({
     try {
       const result = await scheduleEntryReminder(kind, at)
       if (result === "scheduled") {
-        toast.success(`Reminder set for ${timeLabel}`)
+        toast.success(tr("Reminder set for {{value0}}", { value0: timeLabel }))
       } else if (result === "disabled") {
-        toast.success("This reminder is paused by your recovery plan")
+        toast.success(tr("This reminder is paused by your recovery plan"))
       } else if (result === "denied") {
-        toast.error("Notifications are off — allow them to get reminders")
+        toast.error(
+          translateError(
+            tr("Notifications are off — allow them to get reminders")
+          )
+        )
       } else {
-        toast.error("Reminders need the mobile app")
+        toast.error(translateError(tr("Reminders need the mobile app")))
       }
     } finally {
       setPendingKind(null)
@@ -80,32 +85,39 @@ export function ScheduleEntrySheet({
   }> = [
     {
       kind: "workout",
-      label: "Workout",
+      label: tr("Workout"),
       detail:
-        request.phase === "past" ? "Log a session" : "A nudge to start a session",
+        request.phase === "past"
+          ? tr("Log a session")
+          : tr("A nudge to start a session"),
       icon: Barbell,
     },
     {
       kind: "food",
-      label: "Food",
-      detail: request.phase === "past" ? "Log a meal" : "A nudge to log a meal",
+      label: tr("Food"),
+      detail:
+        request.phase === "past"
+          ? tr("Log a meal")
+          : tr("A nudge to log a meal"),
       icon: ForkKnife,
     },
   ]
 
   return (
-    <MobileSheet onClose={onClose} ariaLabel="Schedule an entry">
+    <MobileSheet onClose={onClose} ariaLabel={tr("Schedule an entry")}>
       <div className="flex flex-col gap-4 px-5 pt-5 pb-8">
         <header>
           <h2 className="text-[19px] font-semibold tracking-tight text-foreground">
             {request.phase === "past"
-              ? `Log something at ${timeLabel}?`
-              : `Schedule an entry for ${timeLabel}?`}
+              ? tr("Log something at {{value0}}?", { value0: timeLabel })
+              : tr("Schedule an entry for {{value0}}?", { value0: timeLabel })}
           </h2>
           <p className="mt-1 text-[14px] text-muted-foreground">
             {request.phase === "past"
-              ? "Pick what it is and the drawer opens ready for it."
-              : `Pick what it is — the app will remind you at ${timeLabel}.`}
+              ? tr("Pick what it is and the drawer opens ready for it.")
+              : tr("Pick what it is — the app will remind you at {{value0}}.", {
+                  value0: timeLabel,
+                })}
           </p>
         </header>
         <div className="flex flex-col gap-2">

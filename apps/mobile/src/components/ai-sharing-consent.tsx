@@ -1,3 +1,4 @@
+import { Message, choice, tr, translateError } from "@repo/ui/i18n"
 import { useState } from "react"
 import { useMutation, useQuery } from "convex/react"
 import { PrimaryButton, toast } from "@repo/ui"
@@ -11,41 +12,72 @@ import {
 } from "../../../../convex/lib/aiSharing"
 import { MobileSheet } from "./mobile-sheet"
 
-export function AiSharingDisclosure({ concise = false }: { concise?: boolean }) {
+export function AiSharingDisclosure({
+  concise = false,
+}: {
+  concise?: boolean
+}) {
   if (concise) {
     return (
       <div className="space-y-4 text-sm leading-relaxed text-muted-foreground">
         <div className="rounded-xl bg-muted/55 px-4 py-3">
           <p className="font-semibold text-foreground">
-            Zero-data retention is enabled
+            {tr("Zero-data retention is enabled")}
           </p>
           <p className="mt-1">
-            Your privacy is protected. AI providers can process your request,
-            but they cannot store it or use it to train their models.
+            {tr(
+              "Your privacy is protected. AI providers can process your request, but they cannot store it or use it to train their models."
+            )}
           </p>
         </div>
         <div className="space-y-2.5">
           <p>
-            <strong className="text-foreground">What’s shared:</strong> Only
-            the information needed for the AI feature you choose—such as your
-            message, photo, or relevant health and fitness details.
+            <Message
+              text={
+                "{{value0}} Only the information needed for the AI feature you choose—such as your message, photo, or relevant health and fitness details."
+              }
+              values={{
+                value0: (
+                  <strong className="text-foreground">
+                    {tr("What’s shared:")}
+                  </strong>
+                ),
+              }}
+            />
           </p>
           <p>
-            <strong className="text-foreground">Who processes it:</strong>{" "}
-            OpenRouter securely routes it to Microsoft Azure or Venice.
+            <Message
+              text={
+                "{{value0}} OpenRouter securely routes it to Microsoft Azure or Venice."
+              }
+              values={{
+                value0: (
+                  <strong className="text-foreground">
+                    {tr("Who processes it:")}
+                  </strong>
+                ),
+              }}
+            />
           </p>
         </div>
         <p>
-          AI is optional. You can turn it off anytime in Settings.
-          {" "}
-          <a
-            className="underline underline-offset-4"
-            href="https://onerep.life/privacy#ai"
-            target="_blank"
-            rel="noreferrer"
-          >
-            How your privacy is protected
-          </a>
+          <Message
+            text={
+              "AI is optional. You can turn it off anytime in Settings. {{value0}}"
+            }
+            values={{
+              value0: (
+                <a
+                  className="underline underline-offset-4"
+                  href="https://onerep.life/privacy#ai"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {tr("How your privacy is protected")}
+                </a>
+              ),
+            }}
+          />
         </p>
       </div>
     )
@@ -54,17 +86,20 @@ export function AiSharingDisclosure({ concise = false }: { concise?: boolean }) 
   return (
     <div className="space-y-3 text-sm leading-relaxed text-muted-foreground">
       <p>
-        <strong className="text-foreground">Who receives your data:</strong>{" "}
+        <strong className="text-foreground">
+          {tr("Who receives your data:")}
+        </strong>{" "}
         {AI_SHARING_RECIPIENTS}
       </p>
       <p>
-        <strong className="text-foreground">What is sent:</strong>{" "}
+        <strong className="text-foreground">{tr("What is sent:")}</strong>{" "}
         {AI_SHARING_DATA}
       </p>
       <p>{AI_SHARING_PURPOSE}</p>
       <p>
-        You can turn sharing off in Settings → Privacy &amp; sync. This stops
-        future AI requests; it cannot recall data already sent.
+        {tr(
+          "You can turn sharing off in Settings → Privacy & sync. This stops future AI requests; it cannot recall data already sent."
+        )}
       </p>
       <p>
         <a
@@ -73,7 +108,7 @@ export function AiSharingDisclosure({ concise = false }: { concise?: boolean }) 
           target="_blank"
           rel="noreferrer"
         >
-          Privacy policy and provider protections
+          {tr("Privacy policy and provider protections")}
         </a>
       </p>
     </div>
@@ -86,17 +121,18 @@ export function AiSharingConsentSheet({ onClose }: { onClose: () => void }) {
   const [error, setError] = useState<string | null>(null)
   return (
     <MobileSheet
-      ariaLabel="Use AI features?"
+      ariaLabel={tr("Use AI features?")}
       onClose={() => {
         if (!busy) onClose()
       }}
     >
       <div className="space-y-5 px-5 py-6">
         <div className="space-y-1.5">
-          <h2 className="text-xl font-semibold">Use AI features?</h2>
+          <h2 className="text-xl font-semibold">{tr("Use AI features?")}</h2>
           <p className="text-sm text-muted-foreground">
-            OneRep needs your permission before sending anything to an AI
-            provider.
+            {tr(
+              "OneRep needs your permission before sending anything to an AI provider."
+            )}
           </p>
         </div>
         <AiSharingDisclosure concise />
@@ -112,20 +148,22 @@ export function AiSharingConsentSheet({ onClose }: { onClose: () => void }) {
             setError(null)
             void save({ granted: true, version: AI_SHARING_VERSION })
               .then(() => {
-                toast.message(
-                  "AI features are ready to use.",
-                )
+                toast.message(tr("AI features are ready to use."))
                 onClose()
               })
               .catch(() =>
                 setError(
-                  "Could not save your permission. No AI request was started. Try again.",
-                ),
+                  translateError(
+                    tr(
+                      "Could not save your permission. No AI request was started. Try again."
+                    )
+                  )
+                )
               )
               .finally(() => setBusy(false))
           }}
         >
-          {busy ? "Turning on…" : "Turn on AI features"}
+          {busy ? tr("Turning on…") : tr("Turn on AI features")}
         </PrimaryButton>
         <button
           type="button"
@@ -133,7 +171,7 @@ export function AiSharingConsentSheet({ onClose }: { onClose: () => void }) {
           disabled={busy}
           onClick={onClose}
         >
-          Not now
+          {tr("Not now")}
         </button>
       </div>
     </MobileSheet>
@@ -149,10 +187,13 @@ export function AiSharingSettings() {
   return (
     <section
       className="space-y-4 px-[var(--app-page-x)] py-4"
-      aria-label="AI data sharing"
+      aria-label={tr("AI data sharing")}
     >
       <h3 className="font-semibold">
-        AI data sharing · {allowed ? "On" : "Off"}
+        <Message
+          text={"AI data sharing · {{value0}}"}
+          values={{ value0: choice(allowed ? "On" : "Off") }}
+        />
       </h3>
       <AiSharingDisclosure />
       <PrimaryButton
@@ -165,16 +206,18 @@ export function AiSharingSettings() {
           setBusy(true)
           void save({ granted: false, version: AI_SHARING_VERSION })
             .catch(() =>
-              toast.error("Could not turn off AI sharing. Try again."),
+              toast.error(
+                translateError(tr("Could not turn off AI sharing. Try again."))
+              )
             )
             .finally(() => setBusy(false))
         }}
       >
         {busy
-          ? "Saving…"
+          ? tr("Saving…")
           : allowed
-            ? "Turn off AI data sharing"
-            : "Review AI permission"}
+            ? tr("Turn off AI data sharing")
+            : tr("Review AI permission")}
       </PrimaryButton>
       {open && <AiSharingConsentSheet onClose={() => setOpen(false)} />}
     </section>

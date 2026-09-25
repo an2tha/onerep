@@ -1,13 +1,14 @@
+import { tr } from "@repo/ui/i18n"
 import { normalizeFoodSearchQuery } from "./food-search-url"
 import { browserLocalStorage } from "./utils"
 
 const RECENT_FOOD_SEARCHES_KEY = "onerep:recent-food-searches:v1"
 const MAX_RECENT_FOOD_SEARCHES = 6
 export const POPULAR_FOOD_SEARCHES = [
-  "Greek yogurt",
-  "Chicken breast",
-  "Banana",
-  "Eggs",
+  tr("Greek yogurt"),
+  tr("Chicken breast"),
+  tr("Banana"),
+  tr("Eggs"),
 ]
 
 export function foodSearchQueryKey(value: string) {

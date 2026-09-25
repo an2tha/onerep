@@ -1,3 +1,11 @@
+import {
+  Message,
+  choice,
+  tr,
+  translateError,
+  uiLocale,
+  weekdayLabel,
+} from "@repo/ui/i18n"
 import { PageBarActions } from "@/components/page-bar-actions"
 import React, { useMemo, useState } from "react"
 import {
@@ -27,6 +35,7 @@ import { reportOfflineMutationError } from "@/lib/offline-mutation-errors"
 import {
   currentDateKey,
   foodPortionLabel,
+  foodPortionDisplayLabel,
   offsetDateKey,
   parseFoodPortionLabel,
   stripUndefined,
@@ -96,13 +105,13 @@ const EDITOR_NUTRIENT_KEYS: SupplementNutrientKey[] = [
 ]
 
 const WEEKDAYS = [
-  { id: 1, label: "M", full: "Monday" },
-  { id: 2, label: "T", full: "Tuesday" },
-  { id: 3, label: "W", full: "Wednesday" },
-  { id: 4, label: "T", full: "Thursday" },
-  { id: 5, label: "F", full: "Friday" },
-  { id: 6, label: "S", full: "Saturday" },
-  { id: 0, label: "S", full: "Sunday" },
+  { id: 1, label: weekdayLabel(1, "narrow"), full: weekdayLabel(1, "long") },
+  { id: 2, label: weekdayLabel(2, "narrow"), full: weekdayLabel(2, "long") },
+  { id: 3, label: weekdayLabel(3, "narrow"), full: weekdayLabel(3, "long") },
+  { id: 4, label: weekdayLabel(4, "narrow"), full: weekdayLabel(4, "long") },
+  { id: 5, label: weekdayLabel(5, "narrow"), full: weekdayLabel(5, "long") },
+  { id: 6, label: weekdayLabel(6, "narrow"), full: weekdayLabel(6, "long") },
+  { id: 0, label: weekdayLabel(0, "narrow"), full: weekdayLabel(0, "long") },
 ]
 
 type Overview = {
@@ -123,18 +132,18 @@ type SheetMode =
 type ItemEntryMode = "choose" | "manual" | "search"
 
 function fmtTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString([], {
+  return new Date(iso).toLocaleTimeString(uiLocale(), {
     hour: "2-digit",
     minute: "2-digit",
   })
 }
 
 function formatDateLabel(dateKey: string, todayKey: string): string {
-  if (dateKey === todayKey) return "Today"
+  if (dateKey === todayKey) return tr("Today")
   const yesterday = offsetDateKey(todayKey, -1)
-  if (dateKey === yesterday) return "Yesterday"
+  if (dateKey === yesterday) return tr("Yesterday")
   const d = new Date(`${dateKey}T12:00:00Z`)
-  return d.toLocaleDateString([], {
+  return d.toLocaleDateString(uiLocale(), {
     weekday: "short",
     month: "short",
     day: "numeric",
@@ -143,14 +152,14 @@ function formatDateLabel(dateKey: string, todayKey: string): string {
 
 function scheduleLabel(item: SupplementItem) {
   const schedule = item.schedule
-  if (schedule.type === "none") return "No schedule"
-  if (schedule.type === "daily") return "Daily"
-  if (schedule.type === "training_days") return "Training days"
-  if (schedule.type === "rest_days") return "Rest days"
+  if (schedule.type === "none") return tr("No schedule")
+  if (schedule.type === "daily") return tr("Daily")
+  if (schedule.type === "training_days") return tr("Training days")
+  if (schedule.type === "rest_days") return tr("Rest days")
   const labels = WEEKDAYS.filter((day) =>
     (schedule.weekdays ?? []).includes(day.id)
   ).map((day) => day.label)
-  return labels.length > 0 ? labels.join(" ") : "Selected days"
+  return labels.length > 0 ? labels.join(" ") : tr("Selected days")
 }
 
 function nutrientEntries(nutrients: SupplementNutrients) {
@@ -309,14 +318,14 @@ function SectionHeader({
 function StatePill({ state }: { state: string }) {
   const label =
     state === "taken"
-      ? "Taken"
+      ? tr("Taken")
       : state === "skipped"
-        ? "Skipped"
+        ? tr("Skipped")
         : state === "missed"
-          ? "Missed"
+          ? tr("Missed")
           : state === "due"
-            ? "Due"
-            : "Optional"
+            ? tr("Due")
+            : tr("Optional")
   return (
     <span
       className={cn(
@@ -357,30 +366,43 @@ function SummaryStrip({
       aria-labelledby="supplement-summary-title"
     >
       <p className="text-[13px] font-medium text-muted-foreground">
-        {isToday ? "Today’s adherence" : `${dateLabel} adherence`}
+        {isToday
+          ? tr("Today’s adherence")
+          : tr("{{value0}} adherence", { value0: dateLabel })}
       </p>
       <h2
         id="supplement-summary-title"
         className="mt-1 text-[1.75rem] leading-tight font-bold tracking-tight"
       >
         {scheduled === 0
-          ? "No supplements scheduled"
-          : `${taken} of ${scheduled} taken`}
+          ? tr("No supplements scheduled")
+          : tr("{{value0}} of {{value1}} taken", {
+              value0: taken,
+              value1: scheduled,
+            })}
       </h2>
       <p className="mt-2 text-[15px] leading-6 text-muted-foreground">
         {scheduled === 0
-          ? `Add a schedule in My supplements to build ${isToday ? "today’s" : "this day’s"} plan.`
+          ? tr("Add a schedule in My supplements to build {{value0}} plan.", {
+              value0: choice(isToday ? "today’s" : "this day’s"),
+            })
           : due > 0
-            ? `${due} still due${missed > 0 ? ` · ${missed} missed` : ""}`
+            ? tr("{{value0}} still due{{value1}}", {
+                value0: due,
+                value1:
+                  missed > 0
+                    ? tr(" · {{value0}} missed", { value0: missed })
+                    : "",
+              })
             : missed > 0
-              ? `${missed} missed today`
-              : "Everything scheduled is accounted for."}
+              ? tr("{{value0}} missed today", { value0: missed })
+              : tr("Everything scheduled is accounted for.")}
       </p>
       <dl className="mt-4 grid grid-cols-3 divide-x divide-border border-t border-border pt-4">
         {[
-          ["Taken", taken],
-          ["Due", due],
-          ["Logs", totalLogs],
+          [tr("Taken"), taken],
+          [tr("Due"), due],
+          [tr("Logs"), totalLogs],
         ].map(([label, value]) => (
           <div key={label} className="px-3 first:pl-0 last:pr-0">
             <dt className="text-[13px] text-muted-foreground">{label}</dt>
@@ -440,10 +462,10 @@ function TodayRow({
                 {item.name}
               </p>
               <p className="mt-1 truncate text-[13px] text-muted-foreground">
-                {item.brand ? `${item.brand} · ` : ""}
+                {item.brand ? tr("{{value0}} · ", { value0: item.brand }) : ""}
                 {item.servingLabel}
                 {item.schedule.preferredTime
-                  ? ` · ${item.schedule.preferredTime}`
+                  ? tr(" · {{value0}}", { value0: item.schedule.preferredTime })
                   : ""}
               </p>
             </button>
@@ -452,14 +474,23 @@ function TodayRow({
 
           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted-foreground">
             <span className="font-medium tabular-nums">
-              {consistency.takenThisWeek} taken this week
+              <Message
+                text={"{{value0}} taken this week"}
+                values={{ value0: consistency.takenThisWeek }}
+              />
             </span>
             <span className="font-medium tabular-nums">
-              {consistency.currentStreak} day streak
+              <Message
+                text={"{{value0}} day streak"}
+                values={{ value0: consistency.currentStreak }}
+              />
             </span>
             {latest && (
               <span className="font-medium tabular-nums">
-                Last logged {fmtTime(latest.loggedAt)}
+                <Message
+                  text={"Last logged {{value0}}"}
+                  values={{ value0: fmtTime(latest.loggedAt) }}
+                />
               </span>
             )}
           </div>
@@ -485,18 +516,18 @@ function TodayRow({
             >
               <Check size={12} weight="bold" />
               {taking
-                ? "Logging..."
+                ? tr("Logging...")
                 : state === "taken"
-                  ? "Taken"
-                  : "Taken now"}
+                  ? tr("Taken")
+                  : tr("Taken now")}
             </button>
             <button
               type="button"
               onClick={onCustom}
               className="app-button app-button-quiet motion-tactile min-h-11 px-3"
-              aria-label={`Custom log ${item.name}`}
+              aria-label={tr("Custom log {{value0}}", { value0: item.name })}
             >
-              Custom
+              {tr("Custom")}
             </button>
             <button
               type="button"
@@ -505,9 +536,9 @@ function TodayRow({
                 !plan.isScheduled || state === "taken" || state === "skipped"
               }
               className="app-button app-button-quiet motion-tactile min-h-11 px-3 disabled:opacity-25"
-              aria-label={`Mark ${item.name} skipped`}
+              aria-label={tr("Mark {{value0}} skipped", { value0: item.name })}
             >
-              Skip
+              {tr("Skip")}
             </button>
           </div>
         </div>
@@ -554,13 +585,20 @@ function CatalogRow({
             {item.name}
           </p>
           <p className="mt-1 truncate text-[13px] text-muted-foreground">
-            {detail.label} · {scheduleLabel(item)} · {nutrientCount} nutrient
-            {nutrientCount === 1 ? "" : "s"}
+            <Message
+              text={"{{value0}} · {{value1}} · {{value2}} nutrient{{value3}}"}
+              values={{
+                value0: detail.label,
+                value1: scheduleLabel(item),
+                value2: nutrientCount,
+                value3: nutrientCount === 1 ? "" : "s",
+              }}
+            />
           </p>
           <p className="mt-1 text-[13px] text-muted-foreground tabular-nums">
             {consistency.lastTaken
-              ? `Last ${consistency.lastTaken}`
-              : "No history yet"}
+              ? tr("Last {{value0}}", { value0: consistency.lastTaken })
+              : tr("No history yet")}
           </p>
         </button>
         <button
@@ -572,9 +610,12 @@ function CatalogRow({
               ? "text-[var(--accent-supplement)]"
               : "text-muted-foreground"
           )}
-          aria-label={`${item.active ? "Pause" : "Track"} ${item.name}`}
+          aria-label={tr("{{value0}} {{value1}}", {
+            value0: choice(item.active ? "Pause" : "Track"),
+            value1: item.name,
+          })}
         >
-          {item.active ? "Tracking" : "Paused"}
+          {item.active ? tr("Tracking") : tr("Paused")}
         </button>
       </div>
       <div className="mt-2 grid grid-cols-3 divide-x divide-border border-t border-border">
@@ -587,32 +628,40 @@ function CatalogRow({
             "motion-tactile flex min-h-11 items-center justify-center gap-2 text-[13px] font-semibold disabled:opacity-45",
             recentlyLogged && "motion-success-pop"
           )}
-          aria-label={`Log ${item.name}`}
+          aria-label={tr("Log {{value0}}", { value0: item.name })}
         >
-          {quickLogging ? (
-            <span className="h-3 w-3 animate-spin rounded-full border-2 border-foreground/25 border-t-foreground/70" />
-          ) : (
-            <Check size={14} weight="bold" />
-          )}
-          Log
+          <Message
+            text={"{{value0}}Log"}
+            values={{
+              value0: quickLogging ? (
+                <span className="h-3 w-3 animate-spin rounded-full border-2 border-foreground/25 border-t-foreground/70" />
+              ) : (
+                <Check size={14} weight="bold" />
+              ),
+            }}
+          />
         </button>
         <button
           type="button"
           onClick={onEdit}
           className="motion-tactile flex min-h-11 items-center justify-center gap-2 text-[13px] font-semibold text-muted-foreground"
-          aria-label={`Edit ${item.name}`}
+          aria-label={tr("Edit {{value0}}", { value0: item.name })}
         >
-          <PencilSimple size={14} weight="bold" />
-          Edit
+          <Message
+            text={"{{value0}}Edit"}
+            values={{ value0: <PencilSimple size={14} weight="bold" /> }}
+          />
         </button>
         <button
           type="button"
           onClick={onDelete}
           className="flex min-h-11 items-center justify-center gap-2 text-[13px] font-semibold text-destructive active:bg-destructive/10"
-          aria-label={`Delete ${item.name}`}
+          aria-label={tr("Delete {{value0}}", { value0: item.name })}
         >
-          <Trash size={14} weight="bold" />
-          Delete
+          <Message
+            text={"{{value0}}Delete"}
+            values={{ value0: <Trash size={14} weight="bold" /> }}
+          />
         </button>
       </div>
     </div>
@@ -625,8 +674,9 @@ function ImportNotice({ imported }: { imported: boolean }) {
     <div className="mb-3 flex items-start gap-2 border-y border-border py-3 text-[13px] leading-5 text-muted-foreground">
       <Barcode size={13} weight="bold" className="mt-0.5 shrink-0" />
       <span>
-        Data from USDA FoodData Central. Nutrients are read-only and scale from
-        the serving size you enter.
+        {tr(
+          "Data from USDA FoodData Central. Nutrients are read-only and scale from the serving size you enter."
+        )}
       </span>
     </div>
   )
@@ -801,7 +851,9 @@ function ItemSheet({
     const query = searchQuery.trim()
     if (query.length < 2) {
       setSearchResults([])
-      setSearchError(query ? "Use at least 2 characters." : null)
+      setSearchError(
+        translateError(query ? tr("Use at least 2 characters.") : null)
+      )
       return
     }
 
@@ -810,10 +862,13 @@ function ItemSheet({
     try {
       const results = await searchFoods(query, 30)
       setSearchResults(results)
-      if (results.length === 0) setSearchError("No results found.")
+      if (results.length === 0)
+        setSearchError(translateError(tr("No results found.")))
     } catch {
       setSearchResults([])
-      setSearchError("Search failed. You can still add it manually.")
+      setSearchError(
+        translateError(tr("Search failed. You can still add it manually."))
+      )
     } finally {
       setSearchBusy(false)
     }
@@ -852,12 +907,14 @@ function ItemSheet({
     try {
       const detail = await getFoodDetail(code)
       if (!detail) {
-        setBarcodeError("No product found.")
+        setBarcodeError(translateError(tr("No product found.")))
         return
       }
       applyFoodDetail(detail)
     } catch {
-      setBarcodeError("Lookup failed. You can still enter it manually.")
+      setBarcodeError(
+        translateError(tr("Lookup failed. You can still enter it manually."))
+      )
     } finally {
       setBarcodeBusy(false)
     }
@@ -892,12 +949,12 @@ function ItemSheet({
   })).filter((entry) => entry.value > 0)
   const nutrientCount = advancedNutrients.length
   const title = item
-    ? "Edit supplement"
+    ? tr("Edit supplement")
     : entryMode === "search"
-      ? "Search foods"
+      ? tr("Search foods")
       : entryMode === "manual"
-        ? "Custom supplement"
-        : "Add supplement"
+        ? tr("Custom supplement")
+        : tr("Add supplement")
 
   return (
     <>
@@ -925,7 +982,7 @@ function ItemSheet({
                 aria-busy={saving}
                 className="app-button app-button-primary min-h-11 w-full"
               >
-                {saving ? "Saving..." : "Save supplement"}
+                {saving ? tr("Saving...") : tr("Save supplement")}
               </button>
             </div>
           ) : undefined
@@ -939,7 +996,7 @@ function ItemSheet({
                   type="button"
                   onClick={() => setEntryMode("choose")}
                   className="app-icon-button h-9 w-9"
-                  aria-label="Back"
+                  aria-label={tr("Back")}
                 >
                   <CaretLeft size={12} weight="bold" />
                 </button>
@@ -951,7 +1008,7 @@ function ItemSheet({
               onClick={saving ? undefined : onClose}
               disabled={saving}
               className="app-icon-button h-10 w-10"
-              aria-label="Close"
+              aria-label={tr("Close")}
             >
               <X size={12} weight="bold" />
             </button>
@@ -969,10 +1026,10 @@ function ItemSheet({
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-[14px] font-semibold">
-                    Custom supplement
+                    {tr("Custom supplement")}
                   </span>
                   <span className="mt-1 block truncate text-[13px] text-muted-foreground">
-                    Manual serving, schedule, and notes
+                    {tr("Manual serving, schedule, and notes")}
                   </span>
                 </span>
               </button>
@@ -987,10 +1044,10 @@ function ItemSheet({
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-[14px] font-semibold">
-                    Search foods
+                    {tr("Search foods")}
                   </span>
                   <span className="mt-1 block truncate text-[13px] text-muted-foreground">
-                    Import product data, then edit
+                    {tr("Import product data, then edit")}
                   </span>
                 </span>
               </button>
@@ -1002,15 +1059,15 @@ function ItemSheet({
               <form onSubmit={runSearch} className="grid gap-2">
                 <label className="grid gap-1.5">
                   <span className="text-[13px] font-medium text-muted-foreground">
-                    Product search
+                    {tr("Product search")}
                   </span>
                   <div className="grid grid-cols-[minmax(0,1fr)_2.75rem] gap-2">
                     <input
                       name="supplement-product-search"
-                      aria-label="Supplement product search"
+                      aria-label={tr("Supplement product search")}
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Creatine, whey, magnesium..."
+                      placeholder={tr("Creatine, whey, magnesium...")}
                       className="h-11 min-w-0 rounded-xl bg-muted/45 px-3 text-[13px] outline-none"
                     />
                     <button
@@ -1018,7 +1075,7 @@ function ItemSheet({
                       disabled={searchBusy}
                       aria-busy={searchBusy}
                       className="app-icon-button h-11 w-11 disabled:opacity-40"
-                      aria-label="Search foods"
+                      aria-label={tr("Search foods")}
                     >
                       <MagnifyingGlass size={14} weight="bold" />
                     </button>
@@ -1027,12 +1084,12 @@ function ItemSheet({
 
                 <label className="grid gap-1.5">
                   <span className="text-[13px] font-medium text-muted-foreground">
-                    Barcode
+                    {tr("Barcode")}
                   </span>
                   <div className="grid grid-cols-[minmax(0,1fr)_2.75rem] gap-2">
                     <input
                       name="supplement-product-barcode"
-                      aria-label="Supplement product barcode"
+                      aria-label={tr("Supplement product barcode")}
                       value={draft.barcode ?? ""}
                       inputMode="numeric"
                       onChange={(e) => update("barcode", e.target.value)}
@@ -1044,7 +1101,7 @@ function ItemSheet({
                       disabled={barcodeBusy}
                       aria-busy={barcodeBusy}
                       className="app-icon-button h-11 w-11 disabled:opacity-40"
-                      aria-label="Lookup barcode"
+                      aria-label={tr("Lookup barcode")}
                     >
                       <Barcode size={14} weight="bold" />
                     </button>
@@ -1086,15 +1143,27 @@ function ItemSheet({
                             {result.name}
                           </p>
                           <p className="mt-1 truncate text-[13px] text-muted-foreground">
-                            {result.brand ? `${result.brand} · ` : ""}
+                            {result.brand
+                              ? tr("{{value0}} · ", { value0: result.brand })
+                              : ""}
                             {result.serving}
                           </p>
                           <p className="mt-1 text-[13px] text-muted-foreground tabular-nums">
-                            {energyDisplay(result.calories, energyUnit)}{" "}
-                            {energyUnit} · P{" "}
-                            {formatNutrientValue(result.protein)}g · C{" "}
-                            {formatNutrientValue(result.carbs)}g · F{" "}
-                            {formatNutrientValue(result.fat)}g
+                            <Message
+                              text={
+                                "{{value0}} {{value1}} · P {{value2}}g · C {{value3}}g · F {{value4}}g"
+                              }
+                              values={{
+                                value0: energyDisplay(
+                                  result.calories,
+                                  energyUnit
+                                ),
+                                value1: energyUnit,
+                                value2: formatNutrientValue(result.protein),
+                                value3: formatNutrientValue(result.carbs),
+                                value4: formatNutrientValue(result.fat),
+                              }}
+                            />
                           </p>
                         </div>
                       </button>
@@ -1106,7 +1175,9 @@ function ItemSheet({
                         className="app-button app-button-secondary min-h-11 shrink-0 px-3 disabled:opacity-45"
                       >
                         <Plus size={11} weight="bold" />
-                        {importingCode === result.code ? "Importing" : "Import"}
+                        {importingCode === result.code
+                          ? tr("Importing")
+                          : tr("Import")}
                       </button>
                     </div>
                   ))}
@@ -1125,19 +1196,23 @@ function ItemSheet({
                   onClick={() => setEntryMode("search")}
                   className="app-button app-button-secondary mb-3 min-h-10 w-full"
                 >
-                  <MagnifyingGlass size={13} weight="bold" />
-                  Search foods
+                  <Message
+                    text={"{{value0}}Search foods"}
+                    values={{
+                      value0: <MagnifyingGlass size={13} weight="bold" />,
+                    }}
+                  />
                 </button>
               )}
 
               <div className="grid gap-3">
                 <label className="grid gap-1.5">
                   <span className="text-[13px] font-medium text-muted-foreground">
-                    Name
+                    {tr("Name")}
                   </span>
                   <input
                     name="supplement-name"
-                    aria-label="Supplement name"
+                    aria-label={tr("Supplement name")}
                     value={draft.name}
                     onChange={(e) => update("name", e.target.value)}
                     className="h-11 rounded-xl bg-muted/45 px-3 text-[13px] outline-none"
@@ -1147,11 +1222,11 @@ function ItemSheet({
                 <div className="grid grid-cols-2 gap-2">
                   <label className="grid gap-1.5">
                     <span className="text-[13px] font-medium text-muted-foreground">
-                      Brand
+                      {tr("Brand")}
                     </span>
                     <input
                       name="supplement-brand"
-                      aria-label="Supplement brand"
+                      aria-label={tr("Supplement brand")}
                       value={draft.brand ?? ""}
                       onChange={(e) => update("brand", e.target.value)}
                       className="h-11 rounded-xl bg-muted/45 px-3 text-[13px] outline-none"
@@ -1159,12 +1234,12 @@ function ItemSheet({
                   </label>
                   <label className="grid gap-1.5">
                     <span className="text-[13px] font-medium text-muted-foreground">
-                      Barcode
+                      {tr("Barcode")}
                     </span>
                     <div className="grid grid-cols-[minmax(0,1fr)_2.75rem] gap-2">
                       <input
                         name="supplement-barcode"
-                        aria-label="Supplement barcode"
+                        aria-label={tr("Supplement barcode")}
                         value={draft.barcode ?? ""}
                         inputMode="numeric"
                         onChange={(e) => update("barcode", e.target.value)}
@@ -1176,7 +1251,7 @@ function ItemSheet({
                         disabled={barcodeBusy}
                         aria-busy={barcodeBusy}
                         className="app-icon-button h-11 w-11 disabled:opacity-40"
-                        aria-label="Lookup barcode"
+                        aria-label={tr("Lookup barcode")}
                       >
                         <Barcode size={14} weight="bold" />
                       </button>
@@ -1193,11 +1268,11 @@ function ItemSheet({
                 <div className="grid grid-cols-2 gap-2">
                   <label className="grid gap-1.5">
                     <span className="text-[13px] font-medium text-muted-foreground">
-                      Category
+                      {tr("Category")}
                     </span>
                     <select
                       name="supplement-category"
-                      aria-label="Supplement category"
+                      aria-label={tr("Supplement category")}
                       value={draft.category}
                       onChange={(e) =>
                         updateCategory(e.target.value as SupplementCategory)
@@ -1213,11 +1288,11 @@ function ItemSheet({
                   </label>
                   <label className="grid gap-1.5">
                     <span className="text-[13px] font-medium text-muted-foreground">
-                      Form
+                      {tr("Form")}
                     </span>
                     <select
                       name="supplement-form"
-                      aria-label="Supplement form"
+                      aria-label={tr("Supplement form")}
                       value={draft.form}
                       onChange={(e) =>
                         updateForm(e.target.value as SupplementForm)
@@ -1235,11 +1310,11 @@ function ItemSheet({
 
                 <label className="grid gap-1.5">
                   <span className="text-[13px] font-medium text-muted-foreground">
-                    Serving size
+                    {tr("Serving size")}
                   </span>
                   <input
                     name="supplement-serving-size"
-                    aria-label="Supplement serving size"
+                    aria-label={tr("Supplement serving size")}
                     value={draft.servingLabel}
                     placeholder={servingLabelForForm(draft.form)}
                     onChange={(e) => updateServingLabel(e.target.value)}
@@ -1255,14 +1330,17 @@ function ItemSheet({
                   summary={
                     <span className="min-w-0">
                       <span className="block text-[13px] font-medium text-muted-foreground">
-                        Advanced
+                        {tr("Advanced")}
                       </span>
                       <span className="mt-1 block truncate text-[13px] text-muted-foreground">
                         {nutrientCount > 0
-                          ? `${nutrientCount} ${
-                              nutrientCount === 1 ? "nutrient" : "nutrients"
-                            } per serving`
-                          : "Optional nutrients per serving"}
+                          ? tr("{{value0}} {{value1}} per serving", {
+                              value0: nutrientCount,
+                              value1: choice(
+                                nutrientCount === 1 ? "nutrient" : "nutrients"
+                              ),
+                            })
+                          : tr("Optional nutrients per serving")}
                       </span>
                     </span>
                   }
@@ -1270,16 +1348,17 @@ function ItemSheet({
                   <div className="border-t border-border/25 px-3 py-3">
                     <div className="mb-2 flex items-center justify-between">
                       <p className="text-[13px] font-medium text-muted-foreground">
-                        Nutrients per serving
+                        {tr("Nutrients per serving")}
                       </p>
                       <span className="text-[13px] text-muted-foreground">
-                        Read-only
+                        {tr("Read-only")}
                       </span>
                     </div>
                     {draft.source === "openfoodfacts" && (
                       <p className="mb-2 border-y border-border bg-muted/35 px-3 py-3 text-[13px] text-muted-foreground">
-                        Imported nutrients stay locked and recalculate from your
-                        serving size.
+                        {tr(
+                          "Imported nutrients stay locked and recalculate from your serving size."
+                        )}
                       </p>
                     )}
                     {advancedNutrients.length > 0 ? (
@@ -1300,7 +1379,7 @@ function ItemSheet({
                       </div>
                     ) : (
                       <p className="border-y border-border bg-muted/30 px-3 py-4 text-center text-[15px] text-muted-foreground">
-                        No nutrient data for this supplement.
+                        {tr("No nutrient data for this supplement.")}
                       </p>
                     )}
                   </div>
@@ -1308,11 +1387,11 @@ function ItemSheet({
 
                 <label className="grid gap-1.5">
                   <span className="text-[13px] font-medium text-muted-foreground">
-                    Notes
+                    {tr("Notes")}
                   </span>
                   <textarea
                     name="supplement-notes"
-                    aria-label="Supplement notes"
+                    aria-label={tr("Supplement notes")}
                     value={draft.notes ?? ""}
                     onChange={(e) => update("notes", e.target.value)}
                     rows={3}
@@ -1331,7 +1410,9 @@ function ItemSheet({
           added={false}
           showMealPicker={false}
           actionLabel={(_, _mealLabel, portion) =>
-            `Import ${foodPortionLabel(portion)} as supplement`
+            tr("Import {{value0}} as supplement", {
+              value0: foodPortionDisplayLabel(portion),
+            })
           }
           onAdd={(food, _grams, _micros, _meal, detail, portion) => {
             importFoodResult(food, detail, portion)
@@ -1362,11 +1443,11 @@ function ScheduleEditor({
       <div className="grid grid-cols-[minmax(0,1fr)_6.25rem] gap-2">
         <label className="grid gap-1.5">
           <span className="text-[13px] font-medium text-muted-foreground">
-            Schedule
+            {tr("Schedule")}
           </span>
           <select
             name="supplement-schedule-type"
-            aria-label="Supplement schedule"
+            aria-label={tr("Supplement schedule")}
             value={draft.schedule.type}
             onChange={(e) =>
               setSchedule({ type: e.target.value as SupplementScheduleType })
@@ -1388,12 +1469,12 @@ function ScheduleEditor({
         </label>
         <label className="grid gap-1.5">
           <span className="text-[13px] font-medium text-muted-foreground">
-            Time
+            {tr("Time")}
           </span>
           <input
             type="time"
             name="supplement-preferred-time"
-            aria-label="Supplement preferred time"
+            aria-label={tr("Supplement preferred time")}
             value={draft.schedule.preferredTime ?? ""}
             onChange={(e) => setSchedule({ preferredTime: e.target.value })}
             className="h-11 rounded-xl bg-background/80 px-2 text-[15px] outline-none"
@@ -1416,7 +1497,10 @@ function ScheduleEditor({
                   setSchedule({ weekdays: [...days].sort((a, b) => a - b) })
                 }}
                 aria-pressed={active}
-                aria-label={`${active ? "Remove" : "Add"} ${day.full} schedule day`}
+                aria-label={tr("{{value0}} {{value1}} schedule day", {
+                  value0: choice(active ? "Remove" : "Add"),
+                  value1: day.full,
+                })}
                 className={cn(
                   "h-11 text-[13px] font-semibold",
                   active
@@ -1485,7 +1569,7 @@ function LogSheet({
           <button
             onClick={onClose}
             className="app-icon-button h-10 w-10"
-            aria-label="Close"
+            aria-label={tr("Close")}
           >
             <X size={12} weight="bold" />
           </button>
@@ -1493,7 +1577,7 @@ function LogSheet({
 
         <label className="grid gap-1.5">
           <span className="text-[13px] font-medium text-muted-foreground">
-            Serving multiplier
+            {tr("Serving multiplier")}
           </span>
           <div className="grid grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] gap-2">
             <button
@@ -1502,13 +1586,13 @@ function LogSheet({
                 setMultiplier(String(Math.max(0.25, parsed - 0.25)))
               }
               className="app-icon-button h-11 w-11"
-              aria-label="Decrease"
+              aria-label={tr("Decrease")}
             >
               -
             </button>
             <input
               name="supplement-serving-multiplier"
-              aria-label="Supplement serving multiplier"
+              aria-label={tr("Supplement serving multiplier")}
               value={multiplier}
               inputMode="decimal"
               onChange={(e) => setMultiplier(e.target.value)}
@@ -1518,7 +1602,7 @@ function LogSheet({
               type="button"
               onClick={() => setMultiplier(String(parsed + 0.25))}
               className="app-icon-button h-11 w-11"
-              aria-label="Increase"
+              aria-label={tr("Increase")}
             >
               +
             </button>
@@ -1528,7 +1612,7 @@ function LogSheet({
         {nutrientEntries(scaled).length > 0 && (
           <div className="mt-4 rounded-[14px] bg-muted/30 p-3">
             <p className="mb-2 text-[13px] font-medium text-muted-foreground">
-              This log adds
+              {tr("This log adds")}
             </p>
             <div className="grid grid-cols-2 gap-2">
               {nutrientEntries(scaled)
@@ -1557,7 +1641,7 @@ function LogSheet({
           className="app-button app-button-primary mt-4 min-h-11 w-full"
         >
           <Check size={12} weight="bold" />
-          {busy ? "Logging..." : "Log supplement"}
+          {busy ? tr("Logging...") : tr("Log supplement")}
         </button>
       </div>
     </MobileSheet>
@@ -1609,14 +1693,14 @@ function DetailSheet({
             <button
               onClick={onEdit}
               className="app-icon-button h-10 w-10"
-              aria-label="Edit"
+              aria-label={tr("Edit")}
             >
               <PencilSimple size={12} weight="bold" />
             </button>
             <button
               onClick={onClose}
               className="app-icon-button h-10 w-10"
-              aria-label="Close"
+              aria-label={tr("Close")}
             >
               <X size={12} weight="bold" />
             </button>
@@ -1625,9 +1709,9 @@ function DetailSheet({
 
         <div className="grid grid-cols-3 gap-2">
           {[
-            ["This week", consistency.takenThisWeek],
-            ["Streak", consistency.currentStreak],
-            ["History", sortedLogs.length],
+            [tr("This week"), consistency.takenThisWeek],
+            [tr("Streak"), consistency.currentStreak],
+            [tr("History"), sortedLogs.length],
           ].map(([label, value]) => (
             <div key={label} className="rounded-[12px] bg-muted/35 px-3 py-2">
               <p className="text-[15px] font-bold tabular-nums">{value}</p>
@@ -1640,7 +1724,7 @@ function DetailSheet({
 
         {nutrientEntries(item.nutrientsPerServing).length > 0 && (
           <div className="mt-4">
-            <SectionHeader title="Per Serving" sub={item.servingLabel} />
+            <SectionHeader title={tr("Per Serving")} sub={item.servingLabel} />
             <div className="divide-y divide-border/25 rounded-[14px] bg-muted/25 px-3">
               {nutrientEntries(item.nutrientsPerServing).map(
                 ({ key, value, detail }) => (
@@ -1669,11 +1753,13 @@ function DetailSheet({
         )}
 
         <div className="mt-4">
-          <SectionHeader title="History" sub={scheduleLabel(item)} />
+          <SectionHeader title={tr("History")} sub={scheduleLabel(item)} />
           {sortedLogs.length === 0 ? (
             <div className="app-empty py-8">
               <CalendarBlank size={18} className="text-muted-foreground" />
-              <p className="text-[15px] text-muted-foreground">No logs yet.</p>
+              <p className="text-[15px] text-muted-foreground">
+                {tr("No logs yet.")}
+              </p>
             </div>
           ) : (
             <div className="divide-y divide-border/25 rounded-[14px] bg-muted/25 px-3">
@@ -1684,7 +1770,13 @@ function DetailSheet({
                     <div className="min-w-0 flex-1">
                       <p className="text-[15px] font-semibold">{log.date}</p>
                       <p className="text-[13px] text-muted-foreground">
-                        {fmtTime(log.loggedAt)} · {log.servingMultiplier}x
+                        <Message
+                          text={"{{value0}} · {{value1}}x"}
+                          values={{
+                            value0: fmtTime(log.loggedAt),
+                            value1: log.servingMultiplier,
+                          }}
+                        />
                       </p>
                     </div>
                   </>
@@ -1704,7 +1796,7 @@ function DetailSheet({
                 return (
                   <SlideToDeleteRow
                     key={log._id}
-                    deleteLabel="Delete log"
+                    deleteLabel={tr("Delete log")}
                     onDelete={() => onDeleteLog(log._id!)}
                     rowClassName="flex items-center gap-3 bg-muted/25 py-2.5"
                   >
@@ -1753,11 +1845,20 @@ function ConfirmDeleteSheet({
     >
       <div className="px-5 pt-1 pb-4">
         <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-border/60" />
-        <h2 className="text-[17px] font-bold">Delete supplement?</h2>
+        <h2 className="text-[17px] font-bold">{tr("Delete supplement?")}</h2>
         <p className="mt-2 text-[13px] leading-5 text-muted-foreground/68">
-          This removes{" "}
-          <span className="font-semibold text-foreground">{item.name}</span>{" "}
-          from your supplement list. Past logged entries stay in your history.
+          <Message
+            text={
+              "This removes {{value0}} from your supplement list. Past logged entries stay in your history."
+            }
+            values={{
+              value0: (
+                <span className="font-semibold text-foreground">
+                  {item.name}
+                </span>
+              ),
+            }}
+          />
         </p>
         <div className="mt-5 flex flex-col gap-2">
           <button
@@ -1767,7 +1868,7 @@ function ConfirmDeleteSheet({
             aria-busy={deleting}
             className="h-12 w-full rounded-xl bg-destructive text-[14px] font-bold text-white transition-opacity active:opacity-80 disabled:opacity-60"
           >
-            {deleting ? "Deleting..." : "Delete supplement"}
+            {deleting ? tr("Deleting...") : tr("Delete supplement")}
           </button>
           <button
             type="button"
@@ -1775,7 +1876,7 @@ function ConfirmDeleteSheet({
             disabled={deleting}
             className="h-12 w-full rounded-xl bg-muted text-[14px] font-bold text-foreground transition-opacity active:opacity-80 disabled:opacity-50"
           >
-            Cancel
+            {tr("Cancel")}
           </button>
         </div>
       </div>
@@ -1799,11 +1900,18 @@ function Warnings({ totals }: { totals: SupplementNutrients }) {
         className="mt-0.5 shrink-0 text-[var(--status-caution)]"
       />
       <p>
-        Supplement intake is high for{" "}
-        {warnings
-          .map((key) => SUPPLEMENT_NUTRIENT_DETAILS[key].label.toLowerCase())
-          .join(", ")}
-        . Check labels and keep entries current.
+        <Message
+          text={
+            "Supplement intake is high for {{value0}}. Check labels and keep entries current."
+          }
+          values={{
+            value0: warnings
+              .map((key) =>
+                SUPPLEMENT_NUTRIENT_DETAILS[key].label.toLowerCase()
+              )
+              .join(", "),
+          }}
+        />
       </p>
     </div>
   )
@@ -1948,20 +2056,18 @@ export default function Supplements() {
           servingMultiplier: 1,
         })
       }
-      announceOrbActivity(
-        "log",
-        Math.min(remainingScheduledPlans.length, 3)
-      )
+      announceOrbActivity("log", Math.min(remainingScheduledPlans.length, 3))
       toast.success(
-        `${remainingScheduledPlans.length} supplement${
-          remainingScheduledPlans.length === 1 ? "" : "s"
-        } logged`
+        tr("{{value0}} supplement{{value1}} logged", {
+          value0: remainingScheduledPlans.length,
+          value1: remainingScheduledPlans.length === 1 ? "" : "s",
+        })
       )
       hapticSelection()
       setBulkLoggedFeedback(true)
       window.setTimeout(() => setBulkLoggedFeedback(false), 520)
     } catch {
-      toast.error("Could not log remaining supplements")
+      toast.error(translateError(tr("Could not log remaining supplements")))
     } finally {
       setBulkLogging(false)
     }
@@ -2016,13 +2122,15 @@ export default function Supplements() {
               type="button"
               onClick={() => navigate("/nutrition")}
               className="mb-1 flex min-h-11 items-center gap-1 pr-3 text-[13px] font-medium text-muted-foreground transition-colors active:text-foreground"
-              aria-label="Back to Nutrition"
+              aria-label={tr("Back to Nutrition")}
             >
-              <CaretLeft size={12} weight="bold" />
-              Nutrition
+              <Message
+                text={"{{value0}}Nutrition"}
+                values={{ value0: <CaretLeft size={12} weight="bold" /> }}
+              />
             </button>
             <h1 className="text-[1.65rem] leading-[1.15] font-semibold tracking-tight short-phone:text-[1.42rem]">
-              Supplements
+              {tr("Supplements")}
             </h1>
           </div>
 
@@ -2031,7 +2139,7 @@ export default function Supplements() {
               <button
                 onClick={() => setDateKey((d) => offsetDateKey(d, -1))}
                 className="flex h-11 w-11 items-center justify-center text-muted-foreground active:bg-muted active:text-foreground"
-                aria-label="Previous day"
+                aria-label={tr("Previous day")}
               >
                 <CaretLeft size={13} weight="bold" />
               </button>
@@ -2042,7 +2150,7 @@ export default function Supplements() {
                 onClick={() => setDateKey((d) => offsetDateKey(d, 1))}
                 disabled={isToday}
                 className="flex h-11 w-11 items-center justify-center text-muted-foreground active:bg-muted active:text-foreground disabled:opacity-30"
-                aria-label="Next day"
+                aria-label={tr("Next day")}
               >
                 <CaretRight size={13} weight="bold" />
               </button>
@@ -2054,7 +2162,7 @@ export default function Supplements() {
           <div
             className="grid grid-cols-2 border-b border-border"
             role="tablist"
-            aria-label="Supplement views"
+            aria-label={tr("Supplement views")}
           >
             {[
               ["today", "Today"],
@@ -2097,7 +2205,9 @@ export default function Supplements() {
               <div className="md:col-span-2">
                 <SectionHeader
                   title={
-                    dateKey === todayKey ? "Today’s plan" : `${dateLabel} plan`
+                    dateKey === todayKey
+                      ? tr("Today’s plan")
+                      : tr("{{value0}} plan", { value0: dateLabel })
                   }
                   sub={
                     overview.isTrainingDay
@@ -2120,14 +2230,20 @@ export default function Supplements() {
                             "app-button app-button-primary motion-tactile px-3 disabled:opacity-45",
                             bulkLoggedFeedback && "motion-success-pop"
                           )}
-                          aria-label={`Log ${remainingScheduledCount} remaining scheduled supplement${
-                            remainingScheduledCount === 1 ? "" : "s"
-                          }`}
+                          aria-label={tr(
+                            "Log {{value0}} remaining scheduled supplement{{value1}}",
+                            {
+                              value0: remainingScheduledCount,
+                              value1: remainingScheduledCount === 1 ? "" : "s",
+                            }
+                          )}
                         >
                           <Check size={11} weight="bold" />
                           {bulkLogging
-                            ? "Logging"
-                            : `Take ${remainingScheduledCount}`}
+                            ? tr("Logging")
+                            : tr("Take {{value0}}", {
+                                value0: remainingScheduledCount,
+                              })}
                         </button>
                       )}
                       <button
@@ -2138,8 +2254,10 @@ export default function Supplements() {
                         }}
                         className="app-button app-button-secondary motion-tactile"
                       >
-                        <Plus size={11} weight="bold" />
-                        Add
+                        <Message
+                          text={"{{value0}}Add"}
+                          values={{ value0: <Plus size={11} weight="bold" /> }}
+                        />
                       </button>
                     </div>
                   }
@@ -2149,15 +2267,17 @@ export default function Supplements() {
                     className="border-y border-border py-8 text-[15px] text-muted-foreground"
                     role="status"
                   >
-                    Loading today’s supplements…
+                    {tr("Loading today’s supplements…")}
                   </div>
                 ) : activeItems.length === 0 ? (
                   <div className="border-y border-border py-8">
                     <h3 className="text-[16px] font-semibold">
-                      No supplements to take
+                      {tr("No supplements to take")}
                     </h3>
                     <p className="mt-2 text-[15px] leading-6 text-muted-foreground">
-                      Add a supplement and choose its schedule to see it here.
+                      {tr(
+                        "Add a supplement and choose its schedule to see it here."
+                      )}
                     </p>
                     <button
                       type="button"
@@ -2167,7 +2287,7 @@ export default function Supplements() {
                       }}
                       className="app-button app-button-primary mt-4 min-h-11"
                     >
-                      Add supplement
+                      {tr("Add supplement")}
                     </button>
                   </div>
                 ) : (
@@ -2204,12 +2324,14 @@ export default function Supplements() {
               {(dayLogs.length > 0 || overview.legacyEntries.length > 0) && (
                 <section className="border-y border-border py-5 md:col-span-2">
                   <SectionHeader
-                    title="Timeline"
-                    sub={`${dayLogs.length + overview.legacyEntries.length} supplement log${
-                      dayLogs.length + overview.legacyEntries.length === 1
-                        ? ""
-                        : "s"
-                    }`}
+                    title={tr("Timeline")}
+                    sub={tr("{{value0}} supplement log{{value1}}", {
+                      value0: dayLogs.length + overview.legacyEntries.length,
+                      value1:
+                        dayLogs.length + overview.legacyEntries.length === 1
+                          ? ""
+                          : "s",
+                    })}
                   />
                   <div className="divide-y divide-border/25">
                     {[...dayLogs, ...overview.legacyEntries]
@@ -2217,7 +2339,9 @@ export default function Supplements() {
                       .map((entry) => (
                         <SlideToDeleteRow
                           key={entry.id}
-                          deleteLabel={`Delete ${entry.name ?? "supplement log"}`}
+                          deleteLabel={tr("Delete {{value0}}", {
+                            value0: entry.name ?? "supplement log",
+                          })}
                           onDelete={() => deleteDayEntry(entry.id)}
                           rowClassName="flex items-center justify-between gap-3 bg-card py-2.5"
                         >
@@ -2227,14 +2351,18 @@ export default function Supplements() {
                             </p>
                             <p className="mt-1 text-[13px] text-muted-foreground">
                               {entry.status === "skipped"
-                                ? "Skipped"
-                                : (entry.servingLabel ?? "Logged")}{" "}
+                                ? tr("Skipped")
+                                : (entry.servingLabel ?? tr("Logged"))}{" "}
                               · {fmtTime(entry.loggedAt)}
                             </p>
                           </div>
                           <span className="shrink-0 text-[13px] font-medium text-muted-foreground tabular-nums">
                             {entry.servingMultiplier
-                              ? `${formatNutrientValue(entry.servingMultiplier)}x`
+                              ? tr("{{value0}}x", {
+                                  value0: formatNutrientValue(
+                                    entry.servingMultiplier
+                                  ),
+                                })
                               : ""}
                           </span>
                         </SlideToDeleteRow>
@@ -2247,16 +2375,21 @@ export default function Supplements() {
             <>
               <section className="border-y border-border py-5 md:col-span-2">
                 <SectionHeader
-                  title="My Supplements"
-                  sub={`${overview.items.length} saved · ${activeItems.length} active`}
+                  title={tr("My Supplements")}
+                  sub={tr("{{value0}} saved · {{value1}} active", {
+                    value0: overview.items.length,
+                    value1: activeItems.length,
+                  })}
                   action={
                     <button
                       type="button"
                       onClick={() => setSheet({ kind: "edit" })}
                       className="app-button app-button-primary"
                     >
-                      <Plus size={11} weight="bold" />
-                      Add
+                      <Message
+                        text={"{{value0}}Add"}
+                        values={{ value0: <Plus size={11} weight="bold" /> }}
+                      />
                     </button>
                   }
                 />
@@ -2265,16 +2398,17 @@ export default function Supplements() {
                     className="py-8 text-[15px] text-muted-foreground"
                     role="status"
                   >
-                    Loading your supplements…
+                    {tr("Loading your supplements…")}
                   </div>
                 ) : overview.items.length === 0 ? (
                   <div className="py-8">
                     <h3 className="text-[16px] font-semibold">
-                      Your supplement library is empty
+                      {tr("Your supplement library is empty")}
                     </h3>
                     <p className="mt-2 text-[15px] leading-6 text-muted-foreground">
-                      Add a product manually, search by name, or scan its
-                      barcode.
+                      {tr(
+                        "Add a product manually, search by name, or scan its barcode."
+                      )}
                     </p>
                   </div>
                 ) : (

@@ -1,3 +1,4 @@
+import { tr, translateError } from "@repo/ui/i18n"
 import { useEffect } from "react"
 import { useConvexAuth, useQuery } from "convex/react"
 import { api } from "../../../../../convex/_generated/api"
@@ -35,7 +36,11 @@ export function RecoveryReminderSync() {
     ).catch((error) => {
       logDevWarn("Could not sync recovery reminders", error)
       toast.error(
-        "Could not update this device’s reminders. Open Settings to retry."
+        translateError(
+          tr(
+            "Could not update this device’s reminders. Open Settings to retry."
+          )
+        )
       )
     })
   }, [isAuthenticated, ready, preferences, training, food])

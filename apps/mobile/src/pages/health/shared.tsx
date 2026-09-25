@@ -1,3 +1,4 @@
+import { Message, choice, tr, uiLocale } from "@repo/ui/i18n"
 import {
   useEffect,
   useId,
@@ -46,16 +47,18 @@ export function formatHours(minutes: number) {
   const whole = Math.floor(minutes / 60)
   const rest = Math.round(minutes % 60)
   if (whole === 0) return `${rest}m`
-  return rest === 0 ? `${whole}h` : `${whole}h ${rest}m`
+  return rest === 0
+    ? `${whole}h`
+    : tr("{{value0}}h {{value1}}m", { value0: whole, value1: rest })
 }
 
 export function formatCount(value: number) {
-  return Math.round(value).toLocaleString()
+  return Math.round(value).toLocaleString(uiLocale())
 }
 
 /** "Tue 2" — short enough for an axis, unambiguous inside a tooltip. */
 export function formatShortDate(date: string) {
-  return new Date(`${date}T12:00:00Z`).toLocaleDateString(undefined, {
+  return new Date(`${date}T12:00:00Z`).toLocaleDateString(uiLocale(), {
     weekday: "short",
     day: "numeric",
     timeZone: "UTC",
@@ -63,7 +66,7 @@ export function formatShortDate(date: string) {
 }
 
 export function formatLongDate(date: string) {
-  return new Date(`${date}T12:00:00Z`).toLocaleDateString(undefined, {
+  return new Date(`${date}T12:00:00Z`).toLocaleDateString(uiLocale(), {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -202,7 +205,10 @@ export function DialButton({
         hapticSelection()
         navigate(to, { motion: "forward" })
       }}
-      aria-label={`${label}: ${detail}`}
+      aria-label={tr("{{value0}}: {{value1}}", {
+        value0: label,
+        value1: detail,
+      })}
       className={cn(
         "health-dial-button motion-tactile progress-tab-enter flex shrink-0 flex-col items-center gap-2",
         className
@@ -314,7 +320,10 @@ export function DeltaChip({
   if (deltaPercent === null) {
     return (
       <span className="text-[12px] text-muted-foreground">
-        no earlier {suffix.replace("past ", "")} to compare
+        <Message
+          text={"no earlier {{value0}} to compare"}
+          values={{ value0: suffix.replace("past ", "") }}
+        />
       </span>
     )
   }
@@ -322,8 +331,13 @@ export function DeltaChip({
   if (Math.abs(deltaPercent) < 1) {
     return (
       <span className="inline-flex items-center gap-1.5 text-[12px] text-muted-foreground">
-        <ArrowRight size={12} weight="bold" aria-hidden="true" />
-        level on the {suffix.replace("past ", "")} before
+        <Message
+          text={"{{value0}}level on the {{value1}} before"}
+          values={{
+            value0: <ArrowRight size={12} weight="bold" aria-hidden="true" />,
+            value1: suffix.replace("past ", ""),
+          }}
+        />
       </span>
     )
   }
@@ -332,25 +346,35 @@ export function DeltaChip({
   const Arrow = rising ? ArrowUpRight : ArrowDownRight
   return (
     <span className="inline-flex items-center gap-1.5 text-[12px] text-muted-foreground">
-      <Arrow
-        size={12}
-        weight="bold"
-        aria-hidden="true"
-        className={
-          // The one place direction earns emphasis: the arrow, not the words.
-          betterWhen === "higher"
-            ? rising
-              ? "text-foreground"
-              : undefined
-            : rising
-              ? undefined
-              : "text-foreground"
-        }
+      <Message
+        text={"{{value0}}{{value1}}{{value2}} the {{value3}} before"}
+        values={{
+          value0: (
+            <Arrow
+              size={12}
+              weight="bold"
+              aria-hidden="true"
+              className={
+                // The one place direction earns emphasis: the arrow, not the words.
+                betterWhen === "higher"
+                  ? rising
+                    ? "text-foreground"
+                    : undefined
+                  : rising
+                    ? undefined
+                    : "text-foreground"
+              }
+            />
+          ),
+          value1: (
+            <span className="font-semibold text-foreground tabular-nums">
+              {Math.abs(Math.round(deltaPercent))}%
+            </span>
+          ),
+          value2: choice(rising ? "up on" : "down on"),
+          value3: suffix.replace("past ", ""),
+        }}
       />
-      <span className="font-semibold text-foreground tabular-nums">
-        {Math.abs(Math.round(deltaPercent))}%
-      </span>
-      {rising ? "up on" : "down on"} the {suffix.replace("past ", "")} before
     </span>
   )
 }
@@ -409,7 +433,7 @@ export function MetricBars({
         className="relative flex items-end gap-[3px] rounded-xl bg-foreground/[0.035] p-3"
         style={{ height }}
         role="group"
-        aria-label="Daily readings"
+        aria-label={tr("Daily readings")}
       >
         {points.map((point, index) => {
           const isSelected = selected === index
@@ -421,9 +445,11 @@ export function MetricBars({
             <button
               key={point.date}
               type="button"
-              aria-label={`${formatShortDate(point.date)}: ${
-                point.value === null ? "no reading" : format(point.value)
-              }`}
+              aria-label={tr("{{value0}}: {{value1}}", {
+                value0: formatShortDate(point.date),
+                value1:
+                  point.value === null ? "no reading" : format(point.value),
+              })}
               aria-pressed={isSelected}
               onClick={() => {
                 hapticSelection()
@@ -453,11 +479,13 @@ export function MetricBars({
             role="status"
           >
             <p className="text-[13px] leading-none font-bold text-background tabular-nums">
-              {active.value === null ? "No reading" : format(active.value)}
+              {active.value === null ? tr("No reading") : format(active.value)}
             </p>
             <p className="mt-1 text-[11px] leading-none font-medium text-background/80">
               {active.span > 1
-                ? `week of ${formatShortDate(active.date)}`
+                ? tr("week of {{value0}}", {
+                    value0: formatShortDate(active.date),
+                  })
                 : formatLongDate(active.date)}
             </p>
           </div>
@@ -590,9 +618,11 @@ export function MetricLine({
             <button
               key={point.date}
               type="button"
-              aria-label={`${formatShortDate(point.date)}: ${
-                point.value === null ? "no reading" : format(point.value)
-              }`}
+              aria-label={tr("{{value0}}: {{value1}}", {
+                value0: formatShortDate(point.date),
+                value1:
+                  point.value === null ? "no reading" : format(point.value),
+              })}
               aria-pressed={selected === index}
               onClick={() => {
                 hapticSelection()
@@ -609,7 +639,7 @@ export function MetricLine({
             role="status"
           >
             <p className="text-[13px] leading-none font-bold text-background tabular-nums">
-              {active.value === null ? "No reading" : format(active.value)}
+              {active.value === null ? tr("No reading") : format(active.value)}
             </p>
             <p className="mt-1 text-[11px] leading-none font-medium text-background/80">
               {formatLongDate(active.date)}
@@ -640,7 +670,7 @@ export function RangeToggle({
     <div
       className="inline-flex shrink-0 gap-0.5 rounded-full bg-foreground/[0.06] p-0.5"
       role="group"
-      aria-label="Time range"
+      aria-label={tr("Time range")}
     >
       {(Object.keys(RANGE_LABELS) as RangeKey[]).map((key) => (
         <button
@@ -712,9 +742,7 @@ export function HealthDetailShell({
           : undefined
       }
     >
-      {heroFill != null && (
-        <ReactiveOrbField className="health-hero-wash" />
-      )}
+      {heroFill != null && <ReactiveOrbField className="health-hero-wash" />}
       <main className="app-page pb-28">
         <NavigationBar
           title={title}
@@ -723,7 +751,7 @@ export function HealthDetailShell({
           leading={
             <ToolbarButton
               onClick={() => navigate(-1)}
-              aria-label="Back to health"
+              aria-label={tr("Back to health")}
               className="-ml-2 px-0 text-muted-foreground"
             >
               <ArrowLeft size={19} weight="bold" />
@@ -816,9 +844,9 @@ export function MetricAbout({
   return (
     <section
       className="progress-tab-enter mt-6 border-t border-border py-7"
-      aria-label="About these numbers"
+      aria-label={tr("About these numbers")}
     >
-      <p className="app-section-title px-1">About these numbers</p>
+      <p className="app-section-title px-1">{tr("About these numbers")}</p>
       {/* Two columns at the widest. Four made every definition a 26-character
           ribbon, which is a column of hyphenation rather than an explanation. */}
       <dl className="mt-5 grid gap-x-14 gap-y-7 px-1 md:grid-cols-2">
@@ -1050,13 +1078,17 @@ function TrendCard({
   emptyNote?: string
 }) {
   const suffix =
-    range === "W" ? "past week" : range === "M" ? "past month" : "past year"
+    range === "W"
+      ? tr("past week")
+      : range === "M"
+        ? tr("past month")
+        : tr("past year")
   const empty = !loading && summary === null
 
   return (
     <section
       className="progress-tab-enter break-inside-avoid border-t border-border py-4 lg:mb-5"
-      aria-label={title ?? "Trend"}
+      aria-label={title ?? tr("Trend")}
     >
       <div className="mb-3 flex items-start justify-between gap-3 px-1">
         <div className="min-w-0">
@@ -1070,7 +1102,9 @@ function TrendCard({
           {empty ? (
             <p className="mt-1.5 text-[13px] text-muted-foreground">
               {emptyNote ??
-                `Nothing recorded ${suffix.replace("past ", "this ")}.`}
+                tr("Nothing recorded {{value0}}.", {
+                  value0: suffix.replace("past ", "this "),
+                })}
             </p>
           ) : (
             <>
@@ -1079,12 +1113,18 @@ function TrendCard({
                   {summary?.average == null ? "—" : format(summary.average)}
                 </span>
                 <span className="text-[13px] font-semibold text-muted-foreground">
-                  {range === "W"
-                    ? "weekly"
-                    : range === "M"
-                      ? "monthly"
-                      : "yearly"}{" "}
-                  average
+                  <Message
+                    text={"{{value0}} average"}
+                    values={{
+                      value0: choice(
+                        range === "W"
+                          ? "weekly"
+                          : range === "M"
+                            ? "monthly"
+                            : "yearly"
+                      ),
+                    }}
+                  />
                 </span>
               </p>
               {summary && (
@@ -1130,16 +1170,28 @@ function TrendCard({
           {summary.min !== null && summary.max !== null && (
             <div className="mt-3 flex gap-5 px-1">
               <p className="text-[12px] text-muted-foreground">
-                Low{" "}
-                <span className="font-semibold text-foreground tabular-nums">
-                  {format(summary.min)}
-                </span>
+                <Message
+                  text={"Low {{value0}}"}
+                  values={{
+                    value0: (
+                      <span className="font-semibold text-foreground tabular-nums">
+                        {format(summary.min)}
+                      </span>
+                    ),
+                  }}
+                />
               </p>
               <p className="text-[12px] text-muted-foreground">
-                High{" "}
-                <span className="font-semibold text-foreground tabular-nums">
-                  {format(summary.max)}
-                </span>
+                <Message
+                  text={"High {{value0}}"}
+                  values={{
+                    value0: (
+                      <span className="font-semibold text-foreground tabular-nums">
+                        {format(summary.max)}
+                      </span>
+                    ),
+                  }}
+                />
               </p>
             </div>
           )}

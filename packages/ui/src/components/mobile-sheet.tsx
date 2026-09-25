@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 import * as React from "react"
 import { createPortal } from "react-dom"
 import { cn } from "../lib/utils"
@@ -44,7 +45,7 @@ export function MobileSheet({
   maxHeight = "85vh",
   snapPoints,
   defaultHeight,
-  ariaLabel = "Sheet",
+  ariaLabel = tr("Sheet"),
   onDragStart,
   onDismissGesture,
 }: MobileSheetProps) {
@@ -319,7 +320,7 @@ export function MobileSheet({
             type="button"
             onPointerDown={handlePointerDown}
             className="flex h-11 w-full shrink-0 touch-none items-center justify-center md:hidden"
-            aria-label="Drag down to close or up to expand this panel"
+            aria-label={tr("Drag down to close or up to expand this panel")}
           >
             <div className={cn("app-sheet-handle", notchClassName)} />
           </button>

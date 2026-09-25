@@ -1,3 +1,4 @@
+import { readLocalizedSource as readFileSync } from "../../tests/helpers/localized-source"
 /**
  * Tests for the Settings page logic.
  *
@@ -14,7 +15,6 @@
 
 import { test, describe } from "node:test"
 import assert from "node:assert/strict"
-import { readFileSync } from "node:fs"
 
 const SETTINGS_SOURCE = readFileSync(
   new URL("./Settings.tsx", import.meta.url),
@@ -748,7 +748,7 @@ describe("upgrading is findable", () => {
     // query resolves, which would flash a sales pitch at a paying customer.
     assert.match(
       SETTINGS_SOURCE,
-      /\{billing\.isConfigured && !billing\.hasOneRepPro && \(/
+      /\{billing\.canUpgrade &&\s+billing\.isConfigured &&\s+!billing\.hasOneRepPro && \(/
     )
   })
 
@@ -759,7 +759,7 @@ describe("upgrading is findable", () => {
   })
 
   test("subscription sits above AI usage on the account screen", () => {
-    const subscription = SETTINGS_SOURCE.indexOf('title="Subscription"')
+    const subscription = SETTINGS_SOURCE.indexOf("<BillingSubscriptionPanel")
     const usage = SETTINGS_SOURCE.indexOf('title="AI usage"')
     assert.ok(subscription > 0 && usage > 0)
     assert.ok(
@@ -839,15 +839,20 @@ describe("settings is reachable without a desktop sidebar", () => {
 
   test("the Today greeting carries a settings button on phone widths", () => {
     assert.match(DASHBOARD, /profile=\{/)
-    assert.match(DASHBOARD, /navigate\("\/settings"/)
-    assert.match(DASHBOARD, /aria-label="Open profile and settings"/)
+    assert.match(DASHBOARD, /<ProfileAvatar \/>/)
+    const profile = readFileSync(
+      new URL("../components/profile-avatar.tsx", import.meta.url),
+      "utf8"
+    )
+    assert.match(profile, /navigate\("\/settings"/)
+    assert.match(profile, /aria-label="Open profile and settings"/)
     // Paired with the sidebar's own row, so the two never both appear.
     assert.match(DASHBOARD, /lg:hidden/)
   })
 
-  test("the native tab bar carries settings, and lights up on it", () => {
-    assert.match(NATIVE_BAR, /id: "\/settings", symbol: "gearshape(\.fill)?"/)
-    assert.match(NATIVE_BAR, /isTabActive\(pathname, "\/settings"\)/)
+  test("settings stays reachable through the shared profile avatar outside primary tabs", () => {
+    assert.doesNotMatch(NATIVE_BAR, /id: "\/settings"/)
+    assert.match(DASHBOARD, /<ProfileAvatar \/>/)
   })
 })
 
@@ -858,7 +863,10 @@ describe("App Review settings navigation regression", () => {
     )?.[1]
     assert.ok(query, "Settings must retain the health workout query")
     assert.match(query, /api\.logs\.healthWorkouts\.list/)
-    assert.match(query, /activeView === "health" && isHealthSyncSupportedPlatform\(\)/)
+    assert.match(
+      query,
+      /activeView === "health" && isHealthSyncSupportedPlatform\(\)/
+    )
     assert.match(query, /\? \{ limit: 20 \}\s*: "skip"/)
     assert.doesNotMatch(query, /excludeLinked/)
     assert.match(SETTINGS_SOURCE, /filter\(\(workout\) => !workout\.linked\)/)
@@ -867,7 +875,10 @@ describe("App Review settings navigation regression", () => {
   test("both health entry points open the Health settings section", () => {
     for (const page of ["Health.tsx", "Progress.tsx"]) {
       const source = readFileSync(new URL(`./${page}`, import.meta.url), "utf8")
-      assert.match(source, /navigate\("\/settings\?view=health", \{ motion: "forward" \}\)/)
+      assert.match(
+        source,
+        /navigate\("\/settings\?view=health", \{ motion: "forward" \}\)/
+      )
     }
   })
 })

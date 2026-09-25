@@ -1,3 +1,4 @@
+import { choice, tr, translateError } from "@repo/ui/i18n"
 import { NudgeIllustration } from "@repo/ui/mobile"
 import { useRecovery } from "@/lib/use-recovery"
 import { useState } from "react"
@@ -35,8 +36,11 @@ function Stat({ value, label }: { value: string; label: string }) {
 
 function trendWord(workouts: number, previous: number) {
   const delta = workouts - previous
-  if (delta === 0) return "level with the week before"
-  return `${delta > 0 ? "up" : "down"} ${Math.abs(delta)} on the week before`
+  if (delta === 0) return tr("level with the week before")
+  return tr("{{value0}} {{value1}} on the week before", {
+    value0: choice(delta > 0 ? "up" : "down"),
+    value1: Math.abs(delta),
+  })
 }
 
 /**
@@ -94,17 +98,19 @@ export function WeeklyReportMoment({
       await setWeeklyTarget({ weekKey: nextWeekKey, sessions: target })
       hapticMedium()
       onClose("resolved")
-      toast.success(`${target} sessions this week. Noted.`)
+      toast.success(
+        tr("{{value0}} sessions this week. Noted.", { value0: target })
+      )
     } catch (error) {
       logDevWarn("Failed to set a weekly target", error)
-      toast.error("Couldn't save that. Try again.")
+      toast.error(translateError(tr("Couldn't save that. Try again.")))
       setBusy(false)
     }
   }
 
   return (
     <MomentScreen
-      title={`Your week: ${report.rangeLabel}`}
+      title={tr("Your week: {{value0}}", { value0: report.rangeLabel })}
       subtitle={report.headline}
       onClose={() => onClose("dismissed")}
       showClose={false}
@@ -120,11 +126,11 @@ export function WeeklyReportMoment({
           >
             {recoveryWeek
               ? recovery?.active
-                ? "Review my recovery plan"
-                : "See my progress"
+                ? tr("Review my recovery plan")
+                : tr("See my progress")
               : busy
-                ? "Saving…"
-                : `Commit to ${target} this week`}
+                ? tr("Saving…")
+                : tr("Commit to {{value0}} this week", { value0: target })}
           </MomentPrimaryAction>
           <MomentSecondaryAction
             onClick={() => {
@@ -134,7 +140,7 @@ export function WeeklyReportMoment({
             }}
             className="bg-transparent text-muted-foreground active:bg-muted/40"
           >
-            Skip it, show me the detail
+            {tr("Skip it, show me the detail")}
           </MomentSecondaryAction>
         </>
       }
@@ -147,18 +153,18 @@ export function WeeklyReportMoment({
       <div className="app-surface mt-2 grid grid-cols-3 gap-3 px-4 py-4">
         <Stat
           value={String(training.workouts)}
-          label={training.workouts === 1 ? "session" : "sessions"}
+          label={training.workouts === 1 ? tr("session") : tr("sessions")}
         />
-        <Stat value={String(training.completedSets)} label="sets" />
-        <Stat value={`${training.minutes}m`} label="under load" />
-        <Stat value={`${nutrition.loggedDays}/7`} label="days logged" />
+        <Stat value={String(training.completedSets)} label={tr("sets")} />
+        <Stat value={`${training.minutes}m`} label={tr("under load")} />
+        <Stat value={`${nutrition.loggedDays}/7`} label={tr("days logged")} />
         <Stat
           value={
             nutrition.averageCalories === null
               ? "—"
               : String(nutrition.averageCalories)
           }
-          label="avg calories"
+          label={tr("avg calories")}
         />
         <Stat
           value={
@@ -166,7 +172,7 @@ export function WeeklyReportMoment({
               ? "—"
               : `${nutrition.averageProtein}g`
           }
-          label="avg protein"
+          label={tr("avg protein")}
         />
       </div>
 
@@ -174,10 +180,15 @@ export function WeeklyReportMoment({
         <p className="mt-3 px-1 text-[13px] leading-snug text-muted-foreground">
           {trendWord(training.workouts, training.previousWorkouts)}
           {nutrition.loggedDays > 0 &&
-            ` · ${nutrition.onTargetDays} of ${nutrition.loggedDays} logged days within 10% of target`}
+            tr(" · {{value0}} of {{value1}} logged days within 10% of target", {
+              value0: nutrition.onTargetDays,
+              value1: nutrition.loggedDays,
+            })}
           {body.weightDeltaKg !== null &&
             body.weightDeltaKg !== 0 &&
-            ` · weight ${formatWeightDelta(body.weightDeltaKg, weightUnit)}`}
+            tr(" · weight {{value0}}", {
+              value0: formatWeightDelta(body.weightDeltaKg, weightUnit),
+            })}
           .
         </p>
       )}
@@ -198,16 +209,18 @@ export function WeeklyReportMoment({
       {!recoveryWeek && (
         <div className="app-surface mt-4 px-4 py-4">
           <p className="text-[15px] font-semibold tracking-tight">
-            Next week, then.
+            {tr("Next week, then.")}
           </p>
           <p className="mt-1 text-[13px] leading-snug text-muted-foreground">
-            Pick a number now and this screen will hold you to it on Sunday.
+            {tr(
+              "Pick a number now and this screen will hold you to it on Sunday."
+            )}
           </p>
 
           <div className="mt-4 flex items-center justify-between">
             <button
               type="button"
-              aria-label="One fewer session"
+              aria-label={tr("One fewer session")}
               disabled={target <= MIN_TARGET}
               onClick={() => nudge(-1)}
               className="app-icon-button h-11 w-11 bg-muted/55 text-muted-foreground disabled:opacity-40"
@@ -219,12 +232,12 @@ export function WeeklyReportMoment({
                 {target}
               </div>
               <div className="mt-1 text-[12px] text-muted-foreground">
-                {target === 1 ? "session" : "sessions"}
+                {target === 1 ? tr("session") : tr("sessions")}
               </div>
             </div>
             <button
               type="button"
-              aria-label="One more session"
+              aria-label={tr("One more session")}
               disabled={target >= MAX_TARGET}
               onClick={() => nudge(1)}
               className="app-icon-button h-11 w-11 bg-muted/55 text-muted-foreground disabled:opacity-40"

@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 import { hapticConfirm } from "@/lib/haptics"
 /**
  * One set, one row. The old layout spent four full-width rows on every set
@@ -30,14 +31,16 @@ export function SetListHeader({ unit }: { unit: WeightUnit }) {
       }}
       aria-hidden="true"
     >
-      {["Set", unit, "Reps", "Rest", "", ""].map((label, column) => (
-        <span
-          key={column}
-          className="text-center text-[11px] font-bold tracking-[0.08em] text-muted-foreground uppercase"
-        >
-          {label}
-        </span>
-      ))}
+      {[tr("Set"), unit, tr("Reps"), tr("Rest"), "", ""].map(
+        (label, column) => (
+          <span
+            key={column}
+            className="text-center text-[11px] font-bold tracking-[0.08em] text-muted-foreground uppercase"
+          >
+            {label}
+          </span>
+        )
+      )}
     </div>
   )
 }
@@ -127,7 +130,10 @@ export function ActiveSetRow({
           type="button"
           onClick={() => setShowWeight(true)}
           disabled={set.completed}
-          aria-label={`Set ${index + 1} weight in ${unit}`}
+          aria-label={tr("Set {{value0}} weight in {{value1}}", {
+            value0: index + 1,
+            value1: unit,
+          })}
           className={cn(fieldCls, "disabled:pointer-events-none")}
         >
           <span className="truncate">{weightDisplay || weightPlaceholder}</span>
@@ -135,7 +141,7 @@ export function ActiveSetRow({
         <input
           type="number"
           name={`set-${index + 1}-reps`}
-          aria-label={`Set ${index + 1} reps`}
+          aria-label={tr("Set {{value0}} reps", { value0: index + 1 })}
           inputMode="numeric"
           value={set.reps}
           onChange={(event) => onRepsChange(event.target.value)}
@@ -149,7 +155,7 @@ export function ActiveSetRow({
         <button
           type="button"
           onClick={() => setShowRest(true)}
-          aria-label={`Set ${index + 1} rest time`}
+          aria-label={tr("Set {{value0}} rest time", { value0: index + 1 })}
           className="flex h-11 items-center justify-center gap-1 text-[13px] font-semibold text-muted-foreground tabular-nums transition-colors active:text-foreground"
         >
           <Timer size={11} />
@@ -159,7 +165,7 @@ export function ActiveSetRow({
           <button
             type="button"
             onClick={onDelete}
-            aria-label={`Delete set ${index + 1}`}
+            aria-label={tr("Delete set {{value0}}", { value0: index + 1 })}
             className="flex h-11 w-full items-center justify-center text-destructive transition-colors active:bg-destructive/10"
           >
             <X size={12} weight="bold" />
@@ -171,7 +177,7 @@ export function ActiveSetRow({
           type="button"
           onClick={toggleDone}
           aria-label={
-            set.completed ? "Mark set incomplete" : "Mark set complete"
+            set.completed ? tr("Mark set incomplete") : tr("Mark set complete")
           }
           className={cn(
             "mx-auto flex h-9 w-9 items-center justify-center rounded-full transition-colors",

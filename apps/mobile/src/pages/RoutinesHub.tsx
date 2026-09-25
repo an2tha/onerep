@@ -1,3 +1,4 @@
+import { Message, tr } from "@repo/ui/i18n"
 import { ArrowLeft, Barbell, Clock } from "@phosphor-icons/react"
 import { NavigationBar, ToolbarButton } from "@repo/ui"
 import { hapticSelection } from "@/lib/haptics"
@@ -5,32 +6,32 @@ import { useSmoothNavigate } from "@/lib/navigation"
 
 const EXAMPLE_ROUTINES = [
   {
-    name: "Three-day foundation",
-    frequency: "3 days / week",
-    duration: "45–55 min",
-    focus: "Strength",
-    sessions: ["Full body A", "Full body B", "Full body A"],
+    name: tr("Three-day foundation"),
+    frequency: tr("3 days / week"),
+    duration: tr("45–55 min"),
+    focus: tr("Strength"),
+    sessions: [tr("Full body A"), tr("Full body B"), tr("Full body A")],
   },
   {
-    name: "Upper / lower",
-    frequency: "4 days / week",
-    duration: "50–65 min",
-    focus: "Strength",
-    sessions: ["Upper", "Lower", "Upper", "Lower"],
+    name: tr("Upper / lower"),
+    frequency: tr("4 days / week"),
+    duration: tr("50–65 min"),
+    focus: tr("Strength"),
+    sessions: [tr("Upper"), tr("Lower"), tr("Upper"), tr("Lower")],
   },
   {
-    name: "Strength and conditioning",
-    frequency: "3 days / week",
-    duration: "40–55 min",
-    focus: "Mixed",
-    sessions: ["Strength", "Intervals", "Strength"],
+    name: tr("Strength and conditioning"),
+    frequency: tr("3 days / week"),
+    duration: tr("40–55 min"),
+    focus: tr("Mixed"),
+    sessions: [tr("Strength"), tr("Intervals"), tr("Strength")],
   },
   {
-    name: "Daily mobility reset",
-    frequency: "6 days / week",
-    duration: "12 min",
-    focus: "Mobility",
-    sessions: ["Hips", "Spine", "Shoulders"],
+    name: tr("Daily mobility reset"),
+    frequency: tr("6 days / week"),
+    duration: tr("12 min"),
+    focus: tr("Mobility"),
+    sessions: [tr("Hips"), tr("Spine"), tr("Shoulders")],
   },
 ] as const
 
@@ -46,9 +47,9 @@ export default function RoutinesHub() {
     <div className="desktop-canvas min-h-svh bg-background text-foreground lg:pr-8 lg:pl-72">
       <main className="mx-auto min-h-svh w-full max-w-5xl pb-[calc(var(--app-safe-bottom-lg)+2rem)]">
         <NavigationBar
-          title="Routines"
+          title={tr("Routines")}
           leading={
-            <ToolbarButton onClick={goBack} aria-label="Back to training">
+            <ToolbarButton onClick={goBack} aria-label={tr("Back to training")}>
               <ArrowLeft size={20} weight="bold" />
             </ToolbarButton>
           }
@@ -56,12 +57,14 @@ export default function RoutinesHub() {
 
         <div className="px-[var(--app-page-x)]">
           <p className="max-w-xl text-[15px] leading-6 text-muted-foreground">
-            Starter structures to preview how saved training routines will feel.
+            {tr(
+              "Starter structures to preview how saved training routines will feel."
+            )}
           </p>
 
           <section
             className="mt-7 grid gap-x-8 md:grid-cols-2"
-            aria-label="Example routines"
+            aria-label={tr("Example routines")}
           >
             {EXAMPLE_ROUTINES.map((routine, index) => (
               <article
@@ -71,7 +74,10 @@ export default function RoutinesHub() {
                 <div className="flex items-start justify-between gap-5">
                   <div className="min-w-0">
                     <p className="text-[12px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
-                      Routine {String(index + 1).padStart(2, "0")}
+                      <Message
+                        text={"Routine {{value0}}"}
+                        values={{ value0: String(index + 1).padStart(2, "0") }}
+                      />
                     </p>
                     <h2 className="mt-2 text-[1.3rem] leading-tight font-semibold tracking-[-0.025em]">
                       {routine.name}
@@ -88,15 +94,15 @@ export default function RoutinesHub() {
                 <dl className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 border-y border-border py-3 text-[13px]">
                   <div className="flex items-center gap-1.5 text-muted-foreground">
                     <Clock size={15} aria-hidden />
-                    <dt className="sr-only">Session duration</dt>
+                    <dt className="sr-only">{tr("Session duration")}</dt>
                     <dd>{routine.duration}</dd>
                   </div>
                   <div>
-                    <dt className="sr-only">Frequency</dt>
+                    <dt className="sr-only">{tr("Frequency")}</dt>
                     <dd>{routine.frequency}</dd>
                   </div>
                   <div>
-                    <dt className="sr-only">Focus</dt>
+                    <dt className="sr-only">{tr("Focus")}</dt>
                     <dd>{routine.focus}</dd>
                   </div>
                 </dl>

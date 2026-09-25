@@ -1,3 +1,4 @@
+import { Message, tr, translateError } from "@repo/ui/i18n"
 import { NudgeIllustration } from "@repo/ui/mobile"
 import { useState } from "react"
 import { useMutation, useQuery } from "convex/react"
@@ -60,35 +61,41 @@ const COACH_PROMPTS: Record<CheckInVariant, string[]> = {
   ],
 }
 
-const RECOVERY_ANSWER: Answer = { id: "unwell", label: "I’m feeling unwell", detail: "Make room for recovery and adjust my plan.", action: "recovery", outcome: "resolved" }
+const RECOVERY_ANSWER: Answer = {
+  id: "unwell",
+  label: tr("I’m feeling unwell"),
+  detail: tr("Make room for recovery and adjust my plan."),
+  action: "recovery",
+  outcome: "resolved",
+}
 
 const MISSED_LOG_ANSWERS: Answer[] = [
   RECOVERY_ANSWER,
   {
     id: "ate-unlogged",
-    label: "I ate, I just didn't write it down",
-    detail: "Your usual foods and recipes, one tap each.",
+    label: tr("I ate, I just didn't write it down"),
+    detail: tr("Your usual foods and recipes, one tap each."),
     action: "nutrition",
     outcome: "resolved",
   },
   {
     id: "trained-unlogged",
-    label: "I trained and forgot to log that too",
-    detail: "Repeat a recent session onto the right day.",
+    label: tr("I trained and forgot to log that too"),
+    detail: tr("Repeat a recent session onto the right day."),
     action: "retro",
     outcome: "resolved",
   },
   {
     id: "off-day",
-    label: "Today got away from me",
-    detail: "Take a breath. Tomorrow is a fresh start.",
+    label: tr("Today got away from me"),
+    detail: tr("Take a breath. Tomorrow is a fresh start."),
     action: "close",
     outcome: "dismissed",
   },
   {
     id: "help",
-    label: "Something's not working for me",
-    detail: "Ask your coach, without typing it out.",
+    label: tr("Something's not working for me"),
+    detail: tr("Ask your coach, without typing it out."),
     action: "coach",
     outcome: "resolved",
   },
@@ -98,22 +105,22 @@ const LAPSE_ANSWERS: Answer[] = [
   RECOVERY_ANSWER,
   {
     id: "trained-unlogged",
-    label: "I trained, it just never got logged",
-    detail: "Repeat a recent session onto the right day.",
+    label: tr("I trained, it just never got logged"),
+    detail: tr("Repeat a recent session onto the right day."),
     action: "retro",
     outcome: "resolved",
   },
   {
     id: "resting",
-    label: "I'm resting on purpose",
-    detail: "Marks those days as rest so this stops asking.",
+    label: tr("I'm resting on purpose"),
+    detail: tr("Marks those days as rest so this stops asking."),
     action: "rest",
     outcome: "resolved",
   },
   {
     id: "sore",
-    label: "Sore, tired, or hurt",
-    detail: "Ask your coach to work around it.",
+    label: tr("Sore, tired, or hurt"),
+    detail: tr("Ask your coach to work around it."),
     action: "coach",
     outcome: "resolved",
   },
@@ -122,18 +129,20 @@ const LAPSE_ANSWERS: Answer[] = [
 function copyFor(variant: CheckInVariant, daysSince: number) {
   if (variant === "missed-log") {
     return {
-      title: "Nothing logged today.",
-      subtitle:
-        "How has your day been? Log something, adjust the plan, or take a break.",
+      title: tr("Nothing logged today."),
+      subtitle: tr(
+        "How has your day been? Log something, adjust the plan, or take a break."
+      ),
     }
   }
   return {
     title:
       daysSince > 0
-        ? `${daysSince} days since your last session.`
-        : "No training logged lately.",
-    subtitle:
-      "Plans change. Tell us what you need and we’ll find a comfortable next step.",
+        ? tr("{{value0}} days since your last session.", { value0: daysSince })
+        : tr("No training logged lately."),
+    subtitle: tr(
+      "Plans change. Tell us what you need and we’ll find a comfortable next step."
+    ),
   }
 }
 
@@ -195,15 +204,15 @@ export function CheckInMoment({
       onClose("resolved")
       toast.success(
         dates.length === 1
-          ? "Marked as rest"
-          : `${dates.length} days off, noted`,
+          ? tr("Marked as rest")
+          : tr("{{value0}} days off, noted", { value0: dates.length }),
         {
           action: {
-            label: "Undo",
+            label: tr("Undo"),
             onClick: () => {
               announceOrbActivity("delete", Math.min(dates.length, 3))
               void unmarkRestDays({ dates }).catch(() => {
-                toast.error("Couldn't undo that")
+                toast.error(translateError(tr("Couldn't undo that")))
               })
             },
           },
@@ -211,7 +220,7 @@ export function CheckInMoment({
       )
     } catch (error) {
       logDevWarn("Failed to mark rest days", error)
-      toast.error("Couldn't save that. Try again.")
+      toast.error(translateError(tr("Couldn't save that. Try again.")))
       setBusy(false)
     }
   }
@@ -234,27 +243,31 @@ export function CheckInMoment({
       })
       announceOrbActivity("log")
       hapticMedium()
-      toast.success(`${fmtWater(amountMl)} logged`, {
+      toast.success(tr("{{value0}} logged", { value0: fmtWater(amountMl) }), {
         action: {
-          label: "Undo",
+          label: tr("Undo"),
           onClick: () => {
             announceOrbActivity("delete")
             void removeWater({ date: todayKey, id }).catch(() => {
-              toast.error("Couldn't undo that")
+              toast.error(translateError(tr("Couldn't undo that")))
             })
           },
         },
       })
     } catch (error) {
       logDevWarn("Failed to log water from a moment", error)
-      toast.error("Couldn't log that. Try again.")
+      toast.error(translateError(tr("Couldn't log that. Try again.")))
     } finally {
       setBusy(false)
     }
   }
 
   function choose(answer: Answer) {
-    if (answer.action === "recovery") { onClose("resolved"); navigate("/recovery"); return }
+    if (answer.action === "recovery") {
+      onClose("resolved")
+      navigate("/recovery")
+      return
+    }
     hapticSelection()
     if (answer.action === "retro") {
       setStep("day")
@@ -305,8 +318,10 @@ export function CheckInMoment({
   if (step === "coach") {
     return (
       <MomentScreen
-        title="What should it know?"
-        subtitle="Pick the closest one and your coach answers it with your last twelve weeks already in front of it."
+        title={tr("What should it know?")}
+        subtitle={tr(
+          "Pick the closest one and your coach answers it with your last twelve weeks already in front of it."
+        )}
         onClose={() => {
           hapticSelection()
           onClose("dismissed")
@@ -314,7 +329,7 @@ export function CheckInMoment({
         actions={
           <>
             <MomentSecondaryAction onClick={() => askCoach()}>
-              Another reason
+              {tr("Another reason")}
             </MomentSecondaryAction>
             <MomentSecondaryAction
               onClick={() => {
@@ -323,8 +338,14 @@ export function CheckInMoment({
               }}
               className="bg-transparent text-muted-foreground active:bg-muted/40"
             >
-              <CaretLeft size={13} weight="bold" className="mr-1.5" />
-              Back
+              <Message
+                text={"{{value0}}Back"}
+                values={{
+                  value0: (
+                    <CaretLeft size={13} weight="bold" className="mr-1.5" />
+                  ),
+                }}
+              />
             </MomentSecondaryAction>
           </>
         }
@@ -374,11 +395,14 @@ export function CheckInMoment({
           onClick={() => onClose("dismissed")}
           className="bg-transparent text-muted-foreground active:bg-muted/40"
         >
-          Not now
+          {tr("Not now")}
         </MomentSecondaryAction>
       }
     >
-      <NudgeIllustration scene={variant === "missed-log" ? "log" : "return"} className="mx-auto mb-5 !w-44" />
+      <NudgeIllustration
+        scene={variant === "missed-log" ? "log" : "return"}
+        className="mx-auto mb-5 !w-44"
+      />
       <div className="app-surface overflow-hidden">
         {answers.map((answer, index) => (
           <div key={answer.id}>
@@ -401,7 +425,7 @@ export function CheckInMoment({
       {variant === "missed-log" && (
         <div className="mt-5">
           <p className="mb-2 px-1 text-[13px] text-muted-foreground">
-            Or drink something, while you are here
+            {tr("Or drink something, while you are here")}
           </p>
           <div className="flex flex-wrap gap-1.5">
             {waterChips.map((amountMl) => (

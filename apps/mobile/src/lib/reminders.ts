@@ -1,3 +1,4 @@
+import { tr, uiLocale } from "@repo/ui/i18n"
 import { Capacitor } from "@capacitor/core"
 import { LocalNotifications } from "@capacitor/local-notifications"
 import {
@@ -97,28 +98,30 @@ const REMINDER_COPY: Record<
 > = {
   water: {
     id: 9201,
-    title: "Hydration check",
-    body: "Log a glass. Today’s total is still short.",
+    title: tr("Hydration check"),
+    body: tr("Log a glass. Today’s total is still short."),
   },
   meal: {
     id: 9202,
-    title: "Meal log",
-    body: "Add your meal while the details are still fresh.",
+    title: tr("Meal log"),
+    body: tr("Add your meal while the details are still fresh."),
   },
   workout: {
     id: 9203,
-    title: "Training window",
-    body: "Your plan is waiting. Start a session or adjust today’s routine.",
+    title: tr("Training window"),
+    body: tr(
+      "Your plan is waiting. Start a session or adjust today’s routine."
+    ),
   },
   body: {
     id: 9204,
-    title: "Daily check-in",
-    body: "Log your latest measurements and see how your goal is moving.",
+    title: tr("Daily check-in"),
+    body: tr("Log your latest measurements and see how your goal is moving."),
   },
   supplement: {
     id: 9205,
-    title: "Supplement log",
-    body: "Mark off creatine, protein, vitamins, or caffeine for today.",
+    title: tr("Supplement log"),
+    body: tr("Mark off creatine, protein, vitamins, or caffeine for today."),
   },
 }
 
@@ -167,11 +170,18 @@ async function scheduleEntryReminderNow(
     notifications: [
       {
         id: 96000 + Math.floor(Math.random() * 9999),
-        title: kind === "workout" ? "Scheduled workout" : "Meal log reminder",
+        title:
+          kind === "workout"
+            ? tr("Scheduled workout")
+            : tr("Meal log reminder"),
         body:
           kind === "workout"
-            ? "You planned a session for around now. Start it while it fits."
-            : "You planned to eat around now — log it while you remember what it was.",
+            ? tr(
+                "You planned a session for around now. Start it while it fits."
+              )
+            : tr(
+                "You planned to eat around now — log it while you remember what it was."
+              ),
         schedule: { at, allowWhileIdle: true },
         extra: { recoveryReminderKind: kind },
         channelId,
@@ -199,14 +209,14 @@ export function mergeReminderSettings(
 export function formatReminderTime(reminder: ReminderConfig) {
   const base = new Date()
   base.setHours(reminder.hour, reminder.minute, 0, 0)
-  return base.toLocaleTimeString("en-US", {
+  return base.toLocaleTimeString(uiLocale(), {
     hour: "numeric",
     minute: "2-digit",
   })
 }
 
 export function formatReminderLabel(reminder: ReminderConfig) {
-  return `Daily at ${formatReminderTime(reminder)}`
+  return tr("Daily at {{value0}}", { value0: formatReminderTime(reminder) })
 }
 
 type ReminderSyncResult = "scheduled" | "disabled" | "unsupported" | "denied"

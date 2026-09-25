@@ -1,3 +1,4 @@
+import { Message, choice, tr, translateError } from "@repo/ui/i18n"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useParams, useSearchParams } from "react-router"
 import { TourAnchor } from "@/components/walkthrough/tour-anchor"
@@ -138,7 +139,9 @@ export default function GroceryLists() {
 
   async function handleCreate() {
     if (preview.items.length === 0) {
-      toast.error("Pick at least one recipe with ingredients")
+      toast.error(
+        translateError(tr("Pick at least one recipe with ingredients"))
+      )
       return
     }
     setSaving(true)
@@ -150,7 +153,7 @@ export default function GroceryLists() {
         sourceBatchIds: [...selectedBatches],
       })
       hapticSelection()
-      toast.success("Grocery list created")
+      toast.success(tr("Grocery list created"))
       setSelectedRecipes({})
       setSelectedBatches(new Set())
       if (id) navigate(`/nutrition/groceries/${id}`)
@@ -164,12 +167,12 @@ export default function GroceryLists() {
   return (
     <div className="native-page mx-auto min-h-svh w-full max-w-xl pb-[calc(var(--app-safe-bottom)+6rem)] text-foreground">
       <NavigationBar
-        title="Grocery lists"
-        subtitle="Build a shopping list from recipes"
+        title={tr("Grocery lists")}
+        subtitle={tr("Build a shopping list from recipes")}
         leading={
           <ToolbarButton
             onClick={() => navigate(-1)}
-            aria-label="Back to nutrition"
+            aria-label={tr("Back to nutrition")}
             className="-ml-2 px-0 text-muted-foreground"
           >
             <ArrowLeft size={19} weight="bold" />
@@ -180,8 +183,8 @@ export default function GroceryLists() {
       <div className="px-[var(--app-page-x)] pt-2">
         {lists.length > 0 && (
           <>
-            <SectionHeader title="Your lists" />
-            <GroupedList label="Saved grocery lists">
+            <SectionHeader title={tr("Your lists")} />
+            <GroupedList label={tr("Saved grocery lists")}>
               {lists.map((stored) => {
                 const remaining = stored.items.filter(
                   (entry) => !entry.checked
@@ -196,12 +199,20 @@ export default function GroceryLists() {
                       onClick={() =>
                         navigate(`/nutrition/groceries/${stored._id}`)
                       }
-                      aria-label={`Open ${stored.name}`}
+                      aria-label={tr("Open {{value0}}", {
+                        value0: stored.name,
+                      })}
                       className="min-w-0 flex-1 text-left active:opacity-70"
                     >
                       <p className="native-row-title truncate">{stored.name}</p>
                       <p className="native-row-detail mt-0.5 tabular-nums">
-                        {remaining} of {stored.items.length} left to buy
+                        <Message
+                          text={"{{value0}} of {{value1}} left to buy"}
+                          values={{
+                            value0: remaining,
+                            value1: stored.items.length,
+                          }}
+                        />
                       </p>
                     </button>
                     <button
@@ -209,7 +220,7 @@ export default function GroceryLists() {
                       onClick={async () => {
                         try {
                           await removeList({ id: stored._id })
-                          toast.success("List deleted")
+                          toast.success(tr("List deleted"))
                         } catch (error) {
                           reportOfflineMutationError(
                             error,
@@ -217,7 +228,9 @@ export default function GroceryLists() {
                           )
                         }
                       }}
-                      aria-label={`Delete ${stored.name}`}
+                      aria-label={tr("Delete {{value0}}", {
+                        value0: stored.name,
+                      })}
                       className="native-toolbar-button h-11 w-11 px-0 text-destructive"
                     >
                       <Trash size={17} weight="bold" />
@@ -229,28 +242,30 @@ export default function GroceryLists() {
           </>
         )}
 
-        <SectionHeader title="New list" />
+        <SectionHeader title={tr("New list")} />
         <label className="native-field">
-          <span className="native-field-label">List name</span>
+          <span className="native-field-label">{tr("List name")}</span>
           <input
             value={name}
-            aria-label="Grocery list name"
+            aria-label={tr("Grocery list name")}
             onChange={(event) => setName(event.target.value)}
             className="h-11 w-full rounded-xl border border-border bg-transparent px-3 outline-none"
           />
         </label>
 
         <TourAnchor anchor="groceries-sources" className="block">
-          <SectionHeader title="Recipes" />
+          <SectionHeader title={tr("Recipes")} />
           {recipes.length === 0 ? (
             <EmptyState
               icon={ShoppingCart}
               tone="food"
-              title="No recipes yet"
-              detail="Save a recipe with ingredients and it can feed a grocery list."
+              title={tr("No recipes yet")}
+              detail={tr(
+                "Save a recipe with ingredients and it can feed a grocery list."
+              )}
             />
           ) : (
-            <GroupedList label="Recipes to shop for">
+            <GroupedList label={tr("Recipes to shop for")}>
               {recipes.map((recipe) => {
                 const id = recipe._id as string
                 const selected = selectedRecipes[id] !== undefined
@@ -271,9 +286,10 @@ export default function GroceryLists() {
                           return next
                         })
                       }}
-                      aria-label={`${selected ? "Remove" : "Add"} ${
-                        recipe.name
-                      } to the list`}
+                      aria-label={tr("{{value0}} {{value1}} to the list", {
+                        value0: choice(selected ? "Remove" : "Add"),
+                        value1: recipe.name,
+                      })}
                       aria-pressed={selected}
                       className="flex min-w-0 flex-1 items-center gap-2 text-left active:opacity-70"
                     >
@@ -293,8 +309,10 @@ export default function GroceryLists() {
                         </span>
                         <span className="native-row-detail block">
                           {ingredientCount === 0
-                            ? "No ingredient data"
-                            : `${ingredientCount} ingredients`}
+                            ? tr("No ingredient data")
+                            : tr("{{value0}} ingredients", {
+                                value0: ingredientCount,
+                              })}
                         </span>
                       </span>
                     </button>
@@ -305,7 +323,9 @@ export default function GroceryLists() {
                         max={50}
                         placeholder={String(recipe.servings ?? 1)}
                         value={selectedRecipes[id] || ""}
-                        aria-label={`Servings of ${recipe.name}`}
+                        aria-label={tr("Servings of {{value0}}", {
+                          value0: recipe.name,
+                        })}
                         onChange={(event) => {
                           const value = Number(event.target.value)
                           setSelectedRecipes((current) => ({
@@ -324,8 +344,8 @@ export default function GroceryLists() {
 
           {batches.length > 0 && (
             <>
-              <SectionHeader title="Meal prep batches" />
-              <GroupedList label="Batches to shop for">
+              <SectionHeader title={tr("Meal prep batches")} />
+              <GroupedList label={tr("Batches to shop for")}>
                 {batches.map((batch) => {
                   const shoppable = Boolean(batch.sourceRecipeId)
                   const selected = selectedBatches.has(batch._id)
@@ -344,9 +364,10 @@ export default function GroceryLists() {
                         })
                       }}
                       aria-pressed={selected}
-                      aria-label={`${selected ? "Remove" : "Add"} ${
-                        batch.name
-                      } to the list`}
+                      aria-label={tr("{{value0}} {{value1}} to the list", {
+                        value0: choice(selected ? "Remove" : "Add"),
+                        value1: batch.name,
+                      })}
                       className="flex min-h-14 w-full items-center gap-2 px-1 py-2.5 text-left active:opacity-70 disabled:opacity-50"
                     >
                       <span
@@ -365,8 +386,10 @@ export default function GroceryLists() {
                         </span>
                         <span className="native-row-detail block">
                           {shoppable
-                            ? `${batch.servingsTotal} servings`
-                            : "No ingredient data: built without a recipe"}
+                            ? tr("{{value0}} servings", {
+                                value0: batch.servingsTotal,
+                              })
+                            : tr("No ingredient data: built without a recipe")}
                         </span>
                       </span>
                     </button>
@@ -379,29 +402,36 @@ export default function GroceryLists() {
 
         {!nothingSelected && (
           <>
-            <SectionHeader title="Preview" />
+            <SectionHeader title={tr("Preview")} />
             <SummaryBlock
               tone="food"
-              title="Merged list"
+              title={tr("Merged list")}
               value={
                 <span className="tabular-nums">
-                  {preview.items.length} item
-                  {preview.items.length === 1 ? "" : "s"}
+                  <Message
+                    text={"{{value0}} item{{value1}}"}
+                    values={{
+                      value0: preview.items.length,
+                      value1: preview.items.length === 1 ? "" : "s",
+                    }}
+                  />
                 </span>
               }
               detail={
                 preview.skippedBatches.length > 0
-                  ? `Skipped: ${preview.skippedBatches.join(", ")}. No ingredient data.`
-                  : "Ingredients naming the same food were combined."
+                  ? tr("Skipped: {{value0}}. No ingredient data.", {
+                      value0: preview.skippedBatches.join(", "),
+                    })
+                  : tr("Ingredients naming the same food were combined.")
               }
             />
             <PrimaryButton
               onClick={handleCreate}
               disabled={saving || preview.items.length === 0}
-              aria-label="Create grocery list"
+              aria-label={tr("Create grocery list")}
               className="mt-3 w-full"
             >
-              {saving ? "Creating..." : "Create list"}
+              {saving ? tr("Creating...") : tr("Create list")}
             </PrimaryButton>
           </>
         )}
@@ -501,14 +531,16 @@ export function GroceryListDetail() {
     } catch (error) {
       // A user dismissing the share sheet is not a failure worth shouting about.
       if ((error as Error)?.name !== "AbortError") {
-        toast.error("Could not share this list")
+        toast.error(translateError(tr("Could not share this list")))
       }
     }
   }
 
   function handlePrint() {
     if (typeof window.print !== "function") {
-      toast.error("Printing is not available on this device")
+      toast.error(
+        translateError(tr("Printing is not available on this device"))
+      )
       return
     }
     window.print()
@@ -518,11 +550,11 @@ export function GroceryListDetail() {
     return (
       <div className="native-page mx-auto min-h-svh w-full max-w-xl text-foreground">
         <NavigationBar
-          title="Grocery list"
+          title={tr("Grocery list")}
           leading={
             <ToolbarButton
               onClick={backToLists}
-              aria-label="Back to grocery lists"
+              aria-label={tr("Back to grocery lists")}
               className="-ml-2 px-0 text-muted-foreground"
             >
               <ArrowLeft size={19} weight="bold" />
@@ -531,8 +563,8 @@ export function GroceryListDetail() {
         />
         <EmptyState
           icon={ShoppingCart}
-          title="List not found"
-          detail="It may have been deleted."
+          title={tr("List not found")}
+          detail={tr("It may have been deleted.")}
         />
       </div>
     )
@@ -551,12 +583,16 @@ export function GroceryListDetail() {
       />
       <NavigationBar
         className="print-hidden"
-        title={stored?.name ?? "Grocery list"}
-        subtitle={stored ? `${remaining} left to buy` : undefined}
+        title={stored?.name ?? tr("Grocery list")}
+        subtitle={
+          stored
+            ? tr("{{value0}} left to buy", { value0: remaining })
+            : undefined
+        }
         leading={
           <ToolbarButton
             onClick={backToLists}
-            aria-label="Back to grocery lists"
+            aria-label={tr("Back to grocery lists")}
             className="-ml-2 px-0 text-muted-foreground"
           >
             <ArrowLeft size={19} weight="bold" />
@@ -566,13 +602,13 @@ export function GroceryListDetail() {
           <div className="flex items-center gap-1">
             <ToolbarButton
               onClick={handleShare}
-              aria-label="Share grocery list"
+              aria-label={tr("Share grocery list")}
             >
               <ShareNetwork size={19} weight="bold" />
             </ToolbarButton>
             <ToolbarButton
               onClick={handlePrint}
-              aria-label="Print grocery list"
+              aria-label={tr("Print grocery list")}
             >
               <Printer size={19} weight="bold" />
             </ToolbarButton>
@@ -584,13 +620,13 @@ export function GroceryListDetail() {
         <div className="print-hidden flex items-center gap-2">
           <input
             value={newItem}
-            placeholder="Add an item"
-            aria-label="Add a grocery item"
+            placeholder={tr("Add an item")}
+            aria-label={tr("Add a grocery item")}
             onChange={(event) => setNewItem(event.target.value)}
             className="h-11 flex-1 rounded-xl border border-border bg-transparent px-3 outline-none"
           />
           <PrimaryButton
-            aria-label="Add item to list"
+            aria-label={tr("Add item to list")}
             onClick={async () => {
               const created = manualGroceryItem(newItem)
               if (!created || !listId) return
@@ -602,7 +638,7 @@ export function GroceryListDetail() {
               }
             }}
           >
-            Add
+            {tr("Add")}
           </PrimaryButton>
         </div>
 
@@ -610,14 +646,16 @@ export function GroceryListDetail() {
           <EmptyState
             icon={ShoppingCart}
             tone="food"
-            title="Nothing on this list"
-            detail="Add an item above, or build a new list from your recipes."
+            title={tr("Nothing on this list")}
+            detail={tr(
+              "Add an item above, or build a new list from your recipes."
+            )}
           />
         ) : (
           grouped.map(([category, categoryItems]) => (
             <div key={category} className="print-block">
-              <SectionHeader title={category} />
-              <GroupedList label={`${category} items`}>
+              <SectionHeader title={tr(category)} />
+              <GroupedList label={tr("{{value0}} items", { value0: category })}>
                 {categoryItems.map((item) => {
                   const amount = groceryItemAmount(item)
                   return (
@@ -645,7 +683,9 @@ export function GroceryListDetail() {
                         }}
                         role="checkbox"
                         aria-checked={item.checked}
-                        aria-label={`Toggle ${item.name}`}
+                        aria-label={tr("Toggle {{value0}}", {
+                          value0: item.name,
+                        })}
                         className="flex min-w-0 flex-1 items-center gap-2 text-left active:opacity-70"
                       >
                         <span
@@ -691,7 +731,9 @@ export function GroceryListDetail() {
                             )
                           }
                         }}
-                        aria-label={`Remove ${item.name}`}
+                        aria-label={tr("Remove {{value0}}", {
+                          value0: item.name,
+                        })}
                         className="native-toolbar-button print-hidden h-11 w-11 px-0 text-destructive"
                       >
                         <Trash size={17} weight="bold" />
@@ -711,15 +753,15 @@ export function GroceryListDetail() {
               if (!listId) return
               try {
                 await clearChecked({ id: listId })
-                toast.success("Cleared what you already have")
+                toast.success(tr("Cleared what you already have"))
               } catch (error) {
                 reportOfflineMutationError(error, "Could not clear these items")
               }
             }}
-            aria-label="Clear checked items"
+            aria-label={tr("Clear checked items")}
             className="native-toolbar-button print-hidden mt-3 h-11 w-full justify-center px-3"
           >
-            Clear checked
+            {tr("Clear checked")}
           </button>
         )}
       </div>

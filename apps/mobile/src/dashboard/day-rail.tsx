@@ -1,3 +1,4 @@
+import { Message, choice, tr } from "@repo/ui/i18n"
 /**
  * The rail above the wheel: where the day stands, stacked — what's been
  * eaten against the day's targets, how much has been drunk, and which
@@ -89,7 +90,7 @@ export function DayRail({
       className={`grid grid-cols-2 gap-2.5 ${supplements.length > 0 ? "lg:grid-cols-3" : ""} ${className ?? ""}`}
     >
       {/* Nutrition ledger */}
-      <RailCard title="Nutrition">
+      <RailCard title={tr("Nutrition")}>
         {caloriesRemaining !== null ? (
           <>
             {/* A day still running has calories left in it. A day that is
@@ -100,36 +101,52 @@ export function DayRail({
                 {isToday
                   ? caloriesRemaining >= 0
                     ? caloriesRemaining
-                    : `+${Math.abs(caloriesRemaining)}`
+                    : tr("+{{value0}}", { value0: Math.abs(caloriesRemaining) })
                   : Math.round(calories)}
               </span>
               <span className="text-[12px] text-muted-foreground lg:text-[13px]">
                 {isToday
-                  ? `kcal ${caloriesRemaining >= 0 ? "left" : "over"}`
-                  : `of ${Math.round(calorieGoal ?? 0)} kcal`}
+                  ? tr("kcal {{value0}}", {
+                      value0: choice(caloriesRemaining >= 0 ? "left" : "over"),
+                    })
+                  : tr("of {{value0}} kcal", {
+                      value0: Math.round(calorieGoal ?? 0),
+                    })}
               </span>
             </p>
             <div className="mt-3 flex flex-col gap-2">
-              <MacroBar label="Protein" value={protein} goal={proteinGoal} />
-              <MacroBar label="Carbs" value={carbs} goal={carbsGoal} />
-              <MacroBar label="Fat" value={fat} goal={fatGoal} />
+              <MacroBar
+                label={tr("Protein")}
+                value={protein}
+                goal={proteinGoal}
+              />
+              <MacroBar label={tr("Carbs")} value={carbs} goal={carbsGoal} />
+              <MacroBar label={tr("Fat")} value={fat} goal={fatGoal} />
             </div>
           </>
         ) : (
           <p className="text-[14px] text-muted-foreground">
-            {Math.round(calories)} kcal {isToday ? "so far today" : "logged"}.
+            <Message
+              text={"{{value0}} kcal {{value1}}."}
+              values={{
+                value0: Math.round(calories),
+                value1: choice(isToday ? "so far today" : "logged"),
+              }}
+            />
           </p>
         )}
       </RailCard>
 
       {/* Water */}
       <RailCard
-        title="Water"
+        title={tr("Water")}
         action={
           <button
             type="button"
             aria-label={
-              isToday ? "Add a glass of water" : "Add a glass to this day"
+              isToday
+                ? tr("Add a glass of water")
+                : tr("Add a glass to this day")
             }
             onClick={() => {
               announceOrbActivity("log")
@@ -174,7 +191,7 @@ export function DayRail({
       {/* Supplements */}
       {supplements.length > 0 && (
         <RailCard
-          title="Supplements"
+          title={tr("Supplements")}
           className="col-span-2 lg:col-span-1"
           action={
             <span className="text-[12px] text-muted-foreground tabular-nums">
@@ -193,8 +210,8 @@ export function DayRail({
                     aria-checked={taken}
                     aria-label={
                       taken
-                        ? `Untake ${supplement.name}`
-                        : `Take ${supplement.name}`
+                        ? tr("Untake {{value0}}", { value0: supplement.name })
+                        : tr("Take {{value0}}", { value0: supplement.name })
                     }
                     disabled={busySupplementId === supplement.id}
                     onClick={() => void toggleSupplement(supplement)}
@@ -253,7 +270,7 @@ function MacroBar({
       </div>
       <span className="shrink-0 text-right text-[12px] whitespace-nowrap text-muted-foreground tabular-nums">
         {Math.round(value)}
-        {goal ? ` / ${Math.round(goal)}g` : "g"}
+        {goal ? tr(" / {{value0}}g", { value0: Math.round(goal) }) : tr("g")}
       </span>
     </div>
   )

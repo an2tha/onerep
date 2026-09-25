@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 import { Capacitor, registerPlugin } from "@capacitor/core"
 
 /**
@@ -57,7 +58,8 @@ export type HealthWorkoutSave = {
   startedAt: number
   endedAt: number
   title: string
-  sport?: "run" | "ride" | "swim" | "hike" | "walk" | "trail_run" | "row" | "strength"
+  sport?:
+    "run" | "ride" | "swim" | "hike" | "walk" | "trail_run" | "row" | "strength"
   environment?: "outdoor" | "indoor"
   distanceMeters?: number
   activeEnergyKcal?: number
@@ -145,8 +147,8 @@ export function isHealthSyncSupportedPlatform() {
 export function healthProviderLabel(
   provider: HealthProvider | null = healthProvider()
 ): string {
-  if (provider === "health_connect") return "Health Connect"
-  return "Apple Health"
+  if (provider === "health_connect") return tr("Health Connect")
+  return tr("Apple Health")
 }
 
 function plugin(): HealthPlugin | null {

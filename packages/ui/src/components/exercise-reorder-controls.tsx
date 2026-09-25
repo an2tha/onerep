@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 import { ArrowDown, ArrowUp, ArrowsDownUp } from "@phosphor-icons/react"
 import * as React from "react"
 
@@ -90,12 +91,15 @@ export function ExerciseReorderToolbar({
     >
       <div className="min-w-0">
         <p className="text-[13px] font-semibold text-foreground">
-          Exercise order
+          {tr("Exercise order")}
         </p>
         <p className="text-[13px] text-muted-foreground">
           {active
-            ? "Use the arrow buttons or drag handles."
-            : `${count} exercise${count === 1 ? "" : "s"}`}
+            ? tr("Use the arrow buttons or drag handles.")
+            : tr("{{value0}} exercise{{value1}}", {
+                value0: count,
+                value1: count === 1 ? "" : "s",
+              })}
         </p>
       </div>
       <button
@@ -108,7 +112,7 @@ export function ExerciseReorderToolbar({
         )}
       >
         <ArrowsDownUp size={16} weight="bold" />
-        {active ? "Done" : "Reorder"}
+        {active ? tr("Done") : tr("Reorder")}
       </button>
     </div>
   )
@@ -136,14 +140,14 @@ export function ExerciseMoveControls({
         className
       )}
       role="group"
-      aria-label={`Reorder ${label}`}
+      aria-label={tr("Reorder {{value0}}", { value0: label })}
     >
       <button
         type="button"
         onClick={onMoveUp}
         disabled={!canMoveUp}
         className="flex h-8 w-8 items-center justify-center text-muted-foreground transition-colors active:bg-muted active:text-foreground disabled:opacity-25"
-        aria-label={`Move ${label} up`}
+        aria-label={tr("Move {{value0}} up", { value0: label })}
       >
         <ArrowUp size={13} weight="bold" />
       </button>
@@ -153,7 +157,7 @@ export function ExerciseMoveControls({
         onClick={onMoveDown}
         disabled={!canMoveDown}
         className="flex h-8 w-8 items-center justify-center text-muted-foreground transition-colors active:bg-muted active:text-foreground disabled:opacity-25"
-        aria-label={`Move ${label} down`}
+        aria-label={tr("Move {{value0}} down", { value0: label })}
       >
         <ArrowDown size={13} weight="bold" />
       </button>

@@ -1,5 +1,6 @@
+import { readLocalizedSource as readFileSync } from "../../../tests/helpers/localized-source"
 import { describe, expect, it } from "bun:test"
-import { readFileSync } from "node:fs"
+
 import { formCoachAngleWeight, formCoachProgressValue } from "@/lib/form-coach"
 
 describe("formCoachAngleWeight", () => {

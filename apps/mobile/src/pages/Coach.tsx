@@ -1,3 +1,4 @@
+import { Message, tr, translateError, uiLocale } from "@repo/ui/i18n"
 import { coachErrorMessage } from "@/lib/coach-error"
 import { RecoveryBanner } from "@/components/recovery/recovery-banner"
 import {
@@ -133,9 +134,9 @@ type CoachMode = "chat" | "chef" | "personal_trainer"
 const COACH_MODES = [
   {
     id: "chat",
-    label: "Briefing",
-    heading: "Your performance briefing",
-    placeholder: "Ask Coach anything…",
+    label: tr("Briefing"),
+    heading: tr("Your performance briefing"),
+    placeholder: tr("Ask Coach anything…"),
     icon: PaperPlaneTilt,
     centerArt: ChatCircleDots,
     leftArt: LightbulbFilament,
@@ -150,9 +151,9 @@ const COACH_MODES = [
   },
   {
     id: "chef",
-    label: "Nutrition",
-    heading: "Your nutrition briefing",
-    placeholder: "Ask about meals, recipes, or nutrition…",
+    label: tr("Nutrition"),
+    heading: tr("Your nutrition briefing"),
+    placeholder: tr("Ask about meals, recipes, or nutrition…"),
     icon: ForkKnife,
     centerArt: ChefHat,
     leftArt: Carrot,
@@ -167,9 +168,9 @@ const COACH_MODES = [
   },
   {
     id: "personal_trainer",
-    label: "Training",
-    heading: "Your training briefing",
-    placeholder: "Ask about workouts, form, or recovery…",
+    label: tr("Training"),
+    heading: tr("Your training briefing"),
+    placeholder: tr("Ask about workouts, form, or recovery…"),
     icon: Barbell,
     centerArt: Barbell,
     leftArt: SneakerMove,
@@ -186,23 +187,24 @@ const COACH_MODES = [
 
 const COACH_STARTERS = [
   {
-    title: "Plan my day",
-    prompt: "What should I focus on today based on my recent activity?",
+    title: tr("Plan my day"),
+    prompt: tr("What should I focus on today based on my recent activity?"),
     icon: Heartbeat,
   },
   {
-    title: "Check progress",
-    prompt: "How is my progress trending, and what should I watch next?",
+    title: tr("Check progress"),
+    prompt: tr("How is my progress trending, and what should I watch next?"),
     icon: ChartLineUp,
   },
   {
-    title: "Explore a scenario",
-    prompt:
-      "Help me explore a change to my goals or routine without saving anything.",
+    title: tr("Explore a scenario"),
+    prompt: tr(
+      "Help me explore a change to my goals or routine without saving anything."
+    ),
     icon: LightbulbFilament,
   },
   {
-    title: "Today’s check-in",
+    title: tr("Today’s check-in"),
     prompt: null,
     icon: CheckCircle,
   },
@@ -210,63 +212,71 @@ const COACH_STARTERS = [
 
 const CHEF_STARTERS = [
   {
-    title: "Review nutrition",
-    prompt: "Review my recent nutrition and give me one thing to improve.",
+    title: tr("Review nutrition"),
+    prompt: tr("Review my recent nutrition and give me one thing to improve."),
     icon: ChartLineUp,
   },
   {
-    title: "Create a recipe",
-    prompt:
-      "Create a practical recipe that fits my nutrition goals and saved preferences.",
+    title: tr("Create a recipe"),
+    prompt: tr(
+      "Create a practical recipe that fits my nutrition goals and saved preferences."
+    ),
     icon: CookingPot,
   },
   {
-    title: "Plan my meals",
-    prompt: "Help me plan simple meals for the next few days.",
+    title: tr("Plan my meals"),
+    prompt: tr("Help me plan simple meals for the next few days."),
     icon: ForkKnife,
   },
   {
-    title: "Use what I have",
-    prompt: "Help me make a meal from ingredients I already have.",
+    title: tr("Use what I have"),
+    prompt: tr("Help me make a meal from ingredients I already have."),
     icon: Carrot,
   },
 ] as const
 
 const TRAINER_STARTERS = [
   {
-    title: "Analyze training",
-    prompt: "Analyze my training this week and suggest my next workout.",
+    title: tr("Analyze training"),
+    prompt: tr("Analyze my training this week and suggest my next workout."),
     icon: ChartLineUp,
   },
   {
-    title: "Plan a workout",
-    prompt: "Build a workout for me based on my routine and recent training.",
+    title: tr("Plan a workout"),
+    prompt: tr(
+      "Build a workout for me based on my routine and recent training."
+    ),
     icon: Barbell,
   },
   {
-    title: "Validate my routine",
-    prompt:
-      "Validate my current weekly routine for recovery, balance, duration, and volume.",
+    title: tr("Validate my routine"),
+    prompt: tr(
+      "Validate my current weekly routine for recovery, balance, duration, and volume."
+    ),
     icon: CheckCircle,
   },
   {
-    title: "Adjust for recovery",
-    prompt: "Adapt my next workout to my latest recovery and training data.",
+    title: tr("Adjust for recovery"),
+    prompt: tr(
+      "Adapt my next workout to my latest recovery and training data."
+    ),
     icon: Heartbeat,
   },
 ] as const
 
 const BEGINNER_SETUP_STARTERS = [
   {
-    title: "Build my workout plan",
-    prompt:
-      "Help me set up my first workout plan. Ask only the essential questions about my schedule, equipment, and limitations, then give me a simple plan I can save.",
+    title: tr("Build my workout plan"),
+    prompt: tr(
+      "Help me set up my first workout plan. Ask only the essential questions about my schedule, equipment, and limitations, then give me a simple plan I can save."
+    ),
     icon: Barbell,
   },
   {
-    title: "Set up easy recipes",
-    prompt:
-      "Help me set up a few beginner-friendly recipes. Use what you already know about my safety needs, then ask only about food preferences, budget, and cooking access.",
+    title: tr("Set up easy recipes"),
+    prompt: tr(
+      "Help me set up a few beginner-friendly recipes. Use what you already know about my safety needs, then ask only about food preferences, budget, and cooking access."
+    ),
     icon: ForkKnife,
   },
 ] as const
@@ -356,14 +366,14 @@ function relativeDay(date: string) {
   )
   if (days <= 0) return "today"
   if (days === 1) return "yesterday"
-  return `${days} days ago`
+  return tr("{{value0}} days ago", { value0: days })
 }
 
 function timeGreeting() {
   const hour = new Date().getHours()
-  if (hour < 12) return "Good morning."
-  if (hour < 18) return "Good afternoon."
-  return "Good evening."
+  if (hour < 12) return tr("Good morning.")
+  if (hour < 18) return tr("Good afternoon.")
+  return tr("Good evening.")
 }
 
 /** Survives navigation and new chats: pick a model once, keep it. */
@@ -409,10 +419,12 @@ function CoachLoadingState() {
     <div
       className="m-auto flex items-center gap-3 text-muted-foreground"
       role="status"
-      aria-label="Loading Coach"
+      aria-label={tr("Loading Coach")}
     >
       <span className="size-2 animate-pulse rounded-full bg-current" />
-      <span className="text-[12px] font-medium">Connecting your data…</span>
+      <span className="text-[12px] font-medium">
+        {tr("Connecting your data…")}
+      </span>
     </div>
   )
 }
@@ -513,7 +525,7 @@ function CoachSheet({
             ref={closeButtonRef}
             type="button"
             onClick={onClose}
-            aria-label={`Close ${title}`}
+            aria-label={tr("Close {{value0}}", { value0: title })}
             className="flex size-10 items-center justify-center rounded-full bg-muted"
           >
             <X size={16} weight="bold" />
@@ -576,19 +588,20 @@ function FormCoachPicker({
   return (
     <>
       <p className="text-[11px] leading-relaxed text-muted-foreground">
-        Pick the lift. You’ll film up to three angles, and the coach measures
-        the joints rather than taking your word for it.
+        {tr(
+          "Pick the lift. You’ll film up to three angles, and the coach measures the joints rather than taking your word for it."
+        )}
       </p>
       <input
         value={query}
         onChange={(event) => setQuery(event.target.value)}
-        placeholder="Search exercises"
-        aria-label="Search exercises to film"
+        placeholder={tr("Search exercises")}
+        aria-label={tr("Search exercises to film")}
         className="mt-3 min-h-11 w-full rounded-xl border border-border/60 bg-card px-3 text-[12px] outline-none"
       />
       {results.length === 0 ? (
         <p className="py-8 text-center text-[12px] text-muted-foreground">
-          {searching ? "Looking…" : "Nothing by that name."}
+          {searching ? tr("Looking…") : tr("Nothing by that name.")}
         </p>
       ) : (
         <div className="mt-2 divide-y divide-border/45">
@@ -708,8 +721,13 @@ export default function Coach({
   const hasActiveWorkout = (activeWorkouts?.length ?? 0) > 0
   const coachModesRef = useTourAnchor("coach-modes")
   const location = useLocation()
-  const [sleepAtmosphere, setSleepAtmosphere] = useState(() => new URLSearchParams(location.search).get("sleep") === "1")
-  useEffect(() => { if (new URLSearchParams(location.search).get("sleep") === "1") setSleepAtmosphere(true) }, [location.search])
+  const [sleepAtmosphere, setSleepAtmosphere] = useState(
+    () => new URLSearchParams(location.search).get("sleep") === "1"
+  )
+  useEffect(() => {
+    if (new URLSearchParams(location.search).get("sleep") === "1")
+      setSleepAtmosphere(true)
+  }, [location.search])
   const todayKey = currentDateKey(detectTimeZone())
   const presets = useQuery(api.logs.presets.list, {})
   const schedule = useQuery(api.users.schedules.get, {})
@@ -787,7 +805,17 @@ export default function Coach({
     loadCoachConversation("chat")
   )
   useEffect(() => {
-    if (messages.some(message => message.sleepMode || (message.role === "user" && /\b(sleep|sleeping|bedtime|insomnia|nap|circadian|schlaf)\b/i.test(message.content)))) setSleepAtmosphere(true)
+    if (
+      messages.some(
+        (message) =>
+          message.sleepMode ||
+          (message.role === "user" &&
+            /\b(sleep|sleeping|bedtime|insomnia|nap|circadian|schlaf)\b/i.test(
+              message.content
+            ))
+      )
+    )
+      setSleepAtmosphere(true)
   }, [messages])
   const [lastFailedPrompt, setLastFailedPrompt] = useState<string | null>(null)
   const {
@@ -1673,17 +1701,19 @@ export default function Coach({
       })
       await recordAction({
         kind: "create_goal",
-        summary: `Pinned ${goal.title} to Today`,
+        summary: tr("Pinned {{value0}} to Today", { value0: goal.title }),
         targetType: "coach_goal",
         targetId: String(saved.goalId),
         undoPayload: { kind: "delete_goal", id: String(saved.goalId) },
       })
       hapticTap()
-      toast.success("Goal pinned to Today")
+      toast.success(tr("Goal pinned to Today"))
     } catch (error) {
       hapticHeavy()
       toast.error(
-        error instanceof Error ? error.message : "Could not pin this goal"
+        translateError(
+          error instanceof Error ? error.message : tr("Could not pin this goal")
+        )
       )
       throw error
     }
@@ -1713,11 +1743,13 @@ export default function Coach({
         )
       )
       hapticTap()
-      toast.success(`${operation.name} logged`)
+      toast.success(tr("{{value0}} logged", { value0: operation.name }))
     } catch (error) {
       hapticHeavy()
       toast.error(
-        error instanceof Error ? error.message : "Could not log this meal"
+        translateError(
+          error instanceof Error ? error.message : tr("Could not log this meal")
+        )
       )
       throw error
     }
@@ -1730,15 +1762,15 @@ export default function Coach({
         pinned: true,
       })
       hapticTap()
-      toast.success("Goal pinned to Today", {
+      toast.success(tr("Goal pinned to Today"), {
         action: {
-          label: "Undo",
+          label: tr("Undo"),
           onClick: () => {
             void setCoachGoalPinned({
               id: goalId as Id<"coachGoals">,
               pinned: false,
             }).catch(() => {
-              toast.error("Couldn't undo that")
+              toast.error(translateError(tr("Couldn't undo that")))
             })
           },
         },
@@ -1746,7 +1778,9 @@ export default function Coach({
     } catch (error) {
       hapticHeavy()
       toast.error(
-        error instanceof Error ? error.message : "Could not pin this goal"
+        translateError(
+          error instanceof Error ? error.message : tr("Could not pin this goal")
+        )
       )
       throw error
     }
@@ -1770,11 +1804,15 @@ export default function Coach({
         )
       )
       hapticTap()
-      toast.success("Coach applied your changes")
+      toast.success(tr("Coach applied your changes"))
     } catch (error) {
       hapticHeavy()
       toast.error(
-        error instanceof Error ? error.message : "Could not apply Coach changes"
+        translateError(
+          error instanceof Error
+            ? error.message
+            : tr("Could not apply Coach changes")
+        )
       )
     } finally {
       setApplyingMessageIndex(null)
@@ -1796,10 +1834,12 @@ export default function Coach({
     try {
       await undoCoachAction({ id: id as Id<"coachActionEvents"> })
       hapticTap()
-      toast.success("Coach change undone")
+      toast.success(tr("Coach change undone"))
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Could not undo change"
+        translateError(
+          error instanceof Error ? error.message : tr("Could not undo change")
+        )
       )
     }
   }
@@ -1827,7 +1867,9 @@ export default function Coach({
       announceOrbActivity("log")
       await recordAction({
         kind: "log_recipe",
-        summary: `Logged one serving of ${result.name}`,
+        summary: tr("Logged one serving of {{value0}}", {
+          value0: result.name,
+        }),
         targetType: "nutrition",
         targetId: entryId,
         undoPayload: {
@@ -1836,10 +1878,12 @@ export default function Coach({
           entryId,
         },
       })
-      toast.success(`${result.name} logged`)
+      toast.success(tr("{{value0}} logged", { value0: result.name }))
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Could not log recipe"
+        translateError(
+          error instanceof Error ? error.message : tr("Could not log recipe")
+        )
       )
     }
   }
@@ -1861,10 +1905,12 @@ export default function Coach({
         source: "manual",
       })
       setNewMemoryValue("")
-      toast.success("Added to Coach memory")
+      toast.success(tr("Added to Coach memory"))
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Could not add memory"
+        translateError(
+          error instanceof Error ? error.message : tr("Could not add memory")
+        )
       )
     } finally {
       setSavingMemory(false)
@@ -1890,9 +1936,11 @@ export default function Coach({
     if (!rawPrompt && !selectedAttachment) return
     if (selectedAttachment && selectedAttachment.status !== "ready") {
       toast.error(
-        selectedAttachment.status === "error"
-          ? selectedAttachment.error
-          : "Wait for the image to finish uploading."
+        translateError(
+          selectedAttachment.status === "error"
+            ? selectedAttachment.error
+            : tr("Wait for the image to finish uploading.")
+        )
       )
       return
     }
@@ -1946,8 +1994,13 @@ export default function Coach({
     trackUmami("coach_request", requestShape)
 
     try {
-    if (/\b(sleep|sleeping|asleep|bedtime|insomnia|nightmare|nap|circadian|schlaf|schlafen)\b/i.test(prompt)) setSleepAtmosphere(true)
-    const result = await generateChat({
+      if (
+        /\b(sleep|sleeping|asleep|bedtime|insomnia|nightmare|nap|circadian|schlaf|schlafen)\b/i.test(
+          prompt
+        )
+      )
+        setSleepAtmosphere(true)
+      const result = await generateChat({
         context,
         message: activeWorkout
           ? [
@@ -1960,7 +2013,13 @@ export default function Coach({
           : prompt,
         coachMode: activeMode,
         model: chatModel,
-        today: sleepAtmosphere && /^\d{4}-\d{2}-\d{2}$/.test(new URLSearchParams(location.search).get("sleepDate") ?? "") ? new URLSearchParams(location.search).get("sleepDate")! : todayKey,
+        today:
+          sleepAtmosphere &&
+          /^\d{4}-\d{2}-\d{2}$/.test(
+            new URLSearchParams(location.search).get("sleepDate") ?? ""
+          )
+            ? new URLSearchParams(location.search).get("sleepDate")!
+            : todayKey,
         ...(selectedAttachment?.id
           ? { attachmentId: selectedAttachment.id }
           : {}),
@@ -1968,16 +2027,16 @@ export default function Coach({
           .slice(-8)
           .map((message) => ({ role: message.role, content: message.content })),
       })
-    const response = result as {
-      reply: string
-      sleepMode?: boolean
+      const response = result as {
+        reply: string
+        sleepMode?: boolean
         openui?: string
         uiBlocks?: unknown
         operations?: unknown
         artifacts?: unknown
       }
-    if (response.sleepMode) setSleepAtmosphere(true)
-    const allOperations = normalizeCoachOperations(response.operations)
+      if (response.sleepMode) setSleepAtmosphere(true)
+      const allOperations = normalizeCoachOperations(response.operations)
       // Over a live session a workout plan means "change what I am doing now".
       // Saving it as a preset instead would be the wrong verb entirely.
       const workoutPlan = activeWorkout
@@ -2016,7 +2075,8 @@ export default function Coach({
           role: "assistant",
           content: response.reply,
           sleepMode: response.sleepMode === true || sleepAtmosphere,
-          openui: typeof response.openui === "string" ? response.openui : undefined,
+          openui:
+            typeof response.openui === "string" ? response.openui : undefined,
           uiBlocks: normalizeCoachUiBlocks(response.uiBlocks),
           operationResults,
           pendingOperations: needsConfirmation ? operations : undefined,
@@ -2316,7 +2376,18 @@ export default function Coach({
       data-new-chat-phase={newChatPhase}
       data-carousel-background={carouselBackgroundPhase}
     >
-      {sleepAtmosphere && <><SleepSky /><button className="sleep-mode-control" onClick={() => setSleepAtmosphere(false)} aria-label="Leave sleep atmosphere">Sleep mode · Exit</button></>}
+      {sleepAtmosphere && (
+        <>
+          <SleepSky />
+          <button
+            className="sleep-mode-control"
+            onClick={() => setSleepAtmosphere(false)}
+            aria-label={tr("Leave sleep atmosphere")}
+          >
+            {tr("Sleep mode · Exit")}
+          </button>
+        </>
+      )}
       <div
         key={`coach-page-${activeMode}`}
         className="coach-page-slide relative h-full w-full touch-pan-y"
@@ -2371,14 +2442,16 @@ export default function Coach({
                     }
                     navigate("/workout/active", { motion: "back" })
                   }}
-                  aria-label={embedded ? "Close coach" : "Back to your workout"}
+                  aria-label={
+                    embedded ? tr("Close coach") : tr("Back to your workout")
+                  }
                   className="-ml-2 flex size-10 shrink-0 items-center justify-center rounded-full text-muted-foreground active:bg-muted"
                 >
                   <ArrowLeft size={16} weight="bold" />
                 </button>
               )}
               <h1 className="truncate text-[18px] leading-tight font-bold tracking-tight">
-                Coach
+                {tr("Coach")}
               </h1>
             </div>
             <div className="flex items-center gap-1">
@@ -2391,7 +2464,7 @@ export default function Coach({
                   }}
                   aria-haspopup="listbox"
                   aria-expanded={modelMenuOpen}
-                  aria-label="Coach model"
+                  aria-label={tr("Coach model")}
                   className="coach-header-action flex min-h-9 items-center gap-1 rounded-full border border-border/70 bg-card/40 px-2.5 text-[11px] font-bold text-foreground/75 active:bg-muted"
                 >
                   <Sparkle
@@ -2401,7 +2474,7 @@ export default function Coach({
                   />
                   <span className="max-w-28 truncate">
                     {modelCatalog.find((entry) => entry.id === chatModel)
-                      ?.label ?? "Model"}
+                      ?.label ?? tr("Model")}
                   </span>
                   <CaretDown
                     size={11}
@@ -2415,7 +2488,7 @@ export default function Coach({
                 {modelMenuOpen && (
                   <div
                     role="listbox"
-                    aria-label="Coach model"
+                    aria-label={tr("Coach model")}
                     className="absolute top-full right-0 z-50 mt-1.5 w-60 rounded-xl border border-border/60 bg-card p-1 shadow-[0_18px_50px_color-mix(in_srgb,black_18%,transparent)]"
                   >
                     {modelCatalog.map((entry) => {
@@ -2461,7 +2534,7 @@ export default function Coach({
                   hapticSelection()
                   setShowMemory(true)
                 }}
-                aria-label="Coach memory"
+                aria-label={tr("Coach memory")}
                 className="coach-header-action coach-header-action--memory flex size-10 items-center justify-center rounded-full text-muted-foreground active:bg-muted"
               >
                 <Brain size={16} weight="bold" />
@@ -2472,7 +2545,7 @@ export default function Coach({
                   hapticSelection()
                   setShowHistory(true)
                 }}
-                aria-label="Coach action history"
+                aria-label={tr("Coach action history")}
                 className="coach-header-action coach-header-action--history flex size-10 items-center justify-center rounded-full text-muted-foreground active:bg-muted"
               >
                 <ClockCounterClockwise size={16} weight="bold" />
@@ -2485,20 +2558,22 @@ export default function Coach({
                     disabled={busy}
                     className="motion-tactile inline-flex min-h-11 items-center gap-1.5 px-2 text-[11px] font-bold text-muted-foreground active:text-foreground disabled:opacity-40"
                   >
-                    <Plus size={13} weight="bold" />
-                    New chat
+                    <Message
+                      text={"{{value0}}New chat"}
+                      values={{ value0: <Plus size={13} weight="bold" /> }}
+                    />
                   </button>
                 </TourAnchor>
               ) : null}
             </div>
           </header>
-        <RecoveryBanner surface="coach" />
+          <RecoveryBanner surface="coach" />
 
           <nav
             ref={coachModesRef}
             className="coach-mode-tabs grid shrink-0 grid-cols-3 gap-1 border-b border-border/45 py-2"
             role="tablist"
-            aria-label="Coach modes"
+            aria-label={tr("Coach modes")}
           >
             {COACH_MODES.map((item) => {
               const active = item.id === activeMode
@@ -2561,7 +2636,7 @@ export default function Coach({
                               setGuidedIntent(null)
                               updateComposer("")
                             }}
-                            aria-label="Close guided request"
+                            aria-label={tr("Close guided request")}
                             className="coach-customization-close motion-tactile flex size-9 shrink-0 items-center justify-center rounded-full text-muted-foreground active:bg-muted"
                           >
                             <X size={14} weight="bold" />
@@ -2605,7 +2680,7 @@ export default function Coach({
                         <div className="relative p-4 sm:p-5">
                           <div className="flex items-center justify-between gap-3">
                             <p className="text-[12px] font-medium text-muted-foreground">
-                              Customizing
+                              {tr("Customizing")}
                             </p>
                             <button
                               type="button"
@@ -2619,7 +2694,7 @@ export default function Coach({
                                   updateComposer("")
                                 }, 260)
                               }}
-                              aria-label="Stop customizing recipe"
+                              aria-label={tr("Stop customizing recipe")}
                               className="coach-customization-close motion-tactile -mt-2 -mr-2 flex size-9 shrink-0 items-center justify-center rounded-full text-muted-foreground active:bg-muted"
                             >
                               <X size={14} weight="bold" />
@@ -2632,7 +2707,12 @@ export default function Coach({
                             {recipeCustomization.description}
                           </p>
                           <div className="mt-4 flex gap-3 text-[10px] font-semibold text-muted-foreground tabular-nums">
-                            <span>{recipeCustomization.time} min</span>
+                            <span>
+                              <Message
+                                text={"{{value0}} min"}
+                                values={{ value0: recipeCustomization.time }}
+                              />
+                            </span>
                             <span>
                               {energyDisplay(
                                 recipeCustomization.calories,
@@ -2640,17 +2720,23 @@ export default function Coach({
                               )}{" "}
                               {energyUnit}
                             </span>
-                            <span>{recipeCustomization.protein}g protein</span>
+                            <span>
+                              <Message
+                                text={"{{value0}}g protein"}
+                                values={{ value0: recipeCustomization.protein }}
+                              />
+                            </span>
                           </div>
                         </div>
                       </div>
                       <div className="mt-6 px-1">
                         <h3 className="text-[24px] leading-tight font-semibold tracking-[-0.025em]">
-                          What would you like to change?
+                          {tr("What would you like to change?")}
                         </h3>
                         <p className="mt-2 text-[13px] leading-5 text-muted-foreground">
-                          Try “make it vegetarian,” “more protein,” or “under 20
-                          minutes.”
+                          {tr(
+                            "Try “make it vegetarian,” “more protein,” or “under 20 minutes.”"
+                          )}
                         </p>
                       </div>
                     </div>
@@ -2666,19 +2752,19 @@ export default function Coach({
                     </h2>
                     <p className="mt-2 max-w-md text-[14px] leading-5 text-foreground/60">
                       {!context.hasAnyData
-                        ? "Nothing logged yet."
+                        ? tr("Nothing logged yet.")
                         : activeMode === "chef"
                           ? context.proteinAdherence < 85
-                            ? "Close the protein gap today."
-                            : "Keep today’s food simple."
+                            ? tr("Close the protein gap today.")
+                            : tr("Keep today’s food simple.")
                           : activeMode === "personal_trainer"
                             ? context.workoutDays7 >= 4
-                              ? "You’ve earned a lighter day."
-                              : "Make the next session count."
+                              ? tr("You’ve earned a lighter day.")
+                              : tr("Make the next session count.")
                             : context.workoutDays7 >= 3 &&
                                 context.proteinAdherence >= 85
-                              ? "You’re on track. Don’t overcorrect."
-                              : "Do one useful thing well today."}
+                              ? tr("You’re on track. Don’t overcorrect.")
+                              : tr("Do one useful thing well today.")}
                     </p>
                     <button
                       type="button"
@@ -2695,15 +2781,20 @@ export default function Coach({
                       }
                       className="motion-tactile mt-7 inline-flex min-h-11 items-center gap-2 border-b border-foreground/35 text-[12px] font-semibold text-foreground active:border-foreground"
                     >
-                      {context.hasAnyData ? "See what I’d do" : "Set me up"}{" "}
+                      {context.hasAnyData
+                        ? tr("See what I’d do")
+                        : tr("Set me up")}{" "}
                       <ArrowRight size={14} weight="bold" />
                     </button>
                     {context.hasAnyData ? (
                       <div className="coach-brief-tiles mt-8 grid max-w-xl grid-cols-2 gap-2.5">
                         <CoachBriefTile
-                          label="Today"
+                          label={tr("Today")}
                           value={`${energyDisplay(context.todayCalories, energyUnit)} / ${energyDisplay(context.calorieTarget, energyUnit)} ${energyUnit}`}
-                          detail={`${Math.round(context.todayProtein)} of ${Math.round(context.proteinTarget)}g protein`}
+                          detail={tr("{{value0}} of {{value1}}g protein", {
+                            value0: Math.round(context.todayProtein),
+                            value1: Math.round(context.proteinTarget),
+                          })}
                           fill={
                             context.calorieTarget > 0
                               ? context.todayCalories / context.calorieTarget
@@ -2716,12 +2807,17 @@ export default function Coach({
                           }
                         />
                         <CoachBriefTile
-                          label="This week"
-                          value={`${context.workoutDays7} of 7 days`}
+                          label={tr("This week")}
+                          value={tr("{{value0}} of 7 days", {
+                            value0: context.workoutDays7,
+                          })}
                           detail={
                             context.lastWorkout
-                              ? `Last: ${context.lastWorkout.name}, ${relativeDay(context.lastWorkout.date)}`
-                              : "No sessions logged"
+                              ? tr("Last: {{value0}}, {{value1}}", {
+                                  value0: context.lastWorkout.name,
+                                  value1: relativeDay(context.lastWorkout.date),
+                                })
+                              : tr("No sessions logged")
                           }
                           fill={null}
                           onClick={() =>
@@ -2781,8 +2877,14 @@ export default function Coach({
                                 onClick={() => void submit(lastFailedPrompt)}
                                 className="motion-tactile mt-3 inline-flex h-9 items-center gap-1.5 rounded-xl bg-foreground px-3 text-[11px] font-bold text-background"
                               >
-                                <ArrowClockwise size={13} weight="bold" />
-                                Try again
+                                <Message
+                                  text={"{{value0}}Try again"}
+                                  values={{
+                                    value0: (
+                                      <ArrowClockwise size={13} weight="bold" />
+                                    ),
+                                  }}
+                                />
                               </button>
                             ) : (
                               <>
@@ -2850,24 +2952,32 @@ export default function Coach({
                                       pinned: true,
                                     })
                                     hapticTap()
-                                    toast.success("Widget added to dashboard", {
-                                      action: {
-                                        label: "Undo",
-                                        onClick: () => {
-                                          void setDashboardWidgetPinned({
-                                            widgetId:
-                                              widgetId as Id<"dashboardWidgets">,
-                                            pinned: false,
-                                          }).catch(() => {
-                                            toast.error("Couldn't undo that")
-                                          })
+                                    toast.success(
+                                      tr("Widget added to dashboard"),
+                                      {
+                                        action: {
+                                          label: tr("Undo"),
+                                          onClick: () => {
+                                            void setDashboardWidgetPinned({
+                                              widgetId:
+                                                widgetId as Id<"dashboardWidgets">,
+                                              pinned: false,
+                                            }).catch(() => {
+                                              toast.error(
+                                                translateError(
+                                                  tr("Couldn't undo that")
+                                                )
+                                              )
+                                            })
+                                          },
                                         },
-                                      },
-                                    })
+                                      }
+                                    )
                                   }}
                                   onCreateWidgetFollowUp={(widget) => {
                                     const title =
-                                      widget.followUpTitle ?? "Follow-up widget"
+                                      widget.followUpTitle ??
+                                      tr("Follow-up widget")
                                     const kind =
                                       widget.followUpKind ?? "sparkline"
                                     void submit(
@@ -2894,11 +3004,22 @@ export default function Coach({
               their remaining sets. */}
           {activeWorkout && workoutPlanDraft && (
             <div className="z-20 mx-auto mb-2 w-full max-w-3xl shrink-0 rounded-2xl border border-border bg-card px-4 py-3">
-              <p className="text-[15px] font-semibold">Update this workout?</p>
+              <p className="text-[15px] font-semibold">
+                {tr("Update this workout?")}
+              </p>
               <p className="mt-0.5 text-[13px] text-muted-foreground">
-                {(workoutPlanDraft.exercises ?? []).length} exercise
-                {(workoutPlanDraft.exercises ?? []).length === 1 ? "" : "s"} ·
-                completed sets are kept
+                <Message
+                  text={
+                    "{{value0}} exercise{{value1}} · completed sets are kept"
+                  }
+                  values={{
+                    value0: (workoutPlanDraft.exercises ?? []).length,
+                    value1:
+                      (workoutPlanDraft.exercises ?? []).length === 1
+                        ? ""
+                        : "s",
+                  }}
+                />
               </p>
               <div className="mt-2.5 flex gap-2">
                 <button
@@ -2912,14 +3033,14 @@ export default function Coach({
                   }}
                   className="motion-tactile min-h-11 flex-1 rounded-xl bg-foreground px-4 text-[14px] font-semibold text-background disabled:opacity-45"
                 >
-                  Use this plan
+                  {tr("Use this plan")}
                 </button>
                 <button
                   type="button"
                   onClick={() => setWorkoutPlanDraft(null)}
                   className="motion-tactile min-h-11 rounded-xl border border-border px-4 text-[14px] font-semibold text-muted-foreground"
                 >
-                  Keep mine
+                  {tr("Keep mine")}
                 </button>
               </div>
             </div>
@@ -2930,7 +3051,7 @@ export default function Coach({
           !recipeCustomization ? (
             <div
               className="coach-starter-row z-20 mx-auto flex w-full max-w-3xl shrink-0 gap-2 overflow-x-auto pt-1 pb-3"
-              aria-label="Suggested questions"
+              aria-label={tr("Suggested questions")}
             >
               {starters.map((starter) => {
                 const Icon = starter.icon
@@ -2988,7 +3109,7 @@ export default function Coach({
                       }}
                       disabled={loading || busy}
                       className="w-auto gap-1.5 rounded-full px-3 text-[11.5px] font-semibold"
-                      label="Picture"
+                      label={tr("Picture")}
                     />
                     {activeMode !== "chef" && (
                       <button
@@ -2999,12 +3120,16 @@ export default function Coach({
                           setShowFormCoach(true)
                         }}
                         disabled={loading || busy}
-                        aria-label="Check my form"
-                        title="Check my form"
+                        aria-label={tr("Check my form")}
+                        title={tr("Check my form")}
                         className="motion-tactile flex min-h-10 shrink-0 items-center gap-1.5 rounded-full px-3 text-[11.5px] font-semibold text-muted-foreground hover:bg-muted disabled:opacity-35"
                       >
-                        <VideoCamera size={16} weight="bold" />
-                        Check my form
+                        <Message
+                          text={"{{value0}}Check my form"}
+                          values={{
+                            value0: <VideoCamera size={16} weight="bold" />,
+                          }}
+                        />
                       </button>
                     )}
                   </div>
@@ -3017,7 +3142,7 @@ export default function Coach({
                       setAttachMenuOpen((open) => !open)
                     }}
                     disabled={loading || busy}
-                    aria-label="Add a picture or a form check"
+                    aria-label={tr("Add a picture or a form check")}
                     aria-expanded={attachMenuOpen}
                     className={cn(
                       "coach-attach-toggle motion-tactile flex size-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted disabled:opacity-35",
@@ -3042,11 +3167,11 @@ export default function Coach({
                     }}
                     placeholder={
                       loading
-                        ? "Connecting your data…"
+                        ? tr("Connecting your data…")
                         : recipeCustomization
-                          ? "Describe what you’d like to change…"
+                          ? tr("Describe what you’d like to change…")
                           : guidedIntent
-                            ? "Tell Coach what you have in mind…"
+                            ? tr("Tell Coach what you have in mind…")
                             : mode.placeholder
                     }
                     disabled={loading || busy}
@@ -3063,14 +3188,14 @@ export default function Coach({
                     disabled={loading || busy || !dictation.available}
                     aria-label={
                       dictation.status === "listening"
-                        ? "Stop voice input"
-                        : "Start voice input"
+                        ? tr("Stop voice input")
+                        : tr("Start voice input")
                     }
                     aria-pressed={dictation.status === "listening"}
                     title={
                       dictation.available
-                        ? "Voice input"
-                        : "Voice input is unavailable on this device"
+                        ? tr("Voice input")
+                        : tr("Voice input is unavailable on this device")
                     }
                     className={cn(
                       "motion-tactile flex size-10 shrink-0 items-center justify-center rounded-lg disabled:opacity-35",
@@ -3093,7 +3218,7 @@ export default function Coach({
                       (input.trim().length === 0 &&
                         attachment?.status !== "ready")
                     }
-                    aria-label="Send message"
+                    aria-label={tr("Send message")}
                     className="coach-send-button motion-tactile flex size-10 shrink-0 items-center justify-center rounded-full bg-foreground text-background disabled:bg-foreground/25 disabled:text-background/60"
                   >
                     <PaperPlaneTilt size={17} weight="fill" />
@@ -3105,8 +3230,14 @@ export default function Coach({
                     aria-live="polite"
                     className="px-2.5 pt-1 text-[9px] font-bold text-foreground/65"
                   >
-                    Listening
-                    {dictation.interim ? ` · ${dictation.interim}` : "…"}
+                    <Message
+                      text={"Listening{{value0}}"}
+                      values={{
+                        value0: dictation.interim
+                          ? tr(" · {{value0}}", { value0: dictation.interim })
+                          : "…",
+                      }}
+                    />
                   </p>
                 ) : dictation.error ? (
                   <p
@@ -3156,7 +3287,7 @@ export default function Coach({
           document.body
         )}
       <CoachSheet
-        title="Coach activity"
+        title={tr("Coach activity")}
         open={showHistory}
         onClose={() => setShowHistory(false)}
         mode={activeMode}
@@ -3164,12 +3295,12 @@ export default function Coach({
         <input
           value={historySearch}
           onChange={(event) => setHistorySearch(event.target.value)}
-          placeholder="Search Coach changes"
+          placeholder={tr("Search Coach changes")}
           className="mb-3 min-h-11 w-full rounded-xl border border-border/60 bg-card px-3 text-[12px] outline-none"
         />
         {(actionHistory ?? []).length === 0 ? (
           <p className="py-8 text-center text-[12px] text-muted-foreground">
-            Coach changes will appear here with an undo option.
+            {tr("Coach changes will appear here with an undo option.")}
           </p>
         ) : (
           <div className="divide-y divide-border/45">
@@ -3198,8 +3329,8 @@ export default function Coach({
                   <div className="min-w-0 flex-1">
                     <p className="text-[11px] font-bold">{event.summary}</p>
                     <p className="mt-0.5 text-[9px] text-muted-foreground">
-                      {event.status === "undone" ? "Undone" : "Applied"} ·{" "}
-                      {new Date(event.createdAt).toLocaleString()}
+                      {event.status === "undone" ? tr("Undone") : tr("Applied")}{" "}
+                      · {new Date(event.createdAt).toLocaleString(uiLocale())}
                     </p>
                   </div>
                   {event.status === "applied" ? (
@@ -3208,7 +3339,7 @@ export default function Coach({
                       onClick={() => void undoAction(String(event._id))}
                       className="min-h-9 px-2 text-[10px] font-black"
                     >
-                      Undo
+                      {tr("Undo")}
                     </button>
                   ) : null}
                 </div>
@@ -3217,29 +3348,30 @@ export default function Coach({
         )}
       </CoachSheet>
       <CoachSheet
-        title="Coach memory"
+        title={tr("Coach memory")}
         open={showMemory}
         onClose={() => setShowMemory(false)}
         mode={activeMode}
       >
         <p className="text-[11px] leading-relaxed text-muted-foreground">
-          Coach uses these durable preferences when creating meals, workouts,
-          and weekly plans. Say “remember…” in chat to add one.
+          {tr(
+            "Coach uses these durable preferences when creating meals, workouts, and weekly plans. Say “remember…” in chat to add one."
+          )}
         </p>
         <div className="mt-4 rounded-2xl border border-border/60 bg-card p-3">
           <div className="grid gap-2 sm:grid-cols-[9rem_minmax(0,1fr)]">
             <select
               value={newMemoryCategory}
               onChange={(event) => setNewMemoryCategory(event.target.value)}
-              aria-label="Memory category"
+              aria-label={tr("Memory category")}
               className="min-h-11 rounded-xl bg-muted px-2 text-[10px] font-bold"
             >
-              <option value="preference">Preference</option>
-              <option value="food">Food</option>
-              <option value="equipment">Equipment</option>
-              <option value="schedule">Schedule</option>
-              <option value="constraint">Constraint</option>
-              <option value="response_style">Response style</option>
+              <option value="preference">{tr("Preference")}</option>
+              <option value="food">{tr("Food")}</option>
+              <option value="equipment">{tr("Equipment")}</option>
+              <option value="schedule">{tr("Schedule")}</option>
+              <option value="constraint">{tr("Constraint")}</option>
+              <option value="response_style">{tr("Response style")}</option>
             </select>
             <input
               value={newMemoryValue}
@@ -3250,7 +3382,7 @@ export default function Coach({
                 void addManualMemory()
               }}
               maxLength={240}
-              placeholder="What should Coach remember?"
+              placeholder={tr("What should Coach remember?")}
               className="min-h-11 min-w-0 flex-1 rounded-xl bg-muted px-3 text-[11px] outline-none"
             />
           </div>
@@ -3260,13 +3392,14 @@ export default function Coach({
             disabled={!newMemoryValue.trim() || savingMemory}
             className="mt-2 min-h-10 w-full rounded-full bg-foreground text-[10px] font-black text-background disabled:opacity-40"
           >
-            {savingMemory ? "Adding…" : "Add memory"}
+            {savingMemory ? tr("Adding…") : tr("Add memory")}
           </button>
         </div>
         {(memories ?? []).length === 0 ? (
           <div className="mt-5 rounded-2xl bg-muted/45 p-4 text-[11px] text-muted-foreground">
-            Try: “Remember that I only have dumbbells,” “Remember I dislike
-            mushrooms,” or “Keep answers concise.”
+            {tr(
+              "Try: “Remember that I only have dumbbells,” “Remember I dislike mushrooms,” or “Keep answers concise.”"
+            )}
           </div>
         ) : (
           <div className="mt-4 divide-y divide-border/45">
@@ -3285,13 +3418,13 @@ export default function Coach({
                   type="button"
                   onClick={() =>
                     void removeMemory({ id: memory._id }).then(() =>
-                      toast.success("Coach forgot that preference")
+                      toast.success(tr("Coach forgot that preference"))
                     )
                   }
-                  aria-label={`Forget ${memory.value}`}
+                  aria-label={tr("Forget {{value0}}", { value0: memory.value })}
                   className="min-h-9 px-2 text-[9px] font-bold text-muted-foreground"
                 >
-                  Forget
+                  {tr("Forget")}
                 </button>
               </div>
             ))}
@@ -3299,7 +3432,7 @@ export default function Coach({
         )}
       </CoachSheet>
       <CoachSheet
-        title="Check my form"
+        title={tr("Check my form")}
         open={showFormCoach}
         onClose={() => setShowFormCoach(false)}
         mode={activeMode}

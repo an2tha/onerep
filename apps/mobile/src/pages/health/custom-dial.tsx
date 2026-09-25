@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 import type { ReactNode } from "react"
 import {
   DialCustomMetrics,
@@ -70,7 +71,10 @@ export function CustomDialScreen({
             <DialHero
               tone={tone}
               score={score}
-              caption={`${rows.length} metric${rows.length === 1 ? "" : "s"}`}
+              caption={tr("{{value0}} metric{{value1}}", {
+                value0: rows.length,
+                value1: rows.length === 1 ? "" : "s",
+              })}
             />
           )}
           <DialCustomMetrics dial={dial} tone={tone} />

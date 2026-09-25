@@ -35,6 +35,8 @@
 		A1B2C0200000000000000020 /* BillingPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C0210000000000000021 /* BillingPlugin.swift */; };
 		EAD100000000000000000000 /* EnduranceJournal.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAD000000000000000000000 /* EnduranceJournal.swift */; };
 		EAD100000000000000000001 /* EnduranceLocationPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAD000000000000000000001 /* EnduranceLocationPlugin.swift */; };
+		1A1800000000000000000001 /* InfoPlist.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 1A1800000000000000000002 /* InfoPlist.xcstrings */; };
+		1A1800000000000000000003 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 1A1800000000000000000004 /* Localizable.xcstrings */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -112,6 +114,8 @@
 		A1B2C0210000000000000021 /* BillingPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BillingPlugin.swift; sourceTree = "<group>"; };
 		EAD000000000000000000000 /* EnduranceJournal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnduranceJournal.swift; sourceTree = "<group>"; };
 		EAD000000000000000000001 /* EnduranceLocationPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnduranceLocationPlugin.swift; sourceTree = "<group>"; };
+		1A1800000000000000000002 /* InfoPlist.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = InfoPlist.xcstrings; sourceTree = "<group>"; };
+		1A1800000000000000000004 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -198,6 +202,8 @@
 		504EC3061FED79650016851F /* App */ = {
 			isa = PBXGroup;
 			children = (
+				1A1800000000000000000002 /* InfoPlist.xcstrings */,
+				1A1800000000000000000004 /* Localizable.xcstrings */,
 				A1B2C0140000000000000014 /* WatchSyncPlugin.swift */,
 				EAD000000000000000000001 /* EnduranceLocationPlugin.swift */,
 				EAD000000000000000000000 /* EnduranceJournal.swift */,
@@ -343,6 +349,11 @@
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
+				de,
+				es,
+				fr,
+				it,
+				pt,
 				Base,
 			);
 			mainGroup = 504EC2FB1FED79650016851F;
@@ -372,6 +383,8 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				1A1800000000000000000001 /* InfoPlist.xcstrings in Resources */,
+				1A1800000000000000000003 /* Localizable.xcstrings in Resources */,
 				504EC3121FED79650016851F /* LaunchScreen.storyboard in Resources */,
 				50B271D11FEDC1A000F3C39B /* public in Resources */,
 				504EC30F1FED79650016851F /* Assets.xcassets in Resources */,

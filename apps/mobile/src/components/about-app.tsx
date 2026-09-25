@@ -1,3 +1,4 @@
+import { tr, translateError } from "@repo/ui/i18n"
 import { useCallback, useEffect, useState } from "react"
 import { Capacitor } from "@capacitor/core"
 import { App as CapacitorApp } from "@capacitor/app"
@@ -38,11 +39,11 @@ type AboutInfo = {
 }
 
 function versionLine(info: AboutInfo | null) {
-  if (!info) return "Reading…"
+  if (!info) return tr("Reading…")
   // Never show 0.0.0. A build nobody stamped is a development build, and
   // saying so is more use than a version number that names nothing.
   if (!isStampedVersion(info.appVersion)) {
-    return shortCommit(info.build?.commit) || "Development"
+    return shortCommit(info.build?.commit) || tr("Development")
   }
   if (!info.appBuild) return info.appVersion
   return `${info.appVersion} (${info.appBuild})`
@@ -115,13 +116,15 @@ export function AboutApp() {
     try {
       const decision = await checkForOtaUpdate({ force: true })
       if (decision.action === "download") {
-        toast.success(`Update ${decision.version} is downloading`)
+        toast.success(
+          tr("Update {{value0}} is downloading", { value0: decision.version })
+        )
       } else if (decision.reason === "already-staged") {
-        toast.success("An update is already waiting")
+        toast.success(tr("An update is already waiting"))
       } else if (decision.reason === "invalid-manifest") {
-        toast.error("Could not reach the update server")
+        toast.error(translateError(tr("Could not reach the update server")))
       } else {
-        toast.success("You are on the latest version")
+        toast.success(tr("You are on the latest version"))
       }
     } finally {
       setChecking(false)
@@ -134,13 +137,13 @@ export function AboutApp() {
 
   return (
     <>
-      <GroupedList label="About OneRep">
+      <GroupedList label={tr("About OneRep")}>
         <ListRow
-          title="App version"
+          title={tr("App version")}
           detail={
             Capacitor.isNativePlatform()
-              ? "The build installed from the store"
-              : "This web build"
+              ? tr("The build installed from the store")
+              : tr("This web build")
           }
           value={versionLine(info)}
           onClick={() => {
@@ -148,36 +151,41 @@ export function AboutApp() {
             void copyTextToClipboard(
               [
                 `OneRep ${versionLine(info)}`,
-                `bundle ${info.bundle}`,
-                info.native ? `shell ${info.native}` : "",
+                tr("bundle {{value0}}", { value0: info.bundle }),
+                info.native
+                  ? tr("shell {{value0}}", { value0: info.native })
+                  : "",
                 buildLine(info),
                 Capacitor.getPlatform(),
               ]
                 .filter(Boolean)
                 .join(" · ")
             ).then((copied) => {
-              if (copied) toast.success("Version details copied")
+              if (copied) toast.success(tr("Version details copied"))
             })
           }}
         />
         {isOtaSupported() && (
           <ListRow
-            title="Web bundle"
-            detail="Updates land here without a store release"
+            title={tr("Web bundle")}
+            detail={tr("Updates land here without a store release")}
             value={info?.bundle ?? "…"}
           />
         )}
         {buildLine(info) && (
           <ListRow
-            title="Build"
-            detail="The exact code this bundle was built from"
+            title={tr("Build")}
+            detail={tr("The exact code this bundle was built from")}
             value={buildLine(info)}
           />
         )}
         {staged && (
           <ListRow
-            title="Update ready"
-            detail={`Version ${staged} installs the next time OneRep restarts`}
+            title={tr("Update ready")}
+            detail={tr(
+              "Version {{value0}} installs the next time OneRep restarts",
+              { value0: staged }
+            )}
             value="Restart"
             onClick={() => void applyOtaUpdateNow()}
           />
@@ -192,10 +200,12 @@ export function AboutApp() {
             disabled={checking}
             className="native-secondary-button min-h-12 w-full rounded-[0.8rem] disabled:opacity-40"
           >
-            {checking ? "Checking…" : "Check for updates"}
+            {checking ? tr("Checking…") : tr("Check for updates")}
           </button>
           <p className="native-row-detail pt-3">
-            Updates apply on the next launch. Reinstalling is never needed.
+            {tr(
+              "Updates apply on the next launch. Reinstalling is never needed."
+            )}
           </p>
         </div>
       )}

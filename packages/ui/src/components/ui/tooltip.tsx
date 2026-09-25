@@ -1,5 +1,6 @@
 "use client"
 
+import { tr } from "@repo/ui/i18n"
 import * as React from "react"
 import { Tooltip as TooltipPrimitive } from "radix-ui"
 
@@ -325,7 +326,7 @@ function GuidedTooltip({
         <SpotlightOverlay
           rect={targetRect}
           onDismiss={complete}
-          dismissLabel="Dismiss tooltip"
+          dismissLabel={tr("Dismiss tooltip")}
           className={overlayClassName}
         />
       )}

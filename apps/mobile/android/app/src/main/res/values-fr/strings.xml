@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_quick_actions_label">Actions OneRep</string>
+    <string name="widget_quick_actions_description">Commencez une séance d’entraînement ou enregistrez un repas.</string>
+    <string name="widget_nutrition_label">Vue d’ensemble de la nutrition</string>
+    <string name="widget_nutrition_description">Calories et macronutriments en direct avec OneRep.</string>
+    <string name="widget_schedule_label">Entraînement du jour</string>
+    <string name="widget_schedule_description">Exercices et séries programmés pour aujourd’hui.</string>
+    <string name="widget_combined_label">Détails nutritionnels</string>
+    <string name="widget_combined_description">Aliments enregistrés, calories restantes et répartition des macronutriments.</string>
+    <string name="health_permissions_rationale">OneRep enregistre les entraînements cardio terminés, la fréquence cardiaque, la distance et l\'énergie active afin que votre historique d\'entraînement soit complet. Avec votre autorisation, il peut également enregistrer les sessions OneRep terminées dans Health Connect.</string>
+    <string name="widget_snap_camera_label">Appareil photo Snap</string>
+    <string name="widget_snap_camera_caption">Enregistrer un repas</string>
+    <string name="widget_snap_camera_description">Ouvrez l’appareil photo pour prendre une photo et enregistrer un repas.</string>
+    <string name="widget_open_to_sync">Ouvrir OneRep pour synchroniser</string>
+    <string name="widget_updates_from_account">Les données du widget sont mises à jour depuis votre compte.</string>
+    <string name="widget_start_workout">Démarrer la séance</string>
+    <string name="widget_log_meal">Enregistrer un repas</string>
+    <string name="widget_water_summary">Eau %1$s</string>
+    <string name="widget_kcal_left">kcal restantes</string>
+    <string name="widget_calories_left">%1$d kcal restantes</string>
+    <string name="widget_calories_eaten">%1$d sur %2$d mangé</string>
+    <string name="widget_protein">Protéines</string>
+    <string name="widget_carbs">Glucides</string>
+    <string name="widget_fat">Lipides</string>
+    <string name="navigation_open">Ouvrir la navigation</string>
+</resources>

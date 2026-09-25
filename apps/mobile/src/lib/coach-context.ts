@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 import { useMemo } from "react"
 import { useQuery } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
@@ -223,8 +224,8 @@ export function buildCoachContext({
     weightPaceKgPerWeek: weightPace(body),
     weightStatus:
       body.length > 0
-        ? `${body.length} body check-ins logged`
-        : "No body trend yet",
+        ? tr("{{value0}} body check-ins logged", { value0: body.length })
+        : tr("No body trend yet"),
     calorieTarget: effective.calories,
     averageCalories,
     averageProtein,
@@ -271,14 +272,26 @@ export function buildCoachContext({
     ...context,
     existingInsights: [
       {
-        label: "Nutrition",
-        title: `${Math.round(averageCalories)} kcal average`,
-        detail: `Target is ${Math.round(effective.calories)} kcal with ${Math.round(averageProtein)}g protein average.`,
+        label: tr("Nutrition"),
+        title: tr("{{value0}} kcal average", {
+          value0: Math.round(averageCalories),
+        }),
+        detail: tr(
+          "Target is {{value0}} kcal with {{value1}}g protein average.",
+          {
+            value0: Math.round(effective.calories),
+            value1: Math.round(averageProtein),
+          }
+        ),
       },
       {
-        label: "Training",
-        title: `${workouts7.length} workouts this week`,
-        detail: `${countHardSets(workouts7)} completed sets in the last 7 days.`,
+        label: tr("Training"),
+        title: tr("{{value0}} workouts this week", {
+          value0: workouts7.length,
+        }),
+        detail: tr("{{value0}} completed sets in the last 7 days.", {
+          value0: countHardSets(workouts7),
+        }),
       },
     ],
   }

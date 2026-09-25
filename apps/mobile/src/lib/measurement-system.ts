@@ -1,3 +1,4 @@
+import { tr, uiLocale } from "@repo/ui/i18n"
 /**
  * The app-wide measurement system: metric or imperial ("US").
  *
@@ -85,10 +86,13 @@ export function distanceUnitForSystem(system: MeasurementSystem): DistanceUnit {
 export const METERS_PER_MILE = 1609.344
 
 /** Formats workout distance using the app-wide distance preference. */
-export function formatDistanceForUnit(meters: number, unit: DistanceUnit): string {
+export function formatDistanceForUnit(
+  meters: number,
+  unit: DistanceUnit
+): string {
   if (unit === "km" && meters < 1_000) return `${Math.round(meters)} m`
   const value = unit === "mi" ? meters / METERS_PER_MILE : meters / 1_000
-  return `${value.toLocaleString(undefined, {
+  return `${value.toLocaleString(uiLocale(), {
     minimumFractionDigits: value < 10 ? 1 : 0,
     maximumFractionDigits: 1,
   })} ${unit}`
@@ -100,7 +104,9 @@ export function formatPaceForUnit(
   unit: DistanceUnit
 ): string {
   const secondsPerUnit =
-    unit === "mi" ? paceSecondsPerKm * (METERS_PER_MILE / 1_000) : paceSecondsPerKm
+    unit === "mi"
+      ? paceSecondsPerKm * (METERS_PER_MILE / 1_000)
+      : paceSecondsPerKm
   const roundedSeconds = Math.max(0, Math.round(secondsPerUnit))
   return `${Math.floor(roundedSeconds / 60)}:${String(roundedSeconds % 60).padStart(2, "0")} /${unit}`
 }
@@ -111,7 +117,7 @@ export function formatSpeedForUnit(
   durationSeconds: number,
   unit: DistanceUnit
 ): string {
-  const speed = meters / durationSeconds * (unit === "mi" ? 2.236936 : 3.6)
+  const speed = (meters / durationSeconds) * (unit === "mi" ? 2.236936 : 3.6)
   return `${speed.toFixed(1)} ${unit}/h`
 }
 
@@ -149,8 +155,8 @@ export function flOzToMl(flOz: number): number {
 export function formatWater(ml: number, unit: WaterUnit): string {
   if (unit === "fl oz") {
     const flOz = mlToFlOz(ml)
-    if (flOz >= 100) return `${Math.round(flOz)} fl oz`
-    return `${Number(flOz.toFixed(1))} fl oz`
+    if (flOz >= 100) return tr("{{value0}} fl oz", { value0: Math.round(flOz) })
+    return tr("{{value0}} fl oz", { value0: Number(flOz.toFixed(1)) })
   }
   if (ml >= 1000) {
     const liters = ml / 1000
@@ -174,8 +180,12 @@ export function formatWaterPair(
 ): { total: string; goal: string } {
   if (unit === "fl oz") {
     return {
-      total: `${Number(mlToFlOz(totalMl).toFixed(1))} fl oz`,
-      goal: `${Number(mlToFlOz(goalMl).toFixed(1))} fl oz`,
+      total: tr("{{value0}} fl oz", {
+        value0: Number(mlToFlOz(totalMl).toFixed(1)),
+      }),
+      goal: tr("{{value0}} fl oz", {
+        value0: Number(mlToFlOz(goalMl).toFixed(1)),
+      }),
     }
   }
   if (goalMl >= 1000) {

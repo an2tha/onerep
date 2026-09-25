@@ -9,3 +9,5 @@ export * from "./components/mobile-ui"
 export * from "./components/slide-to-delete-row"
 export * from "./components/swipe-to-start"
 export * from "./components/nudge-illustration"
+
+export { AiAllowanceNotice } from "./components/ai-allowance-notice"

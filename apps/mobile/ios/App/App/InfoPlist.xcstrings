@@ -1,0 +1,416 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "NSCameraUsageDescription": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep uses the camera to photograph meals, scan barcodes on food packaging, and record video of your lifts so the form coach can check your technique."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep verwendet die Kamera, um Mahlzeiten zu fotografieren, Barcodes auf Lebensmittelverpackungen zu scannen und Videos deiner Übungen aufzunehmen, damit der Technik-Coach deine Ausführung prüfen kann."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep usa la cámara para fotografiar comidas, escanear códigos de barras de los envases de alimentos y grabar videos de tus levantamientos para que el coach de técnica pueda revisar tu ejecución."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep utilise l’appareil photo pour photographier les repas, scanner les codes-barres des emballages alimentaires et enregistrer des vidéos de vos mouvements afin que le coach de technique puisse vérifier votre exécution."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep usa la fotocamera per fotografare pasti, scansionare codici a barre su imballaggi e registrare video dei tuoi sollevamenti così il coach può verificare la tecnica."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A OneRep utiliza a câmara para fotografar as refeições, escanear os códigos de barras no embalamento dos alimentos e gravar vídeos das suas levantadas, para que o treinador de forma possa verificar a sua técnica."
+          }
+        }
+      }
+    },
+    "NSHealthShareUsageDescription": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep reads Apple Health workouts, distance, heart rate, and routes to import cardio details, plus sleep, steps, resting heart rate, and heart rate variability so your coach can tell a hard week from an under-recovered one."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep liest Trainings, Entfernungen, Herzfrequenz und Routen aus Apple Health, um Cardio-Details zu importieren, sowie Schlaf, Schritte, Ruheherzfrequenz und Herzfrequenzvariabilität, damit dein Coach eine harte Woche von unzureichender Erholung unterscheiden kann."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep lee de Apple Health tus entrenamientos, distancia, frecuencia cardíaca y rutas para importar los detalles del cardio, además del sueño, los pasos, la frecuencia cardíaca en reposo y la variabilidad de la frecuencia cardíaca, para que tu coach pueda distinguir una semana intensa de una semana con recuperación insuficiente."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep lit dans Apple Health les séances d’entraînement, la distance, la fréquence cardiaque et les itinéraires pour importer les détails du cardio, ainsi que le sommeil, les pas, la fréquence cardiaque au repos et la variabilité de la fréquence cardiaque, afin que votre coach puisse distinguer une semaine difficile d’une semaine où vous ne vous êtes pas suffisamment récupéré."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep legge da Apple Health allenamenti, distanza, battito e percorsi per importare dettagli cardio, oltre a sonno, passi, battito a riposo e variabilità battito per distinguere una settimana dura da una sotto-recuperata."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O OneRep lê os treinos Apple Health, distância, frequência cardíaca e rotas para importar detalhes de cardio, bem como sono, passos, frequência cardíaca em repouso e variabilidade da frequência cardíaca, para que o seu treinador possa distinguir uma semana difícil de uma semana em recuperação insuficiente."
+          }
+        }
+      }
+    },
+    "NSHealthUpdateUsageDescription": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep can save the strength sessions you finish here to Apple Health, so your training shows up alongside the rest of your activity."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep kann die Krafttrainingseinheiten, die du hier abschließt, in Apple Health speichern, damit dein Training neben deiner übrigen Aktivität angezeigt wird."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep puede guardar en Apple Health las sesiones de fuerza que termines aquí, para que tu entrenamiento aparezca junto al resto de tu actividad."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep peut enregistrer dans Apple Health les séances de renforcement que vous terminez ici, afin que votre entraînement apparaisse avec le reste de votre activité."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep può salvare qui le sessioni di forza che completi su Apple Health, così il tuo allenamento appare insieme al resto della tua attività."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O OneRep pode guardar as sessões de treino de força que conclui aqui no Apple Health, para que o seu treino apareça ao lado do resto da sua atividade."
+          }
+        }
+      }
+    },
+    "NSLocalNetworkUsageDescription": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep connects to a OneRep server on your local network when you point it at one, so you can run your own instead of ours."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep verbindet sich mit einem OneRep-Server in deinem lokalen Netzwerk, wenn du einen angibst. So kannst du deinen eigenen statt unseren verwenden."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep se conecta a un servidor de OneRep en tu red local cuando lo indicas, para que puedas ejecutar el tuyo en lugar del nuestro."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep se connecte à un serveur OneRep sur votre réseau local lorsque vous lui en indiquez un, afin que vous puissiez utiliser le vôtre plutôt que le nôtre."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep si collega a un server OneRep nella tua rete locale se lo indichi, così puoi usarne uno tuo invece del nostro."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O OneRep liga-se a um servidor OneRep na sua rede local quando o aponta para um, para que possa executar o seu próprio em vez do nosso."
+          }
+        }
+      }
+    },
+    "NSLocationWhenInUseUsageDescription": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep records your route and distance during a workout, including when the screen is locked or you use another app. Location tracking stops when you pause or finish."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep zeichnet während eines Trainings deine Route und Entfernung auf, auch wenn der Bildschirm gesperrt ist oder du eine andere App verwendest. Die Standortaufzeichnung endet, wenn du pausierst oder das Training beendest."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep registra tu ruta y distancia durante un entrenamiento, incluso cuando la pantalla está bloqueada o usas otra aplicación. El seguimiento de ubicación se detiene cuando pausas o terminas."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep enregistre votre itinéraire et la distance parcourue pendant une séance d’entraînement, y compris lorsque l’écran est verrouillé ou que vous utilisez une autre application. Le suivi de la position s’arrête lorsque vous mettez la séance en pause ou que vous la terminez."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep registra percorso e distanza durante un allenamento, anche con schermo bloccato o app in uso. La localizzazione si ferma quando metti in pausa o finisci."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O OneRep regista a sua rota e distância durante um treino, incluindo quando a ecrã está bloqueada ou quando utiliza outra aplicação. O rastreamento de localização para quando fizer uma pausa ou terminar."
+          }
+        }
+      }
+    },
+    "NSMicrophoneUsageDescription": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep uses the microphone when you dictate a message to Coach."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep verwendet das Mikrofon, wenn du dem Coach eine Nachricht diktierst."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep usa el micrófono cuando dictas un mensaje a Coach."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep utilise le microphone lorsque vous dictez un message à Coach."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep usa il microfono quando detti un messaggio a Coach."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A OneRep utiliza o microfone quando dita uma mensagem ao Treinador."
+          }
+        }
+      }
+    },
+    "NSMotionUsageDescription": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep reads device tilt so the hero artwork can drift as you move your phone."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep liest die Neigung deines Geräts, damit sich das Titelbild bewegt, während du dein Handy bewegst."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep lee la inclinación del dispositivo para que la ilustración principal se mueva suavemente mientras mueves el teléfono."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep lit l’inclinaison de l’appareil afin que l’illustration principale se déplace lorsque vous bougez votre téléphone."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep legge l'inclinazione del dispositivo per far muovere l'immagine principale mentre muovi il telefono."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O OneRep lê a inclinação do dispositivo para que a arte do herói possa deslizar conforme move o seu telemóvel."
+          }
+        }
+      }
+    },
+    "NSPhotoLibraryAddUsageDescription": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep saves a photo to your library only when you ask it to."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep speichert ein Foto nur dann in deiner Mediathek, wenn du es dazu aufforderst."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep guarda una foto en tu biblioteca solo cuando se lo pides."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep n’enregistre une photo dans votre photothèque que lorsque vous le lui demandez."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep salva una foto nella libreria solo quando glielo chiedi."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O OneRep guarda uma foto na sua biblioteca apenas quando a pede."
+          }
+        }
+      }
+    },
+    "NSPhotoLibraryUsageDescription": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep reads the photo you pick so it can log the meal or read the barcode in it."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep liest das von dir ausgewählte Foto, um die Mahlzeit zu protokollieren oder den darin enthaltenen Barcode zu lesen."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep lee la foto que elijas para registrar la comida o leer el código de barras que aparece en ella."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep lit la photo que vous sélectionnez afin de pouvoir enregistrer le repas ou lire le code-barres qui s’y trouve."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep legge la foto che scegli per registrare il pasto o leggere il codice a barre."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O OneRep lê a foto que escolhe para poder registar a refeição ou ler o código de barras nela."
+          }
+        }
+      }
+    },
+    "NSSpeechRecognitionUsageDescription": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep uses speech recognition to turn your Coach dictation into text."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep verwendet Spracherkennung, um dein Diktat an den Coach in Text umzuwandeln."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep usa el reconocimiento de voz para convertir en texto lo que dictas a Coach."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep utilise la reconnaissance vocale pour convertir en texte les dictées que vous adressez à Coach."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep usa il riconoscimento vocale per trasformare la dettatura a Coach in testo."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O OneRep utiliza o reconhecimento de voz para transformar a sua digitação do Coach em texto."
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

@@ -1,3 +1,4 @@
+import { Message, tr, translateError, uiLocale } from "@repo/ui/i18n"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useWeightUnit } from "@/lib/use-weight-unit"
 import { useParams, useSearchParams } from "react-router"
@@ -30,9 +31,9 @@ import {
 } from "@/lib/preset-quick-log"
 
 function formatRetroDateLabel(date: string, todayKey: string) {
-  if (date === todayKey) return "Today"
+  if (date === todayKey) return tr("Today")
   const at = new Date(`${date}T12:00:00`)
-  return at.toLocaleDateString(undefined, {
+  return at.toLocaleDateString(uiLocale(), {
     weekday: "long",
     month: "long",
     day: "numeric",
@@ -184,7 +185,9 @@ export default function QuickLogPreset() {
     })
 
     if (exercises.length === 0) {
-      toast.error("Add at least one set before logging this workout.")
+      toast.error(
+        translateError(tr("Add at least one set before logging this workout."))
+      )
       return
     }
 
@@ -203,7 +206,7 @@ export default function QuickLogPreset() {
       navigate("/workouts", { motion: "back", replace: true })
     } catch (error) {
       logDevWarn("Failed to log preset workout", error)
-      toast.error("Couldn't log that workout. Try again.")
+      toast.error(translateError(tr("Couldn't log that workout. Try again.")))
     } finally {
       setSaving(false)
     }
@@ -213,14 +216,14 @@ export default function QuickLogPreset() {
     return (
       <div className="flex min-h-svh flex-col items-center justify-center gap-4 bg-background px-8 text-center">
         <p className="text-[15px] text-muted-foreground">
-          That preset isn't around any more.
+          {tr("That preset isn't around any more.")}
         </p>
         <button
           type="button"
           onClick={() => navigate(-1)}
           className="motion-tactile h-[52px] w-full max-w-xs rounded-[20px] bg-muted/60 text-[15px] font-semibold"
         >
-          Go back
+          {tr("Go back")}
         </button>
       </div>
     )
@@ -230,14 +233,16 @@ export default function QuickLogPreset() {
     return (
       <div className="flex min-h-svh flex-col items-center justify-center gap-4 bg-background px-8 text-center">
         <p className="text-[15px] text-muted-foreground">
-          You already have two sessions logged that day. Edit one instead.
+          {tr(
+            "You already have two sessions logged that day. Edit one instead."
+          )}
         </p>
         <button
           type="button"
           onClick={() => navigate(-1)}
           className="motion-tactile h-[52px] w-full max-w-xs rounded-[20px] bg-muted/60 text-[15px] font-semibold"
         >
-          Go back
+          {tr("Go back")}
         </button>
       </div>
     )
@@ -257,8 +262,10 @@ export default function QuickLogPreset() {
           onClick={() => navigate(-1)}
           className="flex min-h-11 items-center gap-1.5 px-2 text-[15px] font-medium text-muted-foreground transition-colors active:bg-muted/45 active:text-foreground"
         >
-          <ArrowLeft size={14} weight="bold" />
-          Back
+          <Message
+            text={"{{value0}}Back"}
+            values={{ value0: <ArrowLeft size={14} weight="bold" /> }}
+          />
         </button>
         <button
           type="button"
@@ -266,18 +273,22 @@ export default function QuickLogPreset() {
           disabled={!catalogReady}
           className="ml-auto flex min-h-11 items-center gap-1.5 px-3 text-[15px] font-medium text-muted-foreground transition-colors active:bg-muted/45 active:text-foreground disabled:opacity-45"
         >
-          <ArrowsOutSimple size={14} weight="bold" />
-          Customize
+          <Message
+            text={"{{value0}}Customize"}
+            values={{ value0: <ArrowsOutSimple size={14} weight="bold" /> }}
+          />
         </button>
       </div>
 
       <div className="px-[var(--app-page-x)] pb-40 md:px-8">
         <h1 className="text-[1.75rem] leading-tight font-bold tracking-tight">
-          {preset?.name ?? "Loading…"}
+          {preset?.name ?? tr("Loading…")}
         </h1>
         <p className="mt-1.5 text-[15px] leading-6 text-muted-foreground">
-          {formatRetroDateLabel(date, todayKey)} · fill in what you actually
-          did.
+          <Message
+            text={"{{value0}} · fill in what you actually did."}
+            values={{ value0: formatRetroDateLabel(date, todayKey) }}
+          />
         </p>
 
         <div className="mt-6 flex flex-col gap-2">
@@ -291,12 +302,12 @@ export default function QuickLogPreset() {
                 </p>
                 {cardio ? (
                   <p className="mt-1.5 text-[13px] text-muted-foreground">
-                    Cardio — tap Customize to add distance and time.
+                    {tr("Cardio — tap Customize to add distance and time.")}
                   </p>
                 ) : (
                   <div className="mt-2.5 flex items-center gap-2">
                     <QuickField
-                      label="Sets"
+                      label={tr("Sets")}
                       value={row.setCount}
                       inputMode="numeric"
                       className="w-[62px] shrink-0"
@@ -308,7 +319,7 @@ export default function QuickLogPreset() {
                       ×
                     </span>
                     <QuickField
-                      label="Reps"
+                      label={tr("Reps")}
                       value={row.reps}
                       inputMode="numeric"
                       className="w-[62px] shrink-0"
@@ -317,7 +328,9 @@ export default function QuickLogPreset() {
                       }
                     />
                     <QuickField
-                      label={unit === "lbs" ? "Weight (lb)" : "Weight (kg)"}
+                      label={
+                        unit === "lbs" ? tr("Weight (lb)") : tr("Weight (kg)")
+                      }
                       value={row.weight}
                       inputMode="decimal"
                       className="min-w-0 flex-1"
@@ -349,7 +362,7 @@ export default function QuickLogPreset() {
             aria-busy={saving}
             className="motion-tactile h-[52px] w-full rounded-[20px] bg-foreground text-[15px] font-semibold tracking-tight text-background transition-opacity active:opacity-80 disabled:opacity-50"
           >
-            {saving ? "Logging…" : "Log workout"}
+            {saving ? tr("Logging…") : tr("Log workout")}
           </button>
         </div>
       </div>

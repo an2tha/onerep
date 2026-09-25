@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 export type MuscleRecoveryItem = {
   muscle: string
   status: "trained" | "recovering" | "overdue"
@@ -219,7 +220,7 @@ export function MuscleBodySvg({
     <svg
       viewBox={both ? "0 0 190 272" : "0 0 96 272"}
       role="img"
-      aria-label="Muscle recovery map"
+      aria-label={tr("Muscle recovery map")}
       className={className}
       x={x}
       y={y}

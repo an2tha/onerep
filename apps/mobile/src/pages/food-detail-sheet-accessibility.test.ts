@@ -1,5 +1,5 @@
+import { readLocalizedSource as readFileSync } from "../../tests/helpers/localized-source"
 import { describe, expect, test } from "bun:test"
-import { readFileSync } from "node:fs"
 
 const FOOD_DETAIL_SOURCE = readFileSync(
   new URL("../components/food-detail-sheet.tsx", import.meta.url),

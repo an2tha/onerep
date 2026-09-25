@@ -1,3 +1,4 @@
+import { Message, tr } from "@repo/ui/i18n"
 /**
  * The page behind the hold: the front end for Needle 2.
  *
@@ -47,7 +48,7 @@ import { inverseOfRun } from "@/dashboard/needle-undo"
 import type { NeedleFamily } from "@/lib/needle-tools"
 
 /** Says what the page is, and is the only thing on it allowed to be loud. */
-const TITLE = "Quick actions"
+const TITLE = tr("Quick actions")
 
 /**
  * The four asks common enough to be a button rather than a sentence.
@@ -62,22 +63,22 @@ const SHORTCUTS: {
   family: NeedleFamily
   icon: ComponentType<{ size?: number; weight?: "bold"; className?: string }>
 }[] = [
-  { label: "Food", opening: "Log ", family: "food", icon: ForkKnife },
+  { label: tr("Food"), opening: tr("Log "), family: "food", icon: ForkKnife },
   {
-    label: "Water",
-    opening: "Log a glass of water",
+    label: tr("Water"),
+    opening: tr("Log a glass of water"),
     family: "hydration",
     icon: PintGlass,
   },
   {
-    label: "Workout",
-    opening: "Log a workout: ",
+    label: tr("Workout"),
+    opening: tr("Log a workout: "),
     family: "workout",
     icon: Barbell,
   },
   {
-    label: "Fast",
-    opening: "Start a 16 hour fast",
+    label: tr("Fast"),
+    opening: tr("Start a 16 hour fast"),
     family: "fasting",
     icon: Timer,
   },
@@ -173,9 +174,15 @@ function readout(
   run: ReturnType<typeof useNeedleRun>["result"],
   family: NeedleFamily | null
 ) {
-  const bits = [family ? `${spellFamily(family)} tools` : "On device"]
+  const bits = [
+    family
+      ? tr("{{value0}} tools", { value0: spellFamily(family) })
+      : tr("On device"),
+  ]
   if (run?.turn.confidence != null) {
-    bits.push(`${Math.round(run.turn.confidence * 100)}% sure`)
+    bits.push(
+      tr("{{value0}}% sure", { value0: Math.round(run.turn.confidence * 100) })
+    )
   }
   if (run?.turn.decodeTps != null) {
     bits.push(`${Math.round(run.turn.decodeTps)} tok/s`)
@@ -258,7 +265,7 @@ export function QuickAddMore({
             <button
               ref={closeRef}
               type="button"
-              aria-label="Back to today"
+              aria-label={tr("Back to today")}
               onClick={() => {
                 hapticTap()
                 onClose()
@@ -270,7 +277,7 @@ export function QuickAddMore({
           </header>
 
           <nav
-            aria-label="Shortcuts"
+            aria-label={tr("Shortcuts")}
             className="quick-add-rail -mx-1 shrink-0 overflow-x-auto"
           >
             <ul className="flex w-max gap-2 px-1 pb-1">
@@ -297,13 +304,13 @@ export function QuickAddMore({
           </nav>
 
           <section
-            aria-label="Prompt"
+            aria-label={tr("Prompt")}
             data-busy={busy ? "true" : "false"}
             style={{ "--rise": SHORTCUTS.length + 1 } as CSSProperties}
             className="quick-add-editor quick-add-rise flex min-h-0 shrink-0 flex-col"
           >
             <label htmlFor="needle-prompt" className="sr-only">
-              Tell Needle what happened
+              {tr("Tell Needle what happened")}
             </label>
             <textarea
               ref={inputRef}
@@ -326,20 +333,22 @@ export function QuickAddMore({
                   submit()
                 }
               }}
-              placeholder="Two eggs and a flat white, then forty minutes on the bike."
+              placeholder={tr(
+                "Two eggs and a flat white, then forty minutes on the bike."
+              )}
               className="quick-add-input min-h-[6.5rem] w-full resize-none bg-transparent px-4 pt-4 text-[15px] leading-relaxed outline-none disabled:opacity-60"
             />
             <div className="flex shrink-0 items-center justify-between gap-3 px-3 pt-2 pb-3">
               <p className="quick-add-meta truncate text-[11.5px] leading-none">
                 {needle.phase === "warming"
-                  ? "Loading the model…"
+                  ? tr("Loading the model…")
                   : needle.phase === "running"
-                    ? "Thinking…"
+                    ? tr("Thinking…")
                     : readout(needle.result, needle.scope)}
               </p>
               <button
                 type="button"
-                aria-label="Run"
+                aria-label={tr("Run")}
                 disabled={busy || !prompt.trim()}
                 onClick={submit}
                 className="quick-add-run motion-tactile inline-flex size-10 shrink-0 items-center justify-center outline-none focus-visible:ring-2 focus-visible:ring-current"
@@ -365,7 +374,7 @@ export function QuickAddMore({
                 ) : unsure ? (
                   <div className="flex flex-col gap-2">
                     <p className="quick-add-meta text-[13px] leading-snug">
-                      Not sure enough to write it. It wanted:
+                      {tr("Not sure enough to write it. It wanted:")}
                     </p>
                     <ul className="flex flex-col gap-1">
                       {wanted.map((call, index) => (
@@ -393,15 +402,28 @@ export function QuickAddMore({
                       }}
                       className="quick-add-chip motion-tactile mt-1 flex items-center gap-2 self-start px-3 py-2 text-[12.5px] leading-none font-medium outline-none focus-visible:ring-2 focus-visible:ring-current disabled:opacity-45"
                     >
-                      <Check size={14} weight="bold" aria-hidden="true" />
-                      Do it anyway
+                      <Message
+                        text={"{{value0}}Do it anyway"}
+                        values={{
+                          value0: (
+                            <Check size={14} weight="bold" aria-hidden="true" />
+                          ),
+                        }}
+                      />
                     </button>
                   </div>
                 ) : refused ? (
                   <p className="quick-add-meta text-[13px] leading-snug">
-                    Nothing in the{" "}
-                    {needle.scope ? spellFamily(needle.scope) : "declared"}{" "}
-                    tools fits that one. Try naming what you want logged.
+                    <Message
+                      text={
+                        "Nothing in the {{value0}} tools fits that one. Try naming what you want logged."
+                      }
+                      values={{
+                        value0: needle.scope
+                          ? spellFamily(needle.scope)
+                          : tr("declared"),
+                      }}
+                    />
                   </p>
                 ) : (
                   <>
@@ -427,7 +449,7 @@ export function QuickAddMore({
                               {spell(call.name)}
                             </span>
                             <span className="quick-add-meta shrink-0 text-[11.5px]">
-                              {call.error ?? "done"}
+                              {call.error ?? tr("done")}
                             </span>
                           </div>
                           {payload(call.arguments) && (
@@ -454,10 +476,13 @@ export function QuickAddMore({
                           aria-hidden="true"
                         />
                         {needle.undone
-                          ? "Undone"
+                          ? tr("Undone")
                           : undoable === calls.length
-                            ? "Undo"
-                            : `Undo ${undoable} of ${calls.length}`}
+                            ? tr("Undo")
+                            : tr("Undo {{value0}} of {{value1}}", {
+                                value0: undoable,
+                                value1: calls.length,
+                              })}
                       </button>
                     )}
                   </>
@@ -469,12 +494,18 @@ export function QuickAddMore({
           {needle.pending && (
             <div
               role="alertdialog"
-              aria-label="Confirm"
+              aria-label={tr("Confirm")}
               className="quick-add-editor flex shrink-0 flex-col gap-3 p-4"
             >
               <p className="text-[13.5px] leading-snug">
-                {needle.pending.map((call) => spell(call.name)).join(", ")} —
-                this one deletes something. Sure?
+                <Message
+                  text={"{{value0}} — this one deletes something. Sure?"}
+                  values={{
+                    value0: needle.pending
+                      .map((call) => spell(call.name))
+                      .join(", "),
+                  }}
+                />
               </p>
               <div className="flex gap-2">
                 <button
@@ -485,7 +516,7 @@ export function QuickAddMore({
                   }}
                   className="quick-add-chip motion-tactile flex-1 px-3 py-2.5 text-[13px] font-medium"
                 >
-                  Keep it
+                  {tr("Keep it")}
                 </button>
                 <button
                   type="button"
@@ -495,15 +526,19 @@ export function QuickAddMore({
                   }}
                   className="quick-add-run motion-tactile flex-1 px-3 py-2.5 text-[13px] font-medium"
                 >
-                  Delete
+                  {tr("Delete")}
                 </button>
               </div>
             </div>
           )}
 
           <footer className="quick-add-credit mt-auto flex shrink-0 items-center justify-center gap-1.5 text-[11.5px]">
-            <Cactus size={14} weight="fill" aria-hidden="true" />
-            Powered by Needle 2
+            <Message
+              text={"{{value0}}Powered by Needle 2"}
+              values={{
+                value0: <Cactus size={14} weight="fill" aria-hidden="true" />,
+              }}
+            />
           </footer>
         </div>
       </div>

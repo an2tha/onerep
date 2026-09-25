@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 export const COACH_IMAGE_TYPES = [
   "image/jpeg",
   "image/png",
@@ -11,9 +12,10 @@ export function coachImageValidationError(file: Pick<File, "type" | "size">) {
   if (
     !COACH_IMAGE_TYPES.includes(file.type as (typeof COACH_IMAGE_TYPES)[number])
   )
-    return "Choose a JPEG, PNG, or WebP image."
-  if (file.size <= 0) return "That image is empty."
-  if (file.size > MAX_SOURCE_BYTES) return "Choose an image smaller than 12 MB."
+    return tr("Choose a JPEG, PNG, or WebP image.")
+  if (file.size <= 0) return tr("That image is empty.")
+  if (file.size > MAX_SOURCE_BYTES)
+    return tr("Choose an image smaller than 12 MB.")
   return null
 }
 

@@ -172,7 +172,7 @@ class NativeTabBarPlugin : Plugin() {
         val toggle = ImageView(activity).apply {
             layoutParams = FrameLayout.LayoutParams(dp(barHeight), dp(barHeight))
             setPadding(dp(18f), dp(18f), dp(18f), dp(18f))
-            contentDescription = "Open navigation"
+            contentDescription = activity.getString(R.string.navigation_open)
             isFocusable = true
             setOnClickListener { setExpanded(true) }
         }

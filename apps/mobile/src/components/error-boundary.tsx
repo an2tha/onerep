@@ -1,3 +1,4 @@
+import { Message, tr } from "@repo/ui/i18n"
 import { Component, type ErrorInfo, type ReactNode } from "react"
 import { ArrowCounterClockwise, Copy, Warning } from "@phosphor-icons/react"
 import {
@@ -89,32 +90,40 @@ class ErrorBoundaryInner extends Component<ErrorBoundaryInnerProps, State> {
               className="mx-auto mb-4 text-muted-foreground"
             />
             <h1 className="text-[1.25rem] font-semibold tracking-tight">
-              Could not sync your account
+              {tr("Could not sync your account")}
             </h1>
             <p className="mt-2 text-[14px] leading-6 text-muted-foreground">
-              Your sign-in is still saved. Check your connection, then try
-              again.
+              {tr(
+                "Your sign-in is still saved. Check your connection, then try again."
+              )}
             </p>
             <button
               onClick={this.reset}
               className="mt-5 h-11 w-full rounded-[10px] bg-foreground text-[14px] font-semibold text-background transition-opacity active:opacity-75"
             >
-              Try again
+              {tr("Try again")}
             </button>
           </section>
         </main>
       )
     }
 
-    const label = this.props.label ?? "this page"
+    const label = this.props.label ?? tr("this page")
 
     return (
       <main className="mx-auto flex min-h-svh w-full max-w-sm flex-col items-center justify-center gap-4 px-5 text-center">
         <Warning size={30} weight="regular" className="text-destructive" />
         <div className="space-y-1">
-          <p className="text-[15px] font-semibold">Something went wrong</p>
+          <p className="text-[15px] font-semibold">
+            {tr("Something went wrong")}
+          </p>
           <p className="text-[14px] leading-6 text-muted-foreground">
-            An unexpected error occurred in {label}. Your data is safe.
+            <Message
+              text={
+                "An unexpected error occurred in {{value0}}. Your data is safe."
+              }
+              values={{ value0: label }}
+            />
           </p>
         </div>
         <div className="mt-1 flex flex-wrap justify-center gap-2">
@@ -123,16 +132,22 @@ class ErrorBoundaryInner extends Component<ErrorBoundaryInnerProps, State> {
             onClick={this.reset}
             className="flex min-h-11 items-center gap-2 rounded-[10px] bg-foreground px-4 text-[14px] font-semibold text-background transition-opacity active:opacity-75"
           >
-            <ArrowCounterClockwise size={13} weight="bold" />
-            Try again
+            <Message
+              text={"{{value0}}Try again"}
+              values={{
+                value0: <ArrowCounterClockwise size={13} weight="bold" />,
+              }}
+            />
           </button>
           <button
             type="button"
             onClick={() => void this.copyDiagnostics()}
             className="flex min-h-11 items-center gap-2 rounded-[10px] border border-border bg-background px-4 text-[14px] font-semibold transition-colors active:bg-muted"
           >
-            <Copy size={13} weight="bold" />
-            Copy error details
+            <Message
+              text={"{{value0}}Copy error details"}
+              values={{ value0: <Copy size={13} weight="bold" /> }}
+            />
           </button>
         </div>
         {this.state.diagnosticsStatus && (
@@ -141,8 +156,12 @@ class ErrorBoundaryInner extends Component<ErrorBoundaryInnerProps, State> {
             className="max-w-xs text-[13px] leading-5 text-muted-foreground"
           >
             {this.state.diagnosticsStatus === "copied"
-              ? "Copied. Paste the details in an email to support@onerep.life."
-              : "Clipboard is unavailable. Take a screenshot of this screen."}
+              ? tr(
+                  "Copied. Paste the details in an email to support@onerep.life."
+                )
+              : tr(
+                  "Clipboard is unavailable. Take a screenshot of this screen."
+                )}
           </p>
         )}
         {import.meta.env.DEV && (

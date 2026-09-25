@@ -1,3 +1,4 @@
+import { Message, tr, uiLocale } from "@repo/ui/i18n"
 import { useState } from "react"
 import { Check, Minus, Plus, type Icon } from "@phosphor-icons/react"
 
@@ -61,7 +62,7 @@ export function NumberQuestion({
       <label className="min-w-0 flex-1" htmlFor={inputId}>
         <span className="native-row-title block font-semibold">{label}</span>
         <span className="native-row-detail mt-0.5 block">
-          {min.toLocaleString()}–{max.toLocaleString()}
+          {min.toLocaleString(uiLocale())}–{max.toLocaleString(uiLocale())}
         </span>
       </label>
       <div className="flex items-center gap-2">
@@ -69,7 +70,7 @@ export function NumberQuestion({
           type="button"
           onClick={() => update(value - step)}
           disabled={value <= min}
-          aria-label={`Decrease ${label}`}
+          aria-label={tr("Decrease {{value0}}", { value0: label })}
           className="onboarding-stepper-button"
         >
           <Minus size={16} weight="bold" />
@@ -115,13 +116,18 @@ export function NumberQuestion({
           type="button"
           onClick={() => update(value + step)}
           disabled={value >= max}
-          aria-label={`Increase ${label}`}
+          aria-label={tr("Increase {{value0}}", { value0: label })}
           className="onboarding-stepper-button"
         >
           <Plus size={16} weight="bold" />
         </button>
       </div>
-      <span className="sr-only">Current value: {display}</span>
+      <span className="sr-only">
+        <Message
+          text={"Current value: {{value0}}"}
+          values={{ value0: display }}
+        />
+      </span>
     </div>
   )
 }

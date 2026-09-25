@@ -1,3 +1,4 @@
+import { tr, translateError, uiLocale } from "@repo/ui/i18n"
 import { useEffect, useMemo, useState } from "react"
 import { CaretLeft, CaretRight, X } from "@phosphor-icons/react"
 import { useMutation } from "convex/react"
@@ -64,7 +65,7 @@ function fields(unit: WeightUnit): Field[] {
   return [
     {
       key: "weightKg",
-      label: "Weight",
+      label: tr("Weight"),
       unit,
       decimals: 1,
       min: unit === "lbs" ? 44 : 20,
@@ -74,7 +75,7 @@ function fields(unit: WeightUnit): Field[] {
     },
     {
       key: "bodyFatPct",
-      label: "Body fat",
+      label: tr("Body fat"),
       unit: "%",
       decimals: 1,
       min: 1,
@@ -84,7 +85,7 @@ function fields(unit: WeightUnit): Field[] {
     },
     {
       key: "waistCm",
-      label: "Waist",
+      label: tr("Waist"),
       unit: "cm",
       decimals: 1,
       min: 1,
@@ -94,7 +95,7 @@ function fields(unit: WeightUnit): Field[] {
     },
     {
       key: "hipsCm",
-      label: "Hips",
+      label: tr("Hips"),
       unit: "cm",
       decimals: 1,
       min: 1,
@@ -104,7 +105,7 @@ function fields(unit: WeightUnit): Field[] {
     },
     {
       key: "chestCm",
-      label: "Chest",
+      label: tr("Chest"),
       unit: "cm",
       decimals: 1,
       min: 1,
@@ -132,7 +133,7 @@ function fields(unit: WeightUnit): Field[] {
     // kilos on one damp morning was in the record for good.
     {
       key: "leanBodyMassKg",
-      label: "Lean mass",
+      label: tr("Lean mass"),
       unit,
       decimals: 1,
       min: unit === "lbs" ? 22 : 10,
@@ -142,7 +143,7 @@ function fields(unit: WeightUnit): Field[] {
     },
     {
       key: "boneMassKg",
-      label: "Bone mass",
+      label: tr("Bone mass"),
       unit,
       decimals: 1,
       min: unit === "lbs" ? 1 : 0.5,
@@ -152,7 +153,7 @@ function fields(unit: WeightUnit): Field[] {
     },
     {
       key: "basalMetabolicRateKcal",
-      label: "Basal metabolic rate",
+      label: tr("Basal metabolic rate"),
       unit: "kcal",
       decimals: 0,
       min: 500,
@@ -164,9 +165,9 @@ function fields(unit: WeightUnit): Field[] {
 }
 
 function formatDay(date: string, today: string) {
-  if (date === today) return "Today"
-  if (date === shiftDate(today, -1)) return "Yesterday"
-  return new Date(`${date}T12:00:00Z`).toLocaleDateString(undefined, {
+  if (date === today) return tr("Today")
+  if (date === shiftDate(today, -1)) return tr("Yesterday")
+  return new Date(`${date}T12:00:00Z`).toLocaleDateString(uiLocale(), {
     weekday: "long",
     day: "numeric",
     month: "short",
@@ -205,7 +206,7 @@ export function CheckInReadingsSheet({
   // Wednesday, which is the one mistake this sheet must never make.
   useEffect(() => {
     setDrafts({})
-    setError("")
+    setError(translateError(""))
   }, [date])
 
   function stored(field: Field) {
@@ -232,7 +233,7 @@ export function CheckInReadingsSheet({
   const oldest = shiftDate(today, -(EDITABLE_DAYS - 1))
 
   async function commit() {
-    setError("")
+    setError(translateError(""))
 
     const changed: Record<string, number> = {}
     const cleared: string[] = []
@@ -247,14 +248,26 @@ export function CheckInReadingsSheet({
       }
       const typed = Number(trimmed.replace(",", "."))
       if (!Number.isFinite(typed)) {
-        setError(`${field.label} needs a number.`)
+        setError(
+          translateError(
+            tr("{{value0}} needs a number.", { value0: field.label })
+          )
+        )
         return
       }
       if (typed < field.min || typed > field.max) {
         setError(
-          `${field.label} has to be between ${field.min} and ${field.max}${
-            field.unit === "%" ? "%" : ` ${field.unit}`
-          }.`
+          translateError(
+            tr(
+              "{{value0}} has to be between {{value1}} and {{value2}}{{value3}}.",
+              {
+                value0: field.label,
+                value1: field.min,
+                value2: field.max,
+                value3: field.unit === "%" ? "%" : ` ${field.unit}`,
+              }
+            )
+          )
         )
         return
       }
@@ -268,9 +281,13 @@ export function CheckInReadingsSheet({
       changed.weightKg ?? (cleared.includes("weightKg") ? null : row?.weightKg)
     if (weightAfter == null) {
       setError(
-        row
-          ? "A check-in needs a weight. Delete the day from Recent check-ins instead."
-          : "Enter a weight for this day."
+        translateError(
+          row
+            ? tr(
+                "A check-in needs a weight. Delete the day from Recent check-ins instead."
+              )
+            : tr("Enter a weight for this day.")
+        )
       )
       return
     }
@@ -294,7 +311,7 @@ export function CheckInReadingsSheet({
       hapticSelection()
       onClose()
     } catch {
-      setError("That did not save. Try again.")
+      setError(translateError(tr("That did not save. Try again.")))
     } finally {
       setSaving(false)
     }
@@ -302,7 +319,7 @@ export function CheckInReadingsSheet({
 
   return (
     <MobileSheet
-      ariaLabel="Correct a check-in"
+      ariaLabel={tr("Correct a check-in")}
       onClose={onClose}
       overlayClassName="bg-black/45"
       panelClassName="sheet-panel mx-auto flex max-h-[88vh] w-full max-w-md flex-col rounded-t-2xl border-t border-border bg-card"
@@ -310,16 +327,17 @@ export function CheckInReadingsSheet({
       <div className="flex items-start justify-between gap-4 px-5 pt-4">
         <div>
           <h2 className="text-[20px] font-bold tracking-tight">
-            Correct a check-in
+            {tr("Correct a check-in")}
           </h2>
           <p className="mt-1 text-[12px] leading-5 text-muted-foreground">
-            Step back through the week and fix a figure. Empty a field to drop
-            it from that day.
+            {tr(
+              "Step back through the week and fix a figure. Empty a field to drop it from that day."
+            )}
           </p>
         </div>
         <ToolbarButton
           onClick={onClose}
-          aria-label="Close"
+          aria-label={tr("Close")}
           className="-mt-1 -mr-2 px-0"
         >
           <X size={14} weight="bold" />
@@ -334,7 +352,7 @@ export function CheckInReadingsSheet({
             hapticSelection()
             setDate(shiftDate(date, -1))
           }}
-          aria-label="Previous day"
+          aria-label={tr("Previous day")}
           className="app-translucent motion-tactile inline-flex size-9 shrink-0 items-center justify-center rounded-full disabled:opacity-35"
         >
           <CaretLeft size={15} weight="bold" />
@@ -347,7 +365,7 @@ export function CheckInReadingsSheet({
             hapticSelection()
             setDate(shiftDate(date, 1))
           }}
-          aria-label="Next day"
+          aria-label={tr("Next day")}
           className="app-translucent motion-tactile inline-flex size-9 shrink-0 items-center justify-center rounded-full disabled:opacity-35"
         >
           <CaretRight size={15} weight="bold" />
@@ -369,10 +387,10 @@ export function CheckInReadingsSheet({
               </label>
               <p className="mt-0.5 text-[12px] leading-4 text-muted-foreground">
                 {stored(field) == null
-                  ? "nothing recorded"
+                  ? tr("nothing recorded")
                   : row?.source === "health"
-                    ? "synced from your scale"
-                    : "you typed this"}
+                    ? tr("synced from your scale")
+                    : tr("you typed this")}
               </p>
             </div>
             <div className="flex shrink-0 items-baseline gap-1">
@@ -387,7 +405,7 @@ export function CheckInReadingsSheet({
                 value={shownValue(field)}
                 onFocus={(event) => event.currentTarget.select()}
                 onChange={(event) => {
-                  setError("")
+                  setError(translateError(""))
                   setDrafts((current) => ({
                     ...current,
                     [field.key]: event.target.value,
@@ -417,7 +435,7 @@ export function CheckInReadingsSheet({
           disabled={!dirty || saving}
           className="mt-4 w-full"
         >
-          {saving ? "Saving…" : "Save"}
+          {saving ? tr("Saving…") : tr("Save")}
         </PrimaryButton>
       </div>
     </MobileSheet>

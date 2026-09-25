@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 import { useCallback, useEffect, useRef } from "react"
 import { useMutation, useQuery } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
@@ -126,7 +127,8 @@ export function HealthSync() {
       // Import sessions before sleep sync schedules its nightly review.
 
       if (workouts.length === 0) {
-        if (days.length > 0) await syncMetrics({ provider, days: days.map(toSyncDay) })
+        if (days.length > 0)
+          await syncMetrics({ provider, days: days.map(toSyncDay) })
         return
       }
 
@@ -136,12 +138,16 @@ export function HealthSync() {
           healthWorkoutToImport(workout, timeZone)
         ),
       })
-      if (days.length > 0) await syncMetrics({ provider, days: days.map(toSyncDay) })
+      if (days.length > 0)
+        await syncMetrics({ provider, days: days.map(toSyncDay) })
     } catch (error) {
       // A background sync must never interrupt. The failure is surfaced in
       // Settings instead of a toast.
-      logDevWarn(`${healthProviderLabel()} sync failed`, error)
-      const message = error instanceof Error ? error.message : "Sync failed"
+      logDevWarn(
+        tr("{{value0}} sync failed", { value0: healthProviderLabel() }),
+        error
+      )
+      const message = error instanceof Error ? error.message : tr("Sync failed")
       await recordSyncError({ message }).catch(() => {})
     } finally {
       runningRef.current = false

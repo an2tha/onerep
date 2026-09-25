@@ -1,3 +1,4 @@
+import { tr, translateError } from "@repo/ui/i18n"
 /**
  * The cardio flavor of an exercise card: distance, duration, pace, heart
  * rate, zones, and where the numbers came from — with an Apple Health /
@@ -68,7 +69,7 @@ export function CardioDetailsPanel({
   const sourceLabel =
     CARDIO_SOURCE_OPTIONS.find(
       (option) => option.provider === cardio.sourceProvider
-    )?.label ?? "Manual"
+    )?.label ?? tr("Manual")
   const healthSupported = isHealthSyncSupportedPlatform()
   const [healthLoading, setHealthLoading] = useState(false)
   const [healthError, setHealthError] = useState<string | null>(null)
@@ -115,14 +116,20 @@ export function CardioDetailsPanel({
       const authorization = await requestHealthAuthorization()
       if (!authorization.available) {
         setHealthError(
-          `${healthProviderLabel()} is not available on this device.`
+          tr("{{value0}} is not available on this device.", {
+            value0: healthProviderLabel(),
+          })
         )
         setHealthWorkoutsList([])
         setShowHealthWorkouts(true)
         return
       }
       if (!authorization.granted) {
-        setHealthError(`${healthProviderLabel()} permission was not granted.`)
+        setHealthError(
+          tr("{{value0}} permission was not granted.", {
+            value0: healthProviderLabel(),
+          })
+        )
         setHealthWorkoutsList([])
         setShowHealthWorkouts(true)
         return
@@ -136,16 +143,22 @@ export function CardioDetailsPanel({
       setShowHealthWorkouts(true)
       if (workouts.length === 0) {
         setHealthError(
-          `No recent cardio workouts found in ${healthProviderLabel()}.`
+          tr("No recent cardio workouts found in {{value0}}.", {
+            value0: healthProviderLabel(),
+          })
         )
       }
     } catch (error) {
       setHealthWorkoutsList([])
       setShowHealthWorkouts(true)
       setHealthError(
-        error instanceof Error
-          ? error.message
-          : `Could not read ${healthProviderLabel()} workouts.`
+        translateError(
+          error instanceof Error
+            ? error.message
+            : tr("Could not read {{value0}} workouts.", {
+                value0: healthProviderLabel(),
+              })
+        )
       )
     } finally {
       healthLoadingRef.current = false
@@ -161,7 +174,9 @@ export function CardioDetailsPanel({
       notes: cardio.notes,
     })
     setShowHealthWorkouts(false)
-    toast.success(`Imported ${healthProviderLabel()} workout`)
+    toast.success(
+      tr("Imported {{value0}} workout", { value0: healthProviderLabel() })
+    )
   }
 
   const fieldCls =
@@ -179,7 +194,7 @@ export function CardioDetailsPanel({
       <div className="mb-3 flex items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[13px] font-semibold text-muted-foreground">
-            Cardio
+            {tr("Cardio")}
           </p>
           <p className="mt-1 truncate text-[13px] font-semibold text-foreground/70">
             {compactCardioSummary(details, cardio.distanceUnit)}
@@ -195,7 +210,7 @@ export function CardioDetailsPanel({
               className="flex h-8 items-center gap-1.5 rounded-full bg-foreground px-2.5 text-[13px] font-semibold text-background transition-opacity active:opacity-80 disabled:opacity-55"
             >
               <AppleLogo size={13} weight="fill" />
-              {healthLoading ? "Syncing" : "Health"}
+              {healthLoading ? tr("Syncing") : tr("Health")}
             </button>
           )}
           <span className="rounded-full bg-muted/50 px-2.5 py-1 text-[13px] font-semibold text-muted-foreground/60 tabular-nums">
@@ -212,7 +227,7 @@ export function CardioDetailsPanel({
                 {healthProviderLabel()}
               </p>
               <p className="truncate text-[13px] font-semibold text-muted-foreground/60">
-                Recent cardio workouts
+                {tr("Recent cardio workouts")}
               </p>
             </div>
             <button
@@ -222,7 +237,9 @@ export function CardioDetailsPanel({
               }
               disabled={healthLoading}
               className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted/45 text-muted-foreground/60 active:bg-muted disabled:opacity-40"
-              aria-label={`Close ${healthProviderLabel()} workouts`}
+              aria-label={tr("Close {{value0}} workouts", {
+                value0: healthProviderLabel(),
+              })}
             >
               <X size={12} weight="bold" />
             </button>
@@ -272,7 +289,7 @@ export function CardioDetailsPanel({
 
       <div className="grid grid-cols-2 gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_minmax(0,1fr)]">
         <label className="flex min-w-0 flex-col gap-1.5">
-          <span className={labelCls}>Distance</span>
+          <span className={labelCls}>{tr("Distance")}</span>
           <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-1.5">
             <input
               type="number"
@@ -303,7 +320,7 @@ export function CardioDetailsPanel({
         </label>
 
         <div className="flex min-w-0 flex-col gap-1.5">
-          <span className={labelCls}>Duration</span>
+          <span className={labelCls}>{tr("Duration")}</span>
           <div className="grid grid-cols-3 gap-1.5">
             {[
               ["durationHours", "h"],
@@ -333,7 +350,7 @@ export function CardioDetailsPanel({
         </div>
 
         <div className="col-span-2 flex min-w-0 flex-col gap-1.5 md:col-span-1">
-          <span className={labelCls}>Pace</span>
+          <span className={labelCls}>{tr("Pace")}</span>
           <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-1.5">
             <label className="relative min-w-0">
               <input
@@ -348,7 +365,7 @@ export function CardioDetailsPanel({
                 className={cn(fieldCls, "pr-9")}
               />
               <span className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 text-[13px] font-semibold text-muted-foreground">
-                min
+                {tr("min")}
               </span>
             </label>
             <label className="relative min-w-0">
@@ -364,7 +381,7 @@ export function CardioDetailsPanel({
                 className={cn(fieldCls, "pr-9")}
               />
               <span className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 text-[13px] font-semibold text-muted-foreground">
-                sec
+                {tr("sec")}
               </span>
             </label>
           </div>
@@ -373,31 +390,31 @@ export function CardioDetailsPanel({
 
       <div className="mt-3 grid grid-cols-2 gap-2">
         <label className="flex min-w-0 flex-col gap-1.5">
-          <span className={labelCls}>Avg HR</span>
+          <span className={labelCls}>{tr("Avg HR")}</span>
           <input
             type="number"
             inputMode="numeric"
             value={cardio.avgHeartRate}
             onChange={(event) => update({ avgHeartRate: event.target.value })}
-            placeholder="bpm"
+            placeholder={tr("bpm")}
             className={fieldCls}
           />
         </label>
         <label className="flex min-w-0 flex-col gap-1.5">
-          <span className={labelCls}>Max HR</span>
+          <span className={labelCls}>{tr("Max HR")}</span>
           <input
             type="number"
             inputMode="numeric"
             value={cardio.maxHeartRate}
             onChange={(event) => update({ maxHeartRate: event.target.value })}
-            placeholder="bpm"
+            placeholder={tr("bpm")}
             className={fieldCls}
           />
         </label>
       </div>
 
       <div className="mt-3">
-        <p className={labelCls}>Heart-rate zones</p>
+        <p className={labelCls}>{tr("Heart-rate zones")}</p>
         <div className="mt-1.5 grid grid-cols-5 gap-1.5">
           {HEART_RATE_ZONES.map(({ key, label }) => (
             <label key={key} className="min-w-0">
@@ -410,7 +427,7 @@ export function CardioDetailsPanel({
                 min="0"
                 value={cardio.zones[key]}
                 onChange={(event) => updateZone(key, event.target.value)}
-                placeholder="m"
+                placeholder={tr("m")}
                 className="h-10 w-full [appearance:textfield] rounded-[16px] border border-border/40 bg-muted/20 px-1.5 text-center text-[13px] font-semibold tabular-nums outline-none placeholder:text-muted-foreground focus:border-foreground/30 focus:bg-card/80 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
               />
             </label>
@@ -420,7 +437,7 @@ export function CardioDetailsPanel({
 
       <div className="mt-3 grid grid-cols-2 gap-2">
         <label className="flex min-w-0 flex-col gap-1.5">
-          <span className={labelCls}>Source</span>
+          <span className={labelCls}>{tr("Source")}</span>
           <select
             value={cardio.sourceProvider}
             onChange={(event) =>
@@ -438,36 +455,36 @@ export function CardioDetailsPanel({
           </select>
         </label>
         <label className="flex min-w-0 flex-col gap-1.5">
-          <span className={labelCls}>Source name</span>
+          <span className={labelCls}>{tr("Source name")}</span>
           <input
             value={cardio.sourceName}
             onChange={(event) => update({ sourceName: event.target.value })}
-            placeholder="Morning run"
+            placeholder={tr("Morning run")}
             className="h-12 rounded-[20px] border border-border/45 bg-muted/20 px-3 text-[13px] font-semibold outline-none placeholder:text-muted-foreground focus:border-foreground/30 focus:bg-card/80"
           />
         </label>
         <label className="flex min-w-0 flex-col gap-1.5">
-          <span className={labelCls}>Activity ID</span>
+          <span className={labelCls}>{tr("Activity ID")}</span>
           <input
             value={cardio.sourceExternalId}
             onChange={(event) =>
               update({ sourceExternalId: event.target.value })
             }
-            placeholder="Import ID"
+            placeholder={tr("Import ID")}
             className="h-12 rounded-[20px] border border-border/45 bg-muted/20 px-3 text-[13px] font-semibold outline-none placeholder:text-muted-foreground focus:border-foreground/30 focus:bg-card/80"
           />
         </label>
         <label className="flex min-w-0 flex-col gap-1.5">
-          <span className={labelCls}>Route</span>
+          <span className={labelCls}>{tr("Route")}</span>
           <input
             value={cardio.routeName}
             onChange={(event) => update({ routeName: event.target.value })}
-            placeholder="Route name"
+            placeholder={tr("Route name")}
             className="h-12 rounded-[20px] border border-border/45 bg-muted/20 px-3 text-[13px] font-semibold outline-none placeholder:text-muted-foreground focus:border-foreground/30 focus:bg-card/80"
           />
         </label>
         <label className="flex min-w-0 flex-col gap-1.5">
-          <span className={labelCls}>Route URL</span>
+          <span className={labelCls}>{tr("Route URL")}</span>
           <input
             type="url"
             value={cardio.routeUrl}

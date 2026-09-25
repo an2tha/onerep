@@ -1,5 +1,6 @@
 "use client"
 
+import { tr } from "@repo/ui/i18n"
 import * as React from "react"
 import { createPortal } from "react-dom"
 
@@ -166,7 +167,10 @@ export function TourPopover({
       <p className="text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
         {chapterTitle}
         <span className="sr-only">
-          {`, step ${stepNumber} of ${stepCount}`}
+          {tr(", step {{value0}} of {{value1}}", {
+            value0: stepNumber,
+            value1: stepCount,
+          })}
         </span>
         <span aria-hidden className="ml-1.5 normal-case">
           {stepNumber}/{stepCount}
@@ -212,7 +216,9 @@ export function TourPopover({
         aria-valuenow={stepNumber}
         aria-valuemin={1}
         aria-valuemax={stepCount}
-        aria-label={`${chapterTitle} walkthrough progress`}
+        aria-label={tr("{{value0}} walkthrough progress", {
+          value0: chapterTitle,
+        })}
         className="mt-3.5 flex gap-1"
       >
         {Array.from({ length: stepCount }, (_, index) => (
@@ -232,7 +238,7 @@ export function TourPopover({
           onClick={onSkipChapter}
           className="min-h-9 px-1 text-[13px] font-medium text-muted-foreground transition-colors hover:text-foreground"
         >
-          Skip
+          {tr("Skip")}
         </button>
         <div className="flex items-center gap-2">
           {canGoBack && (
@@ -241,7 +247,7 @@ export function TourPopover({
               onClick={onBack}
               className="native-secondary-button min-h-9 rounded-[0.65rem] px-3 text-[13px]"
             >
-              Back
+              {tr("Back")}
             </button>
           )}
           <button
@@ -249,7 +255,7 @@ export function TourPopover({
             onClick={onNext}
             className="native-primary-button min-h-9 rounded-[0.65rem] px-3.5 text-[13px]"
           >
-            {isLastStep ? "Done" : "Next"}
+            {isLastStep ? tr("Done") : tr("Next")}
           </button>
         </div>
       </div>

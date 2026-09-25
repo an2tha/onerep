@@ -1,3 +1,4 @@
+import { Message, tr, translateError } from "@repo/ui/i18n"
 import { useState } from "react"
 import { useMutation } from "convex/react"
 import { MagnifyingGlass, Plus, X } from "@phosphor-icons/react"
@@ -48,7 +49,7 @@ export function TrackerStudio({
   async function save(definition: TrackerDefinition) {
     if (pending) return
     setPending(true)
-    setError("")
+    setError(translateError(""))
     try {
       const { title, description, tab, kind, unit, step, accent } = definition
       const values = {
@@ -79,9 +80,11 @@ export function TrackerStudio({
       onChoose({ ...values, target, _id: id, entries: editing?.entries ?? [] })
     } catch (caught) {
       setError(
-        caught instanceof Error
-          ? caught.message
-          : "Could not save your tracker. Please try again."
+        translateError(
+          caught instanceof Error
+            ? caught.message
+            : tr("Could not save your tracker. Please try again.")
+        )
       )
     } finally {
       setPending(false)
@@ -103,16 +106,16 @@ export function TrackerStudio({
       <div className="journal-studio">
         <div className="journal-section-heading">
           <div>
-            <p className="journal-kicker">YOUR JOURNAL, YOUR RULES</p>
+            <p className="journal-kicker">{tr("YOUR JOURNAL, YOUR RULES")}</p>
             <h2>
               {editing
-                ? "Edit tracker"
+                ? tr("Edit tracker")
                 : custom
-                  ? "Make it yours"
-                  : "Track anything"}
+                  ? tr("Make it yours")
+                  : tr("Track anything")}
             </h2>
           </div>
-          <button aria-label="Close tracker builder" onClick={onClose}>
+          <button aria-label={tr("Close tracker builder")} onClick={onClose}>
             <X size={22} />
           </button>
         </div>
@@ -122,8 +125,8 @@ export function TrackerStudio({
               <MagnifyingGlass size={20} />
               <input
                 autoFocus
-                aria-label="Search trackers"
-                placeholder="Sleep, mobility, fibre, anything…"
+                aria-label={tr("Search trackers")}
+                placeholder={tr("Sleep, mobility, fibre, anything…")}
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
               />
@@ -137,15 +140,15 @@ export function TrackerStudio({
             >
               <Plus size={21} />
               <span>
-                <strong>Create a custom tracker</strong>
+                <strong>{tr("Create a custom tracker")}</strong>
                 <small>
-                  A number, a daily total or a yes/no habit. You decide.
+                  {tr("A number, a daily total or a yes/no habit. You decide.")}
                 </small>
               </span>
             </button>
             {existing.length > 0 && (
               <>
-                <h3>Your trackers</h3>
+                <h3>{tr("Your trackers")}</h3>
                 <div className="journal-template-grid">
                   {existing.map((metric) => {
                     const Icon = trackerIcon(metric.title)
@@ -154,7 +157,7 @@ export function TrackerStudio({
                         <Icon size={22} weight="duotone" />
                         <span>
                           {metric.title}
-                          <small>Log a value</small>
+                          <small>{tr("Log a value")}</small>
                         </span>
                       </button>
                     )
@@ -163,8 +166,16 @@ export function TrackerStudio({
               </>
             )}
             <h3>
-              Start with an idea{" "}
-              <span className="text-muted-foreground">{matching.length}</span>
+              <Message
+                text={"Start with an idea {{value0}}"}
+                values={{
+                  value0: (
+                    <span className="text-muted-foreground">
+                      {matching.length}
+                    </span>
+                  ),
+                }}
+              />
             </h3>
             <div className="journal-template-grid">
               {matching.map((template) => {
@@ -186,9 +197,9 @@ export function TrackerStudio({
                       {template.title}
                       <small>
                         {found
-                          ? "Already tracking"
+                          ? tr("Already tracking")
                           : template.kind === "toggle"
-                            ? "Yes / no"
+                            ? tr("Yes / no")
                             : template.unit}
                       </small>
                     </span>
@@ -199,7 +210,9 @@ export function TrackerStudio({
             </div>
             {matching.length === 0 && (
               <p className="text-muted-foreground">
-                No preset matches. Create exactly the tracker you need above.
+                {tr(
+                  "No preset matches. Create exactly the tracker you need above."
+                )}
               </p>
             )}
           </>
@@ -212,109 +225,158 @@ export function TrackerStudio({
             }}
           >
             <label>
-              Name
-              <input
-                required
-                maxLength={48}
-                value={draft.title}
-                onChange={(event) =>
-                  setDraft({ ...draft, title: event.target.value })
-                }
-                placeholder="e.g. Time on the climbing wall"
+              <Message
+                text={"Name{{value0}}"}
+                values={{
+                  value0: (
+                    <input
+                      required
+                      maxLength={48}
+                      value={draft.title}
+                      onChange={(event) =>
+                        setDraft({ ...draft, title: event.target.value })
+                      }
+                      placeholder={tr("e.g. Time on the climbing wall")}
+                    />
+                  ),
+                }}
               />
             </label>
             <label>
-              What does it mean to you?
-              <input
-                maxLength={180}
-                value={draft.description}
-                onChange={(event) =>
-                  setDraft({ ...draft, description: event.target.value })
-                }
-                placeholder="Optional description"
+              <Message
+                text={"What does it mean to you?{{value0}}"}
+                values={{
+                  value0: (
+                    <input
+                      maxLength={180}
+                      value={draft.description}
+                      onChange={(event) =>
+                        setDraft({ ...draft, description: event.target.value })
+                      }
+                      placeholder={tr("Optional description")}
+                    />
+                  ),
+                }}
               />
             </label>
             <div className="journal-form-pair">
               <label>
-                Track as
-                <select
-                  value={draft.kind}
-                  disabled={Boolean(editing)}
-                  onChange={(event) =>
-                    setDraft({
-                      ...draft,
-                      kind: event.target.value as TrackerDefinition["kind"],
-                    })
-                  }
-                >
-                  <option value="number">A reading</option>
-                  <option value="counter">A daily total</option>
-                  <option value="toggle">Yes / no</option>
-                </select>
+                <Message
+                  text={"Track as{{value0}}"}
+                  values={{
+                    value0: (
+                      <select
+                        value={draft.kind}
+                        disabled={Boolean(editing)}
+                        onChange={(event) =>
+                          setDraft({
+                            ...draft,
+                            kind: event.target
+                              .value as TrackerDefinition["kind"],
+                          })
+                        }
+                      >
+                        <option value="number">{tr("A reading")}</option>
+                        <option value="counter">{tr("A daily total")}</option>
+                        <option value="toggle">{tr("Yes / no")}</option>
+                      </select>
+                    ),
+                  }}
+                />
               </label>
               <label>
-                Category
-                <select
-                  value={draft.tab}
-                  onChange={(event) => {
-                    const tab = event.target.value as TrackerDefinition["tab"]
-                    setDraft({
-                      ...draft,
-                      tab,
-                      accent:
-                        tab === "nutrition"
-                          ? "food"
-                          : tab === "training"
-                            ? "workout"
-                            : "progress",
-                    })
+                <Message
+                  text={"Category{{value0}}"}
+                  values={{
+                    value0: (
+                      <select
+                        value={draft.tab}
+                        onChange={(event) => {
+                          const tab = event.target
+                            .value as TrackerDefinition["tab"]
+                          setDraft({
+                            ...draft,
+                            tab,
+                            accent:
+                              tab === "nutrition"
+                                ? "food"
+                                : tab === "training"
+                                  ? "workout"
+                                  : "progress",
+                          })
+                        }}
+                      >
+                        <option value="body">{tr("Wellbeing")}</option>
+                        <option value="training">{tr("Training")}</option>
+                        <option value="nutrition">{tr("Nutrition")}</option>
+                      </select>
+                    ),
                   }}
-                >
-                  <option value="body">Wellbeing</option>
-                  <option value="training">Training</option>
-                  <option value="nutrition">Nutrition</option>
-                </select>
+                />
               </label>
             </div>
             {draft.kind !== "toggle" && (
               <>
                 <div className="journal-form-pair">
                   <label>
-                    Unit
-                    <input
-                      maxLength={16}
-                      value={draft.unit}
-                      onChange={(event) =>
-                        setDraft({ ...draft, unit: event.target.value })
-                      }
-                      placeholder="min, reps, km…"
+                    <Message
+                      text={"Unit{{value0}}"}
+                      values={{
+                        value0: (
+                          <input
+                            maxLength={16}
+                            value={draft.unit}
+                            onChange={(event) =>
+                              setDraft({ ...draft, unit: event.target.value })
+                            }
+                            placeholder={tr("min, reps, km…")}
+                          />
+                        ),
+                      }}
                     />
                   </label>
                   <label>
-                    Quick-add amount
-                    <input
-                      type="number"
-                      required
-                      min={0.01}
-                      max={10000}
-                      step="any"
-                      value={draft.step}
-                      onChange={(event) =>
-                        setDraft({ ...draft, step: Number(event.target.value) })
-                      }
+                    <Message
+                      text={"Quick-add amount{{value0}}"}
+                      values={{
+                        value0: (
+                          <input
+                            type="number"
+                            required
+                            min={0.01}
+                            max={10000}
+                            step="any"
+                            value={draft.step}
+                            onChange={(event) =>
+                              setDraft({
+                                ...draft,
+                                step: Number(event.target.value),
+                              })
+                            }
+                          />
+                        ),
+                      }}
                     />
                   </label>
                 </div>
                 <label>
-                  Daily target (optional)
-                  <input
-                    type="number"
-                    min={0}
-                    max={1000000}
-                    step="any"
-                    value={goal}
-                    onChange={(event) => setGoal(event.target.value)}
-                    placeholder="Leave empty to track without a goal"
+                  <Message
+                    text={"Daily target (optional){{value0}}"}
+                    values={{
+                      value0: (
+                        <input
+                          type="number"
+                          min={0}
+                          max={1000000}
+                          step="any"
+                          value={goal}
+                          onChange={(event) => setGoal(event.target.value)}
+                          placeholder={tr(
+                            "Leave empty to track without a goal"
+                          )}
+                        />
+                      ),
+                    }}
                   />
                 </label>
               </>
@@ -324,14 +386,14 @@ export function TrackerStudio({
               disabled={pending || (!editing && metrics.length >= 100)}
             >
               {pending
-                ? "Saving…"
+                ? tr("Saving…")
                 : editing
-                  ? "Save tracker"
-                  : "Create tracker"}
+                  ? tr("Save tracker")
+                  : tr("Create tracker")}
             </button>
             {!editing && (
               <button type="button" onClick={() => setCustom(false)}>
-                Back to tracker ideas
+                {tr("Back to tracker ideas")}
               </button>
             )}
             {editing && (
@@ -339,8 +401,12 @@ export function TrackerStudio({
                 {confirmRemove ? (
                   <>
                     <p>
-                      Remove “{editing.title}” and all its history? This cannot
-                      be undone.
+                      <Message
+                        text={
+                          "Remove “{{value0}}” and all its history? This cannot be undone."
+                        }
+                        values={{ value0: editing.title }}
+                      />
                     </p>
                     <button
                       type="button"
@@ -352,32 +418,34 @@ export function TrackerStudio({
                           onClose()
                         } catch {
                           setError(
-                            "Could not remove tracker. Please try again."
+                            translateError(
+                              tr("Could not remove tracker. Please try again.")
+                            )
                           )
                         } finally {
                           setPending(false)
                         }
                       }}
                     >
-                      Remove tracker and history
+                      {tr("Remove tracker and history")}
                     </button>
                     <button
                       type="button"
                       onClick={() => setConfirmRemove(false)}
                     >
-                      Keep tracker
+                      {tr("Keep tracker")}
                     </button>
                   </>
                 ) : (
                   <button type="button" onClick={() => setConfirmRemove(true)}>
-                    Remove tracker…
+                    {tr("Remove tracker…")}
                   </button>
                 )}
               </div>
             )}
           </form>
         )}
-        {pending && <p role="status">Saving tracker…</p>}
+        {pending && <p role="status">{tr("Saving tracker…")}</p>}
         {error && (
           <p role="alert" className="text-destructive">
             {error}
@@ -385,7 +453,9 @@ export function TrackerStudio({
         )}
         {metrics.length >= 100 && !editing && (
           <p>
-            You have 100 trackers. Edit or remove one before adding another.
+            {tr(
+              "You have 100 trackers. Edit or remove one before adding another."
+            )}
           </p>
         )}
       </div>

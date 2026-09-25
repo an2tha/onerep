@@ -29,7 +29,7 @@ private struct CalorieRing: View {
                     .monospacedDigit()
                     .minimumScaleFactor(0.6)
                     .lineLimit(1)
-                Text(snapshot.caloriesLeft < 0 ? "over" : "left")
+                Text(snapshot.caloriesLeft < 0 ? String(localized: "over") : String(localized: "left"))
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(.secondary)
             }
@@ -48,7 +48,7 @@ private struct MacroBar: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             HStack {
-                Text(label)
+                Text(LocalizedStringKey(label))
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(.secondary)
                 Spacer()
@@ -156,7 +156,7 @@ private struct WaterRow: View {
                 store.logWater(ml: store.snapshot.waterUnit == "fl oz" ? 237 : 250)
             } label: {
                 Label(
-                    store.snapshot.waterUnit == "fl oz" ? "Add 8 fl oz" : "Add 250 ml",
+                    store.snapshot.waterUnit == "fl oz" ? String(localized: "Add 8 fl oz") : String(localized: "Add 250 ml"),
                     systemImage: "plus"
                 )
                 .font(.system(size: 13, weight: .semibold))

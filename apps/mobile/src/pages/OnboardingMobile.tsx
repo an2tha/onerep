@@ -1,3 +1,4 @@
+import { Message, choice, tr, translateError, uiLocale } from "@repo/ui/i18n"
 import { useAiFeatureGate } from "@/lib/ai-access"
 import { useEnergyUnit } from "@/lib/use-energy-unit"
 import type { SettingsView } from "./Settings"
@@ -99,11 +100,16 @@ const COACH_ONBOARDING_SEEN_KEY = "onerep:coach-onboarding-seen"
 const ONBOARDING_DRAFT_KEY = "onerep:onboarding-draft:v2"
 
 const activities = [
-  ["sedentary", "Sedentary", "Mostly seated", PersonSimpleRun],
-  ["lightly_active", "Light", "A few active days", PersonSimpleRun],
-  ["moderately_active", "Moderate", "Active most weeks", PersonSimpleRun],
-  ["very_active", "Very active", "Training most days", PersonSimpleRun],
-  ["extra_active", "Athlete", "High training load", PersonSimpleRun],
+  ["sedentary", tr("Sedentary"), tr("Mostly seated"), PersonSimpleRun],
+  ["lightly_active", tr("Light"), tr("A few active days"), PersonSimpleRun],
+  [
+    "moderately_active",
+    tr("Moderate"),
+    tr("Active most weeks"),
+    PersonSimpleRun,
+  ],
+  ["very_active", tr("Very active"), tr("Training most days"), PersonSimpleRun],
+  ["extra_active", tr("Athlete"), tr("High training load"), PersonSimpleRun],
 ] satisfies [ActivityLevel, string, string, Icon][]
 
 type NutritionGoal =
@@ -123,30 +129,30 @@ type ConsentState = {
 }
 
 const nutritionGoals = [
-  ["lose_fat", "Lose fat", "Steady, sustainable deficit", TrendDown],
-  ["gain_muscle", "Build muscle", "More fuel and protein", Barbell],
-  ["maintain", "Stay healthy", "Maintain and build consistency", Heart],
+  ["lose_fat", tr("Lose fat"), tr("Steady, sustainable deficit"), TrendDown],
+  ["gain_muscle", tr("Build muscle"), tr("More fuel and protein"), Barbell],
+  ["maintain", tr("Stay healthy"), tr("Maintain and build consistency"), Heart],
 ] satisfies [NutritionGoal, string, string, Icon][]
 
 const experienceLevels = [
-  ["beginner", "New to this", "Keep setup simple", Heart],
-  ["intermediate", "Some experience", "I know the basics", Lightning],
-  ["advanced", "Very experienced", "Give me full control", Trophy],
+  ["beginner", tr("New to this"), tr("Keep setup simple"), Heart],
+  ["intermediate", tr("Some experience"), tr("I know the basics"), Lightning],
+  ["advanced", tr("Very experienced"), tr("Give me full control"), Trophy],
 ] satisfies [ExperienceLevel, string, string, Icon][]
 
 const safetyOptions = [
-  ["under_18", "Under 18"],
-  ["pregnant_or_breastfeeding", "Pregnant or breastfeeding"],
-  ["diabetes", "Diabetes"],
-  ["kidney_disease", "Kidney disease"],
-  ["eating_disorder_history", "Eating disorder history"],
-  ["active_treatment", "Active treatment"],
-  ["major_gi_disorder", "Major GI disorder"],
-  ["purging_laxatives", "Purging or laxative use"],
-  ["fasting_cycles", "Fasting cycles"],
-  ["binge_distress", "Binge distress"],
-  ["fear_weight_gain", "Fear of weight gain"],
-  ["compulsive_tracking", "Compulsive tracking"],
+  ["under_18", tr("Under 18")],
+  ["pregnant_or_breastfeeding", tr("Pregnant or breastfeeding")],
+  ["diabetes", tr("Diabetes")],
+  ["kidney_disease", tr("Kidney disease")],
+  ["eating_disorder_history", tr("Eating disorder history")],
+  ["active_treatment", tr("Active treatment")],
+  ["major_gi_disorder", tr("Major GI disorder")],
+  ["purging_laxatives", tr("Purging or laxative use")],
+  ["fasting_cycles", tr("Fasting cycles")],
+  ["binge_distress", tr("Binge distress")],
+  ["fear_weight_gain", tr("Fear of weight gain")],
+  ["compulsive_tracking", tr("Compulsive tracking")],
 ] satisfies [string, string][]
 
 function clamp(value: number, min: number, max: number) {
@@ -336,30 +342,38 @@ function CoachPreviewExchange() {
   return (
     <figure className="onboarding-coach-preview">
       <figcaption className="onboarding-coach-preview-ask">
-        Logged a chicken rice bowl. What's left today?
+        {tr("Logged a chicken rice bowl. What's left today?")}
       </figcaption>
       <div className="onboarding-coach-preview-reply">
         <p>
-          That bowl is about {energyDisplay(520, energyUnit)} {energyUnit}.
-          Here's the rest of your day.
+          <Message
+            text={
+              "That bowl is about {{value0}}  {{value1}}. Here's the rest of your day."
+            }
+            values={{
+              value0: energyDisplay(520, energyUnit),
+              value1: energyUnit,
+            }}
+          />
         </p>
         <dl className="onboarding-coach-preview-stats">
           <div>
-            <dt>Calories left</dt>
+            <dt>{tr("Calories left")}</dt>
             <dd>780</dd>
           </div>
           <div>
-            <dt>Protein left</dt>
-            <dd>52 g</dd>
+            <dt>{tr("Protein left")}</dt>
+            <dd>{tr("52 g")}</dd>
           </div>
           <div>
-            <dt>Next session</dt>
-            <dd>Push day</dd>
+            <dt>{tr("Next session")}</dt>
+            <dd>{tr("Push day")}</dd>
           </div>
         </dl>
         <p className="onboarding-coach-preview-note">
-          I can log the bowl and put protein on Today — say the word and I'll do
-          it.
+          {tr(
+            "I can log the bowl and put protein on Today — say the word and I'll do it."
+          )}
         </p>
       </div>
     </figure>
@@ -384,21 +398,21 @@ type StageId =
   | "connections"
 
 const stages = [
-  { id: "intro", label: "Welcome" },
-  { id: "preferences", label: "Your app" },
-  { id: "goal", label: "Goals" },
-  { id: "experience", label: "Experience" },
-  { id: "coach", label: "Coach" },
-  { id: "sex", label: "Baseline" },
-  { id: "measurements", label: "Baseline" },
-  { id: "activity", label: "Activity" },
-  { id: "safety", label: "Health" },
-  { id: "nutrition", label: "Nutrition" },
-  { id: "lifestyle", label: "Daily life" },
-  { id: "connections", label: "Connections & more" },
-  { id: "import", label: "Your history" },
-  { id: "assistant", label: "Coach setup" },
-  { id: "review", label: "Review" },
+  { id: "intro", label: tr("Welcome") },
+  { id: "preferences", label: tr("Your app") },
+  { id: "goal", label: tr("Goals") },
+  { id: "experience", label: tr("Experience") },
+  { id: "coach", label: tr("Coach") },
+  { id: "sex", label: tr("Baseline") },
+  { id: "measurements", label: tr("Baseline") },
+  { id: "activity", label: tr("Activity") },
+  { id: "safety", label: tr("Health") },
+  { id: "nutrition", label: tr("Nutrition") },
+  { id: "lifestyle", label: tr("Daily life") },
+  { id: "connections", label: tr("Connections & more") },
+  { id: "import", label: tr("Your history") },
+  { id: "assistant", label: tr("Coach setup") },
+  { id: "review", label: tr("Review") },
 ] as const satisfies readonly { id: StageId; label: string }[]
 
 const IMPORT_MAX_FILES = 3
@@ -432,23 +446,37 @@ type ImportCommitView = {
 }
 
 function countNoun(count: number, noun: string) {
-  return `${count} ${noun}${count === 1 ? "" : "s"}`
+  if (noun === "workout")
+    return tr("{{value0}} workout{{value1}}", {
+      value0: count,
+      value1: count === 1 ? "" : "s",
+    })
+  return tr("{{value0}} check-in{{value1}}", {
+    value0: count,
+    value1: count === 1 ? "" : "s",
+  })
 }
 
 function describeImportFile(file: ImportPreviewFileView): string {
   if (file.kind === "unsupported") {
-    return file.note ?? "Not something I can file."
+    return file.note ?? tr("Not something I can file.")
   }
   const parts: string[] = []
   if (file.workouts > 0) parts.push(countNoun(file.workouts, "workout"))
   if (file.measurements > 0)
     parts.push(countNoun(file.measurements, "check-in"))
-  if (parts.length === 0) return "Nothing usable in here."
+  if (parts.length === 0) return tr("Nothing usable in here.")
   const range =
     file.firstDate && file.lastDate && file.firstDate !== file.lastDate
-      ? `, ${file.firstDate} to ${file.lastDate}`
+      ? tr(", {{value0}} to {{value1}}", {
+          value0: file.firstDate,
+          value1: file.lastDate,
+        })
       : ""
-  return parts.join(" and ") + range
+  return (
+    new Intl.ListFormat(uiLocale(), { type: "conjunction" }).format(parts) +
+    range
+  )
 }
 
 function describeImportResult(result: ImportCommitView): string {
@@ -457,8 +485,12 @@ function describeImportResult(result: ImportCommitView): string {
   if (result.measurements > 0) {
     parts.push(countNoun(result.measurements, "check-in"))
   }
-  if (parts.length === 0) return "Nothing made it in."
-  return `Imported ${parts.join(" and ")}.`
+  if (parts.length === 0) return tr("Nothing made it in.")
+  return tr("Imported {{value0}}.", {
+    value0: new Intl.ListFormat(uiLocale(), { type: "conjunction" }).format(
+      parts
+    ),
+  })
 }
 
 /**
@@ -476,63 +508,93 @@ function withImportMimeType(file: File): File {
 // for a render, and a revisited stage can be shown fully typed in one frame.
 const stageMessages: Record<StageId, string[]> = {
   intro: [
-    "A place for your training, food, and progress. Set it up around the way you live. You can revisit any completed section.",
+    tr(
+      "A place for your training, food, and progress. Set it up around the way you live. You can revisit any completed section."
+    ),
   ],
   connections: [
-    "Connect your health sources, choose reminders, and fine-tune privacy and nutrition settings here. Each section saves its own changes; health consent is confirmed when you finish setup.",
+    tr(
+      "Connect your health sources, choose reminders, and fine-tune privacy and nutrition settings here. Each section saves its own changes; health consent is confirmed when you finish setup."
+    ),
   ],
   preferences: [
-    "Choose how OneRep looks, the units you use, and what you see first.",
+    tr("Choose how OneRep looks, the units you use, and what you see first."),
   ],
   nutrition: [
-    "Choose what you want to track and how you prefer to eat. These preferences help personalize your nutrition guidance.",
+    tr(
+      "Choose what you want to track and how you prefer to eat. These preferences help personalize your nutrition guidance."
+    ),
   ],
   lifestyle: [
-    "Make your plan practical with your cooking experience, budget, meal rhythm, and hydration goal.",
+    tr(
+      "Make your plan practical with your cooking experience, budget, meal rhythm, and hydration goal."
+    ),
   ],
-  goal: ["First things first: what are you working toward?"],
+  goal: [tr("First things first: what are you working toward?")],
   experience: [
-    "Good choice. How much experience do you have with training and tracking?",
+    tr(
+      "Good choice. How much experience do you have with training and tracking?"
+    ),
   ],
   coach: [
-    "One more thing before your numbers. Coach is the part of OneRep you talk to.",
-    "Ask about your day and you get an answer with your own numbers behind it. It only writes something after you say yes.",
+    tr(
+      "One more thing before your numbers. Coach is the part of OneRep you talk to."
+    ),
+    tr(
+      "Ask about your day and you get an answer with your own numbers behind it. It only writes something after you say yes."
+    ),
   ],
   sex: [
-    "Now let's estimate your energy needs.",
-    "Which option suits you best?",
+    tr("Now let's estimate your energy needs."),
+    tr("Which option suits you best?"),
   ],
   measurements: [
-    "And your measurements. I use these to calculate your starting calorie budget.",
+    tr(
+      "And your measurements. I use these to calculate your starting calorie budget."
+    ),
   ],
   activity: [
-    "How active is a typical week for you? Pick your usual, not your best week.",
+    tr(
+      "How active is a typical week for you? Pick your usual, not your best week."
+    ),
   ],
   safety: [
-    "Almost done. Do any of these health considerations apply to you?",
-    "This is optional, and it helps me avoid unsuitable calorie recommendations.",
+    tr("Almost done. Do any of these health considerations apply to you?"),
+    tr(
+      "This is optional, and it helps me avoid unsuitable calorie recommendations."
+    ),
   ],
   import: [
-    "Were you tracking in another app before this? That history is worth keeping.",
-    "Export it as CSV or JSON — up to 5 MB — and I'll work out what's inside and file your workouts and weigh-ins where they belong. You see what I found before anything is saved.",
+    tr(
+      "Were you tracking in another app before this? That history is worth keeping."
+    ),
+    tr(
+      "Export it as CSV or JSON — up to 5 MB — and I'll work out what's inside and file your workouts and weigh-ins where they belong. You see what I found before anything is saved."
+    ),
   ],
   assistant: [
-    "Want a head start? I can build it now: routines and presets on your week, recipes, goals, progress trackers, or your first logged meal.",
-    "Tell me what you want in your own words, or send a photo of your fridge, a menu, or a plan you already follow. You have 5 messages, and nothing gets saved without you seeing it first.",
+    tr(
+      "Want a head start? I can build it now: routines and presets on your week, recipes, goals, progress trackers, or your first logged meal."
+    ),
+    tr(
+      "Tell me what you want in your own words, or send a photo of your fridge, a menu, or a plan you already follow. You have 5 messages, and nothing gets saved without you seeing it first."
+    ),
   ],
   review: [
-    "That's everything I need. Here are your starting daily targets. These are estimates, not medical advice. You can change them any time in Settings.",
+    tr(
+      "That's everything I need. Here are your starting daily targets. These are estimates, not medical advice. You can change them any time in Settings."
+    ),
   ],
 }
 
 const SETUP_MESSAGE_LIMIT = 5
 
 const SETUP_STARTERS = [
-  "Build me a 3-day full-body routine and put it on my week",
-  "Set up a 6-day push/pull/legs split",
-  "Give me a high-protein dinner recipe I can repeat",
-  "Set me a 4-week goal I can actually hit",
-  "Add a daily water tracker to Progress",
+  tr("Build me a 3-day full-body routine and put it on my week"),
+  tr("Set up a 6-day push/pull/legs split"),
+  tr("Give me a high-protein dinner recipe I can repeat"),
+  tr("Set me a 4-week goal I can actually hit"),
+  tr("Add a daily water tracker to Progress"),
 ] as const
 
 const SETUP_DESTINATIONS: Record<CoachUiAction, string> = {
@@ -547,14 +609,14 @@ const SETUP_DESTINATIONS: Record<CoachUiAction, string> = {
 }
 
 const SETUP_DESTINATION_LABELS: Record<CoachUiAction, string> = {
-  open_nutrition: "Nutrition",
-  log_food: "Nutrition",
-  open_workouts: "Workouts",
-  open_workout_builder: "Workouts",
-  open_progress: "Progress",
-  open_recipe_builder: "Recipes",
-  open_supplements: "Supplements",
-  open_settings: "Settings",
+  open_nutrition: tr("Nutrition"),
+  log_food: tr("Nutrition"),
+  open_workouts: tr("Workouts"),
+  open_workout_builder: tr("Workouts"),
+  open_progress: tr("Progress"),
+  open_recipe_builder: tr("Recipes"),
+  open_supplements: tr("Supplements"),
+  open_settings: tr("Settings"),
 }
 
 function QuickReplies<T extends string>({
@@ -1038,26 +1100,35 @@ export function OnboardingMobile() {
   const weightMax = weightUnit === "kg" ? WEIGHT_KG_MAX : kgToLbs(WEIGHT_KG_MAX)
 
   const stageAnswers: Partial<Record<StageId, string>> = {
-    intro: "Let's go",
+    intro: tr("Let's go"),
     goal: nutritionGoal
       ? selectedLabel(nutritionGoals, nutritionGoal)
       : undefined,
     experience: experienceLevel
       ? selectedLabel(experienceLevels, experienceLevel)
       : undefined,
-    coach: "Sounds good",
-    sex: profile.sex ? (profile.sex === "male" ? "Male" : "Female") : undefined,
-    measurements: `${profile.age} yrs · ${profile.heightCm} cm · ${weightValue} ${weightUnit}`,
+    coach: tr("Sounds good"),
+    sex: profile.sex
+      ? profile.sex === "male"
+        ? tr("Male")
+        : tr("Female")
+      : undefined,
+    measurements: tr("{{value0}} yrs · {{value1}} cm · {{value2}} {{value3}}", {
+      value0: profile.age,
+      value1: profile.heightCm,
+      value2: weightValue,
+      value3: weightUnit,
+    }),
     activity: selectedLabel(activities, profile.activityLevel),
     safety: safetyFlags.includes("none")
-      ? "None of these"
+      ? tr("None of these")
       : safetyFlags
           .map((flag) => selectedLabel(safetyOptions, flag))
-          .join(", ") || "None of these",
+          .join(", ") || tr("None of these"),
     import: importResult
       ? describeImportResult(importResult)
-      : "Starting fresh",
-    assistant: setupUsed > 0 ? "That's all for now" : "Skip for now",
+      : tr("Starting fresh"),
+    assistant: setupUsed > 0 ? tr("That's all for now") : tr("Skip for now"),
   }
 
   function advance(fromStage: number) {
@@ -1094,7 +1165,9 @@ export function OnboardingMobile() {
     if (files.length > IMPORT_MAX_FILES) {
       hapticHeavy()
       setImportError(
-        `${IMPORT_MAX_FILES} files at most. Pick the ones that matter.`
+        tr("{{value0}} files at most. Pick the ones that matter.", {
+          value0: IMPORT_MAX_FILES,
+        })
       )
       return
     }
@@ -1102,7 +1175,11 @@ export function OnboardingMobile() {
     if (totalBytes > IMPORT_MAX_TOTAL_BYTES) {
       hapticHeavy()
       setImportError(
-        "That's more than 5 MB together. Most apps can export a shorter date range."
+        translateError(
+          tr(
+            "That's more than 5 MB together. Most apps can export a shorter date range."
+          )
+        )
       )
       return
     }
@@ -1126,14 +1203,21 @@ export function OnboardingMobile() {
       setImportPreview(result)
       hapticTap()
     } catch (caught) {
-      if (caught instanceof Error && caught.message.includes("Allow AI data sharing")) {
+      if (
+        caught instanceof Error &&
+        caught.message.includes("Allow AI data sharing")
+      ) {
         requireAiAccess(1, "setup_import")
       }
       hapticHeavy()
       setImportError(
-        caught instanceof Error && caught.message
-          ? caught.message
-          : "I couldn't read those files. Try again, or skip this — the app works fine without them."
+        translateError(
+          caught instanceof Error && caught.message
+            ? caught.message
+            : tr(
+                "I couldn't read those files. Try again, or skip this, the app works fine without them."
+              )
+        )
       )
     } finally {
       setImportBusy(null)
@@ -1163,9 +1247,13 @@ export function OnboardingMobile() {
     } catch (caught) {
       hapticHeavy()
       setImportError(
-        caught instanceof Error && caught.message
-          ? caught.message
-          : "The import didn't go through. Nothing was half-written — try again."
+        translateError(
+          caught instanceof Error && caught.message
+            ? caught.message
+            : tr(
+                "The import didn't go through. Nothing was half-written, try again."
+              )
+        )
       )
     } finally {
       setImportBusy(null)
@@ -1207,9 +1295,12 @@ export function OnboardingMobile() {
     if (selectedAttachment && selectedAttachment.status !== "ready") {
       hapticHeavy()
       toast.error(
-        selectedAttachment.status === "error"
-          ? (selectedAttachment.error ?? "That image could not be attached.")
-          : "Wait for the image to finish uploading."
+        translateError(
+          selectedAttachment.status === "error"
+            ? (selectedAttachment.error ??
+                tr("That image could not be attached."))
+            : tr("Wait for the image to finish uploading.")
+        )
       )
       return
     }
@@ -1226,7 +1317,7 @@ export function OnboardingMobile() {
       {
         role: "user",
         content: selectedAttachment
-          ? `${rawPrompt || "Take a look at this image."}\n\n📷 ${selectedAttachment.fileName}`
+          ? `${rawPrompt || tr("Take a look at this image.")}\n\n📷 ${selectedAttachment.fileName}`
           : prompt,
       },
     ]
@@ -1266,7 +1357,8 @@ export function OnboardingMobile() {
         {
           role: "assistant",
           content: response.reply,
-          openui: typeof response.openui === "string" ? response.openui : undefined,
+          openui:
+            typeof response.openui === "string" ? response.openui : undefined,
           uiBlocks: normalizeCoachUiBlocks(response.uiBlocks),
           operationResults,
           pendingOperations: needsConfirmation ? operations : undefined,
@@ -1307,13 +1399,15 @@ export function OnboardingMobile() {
         )
       )
       hapticTap()
-      toast.success("Coach applied your changes")
+      toast.success(tr("Coach applied your changes"))
     } catch (caught) {
       hapticHeavy()
       toast.error(
-        caught instanceof Error
-          ? caught.message
-          : "Could not apply Coach changes"
+        translateError(
+          caught instanceof Error
+            ? caught.message
+            : tr("Could not apply Coach changes")
+        )
       )
     } finally {
       setApplyingMessageIndex(null)
@@ -1335,10 +1429,12 @@ export function OnboardingMobile() {
     try {
       await undoCoachAction({ id: id as Id<"coachActionEvents"> })
       hapticTap()
-      toast.success("Coach change undone")
+      toast.success(tr("Coach change undone"))
     } catch (caught) {
       toast.error(
-        caught instanceof Error ? caught.message : "Could not undo change"
+        translateError(
+          caught instanceof Error ? caught.message : tr("Could not undo change")
+        )
       )
     }
   }
@@ -1350,15 +1446,15 @@ export function OnboardingMobile() {
         pinned: true,
       })
       hapticTap()
-      toast.success("Goal pinned to Today", {
+      toast.success(tr("Goal pinned to Today"), {
         action: {
-          label: "Undo",
+          label: tr("Undo"),
           onClick: () => {
             void setCoachGoalPinned({
               id: goalId as Id<"coachGoals">,
               pinned: false,
             }).catch(() => {
-              toast.error("Couldn't undo that")
+              toast.error(translateError(tr("Couldn't undo that")))
             })
           },
         },
@@ -1366,7 +1462,11 @@ export function OnboardingMobile() {
     } catch (caught) {
       hapticHeavy()
       toast.error(
-        caught instanceof Error ? caught.message : "Could not pin this goal"
+        translateError(
+          caught instanceof Error
+            ? caught.message
+            : tr("Could not pin this goal")
+        )
       )
       throw caught
     }
@@ -1389,11 +1489,15 @@ export function OnboardingMobile() {
         tasks: goal.tasks,
       })
       hapticTap()
-      toast.success("Goal pinned to Today")
+      toast.success(tr("Goal pinned to Today"))
     } catch (caught) {
       hapticHeavy()
       toast.error(
-        caught instanceof Error ? caught.message : "Could not pin this goal"
+        translateError(
+          caught instanceof Error
+            ? caught.message
+            : tr("Could not pin this goal")
+        )
       )
       throw caught
     }
@@ -1406,15 +1510,15 @@ export function OnboardingMobile() {
         pinned: true,
       })
       hapticTap()
-      toast.success("Added to your dashboard", {
+      toast.success(tr("Added to your dashboard"), {
         action: {
-          label: "Undo",
+          label: tr("Undo"),
           onClick: () => {
             void setDashboardWidgetPinned({
               widgetId: widgetId as Id<"dashboardWidgets">,
               pinned: false,
             }).catch(() => {
-              toast.error("Couldn't undo that")
+              toast.error(translateError(tr("Couldn't undo that")))
             })
           },
         },
@@ -1422,7 +1526,11 @@ export function OnboardingMobile() {
     } catch (caught) {
       hapticHeavy()
       toast.error(
-        caught instanceof Error ? caught.message : "Could not add that widget"
+        translateError(
+          caught instanceof Error
+            ? caught.message
+            : tr("Could not add that widget")
+        )
       )
       throw caught
     }
@@ -1460,15 +1568,19 @@ export function OnboardingMobile() {
       announceOrbActivity("log")
       await recordCoachAction({
         kind: "log_recipe",
-        summary: `Logged one serving of ${result.name}`,
+        summary: tr("Logged one serving of {{value0}}", {
+          value0: result.name,
+        }),
         targetType: "nutrition",
         targetId: entryId,
         undoPayload: { kind: "remove_food_entry", date: todayKey, entryId },
       })
-      toast.success(`${result.name} logged`)
+      toast.success(tr("{{value0}} logged", { value0: result.name }))
     } catch (caught) {
       toast.error(
-        caught instanceof Error ? caught.message : "Could not log recipe"
+        translateError(
+          caught instanceof Error ? caught.message : tr("Could not log recipe")
+        )
       )
     }
   }
@@ -1481,10 +1593,14 @@ export function OnboardingMobile() {
         { ...operation, date: operation.date ?? todayKey },
       ])
       hapticTap()
-      toast.success(`${operation.name} logged`)
+      toast.success(tr("{{value0}} logged", { value0: operation.name }))
     } catch (caught) {
       hapticHeavy()
-      toast.error(caught instanceof Error ? caught.message : "Could not log it")
+      toast.error(
+        translateError(
+          caught instanceof Error ? caught.message : tr("Could not log it")
+        )
+      )
       throw caught
     }
   }
@@ -1495,7 +1611,9 @@ export function OnboardingMobile() {
     hapticTap()
     setSetupDestination(SETUP_DESTINATIONS[action])
     toast.success(
-      `${SETUP_DESTINATION_LABELS[action]} will open when setup is done`
+      tr("{{value0}} will open when setup is done", {
+        value0: SETUP_DESTINATION_LABELS[action],
+      })
     )
   }
 
@@ -1503,7 +1621,11 @@ export function OnboardingMobile() {
     setError(null)
     if (!consent.dataUse) {
       hapticHeavy()
-      setError("Tick the consent box above so I can save your plan.")
+      setError(
+        translateError(
+          tr("Tick the consent box above so I can save your plan.")
+        )
+      )
       return
     }
     if (savingRef.current || saving) return
@@ -1513,24 +1635,24 @@ export function OnboardingMobile() {
     const missing = !draft.goal
       ? {
           stage: "goal" as StageId,
-          message: "Pick a goal first — tap it below.",
+          message: tr("Pick a goal first — tap it below."),
         }
       : !experienceLevel
         ? {
             stage: "experience" as StageId,
-            message: "Tell me how long you've been training.",
+            message: tr("Tell me how long you've been training."),
           }
         : !profile.sex
           ? {
               stage: "sex" as StageId,
-              message: "I still need your baseline to do the maths.",
+              message: tr("I still need your baseline to do the maths."),
             }
           : null
     if (missing) {
       hapticHeavy()
       trackUmami("onboarding_blocked", { stage: missing.stage })
       setStage(stages.findIndex((item) => item.id === missing.stage))
-      setError(missing.message)
+      setError(translateError(missing.message))
       return
     }
 
@@ -1602,9 +1724,11 @@ export function OnboardingMobile() {
     } catch (saveError) {
       trackUmami("onboarding_save_failed")
       setError(
-        saveError instanceof Error
-          ? saveError.message
-          : "Could not save onboarding. Try again."
+        translateError(
+          saveError instanceof Error
+            ? saveError.message
+            : tr("Could not save onboarding. Try again.")
+        )
       )
       savingRef.current = false
       setSaving(false)
@@ -1641,7 +1765,7 @@ export function OnboardingMobile() {
         <div
           className="onboarding-chat-typing"
           role="status"
-          aria-label="Loading your details"
+          aria-label={tr("Loading your details")}
         >
           <span />
           <span />
@@ -1703,7 +1827,10 @@ export function OnboardingMobile() {
             className="onboarding-primary-button"
             onClick={() => advance(stageIndex)}
           >
-            Continue <ArrowRight size={18} />
+            <Message
+              text={"Continue {{value0}}"}
+              values={{ value0: <ArrowRight size={18} /> }}
+            />
           </button>
         </div>
       )
@@ -1718,7 +1845,10 @@ export function OnboardingMobile() {
             advance(stageIndex)
           }}
         >
-          Let's go <ArrowRight size={20} aria-hidden="true" />
+          <Message
+            text={"Let's go {{value0}}"}
+            values={{ value0: <ArrowRight size={20} aria-hidden="true" /> }}
+          />
         </button>
       )
     }
@@ -1770,7 +1900,7 @@ export function OnboardingMobile() {
             options={[
               {
                 value: "continue",
-                label: coachReplay ? "Open Coach" : "Sounds good",
+                label: coachReplay ? tr("Open Coach") : tr("Sounds good"),
                 icon: ArrowRight,
               },
             ]}
@@ -1791,8 +1921,8 @@ export function OnboardingMobile() {
         <QuickReplies
           value={profile.sex}
           options={[
-            { value: "female", label: "Female", icon: GenderFemale },
-            { value: "male", label: "Male", icon: GenderMale },
+            { value: "female", label: tr("Female"), icon: GenderFemale },
+            { value: "male", label: tr("Male"), icon: GenderMale },
           ]}
           onChoose={(sex: Sex) => {
             setProfile((current) => ({ ...current, sex }))
@@ -1805,7 +1935,9 @@ export function OnboardingMobile() {
       return (
         <div className="onboarding-chat-card">
           <div className="mb-2 flex items-center justify-between gap-3">
-            <span className="onboarding-question-title mb-0">Measurements</span>
+            <span className="onboarding-question-title mb-0">
+              {tr("Measurements")}
+            </span>
             <button
               type="button"
               onClick={() => {
@@ -1813,24 +1945,26 @@ export function OnboardingMobile() {
                 setWeightUnit((current) => (current === "kg" ? "lbs" : "kg"))
               }}
               className="onboarding-unit-button"
-              aria-label={`Use ${weightUnit === "kg" ? "pounds" : "kilograms"}`}
+              aria-label={tr("Use {{value0}}", {
+                value0: choice(weightUnit === "kg" ? "pounds" : "kilograms"),
+              })}
             >
-              {weightUnit === "kg" ? "kg" : "lb"}
+              {weightUnit === "kg" ? tr("kg") : tr("lb")}
             </button>
           </div>
           <div className="onboarding-number-list">
             <NumberQuestion
               onInteract={hapticSelection}
-              label="Age"
+              label={tr("Age")}
               value={profile.age}
-              display={`${profile.age} years`}
+              display={tr("{{value0}} years", { value0: profile.age })}
               min={AGE_MIN}
               max={AGE_MAX}
               onChange={(age) => setProfile((current) => ({ ...current, age }))}
             />
             <NumberQuestion
               onInteract={hapticSelection}
-              label="Height (cm)"
+              label={tr("Height (cm)")}
               value={profile.heightCm}
               display={`${profile.heightCm} cm`}
               min={HEIGHT_MIN}
@@ -1841,7 +1975,7 @@ export function OnboardingMobile() {
             />
             <NumberQuestion
               onInteract={hapticSelection}
-              label={`Weight (${weightUnit})`}
+              label={tr("Weight ({{value0}})", { value0: weightUnit })}
               value={weightValue}
               display={`${weightValue} ${weightUnit}`}
               min={weightMin}
@@ -1859,8 +1993,10 @@ export function OnboardingMobile() {
             className="onboarding-primary-button mt-4 w-full"
             onClick={() => advance(stageIndex)}
           >
-            That's right
-            <Check size={16} weight="bold" />
+            <Message
+              text={"That's right{{value0}}"}
+              values={{ value0: <Check size={16} weight="bold" /> }}
+            />
           </button>
         </div>
       )
@@ -1888,54 +2024,79 @@ export function OnboardingMobile() {
       return (
         <>
           <div className="setup-import-guide">
-            <h2>Choose your export</h2>
+            <h2>{tr("Choose your export")}</h2>
             <dl>
               <div>
-                <dt>Hevy</dt>
-                <dd>CSV export or API workout JSON</dd>
+                <dt>{tr("Hevy")}</dt>
+                <dd>{tr("CSV export or API workout JSON")}</dd>
               </div>
               <div>
-                <dt>Strong</dt>
-                <dd>CSV export or JSON rows with Strong column names</dd>
-              </div>
-              <div>
-                <dt>FitNotes</dt>
-                <dd>CSV export or equivalent JSON rows</dd>
-              </div>
-              <div>
-                <dt>Other apps</dt>
+                <dt>{tr("Strong")}</dt>
                 <dd>
-                  CSV or JSON with dates, exercises, sets, or body measurements
+                  {tr("CSV export or JSON rows with Strong column names")}
+                </dd>
+              </div>
+              <div>
+                <dt>{tr("FitNotes")}</dt>
+                <dd>{tr("CSV export or equivalent JSON rows")}</dd>
+              </div>
+              <div>
+                <dt>{tr("Other apps")}</dt>
+                <dd>
+                  {tr(
+                    "CSV or JSON with dates, exercises, sets, or body measurements"
+                  )}
                 </dd>
               </div>
             </dl>
             <p>
-              Built-in parsers run without AI. Other formats may use AI to
-              identify columns. Always review the preview before importing.
+              {tr(
+                "Built-in parsers run without AI. Other formats may use AI to identify columns. Always review the preview before importing."
+              )}
             </p>
             <label>
-              Weights without a unit
-              <select
-                value={weightUnit}
-                disabled={importBusy !== null || importPreview !== null}
-                onChange={(event) =>
-                  setWeightUnit(event.target.value as WeightUnit)
-                }
-              >
-                <option value="kg">Kilograms</option>
-                <option value="lbs">Pounds</option>
-              </select>
+              <Message
+                text={"Weights without a unit{{value0}}"}
+                values={{
+                  value0: (
+                    <select
+                      value={weightUnit}
+                      disabled={importBusy !== null || importPreview !== null}
+                      onChange={(event) =>
+                        setWeightUnit(event.target.value as WeightUnit)
+                      }
+                    >
+                      <option value="kg">{tr("Kilograms")}</option>
+                      <option value="lbs">{tr("Pounds")}</option>
+                    </select>
+                  ),
+                }}
+              />
             </label>
             <a href="/imports/workout-template.json" download>
-              Download example workout JSON
+              {tr("Download example workout JSON")}
             </a>
           </div>
           <div className="onboarding-chat-card">
             {importResult ? (
               <p className="native-row-detail">
-                {describeImportResult(importResult)} It's in your history now.
-                {importResult.workoutsSkipped > 0 &&
-                  ` ${countNoun(importResult.workoutsSkipped, "workout")} didn't fit — two sessions a day is the ceiling.`}
+                <Message
+                  text={"{{value0}} It's in your history now.{{value1}}"}
+                  values={{
+                    value0: describeImportResult(importResult),
+                    value1:
+                      importResult.workoutsSkipped > 0 &&
+                      tr(
+                        " {{value0}} didn't fit, two sessions a day is the ceiling.",
+                        {
+                          value0: countNoun(
+                            importResult.workoutsSkipped,
+                            "workout"
+                          ),
+                        }
+                      ),
+                  }}
+                />
               </p>
             ) : importPreview ? (
               <>
@@ -1965,11 +2126,13 @@ export function OnboardingMobile() {
                   aria-busy={importBusy === "importing"}
                 >
                   {importBusy === "importing" ? (
-                    "Filing it away…"
+                    tr("Filing it away…")
                   ) : (
                     <>
-                      Bring it in
-                      <Check size={16} weight="bold" />
+                      <Message
+                        text={"Bring it in{{value0}}"}
+                        values={{ value0: <Check size={16} weight="bold" /> }}
+                      />
                     </>
                   )}
                 </button>
@@ -1979,7 +2142,7 @@ export function OnboardingMobile() {
                   onClick={abandonImportPreview}
                   disabled={importBusy !== null}
                 >
-                  Never mind
+                  {tr("Never mind")}
                 </button>
               </>
             ) : (
@@ -1990,7 +2153,7 @@ export function OnboardingMobile() {
                   multiple
                   accept=".csv,.json,text/csv,application/json"
                   className="sr-only"
-                  aria-label="Choose export files"
+                  aria-label={tr("Choose export files")}
                   onChange={(event) =>
                     void handleImportSelection(event.target.files)
                   }
@@ -2006,11 +2169,15 @@ export function OnboardingMobile() {
                   }}
                 >
                   {importBusy === "reading" ? (
-                    "Reading your files…"
+                    tr("Reading your files…")
                   ) : (
                     <>
-                      Choose files
-                      <UploadSimple size={16} weight="bold" />
+                      <Message
+                        text={"Choose files{{value0}}"}
+                        values={{
+                          value0: <UploadSimple size={16} weight="bold" />,
+                        }}
+                      />
                     </>
                   )}
                 </button>
@@ -2029,7 +2196,7 @@ export function OnboardingMobile() {
             options={[
               {
                 value: "continue",
-                label: importResult ? "Keep going" : "Start fresh",
+                label: importResult ? tr("Keep going") : tr("Start fresh"),
                 icon: ArrowRight,
               },
             ]}
@@ -2045,10 +2212,9 @@ export function OnboardingMobile() {
           {aiUnavailable && (
             <div className="onboarding-chat-bubble onboarding-chat-bubble-coach">
               <span>
-                One catch: this server doesn't have an AI key of its own, so I
-                can't build anything just yet. After setup, paste your own
-                OpenRouter key in Settings and all of this works — on your key,
-                with no monthly cap.
+                {tr(
+                  "One catch: this server doesn't have an AI key of its own, so I can't build anything just yet. After setup, paste your own OpenRouter key in Settings and all of this works — on your key, with no monthly cap."
+                )}
               </span>
             </div>
           )}
@@ -2151,8 +2317,8 @@ export function OnboardingMobile() {
                   type="text"
                   value={setupInput}
                   onChange={(event) => setSetupInput(event.target.value)}
-                  placeholder="Ask Coach to build something…"
-                  aria-label="Message Coach"
+                  placeholder={tr("Ask Coach to build something…")}
+                  aria-label={tr("Message Coach")}
                   disabled={setupBusy}
                 />
                 <button
@@ -2161,7 +2327,7 @@ export function OnboardingMobile() {
                     setupBusy ||
                     (setupInput.trim().length === 0 && !setupAttachment)
                   }
-                  aria-label="Send"
+                  aria-label={tr("Send")}
                 >
                   <PaperPlaneTilt size={17} weight="fill" />
                 </button>
@@ -2171,15 +2337,21 @@ export function OnboardingMobile() {
           {!aiUnavailable && (
             <p className="onboarding-setup-quota" aria-live="polite">
               {remaining > 0
-                ? `${remaining} of ${SETUP_MESSAGE_LIMIT} messages left`
-                : "Message limit reached. You can keep chatting in Coach later."}
+                ? tr("{{value0}} of {{value1}} messages left", {
+                    value0: remaining,
+                    value1: SETUP_MESSAGE_LIMIT,
+                  })
+                : tr(
+                    "Message limit reached. You can keep chatting in Coach later."
+                  )}
             </p>
           )}
           <QuickReplies
             options={[
               {
                 value: "continue",
-                label: setupUsed > 0 ? "That's all for now" : "Skip for now",
+                label:
+                  setupUsed > 0 ? tr("That's all for now") : tr("Skip for now"),
                 icon: ArrowRight,
               },
             ]}
@@ -2194,7 +2366,7 @@ export function OnboardingMobile() {
           <MultiSelectList
             onInteract={hapticSelection}
             values={safetyFlags}
-            options={[["none", "None"], ...safetyOptions]}
+            options={[["none", tr("None")], ...safetyOptions]}
             onChange={setSafetyFlags}
             icon={ShieldCheck}
           />
@@ -2204,8 +2376,8 @@ export function OnboardingMobile() {
             onClick={() => advance(stageIndex)}
           >
             {safetyFlags.includes("none") || safetyFlags.length === 0
-              ? "None of these"
-              : "That's everything"}
+              ? tr("None of these")
+              : tr("That's everything")}
             <ArrowRight size={16} weight="bold" />
           </button>
         </div>
@@ -2238,10 +2410,20 @@ export function OnboardingMobile() {
                           setupPreferences.workoutFocus,
                         ].join(" · ")
                       : item.id === "nutrition"
-                        ? `${dietType} · ${trackingMode.replaceAll("_", " ")}`
+                        ? tr("{{value0}} · {{value1}}", {
+                            value0: dietType,
+                            value1: trackingMode.replaceAll("_", " "),
+                          })
                         : item.id === "lifestyle"
-                          ? `${mealFrequency} meals · ${waterGoalMl} ml water · ${budget} budget`
-                          : (stageAnswers[item.id] ?? "Review choices")}
+                          ? tr(
+                              "{{value0}} meals · {{value1}} ml water · {{value2}} budget",
+                              {
+                                value0: mealFrequency,
+                                value1: waterGoalMl,
+                                value2: budget,
+                              }
+                            )
+                          : (stageAnswers[item.id] ?? tr("Review choices"))}
                   </small>
                 </span>
                 <PencilSimple size={18} aria-hidden="true" />
@@ -2250,31 +2432,33 @@ export function OnboardingMobile() {
         </div>
         <div className="onboarding-review-card">
           <div className="onboarding-review-hero">
-            <p className="native-supporting">Calories</p>
+            <p className="native-supporting">{tr("Calories")}</p>
             <p className="native-summary-value mt-1 tabular-nums">
               {preview?.targetCalories != null
                 ? energyDisplay(
                     preview.targetCalories,
                     energyUnit
-                  ).toLocaleString()
-                : "Calculating…"}
-              {preview?.targetCalories != null ? ` ${energyUnit}` : ""}
+                  ).toLocaleString(uiLocale())
+                : tr("Calculating…")}
+              {preview?.targetCalories != null
+                ? tr(" {{value0}}", { value0: energyUnit })
+                : ""}
             </p>
             <p className="native-row-detail mt-2">
               {preview?.calorieStrategy ??
-                "Calculating your starting budget from your profile."}
+                tr("Calculating your starting budget from your profile.")}
             </p>
           </div>
           {[
             [
               "Maintenance estimate",
               preview
-                ? `${energyDisplay(preview.tdee, energyUnit).toLocaleString()} ${energyUnit}`
+                ? `${energyDisplay(preview.tdee, energyUnit).toLocaleString(uiLocale())} ${energyUnit}`
                 : "—",
             ],
-            ["Protein", preview ? `${preview.protein} g` : "—"],
-            ["Carbohydrates", preview ? `${preview.carbs} g` : "—"],
-            ["Fat", preview ? `${preview.fat} g` : "—"],
+            [tr("Protein"), preview ? `${preview.protein} g` : "—"],
+            [tr("Carbohydrates"), preview ? `${preview.carbs} g` : "—"],
+            [tr("Fat"), preview ? `${preview.fat} g` : "—"],
           ].map(([label, value]) => (
             <div
               key={label}
@@ -2306,29 +2490,31 @@ export function OnboardingMobile() {
             className="mt-0.5 size-4 shrink-0 accent-foreground"
           />
           <span>
-            I explicitly consent to OneRep processing the fitness, nutrition,
-            body, recovery, and related information I provide to deliver
-            personalized tracking and Coach features. Some of this information
-            may qualify as health data. AI sharing requires a separate, optional permission before using
-                  an AI feature. Core tracking works without AI. I can withdraw
-                  this processing consent for future effect by deleting affected
-                  data or my account, or by contacting{" "}
+            <Message
+              text={
+                "I explicitly consent to OneRep processing the fitness, nutrition, body, recovery, and related information I provide to deliver personalized tracking and Coach features. Some of this information may qualify as health data. AI sharing requires a separate, optional permission before using an AI feature. Core tracking works without AI. I can withdraw this processing consent for future effect by deleting affected data or my account, or by contacting {{value0}}. See the {{value1}}."
+              }
+              values={{
+                value0: (
                   <a
-              href="mailto:support@onerep.life"
-              className="font-semibold text-foreground underline decoration-border underline-offset-4"
-            >
-              support@onerep.life
-            </a>
-            . See the{" "}
-            <a
-              href="https://onerep.life/privacy"
-              target="_blank"
-              rel="noreferrer"
-              className="font-semibold text-foreground underline decoration-border underline-offset-4"
-            >
-              Privacy Policy
-            </a>
-            .
+                    href="mailto:support@onerep.life"
+                    className="font-semibold text-foreground underline decoration-border underline-offset-4"
+                  >
+                    {tr("support@onerep.life")}
+                  </a>
+                ),
+                value1: (
+                  <a
+                    href="https://onerep.life/privacy"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-semibold text-foreground underline decoration-border underline-offset-4"
+                  >
+                    {tr("Privacy Policy")}
+                  </a>
+                ),
+              }}
+            />
           </span>
         </label>
         {error && (
@@ -2347,11 +2533,13 @@ export function OnboardingMobile() {
           className="onboarding-primary-button w-full"
         >
           {saving ? (
-            "Saving..."
+            tr("Saving...")
           ) : (
             <>
-              Open OneRep
-              <Check size={16} weight="bold" />
+              <Message
+                text={"Open OneRep{{value0}}"}
+                values={{ value0: <Check size={16} weight="bold" /> }}
+              />
             </>
           )}
         </button>
@@ -2361,28 +2549,28 @@ export function OnboardingMobile() {
 
   const activeStage = stages[stage]
   const titles: Record<StageId, string> = {
-    intro: "Your whole routine. One place.",
-    preferences: "Make OneRep yours.",
-    goal: "What are you working toward?",
-    experience: "Start where you are.",
-    coach: "Meet your Coach.",
-    sex: "Personalize your targets.",
-    measurements: "Your starting point.",
-    activity: "Find your rhythm.",
-    safety: "Your wellbeing comes first.",
-    connections: "Connect the rest of your routine.",
-    nutrition: "Food that fits your life.",
-    lifestyle: "Build an everyday rhythm.",
-    import: "Bring your progress.",
-    assistant: "Build your first plan.",
-    review: "Ready for your first day.",
+    intro: tr("Your whole routine. One place."),
+    preferences: tr("Make OneRep yours."),
+    goal: tr("What are you working toward?"),
+    experience: tr("Start where you are."),
+    coach: tr("Meet your Coach."),
+    sex: tr("Personalize your targets."),
+    measurements: tr("Your starting point."),
+    activity: tr("Find your rhythm."),
+    safety: tr("Your wellbeing comes first."),
+    connections: tr("Connect the rest of your routine."),
+    nutrition: tr("Food that fits your life."),
+    lifestyle: tr("Build an everyday rhythm."),
+    import: tr("Bring your progress."),
+    assistant: tr("Build your first plan."),
+    review: tr("Ready for your first day."),
   }
   if (settingsView)
     return (
       <Suspense
         fallback={
           <div role="status" className="p-8">
-            Loading settings…
+            {tr("Loading settings…")}
           </div>
         }
       >
@@ -2408,7 +2596,7 @@ export function OnboardingMobile() {
           aria-live="assertive"
         >
           <Check size={30} />
-          <p>Your plan is ready</p>
+          <p>{tr("Your plan is ready")}</p>
         </div>
       )}
       <aside className="setup-sidebar">
@@ -2417,11 +2605,11 @@ export function OnboardingMobile() {
           <strong
             style={{ fontFamily: '"Instrument Sans Variable", sans-serif' }}
           >
-            OneRep
+            {tr("OneRep")}
           </strong>
-          <span>Your setup</span>
+          <span>{tr("Your setup")}</span>
         </div>
-        <nav aria-label="Setup steps">
+        <nav aria-label={tr("Setup steps")}>
           <ol>
             {stages.map((item, index) => (
               <li key={item.id}>
@@ -2445,9 +2633,12 @@ export function OnboardingMobile() {
           </ol>
         </nav>
         <p>
-          Built around you.
-          <br />
-          Change your preferences anytime in Settings.
+          <Message
+            text={
+              "Built around you.{{value0}}Change your preferences anytime in Settings."
+            }
+            values={{ value0: <br /> }}
+          />
         </p>
       </aside>
       <section className="setup-main">
@@ -2460,31 +2651,37 @@ export function OnboardingMobile() {
               setStage((current) => Math.max(0, current - 1))
             }}
           >
-            Back
+            {tr("Back")}
           </button>
           <span>
             {coachReplay
-              ? "Coach onboarding preview"
-              : `${stage + 1} of ${stages.length} · ${activeStage.label}`}
+              ? tr("Coach onboarding preview")
+              : tr("{{value0}} of {{value1}} · {{value2}}", {
+                  value0: stage + 1,
+                  value1: stages.length,
+                  value2: activeStage.label,
+                })}
           </span>
           {coachReplay && (
             <button
               type="button"
               onClick={() => navigate("/settings", { replace: true })}
             >
-              Exit
+              {tr("Exit")}
             </button>
           )}
         </header>
         <div
           className="setup-progress"
           role="progressbar"
-          aria-label="Profile setup progress"
+          aria-label={tr("Profile setup progress")}
           aria-valuemin={1}
           aria-valuemax={stages.length}
           aria-valuenow={stage + 1}
         >
-          <span style={{ transform: `scaleX(${(stage + 1) / stages.length})` }} />
+          <span
+            style={{ transform: `scaleX(${(stage + 1) / stages.length})` }}
+          />
         </div>
         <div id="setup-content" className="setup-content">
           <div className="setup-page" data-stage={activeStage.id}>

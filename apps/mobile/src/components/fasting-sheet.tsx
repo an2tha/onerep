@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 /**
  * The fasting timer as a drawer.
  *
@@ -14,7 +15,7 @@ import Fasting from "@/pages/Fasting"
 export function FastingSheet({ onClose }: { onClose: () => void }) {
   return (
     <MobileSheet
-      ariaLabel="Fasting"
+      ariaLabel={tr("Fasting")}
       onClose={onClose}
       minHeight="42vh"
       maxHeight="92vh"

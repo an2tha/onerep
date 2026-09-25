@@ -1,3 +1,4 @@
+import { tr, uiLocale } from "@repo/ui/i18n"
 /**
  * The pure core of workout logging: types, unit and plate math, set/item
  * helpers, draft persistence, and the two timers.
@@ -181,23 +182,23 @@ export const BAR_PROFILES: Array<{
 }> = [
   {
     type: "olympic",
-    label: "Olympic bar",
-    shortLabel: "Olympic",
+    label: tr("Olympic bar"),
+    shortLabel: tr("Olympic"),
     kg: 20,
     lbs: 45,
     image: olympicBarPng,
   },
   {
     type: "womens",
-    label: "Training bar",
-    shortLabel: "15 kg",
+    label: tr("Training bar"),
+    shortLabel: tr("15 kg"),
     kg: 15,
     lbs: 35,
     image: olympicBarPng,
   },
   {
     type: "ez",
-    label: "EZ curl bar",
+    label: tr("EZ curl bar"),
     shortLabel: "EZ",
     kg: 10,
     lbs: 25,
@@ -205,8 +206,8 @@ export const BAR_PROFILES: Array<{
   },
   {
     type: "trap",
-    label: "Trap bar",
-    shortLabel: "Trap",
+    label: tr("Trap bar"),
+    shortLabel: tr("Trap"),
     kg: 25,
     lbs: 55,
     image: trapBarPng,
@@ -217,24 +218,24 @@ export const CARDIO_SOURCE_OPTIONS: Array<{
   provider: CardioSourceProvider
   label: string
 }> = [
-  { provider: "manual", label: "Manual" },
-  { provider: "apple_health", label: "Apple Health" },
-  { provider: "strava", label: "Strava" },
-  { provider: "garmin", label: "Garmin" },
-  { provider: "fitbit", label: "Fitbit" },
-  { provider: "gpx", label: "GPX" },
-  { provider: "other", label: "Other" },
+  { provider: "manual", label: tr("Manual") },
+  { provider: "apple_health", label: tr("Apple Health") },
+  { provider: "strava", label: tr("Strava") },
+  { provider: "garmin", label: tr("Garmin") },
+  { provider: "fitbit", label: tr("Fitbit") },
+  { provider: "gpx", label: tr("GPX") },
+  { provider: "other", label: tr("Other") },
 ]
 
 export const HEART_RATE_ZONES: Array<{
   key: HeartRateZoneKey
   label: string
 }> = [
-  { key: "zone1Seconds", label: "Z1" },
-  { key: "zone2Seconds", label: "Z2" },
-  { key: "zone3Seconds", label: "Z3" },
-  { key: "zone4Seconds", label: "Z4" },
-  { key: "zone5Seconds", label: "Z5" },
+  { key: "zone1Seconds", label: tr("Z1") },
+  { key: "zone2Seconds", label: tr("Z2") },
+  { key: "zone3Seconds", label: tr("Z3") },
+  { key: "zone4Seconds", label: tr("Z4") },
+  { key: "zone5Seconds", label: tr("Z5") },
 ]
 
 export function uid() {
@@ -330,8 +331,8 @@ export function healthWorkoutToCardioPatch(
 
 export function formatHealthWorkoutDate(startedAt: string) {
   const date = new Date(startedAt)
-  if (Number.isNaN(date.getTime())) return "Recent"
-  return date.toLocaleDateString("en-US", {
+  if (Number.isNaN(date.getTime())) return tr("Recent")
+  return date.toLocaleDateString(uiLocale(), {
     month: "short",
     day: "numeric",
   })
@@ -538,7 +539,7 @@ export function barImageForType(type: BarType) {
 }
 
 export function barLabelForType(type: BarType) {
-  return getBarProfile(type)?.label ?? "Custom bar"
+  return getBarProfile(type)?.label ?? tr("Custom bar")
 }
 
 export function platePerSideKg(totalKg: number | null, barKg: number | null) {

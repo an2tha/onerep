@@ -1,3 +1,4 @@
+import { tr, translateError } from "@repo/ui/i18n"
 import { useEffect } from "react"
 import { toast } from "@repo/ui"
 import {
@@ -54,10 +55,16 @@ export function OtaLifecycle() {
     void initializeOta({
       onRollback: ({ version }) => {
         if (disposed) return
-        toast.error("The last update didn't start correctly", {
-          id: "onerep-ota-rollback",
-          description: `OneRep went back to the previous version (${version} was rolled back).`,
-        })
+        toast.error(
+          translateError(tr("The last update didn't start correctly")),
+          {
+            id: "onerep-ota-rollback",
+            description: tr(
+              "OneRep went back to the previous version ({{value0}} was rolled back).",
+              { value0: version }
+            ),
+          }
+        )
       },
     }).then((dispose) => {
       if (disposed) dispose()
@@ -72,12 +79,14 @@ export function OtaLifecycle() {
         return
       }
 
-      toast.message("A OneRep update is ready", {
+      toast.message(tr("A OneRep update is ready"), {
         id: "onerep-ota-update",
-        description: "Update now, or it will apply next time you open OneRep.",
+        description: tr(
+          "Update now, or it will apply next time you open OneRep."
+        ),
         duration: Infinity,
         action: {
-          label: "Update",
+          label: tr("Update"),
           onClick: () => void applyOtaUpdateNow(),
         },
       })

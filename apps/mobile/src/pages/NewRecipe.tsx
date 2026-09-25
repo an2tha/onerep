@@ -1,3 +1,4 @@
+import { Message, tr, translateError } from "@repo/ui/i18n"
 import { useEffect, useMemo, useRef, useState } from "react"
 import type { ChangeEvent } from "react"
 import { useLocation, useParams } from "react-router"
@@ -23,7 +24,7 @@ import {
   FOOD_PORTION_UNITS,
   amountFromFoodPortionGrams,
   defaultFoodPortion,
-  foodPortionLabel,
+  foodPortionDisplayLabel,
   gramsFromFoodPortion,
   stripUndefined,
   type FoodPortion,
@@ -225,126 +226,126 @@ const MICRO_FIELDS: {
   {
     key: "fiber",
     per100Key: "fiberPer100",
-    label: "Fiber",
+    label: tr("Fiber"),
     unit: "g",
     color: MICRO_COLORS.fiber,
   },
   {
     key: "sugar",
     per100Key: "sugarPer100",
-    label: "Sugar",
+    label: tr("Sugar"),
     unit: "g",
     color: MICRO_COLORS.sugar,
   },
   {
     key: "saturatedFat",
     per100Key: "saturatedFatPer100",
-    label: "Sat. fat",
+    label: tr("Sat. fat"),
     unit: "g",
     color: MICRO_COLORS.saturatedFat,
   },
   {
     key: "transFat",
     per100Key: "transFatPer100",
-    label: "Trans fat",
+    label: tr("Trans fat"),
     unit: "g",
     color: MICRO_COLORS.transFat,
   },
   {
     key: "cholesterol",
     per100Key: "cholesterolPer100",
-    label: "Cholesterol",
+    label: tr("Cholesterol"),
     unit: "mg",
     color: MICRO_COLORS.cholesterol,
   },
   {
     key: "sodium",
     per100Key: "sodiumPer100",
-    label: "Sodium",
+    label: tr("Sodium"),
     unit: "mg",
     color: MICRO_COLORS.sodium,
   },
   {
     key: "potassium",
     per100Key: "potassiumPer100",
-    label: "Potassium",
+    label: tr("Potassium"),
     unit: "mg",
     color: MICRO_COLORS.potassium,
   },
   {
     key: "calcium",
     per100Key: "calciumPer100",
-    label: "Calcium",
+    label: tr("Calcium"),
     unit: "mg",
     color: MICRO_COLORS.calcium,
   },
   {
     key: "iron",
     per100Key: "ironPer100",
-    label: "Iron",
+    label: tr("Iron"),
     unit: "mg",
     color: MICRO_COLORS.iron,
   },
   {
     key: "magnesium",
     per100Key: "magnesiumPer100",
-    label: "Magnesium",
+    label: tr("Magnesium"),
     unit: "mg",
     color: MICRO_COLORS.magnesium,
   },
   {
     key: "phosphorus",
     per100Key: "phosphorusPer100",
-    label: "Phosphorus",
+    label: tr("Phosphorus"),
     unit: "mg",
     color: MICRO_COLORS.phosphorus,
   },
   {
     key: "zinc",
     per100Key: "zincPer100",
-    label: "Zinc",
+    label: tr("Zinc"),
     unit: "mg",
     color: MICRO_COLORS.zinc,
   },
   {
     key: "vitaminC",
     per100Key: "vitaminCPer100",
-    label: "Vitamin C",
+    label: tr("Vitamin C"),
     unit: "mg",
     color: MICRO_COLORS.vitaminC,
   },
   {
     key: "vitaminA",
     per100Key: "vitaminAPer100",
-    label: "Vitamin A",
+    label: tr("Vitamin A"),
     unit: "mcg",
     color: MICRO_COLORS.vitaminA,
   },
   {
     key: "vitaminD",
     per100Key: "vitaminDPer100",
-    label: "Vitamin D",
+    label: tr("Vitamin D"),
     unit: "mcg",
     color: MICRO_COLORS.vitaminD,
   },
   {
     key: "vitaminB12",
     per100Key: "vitaminB12Per100",
-    label: "Vitamin B12",
+    label: tr("Vitamin B12"),
     unit: "mcg",
     color: MICRO_COLORS.vitaminB12,
   },
   {
     key: "caffeine",
     per100Key: "caffeinePer100",
-    label: "Caffeine",
+    label: tr("Caffeine"),
     unit: "mg",
     color: MICRO_COLORS.caffeine,
   },
   {
     key: "alcohol",
     per100Key: "alcoholPer100",
-    label: "Alcohol",
+    label: tr("Alcohol"),
     unit: "g",
     color: MICRO_COLORS.alcohol,
   },
@@ -490,7 +491,12 @@ function IngredientCard({
                 {ingredient.name}
               </p>
               <p className="mt-1 text-[13px] leading-5 text-muted-foreground tabular-nums">
-                Protein {protein} g · Carbs {carbs} g · Fat {fat} g
+                <Message
+                  text={
+                    "Protein {{value0}} g · Carbs {{value1}} g · Fat {{value2}} g"
+                  }
+                  values={{ value0: protein, value1: carbs, value2: fat }}
+                />
               </p>
             </div>
 
@@ -503,7 +509,9 @@ function IngredientCard({
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={onDelete}
                 className="flex h-11 w-11 shrink-0 items-center justify-center text-muted-foreground transition-colors active:bg-muted active:text-destructive"
-                aria-label={`Remove ${ingredient.name}`}
+                aria-label={tr("Remove {{value0}}", {
+                  value0: ingredient.name,
+                })}
               >
                 <X size={17} weight="bold" />
               </button>
@@ -525,7 +533,10 @@ function IngredientCard({
               />
             </div>
             <span className="w-28 text-right text-[13px] text-muted-foreground tabular-nums">
-              {calShare}% of calories
+              <Message
+                text={"{{value0}}% of calories"}
+                values={{ value0: calShare }}
+              />
             </span>
           </div>
 
@@ -537,7 +548,9 @@ function IngredientCard({
                 step(-1)
               }}
               className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground transition-colors active:bg-muted/70"
-              aria-label={`Decrease ${ingredient.name} amount`}
+              aria-label={tr("Decrease {{value0}} amount", {
+                value0: ingredient.name,
+              })}
             >
               <Minus size={15} weight="bold" />
             </button>
@@ -559,7 +572,9 @@ function IngredientCard({
                   }
                 }}
                 className="h-11 w-20 rounded-lg bg-muted px-1.5 text-center text-[15px] font-semibold tabular-nums outline-none"
-                aria-label={`${ingredient.name} amount`}
+                aria-label={tr("{{value0}} amount", {
+                  value0: ingredient.name,
+                })}
               />
             ) : (
               <button
@@ -568,7 +583,9 @@ function IngredientCard({
                   setEditing(true)
                 }}
                 className="h-11 min-w-[64px] rounded-lg bg-muted px-2.5 text-center text-[15px] font-semibold tabular-nums transition-colors active:bg-muted/70"
-                aria-label={`Edit ${ingredient.name} amount`}
+                aria-label={tr("Edit {{value0}} amount", {
+                  value0: ingredient.name,
+                })}
               >
                 {amount}
               </button>
@@ -585,11 +602,11 @@ function IngredientCard({
               }}
               className="h-11 rounded-lg bg-muted px-2 text-[14px] font-semibold outline-none"
               name={`ingredient-${ingredient.id}-unit`}
-              aria-label={`${ingredient.name} unit`}
+              aria-label={tr("{{value0}} unit", { value0: ingredient.name })}
             >
               {FOOD_PORTION_UNITS.map((option) => (
                 <option key={option.id} value={option.id}>
-                  {option.label}
+                  {tr(option.label)}
                 </option>
               ))}
             </select>
@@ -601,12 +618,17 @@ function IngredientCard({
                 step(1)
               }}
               className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground transition-colors active:bg-muted/70"
-              aria-label={`Increase ${ingredient.name} amount`}
+              aria-label={tr("Increase {{value0}} amount", {
+                value0: ingredient.name,
+              })}
             >
               <Plus size={15} weight="bold" />
             </button>
             <span className="ml-auto hidden text-[13px] text-muted-foreground tabular-nums sm:inline">
-              {Math.round(ingredient.grams)} g
+              <Message
+                text={"{{value0}} g"}
+                values={{ value0: Math.round(ingredient.grams) }}
+              />
             </span>
           </div>
         </div>
@@ -737,7 +759,7 @@ function SearchOverlay({
         className="mobile-modal-backdrop fixed inset-0 z-50 bg-background"
         role="dialog"
         aria-modal="true"
-        aria-label="Add ingredient"
+        aria-label={tr("Add ingredient")}
       >
         <div className="mobile-modal-surface desktop-canvas flex min-h-svh flex-col bg-background">
           <div className="mx-auto flex w-full max-w-lg flex-1 flex-col md:max-w-4xl">
@@ -751,7 +773,7 @@ function SearchOverlay({
                 type="button"
                 onClick={onClose}
                 className="native-toolbar-button shrink-0 px-0"
-                aria-label="Close ingredient search"
+                aria-label={tr("Close ingredient search")}
               >
                 <ArrowLeft size={15} weight="bold" />
               </button>
@@ -769,11 +791,11 @@ function SearchOverlay({
                   ref={inputRef}
                   type="text"
                   name="ingredient-search-query"
-                  placeholder="Search foods…"
+                  placeholder={tr("Search foods…")}
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   className="app-input h-11 w-full bg-muted pr-10 pl-8 text-[15px] outline-none placeholder:text-muted-foreground"
-                  aria-label="Search foods"
+                  aria-label={tr("Search foods")}
                 />
                 {query.length > 0 && (
                   <button
@@ -784,7 +806,7 @@ function SearchOverlay({
                       setSearchState("idle")
                     }}
                     className="absolute top-1/2 right-0 flex h-11 w-11 -translate-y-1/2 items-center justify-center text-muted-foreground transition-colors active:bg-muted"
-                    aria-label="Clear search"
+                    aria-label={tr("Clear search")}
                   >
                     <X size={13} weight="bold" />
                   </button>
@@ -803,11 +825,12 @@ function SearchOverlay({
               {searchState === "idle" && (
                 <div className="pt-8">
                   <h2 className="text-[19px] font-semibold">
-                    Find an ingredient
+                    {tr("Find an ingredient")}
                   </h2>
                   <p className="mt-1 max-w-md text-[14px] leading-5 text-muted-foreground">
-                    Search by food or brand. You can adjust the amount after
-                    adding it to the recipe.
+                    {tr(
+                      "Search by food or brand. You can adjust the amount after adding it to the recipe."
+                    )}
                   </p>
                 </div>
               )}
@@ -816,10 +839,12 @@ function SearchOverlay({
                 <div className="border-y border-border py-6 text-center">
                   <Warning size={24} className="mx-auto text-destructive" />
                   <p className="mt-2 text-[15px] font-semibold">
-                    Ingredient search failed
+                    {tr("Ingredient search failed")}
                   </p>
                   <p className="mt-1 text-[14px] text-muted-foreground">
-                    Check your connection and change the search to try again.
+                    {tr(
+                      "Check your connection and change the search to try again."
+                    )}
                   </p>
                 </div>
               )}
@@ -827,10 +852,13 @@ function SearchOverlay({
               {showEmpty && (
                 <div className="border-y border-border py-6 text-center">
                   <p className="text-[15px] font-semibold">
-                    No ingredients found for “{debouncedQuery}”
+                    <Message
+                      text={"No ingredients found for “{{value0}}”"}
+                      values={{ value0: debouncedQuery }}
+                    />
                   </p>
                   <p className="mt-1 text-[14px] text-muted-foreground">
-                    Try a shorter or more general food name.
+                    {tr("Try a shorter or more general food name.")}
                   </p>
                 </div>
               )}
@@ -838,7 +866,13 @@ function SearchOverlay({
               {showResults && (
                 <>
                   <p className="native-supporting mt-1 mb-2">
-                    {results.length} result{results.length !== 1 ? "s" : ""}
+                    <Message
+                      text={"{{value0}} result{{value1}}"}
+                      values={{
+                        value0: results.length,
+                        value1: results.length !== 1 ? "s" : "",
+                      }}
+                    />
                   </p>
                   <div className="divide-y divide-border border-y border-border md:grid md:grid-cols-2 md:divide-y-0">
                     {results.map((item) => {
@@ -864,11 +898,21 @@ function SearchOverlay({
                                   .join(" · ")}
                               </p>
                               <p className="mt-1 text-[13px] text-muted-foreground tabular-nums">
-                                {energyDisplay(card.calories, energyUnit)}{" "}
-                                {energyUnit} · Protein{" "}
-                                {Math.round(card.protein)} g · Carbs{" "}
-                                {Math.round(card.carbs)} g · Fat{" "}
-                                {Math.round(card.fat)} g
+                                <Message
+                                  text={
+                                    "{{value0}} {{value1}} · Protein {{value2}} g · Carbs {{value3}} g · Fat {{value4}} g"
+                                  }
+                                  values={{
+                                    value0: energyDisplay(
+                                      card.calories,
+                                      energyUnit
+                                    ),
+                                    value1: energyUnit,
+                                    value2: Math.round(card.protein),
+                                    value3: Math.round(card.carbs),
+                                    value4: Math.round(card.fat),
+                                  }}
+                                />
                               </p>
                             </div>
                           </button>
@@ -881,12 +925,16 @@ function SearchOverlay({
                             disabled={isAdded}
                             aria-label={
                               isAdded
-                                ? `${item.name} added`
-                                : `Add ${item.name}`
+                                ? tr("{{value0}} added", { value0: item.name })
+                                : tr("Add {{value0}}", { value0: item.name })
                             }
                             className="mr-1 flex min-h-11 shrink-0 items-center justify-center px-3 text-[14px] font-semibold text-[var(--accent-food)] disabled:opacity-60"
                           >
-                            {isAdded ? <span>Added</span> : <span>Add</span>}
+                            {isAdded ? (
+                              <span>{tr("Added")}</span>
+                            ) : (
+                              <span>{tr("Add")}</span>
+                            )}
                           </button>
                         </div>
                       )
@@ -905,7 +953,9 @@ function SearchOverlay({
           added={added?.itemId === detailItem.id}
           showMealPicker={false}
           actionLabel={(_, _mealLabel, portion) =>
-            `Add ${foodPortionLabel(portion)} to recipe`
+            tr("Add {{value0}} to recipe", {
+              value0: foodPortionDisplayLabel(portion),
+            })
           }
           addedLabel={() => "✓ Added to recipe"}
           onAdd={(_item, grams, micros, _meal, detail, portion) => {
@@ -1035,7 +1085,7 @@ export default function NewRecipe() {
     setSaving(true)
     setSaved(true)
     try {
-      const recipeName = name.trim() || "My Recipe"
+      const recipeName = name.trim() || tr("My Recipe")
       const cleanedIngredients = stripUndefined(ingredients)
       const photoUploadIds = await Promise.all(
         photos
@@ -1101,7 +1151,11 @@ export default function NewRecipe() {
       navigate(-1)
     } catch (err) {
       console.error("Failed to save recipe:", err)
-      toast.error(err instanceof Error ? err.message : "Could not save recipe")
+      toast.error(
+        translateError(
+          err instanceof Error ? err.message : tr("Could not save recipe")
+        )
+      )
       setSaved(false)
     } finally {
       savingRef.current = false
@@ -1177,19 +1231,22 @@ export default function NewRecipe() {
             <button
               onClick={() => navigate(-1)}
               className="app-icon-button"
-              aria-label="Back"
+              aria-label={tr("Back")}
             >
               <ArrowLeft size={15} weight="bold" />
             </button>
-            <h1 className="flex-1 text-[17px] font-semibold">Recipe missing</h1>
+            <h1 className="flex-1 text-[17px] font-semibold">
+              {tr("Recipe missing")}
+            </h1>
           </header>
           <div className="px-[var(--app-page-x)] md:px-8">
             <p className="text-[15px] leading-6 font-semibold">
-              This recipe is no longer in your library.
+              {tr("This recipe is no longer in your library.")}
             </p>
             <p className="mt-2 text-[14px] leading-6 text-muted-foreground">
-              The diary entry keeps its own numbers, so what you logged is
-              unchanged. Build the recipe again to edit it going forward.
+              {tr(
+                "The diary entry keeps its own numbers, so what you logged is unchanged. Build the recipe again to edit it going forward."
+              )}
             </p>
             <button
               type="button"
@@ -1204,14 +1261,14 @@ export default function NewRecipe() {
               }
               className="native-primary-button mt-5 w-full"
             >
-              Build it again
+              {tr("Build it again")}
             </button>
             <button
               type="button"
               onClick={() => navigate(-1)}
               className="native-secondary-button mt-2 min-h-12 w-full rounded-[0.8rem]"
             >
-              Back to the diary
+              {tr("Back to the diary")}
             </button>
           </div>
         </div>
@@ -1233,13 +1290,13 @@ export default function NewRecipe() {
             <button
               onClick={() => navigate(-1)}
               className="app-icon-button"
-              aria-label="Back"
+              aria-label={tr("Back")}
             >
               <ArrowLeft size={15} weight="bold" />
             </button>
 
             <h1 className="flex-1 text-[17px] font-semibold">
-              {initial ? "Edit recipe" : "New recipe"}
+              {initial ? tr("Edit recipe") : tr("New recipe")}
             </h1>
 
             <button
@@ -1247,7 +1304,7 @@ export default function NewRecipe() {
               disabled={!canSave || saving || saved}
               aria-busy={saving}
               className="app-header-icon-action disabled:opacity-25 md:hidden"
-              aria-label="Save recipe"
+              aria-label={tr("Save recipe")}
             >
               {saved ? (
                 <Check
@@ -1273,7 +1330,7 @@ export default function NewRecipe() {
               ) : (
                 <Check size={11} weight="bold" />
               )}
-              {saving ? "Saving..." : "Save"}
+              {saving ? tr("Saving...") : tr("Save")}
             </button>
           </header>
 
@@ -1281,7 +1338,7 @@ export default function NewRecipe() {
             <div
               className="grid grid-cols-2 rounded-2xl bg-muted/55 p-1"
               role="radiogroup"
-              aria-label="Recipe detail level"
+              aria-label={tr("Recipe detail level")}
             >
               {(["quick", "detailed"] as const).map((type) => (
                 <button
@@ -1292,14 +1349,20 @@ export default function NewRecipe() {
                   onClick={() => setRecipeType(type)}
                   className={`min-h-11 rounded-xl px-3 text-[14px] font-semibold transition-all ${recipeType === type ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"}`}
                 >
-                  {type === "quick" ? "Quick recipe" : "Detailed recipe"}
+                  {type === "quick"
+                    ? tr("Quick recipe")
+                    : tr("Detailed recipe")}
                 </button>
               ))}
             </div>
             <p className="mt-2 px-1 text-[12px] leading-5 text-muted-foreground">
               {recipeType === "quick"
-                ? "Just the essentials. Add extra details only when they help."
-                : "Build a recipe with photos, method, notes, and serving details."}
+                ? tr(
+                    "Just the essentials. Add extra details only when they help."
+                  )
+                : tr(
+                    "Build a recipe with photos, method, notes, and serving details."
+                  )}
             </p>
             {!initial && (
               <button
@@ -1311,9 +1374,10 @@ export default function NewRecipe() {
                       coachMode: "chef",
                       guidedIntent: {
                         kind: "create_recipe",
-                        title: "What are you cooking?",
-                        detail:
-                          "Describe the ingredients, style, or nutrition target and Coach will shape it into a complete recipe.",
+                        title: tr("What are you cooking?"),
+                        detail: tr(
+                          "Describe the ingredients, style, or nutrition target and Coach will shape it into a complete recipe."
+                        ),
                         examples: [
                           "A quick dinner with chicken and rice",
                           "A vegetarian lunch with 30g protein",
@@ -1331,10 +1395,10 @@ export default function NewRecipe() {
                   </span>
                   <span>
                     <span className="block text-[14px] font-semibold">
-                      Create with Chef Coach
+                      {tr("Create with Chef Coach")}
                     </span>
                     <span className="block text-[11px] text-muted-foreground">
-                      Describe what you want; Coach fills in the recipe.
+                      {tr("Describe what you want; Coach fills in the recipe.")}
                     </span>
                   </span>
                 </span>
@@ -1354,7 +1418,7 @@ export default function NewRecipe() {
               multiple
               className="sr-only"
               onChange={handlePhotoSelection}
-              aria-label="Add recipe photos"
+              aria-label={tr("Add recipe photos")}
             />
             {photos.length === 0 ? (
               <button
@@ -1362,7 +1426,10 @@ export default function NewRecipe() {
                 onClick={() => photoInputRef.current?.click()}
                 className="flex min-h-28 w-full items-center justify-center gap-3 rounded-2xl border border-dashed border-border bg-muted/20 text-[14px] font-semibold text-muted-foreground transition-colors active:bg-muted/45"
               >
-                <Camera size={21} /> Add a cover photo
+                <Message
+                  text={"{{value0}} Add a cover photo"}
+                  values={{ value0: <Camera size={21} /> }}
+                />
               </button>
             ) : (
               <div className="flex snap-x gap-2 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden">
@@ -1375,14 +1442,14 @@ export default function NewRecipe() {
                       src={photo.url}
                       alt={
                         index === 0
-                          ? "Recipe cover"
-                          : `Recipe photo ${index + 1}`
+                          ? tr("Recipe cover")
+                          : tr("Recipe photo {{value0}}", { value0: index + 1 })
                       }
                       className="h-full w-full object-cover"
                     />
                     {index === 0 && (
                       <span className="absolute bottom-2 left-2 rounded-full bg-black/55 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur">
-                        Cover
+                        {tr("Cover")}
                       </span>
                     )}
                     <button
@@ -1394,7 +1461,9 @@ export default function NewRecipe() {
                         )
                       }}
                       className="absolute top-2 right-2 grid size-9 place-items-center rounded-full bg-black/55 text-white backdrop-blur"
-                      aria-label={`Remove recipe photo ${index + 1}`}
+                      aria-label={tr("Remove recipe photo {{value0}}", {
+                        value0: index + 1,
+                      })}
                     >
                       <Trash size={15} />
                     </button>
@@ -1405,7 +1474,7 @@ export default function NewRecipe() {
                     type="button"
                     onClick={() => photoInputRef.current?.click()}
                     className="grid h-32 min-w-24 place-items-center rounded-2xl border border-dashed border-border text-muted-foreground"
-                    aria-label="Add another recipe photo"
+                    aria-label={tr("Add another recipe photo")}
                   >
                     <Plus size={20} />
                   </button>
@@ -1421,8 +1490,8 @@ export default function NewRecipe() {
               name="recipe-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Recipe name"
-              aria-label="Recipe name"
+              placeholder={tr("Recipe name")}
+              aria-label={tr("Recipe name")}
               className="app-display min-h-12 w-full bg-transparent text-[2rem] text-foreground outline-none placeholder:text-muted-foreground"
             />
             {/* Ruler line — always visible, like a recipe card */}
@@ -1433,15 +1502,15 @@ export default function NewRecipe() {
             <textarea
               value={description}
               onChange={(event) => setDescription(event.target.value)}
-              placeholder="Short description (optional)"
-              aria-label="Recipe description"
+              placeholder={tr("Short description (optional)")}
+              aria-label={tr("Recipe description")}
               rows={2}
               className="w-full resize-none border-b border-border bg-transparent py-3 text-[15px] leading-6 outline-none placeholder:text-muted-foreground"
             />
             <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
               <MetadataField
                 icon={<Clock size={16} />}
-                label="Prep time"
+                label={tr("Prep time")}
                 value={prepMinutes}
                 onChange={setPrepMinutes}
                 suffix="min"
@@ -1449,30 +1518,30 @@ export default function NewRecipe() {
               />
               <MetadataField
                 icon={<ForkKnife size={16} />}
-                label="Cook time"
+                label={tr("Cook time")}
                 value={cookMinutes}
                 onChange={setCookMinutes}
                 suffix="min"
                 inputMode="numeric"
               />
               <MetadataField
-                label="Servings"
+                label={tr("Servings")}
                 value={servings}
                 onChange={setServings}
                 inputMode="numeric"
               />
               <MetadataField
-                label="Category"
+                label={tr("Category")}
                 value={category}
                 onChange={setCategory}
-                placeholder="Dinner"
+                placeholder={tr("Dinner")}
               />
             </div>
             <input
               value={tags}
               onChange={(event) => setTags(event.target.value)}
-              placeholder="Tags, separated by commas (optional)"
-              aria-label="Recipe tags"
+              placeholder={tr("Tags, separated by commas (optional)")}
+              aria-label={tr("Recipe tags")}
               className="min-h-12 w-full border-b border-border bg-transparent text-[14px] outline-none placeholder:text-muted-foreground"
             />
           </div>
@@ -1497,10 +1566,15 @@ export default function NewRecipe() {
             ) : (
               <>
                 <div className="mb-2 flex items-center justify-between px-1">
-                  <h2 className="native-section-title">Ingredients</h2>
+                  <h2 className="native-section-title">{tr("Ingredients")}</h2>
                   <span className="text-[13px] text-muted-foreground">
-                    {ingredients.length} item
-                    {ingredients.length !== 1 ? "s" : ""}
+                    <Message
+                      text={"{{value0}} item{{value1}}"}
+                      values={{
+                        value0: ingredients.length,
+                        value1: ingredients.length !== 1 ? "s" : "",
+                      }}
+                    />
                   </span>
                 </div>
 
@@ -1546,8 +1620,14 @@ export default function NewRecipe() {
                   onClick={() => setSearchOpen(true)}
                   className="mt-3 flex min-h-12 w-full items-center justify-center gap-2 text-[15px] font-semibold text-[var(--accent-food)] transition-colors active:bg-muted/25"
                 >
-                  <Plus size={16} className="text-muted-foreground" />
-                  Add ingredient
+                  <Message
+                    text={"{{value0}}Add ingredient"}
+                    values={{
+                      value0: (
+                        <Plus size={16} className="text-muted-foreground" />
+                      ),
+                    }}
+                  />
                 </button>
 
                 <MicrosPanel
@@ -1567,7 +1647,7 @@ export default function NewRecipe() {
                         id="recipe-method-title"
                         className="native-section-title"
                       >
-                        Cooking instructions
+                        {tr("Cooking instructions")}
                       </h2>
                     </div>
                     <div className="mt-4 space-y-3">
@@ -1589,10 +1669,12 @@ export default function NewRecipe() {
                             }
                             placeholder={
                               index === 0
-                                ? "Describe the first step…"
-                                : "Next step…"
+                                ? tr("Describe the first step…")
+                                : tr("Next step…")
                             }
-                            aria-label={`Cooking instruction ${index + 1}`}
+                            aria-label={tr("Cooking instruction {{value0}}", {
+                              value0: index + 1,
+                            })}
                             rows={2}
                             className="min-h-14 flex-1 resize-none border-b border-border bg-transparent py-2 text-[14px] leading-5 outline-none placeholder:text-muted-foreground"
                           />
@@ -1607,7 +1689,10 @@ export default function NewRecipe() {
                                 )
                               }
                               className="app-icon-button mt-1"
-                              aria-label={`Remove cooking instruction ${index + 1}`}
+                              aria-label={tr(
+                                "Remove cooking instruction {{value0}}",
+                                { value0: index + 1 }
+                              )}
                             >
                               <X size={14} />
                             </button>
@@ -1620,18 +1705,23 @@ export default function NewRecipe() {
                       onClick={() => setSteps((current) => [...current, ""])}
                       className="mt-3 flex min-h-11 items-center gap-2 px-1 text-[14px] font-semibold text-[var(--accent-food)]"
                     >
-                      <Plus size={15} /> Add step
+                      <Message
+                        text={"{{value0}} Add step"}
+                        values={{ value0: <Plus size={15} /> }}
+                      />
                     </button>
 
                     <label className="mt-6 block">
                       <span className="text-[12px] font-semibold text-muted-foreground">
-                        Notes
+                        {tr("Notes")}
                       </span>
                       <textarea
                         value={notes}
                         onChange={(event) => setNotes(event.target.value)}
-                        placeholder="Substitutions, serving ideas, storage notes…"
-                        aria-label="Recipe notes"
+                        placeholder={tr(
+                          "Substitutions, serving ideas, storage notes…"
+                        )}
+                        aria-label={tr("Recipe notes")}
                         rows={3}
                         className="mt-2 w-full resize-none rounded-2xl border border-border bg-muted/20 p-4 text-[14px] leading-6 outline-none placeholder:text-muted-foreground focus:border-foreground/30"
                       />
@@ -1648,12 +1738,12 @@ export default function NewRecipe() {
                   className="native-primary-button mt-5 w-full"
                 >
                   {saving
-                    ? "Saving..."
+                    ? tr("Saving...")
                     : saved
-                      ? "Saved ✓"
+                      ? tr("Saved ✓")
                       : initial
-                        ? "Save Changes"
-                        : "Save Recipe"}
+                        ? tr("Save Changes")
+                        : tr("Save Recipe")}
                 </button>
               </>
             )}

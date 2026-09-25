@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 /**
  * Per-exercise progress math for the exercise browser.
  *
@@ -123,9 +124,9 @@ export function personalRecords(sessions: SessionSummary[]): PersonalRecords {
 export type ProgressMetric = "e1rm" | "heaviest" | "volume"
 
 export const PROGRESS_METRIC_LABELS: Record<ProgressMetric, string> = {
-  e1rm: "Est. 1RM",
-  heaviest: "Heaviest set",
-  volume: "Session volume",
+  e1rm: tr("Est. 1RM"),
+  heaviest: tr("Heaviest set"),
+  volume: tr("Session volume"),
 }
 
 export function metricSeries(

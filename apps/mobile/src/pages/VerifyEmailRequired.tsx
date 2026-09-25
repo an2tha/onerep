@@ -1,3 +1,4 @@
+import { tr, translateError } from "@repo/ui/i18n"
 import { useEffect, useState } from "react"
 import {
   getEmailVerificationCallbackUrl,
@@ -22,7 +23,7 @@ export default function VerifyEmailRequired() {
   async function resendVerification() {
     if (!hasPendingEmail || sending) return
     setSending(true)
-    setError(undefined)
+    setError(translateError(undefined))
     setMessage(undefined)
     try {
       const result = await authClient.sendVerificationEmail({
@@ -31,13 +32,19 @@ export default function VerifyEmailRequired() {
       })
       if (result.error) {
         setError(
-          betterAuthErrorMessage(result.error, "Could not resend the email")
+          translateError(
+            betterAuthErrorMessage(result.error, "Could not resend the email")
+          )
         )
         return
       }
-      setMessage("A fresh confirmation link is on its way.")
+      setMessage(tr("A fresh confirmation link is on its way."))
     } catch (cause) {
-      setError(betterAuthErrorMessage(cause, "Could not resend the email"))
+      setError(
+        translateError(
+          betterAuthErrorMessage(cause, "Could not resend the email")
+        )
+      )
     } finally {
       setSending(false)
     }
@@ -48,7 +55,7 @@ export default function VerifyEmailRequired() {
       <main className="mx-auto flex min-h-svh w-full max-w-md flex-col justify-center px-6 py-10">
         <header className="mb-8 flex items-center gap-2.5">
           <img src="/app-icon.svg" alt="" className="size-8" />
-          <span className="native-row-title font-semibold">OneRep</span>
+          <span className="native-row-title font-semibold">{tr("OneRep")}</span>
         </header>
 
         <section
@@ -56,12 +63,17 @@ export default function VerifyEmailRequired() {
           className="motion-content-in"
         >
           <h1 id="verify-email-title" className="native-large-title">
-            Check your email
+            {tr("Check your email")}
           </h1>
           <p className="native-body mt-3 text-muted-foreground">
             {email
-              ? `Open the verification message sent to ${email}, then return here to sign in.`
-              : "Open the verification message we sent you, then return here to sign in."}
+              ? tr(
+                  "Open the verification message sent to {{value0}}, then return here to sign in.",
+                  { value0: email }
+                )
+              : tr(
+                  "Open the verification message we sent you, then return here to sign in."
+                )}
           </p>
 
           {message && (
@@ -84,7 +96,7 @@ export default function VerifyEmailRequired() {
                 aria-busy={sending}
                 className="native-primary-button min-h-12 w-full disabled:opacity-50"
               >
-                {sending ? "Sending…" : "Resend confirmation email"}
+                {sending ? tr("Sending…") : tr("Resend confirmation email")}
               </button>
             )}
             <button
@@ -96,7 +108,7 @@ export default function VerifyEmailRequired() {
               }
               className="native-secondary-button min-h-12 w-full"
             >
-              {hasPendingEmail ? "Back to sign up" : "Back to sign in"}
+              {hasPendingEmail ? tr("Back to sign up") : tr("Back to sign in")}
             </button>
           </div>
         </section>

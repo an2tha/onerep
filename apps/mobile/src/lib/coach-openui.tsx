@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 import {
   Component,
   useCallback,
@@ -29,7 +30,7 @@ const navigationActions = new Set<CoachUiAction>([
 
 export function handleCoachOpenUIAction(
   event: ActionEvent,
-  actions: CoachOpenUIActions,
+  actions: CoachOpenUIActions
 ) {
   if (navigationActions.has(event.type as CoachUiAction)) {
     actions.onAction(event.type as CoachUiAction)
@@ -38,7 +39,9 @@ export function handleCoachOpenUIAction(
       typeof event.params.context === "string" ? event.params.context : ""
     const fields =
       event.formState && Object.keys(event.formState).length
-        ? `\nForm values: ${JSON.stringify(event.formState)}`
+        ? tr("\nForm values: {{value0}}", {
+            value0: JSON.stringify(event.formState),
+          })
         : ""
     const message =
       [event.humanFriendlyMessage, context].filter(Boolean).join("\n") + fields
@@ -48,7 +51,7 @@ export function handleCoachOpenUIAction(
 
 const fallback = (
   <p role="status" className="mt-3 text-sm text-muted-foreground">
-    This interface couldn’t be displayed. Ask Coach to try again.
+    {tr("This interface couldn’t be displayed. Ask Coach to try again.")}
   </p>
 )
 class OpenUIBoundary extends Component<
@@ -103,12 +106,12 @@ export default function CoachOpenUI({
   const dark = useSyncExternalStore(
     subscribeToAppearance,
     currentAppearance,
-    () => false,
+    () => false
   )
   const [failed, setFailed] = useState(false)
   const onError = useCallback(
     (errors: unknown[]) => setFailed(errors.length > 0),
-    [],
+    []
   )
   return (
     <CoachOpenUIContext.Provider value={actions}>
@@ -118,7 +121,7 @@ export default function CoachOpenUI({
         darkTheme={theme}
         cssSelector=".coach-openui"
       >
-        <div className="coach-openui mt-5 min-w-0 max-w-full overflow-x-auto text-sm">
+        <div className="coach-openui mt-5 max-w-full min-w-0 overflow-x-auto text-sm">
           <OpenUIBoundary key={source}>
             <Renderer
               response={source}

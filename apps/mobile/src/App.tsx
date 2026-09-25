@@ -1,3 +1,4 @@
+import { Message, tr, uiLocale } from "@repo/ui/i18n"
 import { ProfileAvatar } from "@/components/profile-avatar"
 import { RecoveryBanner } from "@/components/recovery/recovery-banner"
 import { useRecovery } from "@/lib/use-recovery"
@@ -261,17 +262,20 @@ function Dashboard() {
     // so it drops straight into an empty session.
     onStartWorkout: () => navigate("/workout/active", { motion: "forward" }),
     onStartWorkoutTip: () =>
-      toast.info("Press and hold to start an open workout.", {
+      toast.info(tr("Press and hold to start an open workout."), {
         id: "dashboard-open-workout-hold-tip",
       }),
     onOpenNutrition: () => navigate("/nutrition", { motion: "switch" }),
     onOpenRecovery: () => navigate("/health", { motion: "switch" }),
   }
-  const dateLabel = dateKeyToCalendarDate(dateKey).toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-  })
+  const dateLabel = dateKeyToCalendarDate(dateKey).toLocaleDateString(
+    uiLocale(),
+    {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+    }
+  )
 
   // The tab bar is fixed and the home column is a fixed-height flex, so
   // without the bottom padding the week strip lives underneath it. Reserve the
@@ -289,7 +293,13 @@ function Dashboard() {
           firstName={firstName}
           // A finished day names itself. The greeting is about now, and now
           // is not what is on screen.
-          title={viewingToday ? recovery?.active ? "Your recovery plan" : undefined : dateLabel}
+          title={
+            viewingToday
+              ? recovery?.active
+                ? tr("Your recovery plan")
+                : undefined
+              : dateLabel
+          }
           subtitle={viewingToday ? undefined : daysAgoLabel(dateKey, todayKey)}
           // The sidebar's profile row is a desktop thing; on a phone, and in
           // the native shells especially, this is the only door into settings.
@@ -317,7 +327,9 @@ function Dashboard() {
           <div className="px-[var(--app-page-x)]">
             {viewingToday && <RecoveryBanner />}
             <div className="lg:hidden">
-              {!recovery?.active && <DashboardDials {...dialProps} layout="row" />}
+              {!recovery?.active && (
+                <DashboardDials {...dialProps} layout="row" />
+              )}
             </div>
             <button
               type="button"
@@ -326,8 +338,12 @@ function Dashboard() {
               }
               className="dashboard-feedback-hint"
             >
-              <ChatCircleDots size={15} aria-hidden="true" />
-              Help shape OneRep
+              <Message
+                text={"{{value0}}Help shape OneRep"}
+                values={{
+                  value0: <ChatCircleDots size={15} aria-hidden="true" />,
+                }}
+              />
             </button>
           </div>
         </DashboardHero>
@@ -335,7 +351,10 @@ function Dashboard() {
       {/* The phone is only the wheel and one date control. Desktop has room
           for the day's supporting totals in a separate right-hand rail. */}
       <div className="dashboard-today-body relative z-10 flex min-h-0 flex-1 flex-col">
-        <div style={recovery?.active ? { display: "none" } : undefined} className="dashboard-day-rail mx-auto hidden w-full max-w-6xl shrink-0 px-[var(--app-page-x)] pt-1 md:px-8 lg:block">
+        <div
+          style={recovery?.active ? { display: "none" } : undefined}
+          className="dashboard-day-rail mx-auto hidden w-full max-w-6xl shrink-0 px-[var(--app-page-x)] pt-1 md:px-8 lg:block"
+        >
           <DayRail
             className="dashboard-day-rail-grid"
             dateKey={dateKey}
@@ -359,7 +378,7 @@ function Dashboard() {
                 id: item._id,
                 name: item.name,
                 logId: takenSupplementLogs.get(item._id),
-            }))}
+              }))}
           />
           <button
             type="button"
@@ -374,8 +393,12 @@ function Dashboard() {
             }
             className="dashboard-add-widget motion-tactile mt-4 hidden min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-border bg-card text-[14px] font-semibold text-foreground transition-colors hover:bg-muted lg:flex"
           >
-            <Plus size={17} weight="bold" aria-hidden="true" />
-            Add widget
+            <Message
+              text={"{{value0}}Add widget"}
+              values={{
+                value0: <Plus size={17} weight="bold" aria-hidden="true" />,
+              }}
+            />
           </button>
         </div>
         {/* The ruler is taller than the screen on purpose — scrolling it pans
@@ -466,13 +489,13 @@ function Dashboard() {
 // bubble as the active workout page — each one opens its own drawer instead
 // of a page, so logging never costs a navigation.
 const QUICK_ADD_OPTIONS: QuickAddOption[] = [
-  { action: "workout", label: "Log a workout", icon: Barbell },
-  { action: "food", label: "Log Food", icon: ForkKnife },
-  { action: "recipe-create", label: "Create a recipe", icon: CookingPot },
-  { action: "recipes", label: "Find Recipes", icon: MagnifyingGlass },
-  { action: "water", label: "Log water", icon: PintGlass },
-  { action: "fasting", label: "Start a fast", icon: Timer },
-  { action: "supplements", label: "Take supplements", icon: Pill },
+  { action: "workout", label: tr("Log a workout"), icon: Barbell },
+  { action: "food", label: tr("Log Food"), icon: ForkKnife },
+  { action: "recipe-create", label: tr("Create a recipe"), icon: CookingPot },
+  { action: "recipes", label: tr("Find Recipes"), icon: MagnifyingGlass },
+  { action: "water", label: tr("Log water"), icon: PintGlass },
+  { action: "fasting", label: tr("Start a fast"), icon: Timer },
+  { action: "supplements", label: tr("Take supplements"), icon: Pill },
 ]
 
 // ─── Today, from the logs ──────────────────────────────────────────────────
@@ -513,16 +536,16 @@ type TimelineWorkoutLog = {
 
 const SUPPLEMENT_KIND_LABELS: Record<TimelineSupplementEntry["kind"], string> =
   {
-    creatine: "Creatine",
-    protein: "Protein",
-    vitamins: "Vitamins",
-    caffeine: "Caffeine",
+    creatine: tr("Creatine"),
+    protein: tr("Protein"),
+    vitamins: tr("Vitamins"),
+    caffeine: tr("Caffeine"),
   }
 
 function formatLoggedTime(value: string | number): string {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return "—"
-  return date.toLocaleTimeString("en-US", {
+  return date.toLocaleTimeString(uiLocale(), {
     hour: "numeric",
     minute: "2-digit",
   })
@@ -552,15 +575,18 @@ function buildTimelineEntries({
       id: `food:${entry.id}`,
       time: formatLoggedTime(entry.loggedAt),
       title: entry.name,
-      detail: `${mealLabel(entry.meal as Parameters<typeof mealLabel>[0])} · ${round(entry.calories)} cal`,
+      detail: tr("{{value0}} · {{value1}} cal", {
+        value0: mealLabel(entry.meal as Parameters<typeof mealLabel>[0]),
+        value1: round(entry.calories),
+      }),
       kind: "food",
       facts: [
-        { label: "Calories", value: `${round(entry.calories)} kcal` },
-        { label: "Protein", value: `${round(entry.protein)} g` },
-        { label: "Carbs", value: `${round(entry.carbs)} g` },
-        { label: "Fat", value: `${round(entry.fat)} g` },
+        { label: tr("Calories"), value: `${round(entry.calories)} kcal` },
+        { label: tr("Protein"), value: `${round(entry.protein)} g` },
+        { label: tr("Carbs"), value: `${round(entry.carbs)} g` },
+        { label: tr("Fat"), value: `${round(entry.fat)} g` },
         ...(entry.servingLabel
-          ? [{ label: "Serving", value: entry.servingLabel }]
+          ? [{ label: tr("Serving"), value: entry.servingLabel }]
           : []),
       ],
     })
@@ -570,13 +596,15 @@ function buildTimelineEntries({
     entries.push({
       id: `water:${entry.id}`,
       time: formatLoggedTime(entry.loggedAt),
-      title: "Water",
+      title: tr("Water"),
       detail: formatWater(entry.amountMl, waterUnit ?? "ml"),
       kind: "water",
-      facts: [{
-        label: "Amount",
-        value: formatWater(entry.amountMl, waterUnit ?? "ml"),
-      }],
+      facts: [
+        {
+          label: tr("Amount"),
+          value: formatWater(entry.amountMl, waterUnit ?? "ml"),
+        },
+      ],
     })
   }
 
@@ -588,12 +616,15 @@ function buildTimelineEntries({
         entry.name ??
         entry.note ??
         SUPPLEMENT_KIND_LABELS[entry.kind] ??
-        "Supplement",
-      detail: `${round(entry.amount)} ${entry.unit}`,
+        tr("Supplement"),
+      detail: tr("{{value0}} {{value1}}", {
+        value0: round(entry.amount),
+        value1: entry.unit,
+      }),
       kind: "supplement",
       facts: [
-        { label: "Dose", value: `${round(entry.amount)} ${entry.unit}` },
-        ...(entry.note ? [{ label: "Note", value: entry.note }] : []),
+        { label: tr("Dose"), value: `${round(entry.amount)} ${entry.unit}` },
+        ...(entry.note ? [{ label: tr("Note"), value: entry.note }] : []),
       ],
     })
   }
@@ -608,17 +639,25 @@ function buildTimelineEntries({
       id: `workout:${log._id ?? log.completedAt ?? "unknown"}`,
       time: log.completedAt ? formatLoggedTime(log.completedAt) : "—",
       title: log.exercises[0]?.name
-        ? `${log.exercises[0].name}${log.exercises.length > 1 ? ` +${log.exercises.length - 1}` : ""}`
-        : "Workout",
-      detail: `${log.exercises.length} exercise${log.exercises.length === 1 ? "" : "s"} · ${minutes} min`,
+        ? tr("{{value0}}{{value1}}", {
+            value0: log.exercises[0].name,
+            value1:
+              log.exercises.length > 1 ? ` +${log.exercises.length - 1}` : "",
+          })
+        : tr("Workout"),
+      detail: tr("{{value0}} exercise{{value1}} · {{value2}} min", {
+        value0: log.exercises.length,
+        value1: log.exercises.length === 1 ? "" : "s",
+        value2: minutes,
+      }),
       kind: "workout",
       facts: [
-        { label: "Duration", value: `${minutes} min` },
+        { label: tr("Duration"), value: `${minutes} min` },
         {
-          label: "Exercises",
+          label: tr("Exercises"),
           value: String(log.exercises.length),
         },
-        { label: "Sets", value: String(totalSets) },
+        { label: tr("Sets"), value: String(totalSets) },
       ],
     })
   }

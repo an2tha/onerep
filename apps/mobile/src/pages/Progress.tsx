@@ -1,3 +1,4 @@
+import { Message, tr, translateError } from "@repo/ui/i18n"
 import { PageBarActions } from "@/components/page-bar-actions"
 import { RecoveryBanner } from "@/components/recovery/recovery-banner"
 import {
@@ -408,10 +409,16 @@ export default function Progress() {
       await removeMeasurement({ clientId })
       announceOrbActivity("delete")
       hapticMedium()
-      toast.success(`Check-in for ${formatProgressDate(date)} deleted`)
+      toast.success(
+        tr("Check-in for {{value0}} deleted", {
+          value0: formatProgressDate(date),
+        })
+      )
       if (editingDate === date) closeEntry()
     } catch {
-      toast.error("Could not delete that check-in. Try again.")
+      toast.error(
+        translateError(tr("Could not delete that check-in. Try again."))
+      )
     }
   }
 
@@ -434,7 +441,7 @@ export default function Progress() {
       !Number.isFinite(enteredWeight) ||
       enteredWeight <= 0
     ) {
-      setEntryError("Enter a valid weight.")
+      setEntryError(translateError(tr("Enter a valid weight.")))
       return
     }
     if (
@@ -443,7 +450,7 @@ export default function Progress() {
         enteredBodyFat <= 0 ||
         enteredBodyFat > 100)
     ) {
-      setEntryError("Body fat must be between 0 and 100%.")
+      setEntryError(translateError(tr("Body fat must be between 0 and 100%.")))
       return
     }
     const circumferences = [enteredWaist, enteredHips, enteredChest].filter(
@@ -454,7 +461,9 @@ export default function Progress() {
         (value) => !Number.isFinite(value) || value <= 0 || value > 300
       )
     ) {
-      setEntryError("Body measurements must be between 1 and 300 cm.")
+      setEntryError(
+        translateError(tr("Body measurements must be between 1 and 300 cm."))
+      )
       return
     }
     setSavingEntry(true)
@@ -498,9 +507,11 @@ export default function Progress() {
       toast.success(
         entryClientId
           ? editingDate === today
-            ? "Today’s check-in updated"
-            : `Check-in for ${formatProgressDate(editingDate)} updated`
-          : "Check-in saved"
+            ? tr("Today’s check-in updated")
+            : tr("Check-in for {{value0}} updated", {
+                value0: formatProgressDate(editingDate),
+              })
+          : tr("Check-in saved")
       )
       if (!entryClientId) setCheckInCelebration(true)
       setWeight("")
@@ -515,7 +526,9 @@ export default function Progress() {
       setEntryPrepared(false)
       setEntryOpen(false)
     } catch {
-      setEntryError("Could not save this measurement. Try again.")
+      setEntryError(
+        translateError(tr("Could not save this measurement. Try again."))
+      )
     } finally {
       setSavingEntry(false)
     }
@@ -540,7 +553,7 @@ export default function Progress() {
       <ReactiveOrbField className="progress-hero-wash" />
       <main className="app-page pb-28">
         <header className="app-header" ref={progressHeaderRef}>
-          <h1 className="app-title">Progress</h1>
+          <h1 className="app-title">{tr("Progress")}</h1>
           <PageBarActions>
             <div
               className="flex items-center gap-1"
@@ -557,7 +570,7 @@ export default function Progress() {
                   setReadingsOpen(true)
                 }}
                 className="native-toolbar-button"
-                aria-label="Correct a check-in"
+                aria-label={tr("Correct a check-in")}
               >
                 <PencilSimple size={19} weight="bold" />
               </button>
@@ -566,7 +579,7 @@ export default function Progress() {
                   type="button"
                   onClick={openEntry}
                   className="native-toolbar-button"
-                  aria-label="Add body measurement"
+                  aria-label={tr("Add body measurement")}
                 >
                   <Plus size={22} weight="bold" />
                 </button>
@@ -584,16 +597,19 @@ export default function Progress() {
              it is the one tab that isn't about the week. */}
         <section
           className="progress-hero relative flex flex-col justify-center pt-1 pb-5 text-center"
-          aria-label="Week in review"
+          aria-label={tr("Week in review")}
         >
           <p className="text-[13px] font-medium text-muted-foreground">
             {shownMetric === "exercises"
-              ? "Exercise library"
-              : `Last ${summary.days.length} days`}
+              ? tr("Exercise library")
+              : tr("Last {{value0}} days", { value0: summary.days.length })}
           </p>
           {shownMetric === "exercises" ? (
             <p className="mt-1.5 text-[15px] text-muted-foreground tabular-nums">
-              {daysKept} of {summary.days.length} days kept this week
+              <Message
+                text={"{{value0}} of {{value1}} days kept this week"}
+                values={{ value0: daysKept, value1: summary.days.length }}
+              />
             </p>
           ) : null}
           {/* The number lives inside the rings rather than above them —
@@ -604,7 +620,9 @@ export default function Progress() {
           <ProgressRings
             tracks={heroTracks}
             headline={String(daysKept)}
-            detail={`of ${summary.days.length} days kept`}
+            detail={tr("of {{value0}} days kept", {
+              value0: summary.days.length,
+            })}
             collapsed={shownMetric === "exercises"}
             onSelect={(id) => selectMetric(id as ProgressTab)}
           />
@@ -613,7 +631,7 @@ export default function Progress() {
         <div
           ref={progressTabsRef}
           className="app-segmented app-segmented-sliding mt-5 mb-5 grid grid-cols-5"
-          aria-label="Progress metric"
+          aria-label={tr("Progress metric")}
           style={
             { "--seg-index": PROGRESS_TABS.indexOf(metric) } as CSSProperties
           }
@@ -635,7 +653,7 @@ export default function Progress() {
               // wrapped word on a small phone.
               className="app-segmented-button px-1 capitalize"
             >
-              {item === "exercises" ? "Library" : item}
+              {item === "exercises" ? tr("Library") : item}
             </button>
           ))}
         </div>
@@ -706,25 +724,42 @@ export default function Progress() {
               />
             )}
 
-            <GroupedList label="Related history">
+            <GroupedList label={tr("Related history")}>
               <DisclosureRow
-                title="Nutrition diary"
-                detail={`${summary.nutrition.loggedDays} of 7 days logged`}
+                title={tr("Nutrition diary")}
+                detail={tr("{{value0}} of 7 days logged", {
+                  value0: summary.nutrition.loggedDays,
+                })}
                 leading={<ForkKnife size={19} />}
                 onClick={() => navigate("/nutrition", { motion: "switch" })}
               />
               <DisclosureRow
-                title="Training history"
-                detail={`${summary.training.workouts} workout${summary.training.workouts === 1 ? "" : "s"} · ${summary.training.completedSets} set${summary.training.completedSets === 1 ? "" : "s"}`}
+                title={tr("Training history")}
+                detail={tr(
+                  "{{value0}} workout{{value1}} · {{value2}} set{{value3}}",
+                  {
+                    value0: summary.training.workouts,
+                    value1: summary.training.workouts === 1 ? "" : "s",
+                    value2: summary.training.completedSets,
+                    value3: summary.training.completedSets === 1 ? "" : "s",
+                  }
+                )}
                 leading={<Barbell size={19} />}
                 onClick={() => navigate("/workouts", { motion: "switch" })}
               />
               <DisclosureRow
-                title="Health trends"
+                title={tr("Health trends")}
                 detail={
                   healthDashboard?.score != null
-                    ? `Score ${healthDashboard.score} · ${healthDashboard.measuredDays} of ${healthDashboard.windowDays} days measured`
-                    : "No readings yet"
+                    ? tr(
+                        "Score {{value0}} · {{value1}} of {{value2}} days measured",
+                        {
+                          value0: healthDashboard.score,
+                          value1: healthDashboard.measuredDays,
+                          value2: healthDashboard.windowDays,
+                        }
+                      )
+                    : tr("No readings yet")
                 }
                 leading={<Heartbeat size={19} />}
                 onClick={() => navigate("/health", { motion: "switch" })}
@@ -755,7 +790,7 @@ export default function Progress() {
         >
           <span className="progress-checkin-rings" aria-hidden="true" />
           <CheckCircle size={34} weight="fill" aria-hidden="true" />
-          <span>Check-in complete</span>
+          <span>{tr("Check-in complete")}</span>
         </div>
       )}
 
@@ -764,7 +799,7 @@ export default function Progress() {
           onClose={closeEntry}
           minHeight="0"
           maxHeight="88vh"
-          ariaLabel="Today’s check-in"
+          ariaLabel={tr("Today’s check-in")}
           panelClassName="!w-[calc(100%_-_1.5rem)] !max-w-[26rem]"
           bottom={
             <div className="border-t border-border bg-background px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-6">
@@ -776,10 +811,10 @@ export default function Progress() {
                 className="w-full"
               >
                 {savingEntry
-                  ? "Saving…"
+                  ? tr("Saving…")
                   : entryClientId
-                    ? "Update check-in"
-                    : "Complete check-in"}
+                    ? tr("Update check-in")
+                    : tr("Complete check-in")}
               </PrimaryButton>
             </div>
           }
@@ -791,26 +826,26 @@ export default function Progress() {
           >
             <header className="flex items-center justify-between gap-4">
               <h2 className="text-[22px] leading-tight font-semibold tracking-tight">
-                Today’s check-in
+                {tr("Today’s check-in")}
               </h2>
               <ToolbarButton
                 type="button"
                 onClick={closeEntry}
-                aria-label="Close check-in"
+                aria-label={tr("Close check-in")}
               >
                 <X size={20} weight="bold" />
               </ToolbarButton>
             </header>
 
             <section
-              aria-label="Weight"
+              aria-label={tr("Weight")}
               className="flex flex-col items-center gap-3 py-3"
             >
               <div className="flex w-full items-center justify-center gap-3">
                 <button
                   type="button"
                   onClick={() => nudgeWeight(-1)}
-                  aria-label="Decrease weight"
+                  aria-label={tr("Decrease weight")}
                   className="onboarding-stepper-button"
                 >
                   <Minus size={16} weight="bold" />
@@ -829,7 +864,7 @@ export default function Progress() {
                     }}
                     onFocus={(event) => event.currentTarget.select()}
                     placeholder="0"
-                    aria-label={`Weight (${unit})`}
+                    aria-label={tr("Weight ({{value0}})", { value0: unit })}
                     required
                     className="w-32 border-b-2 border-transparent bg-transparent text-center text-[44px] leading-none font-semibold tracking-tight tabular-nums outline-none placeholder:text-muted-foreground/40 focus-visible:border-foreground/40"
                   />
@@ -840,7 +875,7 @@ export default function Progress() {
                 <button
                   type="button"
                   onClick={() => nudgeWeight(1)}
-                  aria-label="Increase weight"
+                  aria-label={tr("Increase weight")}
                   className="onboarding-stepper-button"
                 >
                   <Plus size={16} weight="bold" />
@@ -848,21 +883,29 @@ export default function Progress() {
               </div>
               <p className="native-row-detail text-center">
                 {todayMeasurement
-                  ? "Logged today · saving updates this entry"
+                  ? tr("Logged today · saving updates this entry")
                   : previousMeasurement
-                    ? `Last check-in ${formatProgressWeight(previousMeasurement.weightKg, unit)} · ${formatProgressDate(previousMeasurement.loggedAt.slice(0, 10))}`
-                    : "Your first check-in"}
+                    ? tr("Last check-in {{value0}} · {{value1}}", {
+                        value0: formatProgressWeight(
+                          previousMeasurement.weightKg,
+                          unit
+                        ),
+                        value1: formatProgressDate(
+                          previousMeasurement.loggedAt.slice(0, 10)
+                        ),
+                      })
+                    : tr("Your first check-in")}
               </p>
             </section>
 
             {showMeasurements && (
               <fieldset>
                 <legend className="native-field-label mb-3">
-                  Measurements
+                  {tr("Measurements")}
                 </legend>
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
-                    label="Body fat %"
+                    label={tr("Body fat %")}
                     name="progress-body-fat"
                     type="text"
                     inputMode="decimal"
@@ -874,7 +917,7 @@ export default function Progress() {
                     }}
                   />
                   <FormField
-                    label="Waist (cm)"
+                    label={tr("Waist (cm)")}
                     name="progress-waist"
                     type="text"
                     inputMode="decimal"
@@ -886,7 +929,7 @@ export default function Progress() {
                     }}
                   />
                   <FormField
-                    label="Hips (cm)"
+                    label={tr("Hips (cm)")}
                     name="progress-hips"
                     type="text"
                     inputMode="decimal"
@@ -898,7 +941,7 @@ export default function Progress() {
                     }}
                   />
                   <FormField
-                    label="Chest (cm)"
+                    label={tr("Chest (cm)")}
                     name="progress-chest"
                     type="text"
                     inputMode="decimal"
@@ -915,25 +958,27 @@ export default function Progress() {
 
             {showNote && (
               <label className="native-field">
-                <span className="native-field-label">Journal note</span>
+                <span className="native-field-label">{tr("Journal note")}</span>
                 <textarea
                   name="progress-notes"
                   value={notes}
                   onChange={(event) => setNotes(event.target.value)}
                   maxLength={500}
                   rows={3}
-                  placeholder="Training, sleep, appetite, or anything worth remembering…"
+                  placeholder={tr(
+                    "Training, sleep, appetite, or anything worth remembering…"
+                  )}
                   className="native-input min-h-24 resize-y py-3 leading-6"
                 />
               </label>
             )}
 
             {(!showMeasurements || !showNote) && (
-              <GroupedList label="Optional details">
+              <GroupedList label={tr("Optional details")}>
                 {!showMeasurements && (
                   <ListRow
-                    title="Add measurements"
-                    detail="Body fat, waist, hips, chest"
+                    title={tr("Add measurements")}
+                    detail={tr("Body fat, waist, hips, chest")}
                     onClick={() => setShowMeasurements(true)}
                     trailing={
                       <Plus
@@ -947,8 +992,8 @@ export default function Progress() {
                 )}
                 {!showNote && (
                   <ListRow
-                    title="Add a note"
-                    detail="Training, sleep, appetite"
+                    title={tr("Add a note")}
+                    detail={tr("Training, sleep, appetite")}
                     onClick={() => setShowNote(true)}
                     trailing={
                       <Plus

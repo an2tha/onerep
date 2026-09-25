@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 type ClipboardLike = Pick<Clipboard, "writeText">
 
 type ErrorDiagnosticOptions = {
@@ -37,7 +38,7 @@ export function buildErrorDiagnostics(
     {
       app: "OneRep",
       capturedAt: date.toISOString(),
-      label: label ?? "this page",
+      label: label ?? tr("this page"),
       path: locationPath,
       userAgent,
       error: {

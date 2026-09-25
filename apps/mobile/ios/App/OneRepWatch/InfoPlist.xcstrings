@@ -1,0 +1,88 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "NSHealthShareUsageDescription": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep reads your heart rate and active energy during a workout so it can show live stats and save an accurate session."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep liest während eines Trainings deine Herzfrequenz und aktive Energie, um Live-Statistiken anzuzeigen und eine genaue Einheit zu speichern."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep lee tu frecuencia cardíaca y la energía activa durante un entrenamiento para mostrar estadísticas en directo y guardar una sesión precisa."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep lit votre fréquence cardiaque et votre énergie active pendant une séance d’entraînement afin d’afficher des statistiques en direct et d’enregistrer une séance précise."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep legge battito e energia attiva durante l'allenamento per mostrare statistiche in tempo reale e salvare la sessione con precisione."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O OneRep lê a sua frequência cardíaca e a energia ativa durante um treino para poder mostrar estatísticas em tempo real e guardar uma sessão precisa."
+          }
+        }
+      }
+    },
+    "NSHealthUpdateUsageDescription": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep saves workouts you record on your watch to Health."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep speichert Trainings, die du auf deiner Uhr aufzeichnest, in Health."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep guarda en Health los entrenamientos que registras en tu reloj."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep enregistre dans Health les séances d’entraînement que vous effectuez avec votre montre."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneRep salva gli allenamenti registrati dal tuo orologio su Health."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O OneRep guarda os treinos que registas no teu relógio para a Saúde."
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

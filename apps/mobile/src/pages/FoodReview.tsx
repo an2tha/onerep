@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 import { foodLogTimestampForMeal, isFoodLogDate } from "@/lib/food-log-context"
 import { useEffect, useRef, useState } from "react"
 import { Warning } from "@phosphor-icons/react"
@@ -149,7 +150,9 @@ export default function FoodReview() {
             {loading ? (
               <>
                 <div className="mx-auto h-5 w-5 animate-spin rounded-full border-2 border-muted-foreground/20 border-t-muted-foreground/60" />
-                <p className="mt-4 text-[15px] font-semibold">Loading food…</p>
+                <p className="mt-4 text-[15px] font-semibold">
+                  {tr("Loading food…")}
+                </p>
               </>
             ) : (
               <div className="motion-content-in">
@@ -159,18 +162,19 @@ export default function FoodReview() {
                   className="motion-pop mx-auto text-muted-foreground/60"
                 />
                 <p className="mt-4 text-[17px] font-semibold">
-                  Couldn’t load this food.
+                  {tr("Couldn’t load this food.")}
                 </p>
                 <p className="mx-auto mt-1 max-w-xs text-[14px] leading-5 text-muted-foreground">
-                  The item may be unavailable, or your connection may have
-                  dropped.
+                  {tr(
+                    "The item may be unavailable, or your connection may have dropped."
+                  )}
                 </p>
                 <button
                   type="button"
                   onClick={() => navigate(-1)}
                   className="app-button app-button-primary mt-4"
                 >
-                  Back to search
+                  {tr("Back to search")}
                 </button>
               </div>
             )}

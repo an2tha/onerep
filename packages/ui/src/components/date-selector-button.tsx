@@ -1,3 +1,4 @@
+import { tr, uiLocale } from "@repo/ui/i18n"
 import { CalendarBlank, CaretLeft, CaretRight, X } from "@phosphor-icons/react"
 import { MobileSheet } from "./mobile-sheet"
 
@@ -8,11 +9,11 @@ function offsetDateKey(dateKey: string, days: number) {
 }
 
 function formatDateLabel(dateKey: string, todayKey: string) {
-  if (dateKey === todayKey) return "Today"
+  if (dateKey === todayKey) return tr("Today")
   const yesterday = offsetDateKey(todayKey, -1)
-  if (dateKey === yesterday) return "Yesterday"
+  if (dateKey === yesterday) return tr("Yesterday")
   const date = new Date(`${dateKey}T12:00:00Z`)
-  return date.toLocaleDateString([], {
+  return date.toLocaleDateString(uiLocale(), {
     weekday: "short",
     month: "short",
     day: "numeric",
@@ -25,7 +26,7 @@ export function DateSelectorButton({
   onChange,
   open,
   onOpenChange,
-  label = "Select date",
+  label = tr("Select date"),
   onInteract,
 }: {
   value: string
@@ -50,7 +51,10 @@ export function DateSelectorButton({
         type="button"
         onClick={() => onOpenChange(true)}
         className="flex h-11 w-11 items-center justify-center rounded-full bg-transparent text-muted-foreground transition-colors active:bg-foreground/[0.06] active:text-foreground"
-        aria-label={`${label}: ${dateLabel}`}
+        aria-label={tr("{{value0}}: {{value1}}", {
+          value0: label,
+          value1: dateLabel,
+        })}
       >
         <CalendarBlank size={18} weight="bold" />
       </button>
@@ -74,7 +78,7 @@ export function DateSelectorButton({
                 type="button"
                 onClick={() => onOpenChange(false)}
                 className="flex h-11 w-11 items-center justify-center rounded-full bg-transparent text-muted-foreground transition-colors active:bg-foreground/[0.06] active:text-foreground"
-                aria-label="Close date selector"
+                aria-label={tr("Close date selector")}
               >
                 <X size={13} weight="bold" />
               </button>
@@ -86,7 +90,7 @@ export function DateSelectorButton({
                   type="button"
                   onClick={() => setDate(offsetDateKey(value, -1))}
                   className="flex h-11 w-11 items-center justify-center rounded-full bg-transparent text-muted-foreground/62 transition-colors active:bg-background active:text-foreground"
-                  aria-label="Previous day"
+                  aria-label={tr("Previous day")}
                 >
                   <CaretLeft size={14} weight="bold" />
                 </button>
@@ -98,14 +102,14 @@ export function DateSelectorButton({
                     if (event.target.value) setDate(event.target.value)
                   }}
                   className="min-w-0 flex-1 rounded-[0.8rem] border border-border/45 bg-background px-3 py-2.5 text-center text-[13px] font-bold text-foreground outline-none"
-                  aria-label="Selected date"
+                  aria-label={tr("Selected date")}
                 />
                 <button
                   type="button"
                   onClick={() => setDate(offsetDateKey(value, 1))}
                   disabled={isToday}
                   className="flex h-11 w-11 items-center justify-center rounded-full bg-transparent text-muted-foreground/62 transition-colors active:bg-background active:text-foreground disabled:opacity-25"
-                  aria-label="Next day"
+                  aria-label={tr("Next day")}
                 >
                   <CaretRight size={14} weight="bold" />
                 </button>
@@ -116,7 +120,7 @@ export function DateSelectorButton({
                   onClick={() => setDate(todayKey)}
                   className="app-button app-button-quiet mt-2 min-h-10 w-full justify-center bg-transparent"
                 >
-                  Today
+                  {tr("Today")}
                 </button>
               )}
             </div>

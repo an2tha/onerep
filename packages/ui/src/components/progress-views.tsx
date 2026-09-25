@@ -1,3 +1,4 @@
+import { Message, choice, tr, uiLocale } from "@repo/ui/i18n"
 import { Barbell, CheckCircle, ForkKnife, Scales } from "@phosphor-icons/react"
 import type { ReactNode } from "react"
 
@@ -106,7 +107,7 @@ export function formatProgressWeight(
 }
 
 function formatWeightDelta(deltaKg: number | null, unit: ProgressWeightUnit) {
-  if (deltaKg == null) return "Not enough data"
+  if (deltaKg == null) return tr("Not enough data")
   const value = unit === "lbs" ? deltaKg * 2.20462 : deltaKg
   const prefix = value > 0 ? "+" : ""
   return `${prefix}${value.toFixed(1)} ${unit}`
@@ -119,7 +120,7 @@ function formatMeasurement(
 ) {
   if (unit === "kg") return formatProgressWeight(value, weightUnit)
   if (unit === "kcal")
-    return `${Math.round(value).toLocaleString("en-US")} kcal`
+    return `${Math.round(value).toLocaleString(uiLocale())} kcal`
   return `${value.toFixed(1)} cm`
 }
 
@@ -129,8 +130,8 @@ function formatMeasurementDelta(
 ) {
   if (measurement.delta == null) {
     return measurement.group === "composition"
-      ? "One reading so far"
-      : "One measurement so far"
+      ? tr("One reading so far")
+      : tr("One measurement so far")
   }
   const shown =
     measurement.unit === "kg"
@@ -138,12 +139,15 @@ function formatMeasurementDelta(
       : measurement.unit === "kcal"
         ? signed(Math.round(measurement.delta), " kcal")
         : signed(Number(measurement.delta.toFixed(1)), " cm")
-  return `${shown} across ${measurement.readings} readings`
+  return tr("{{value0}} across {{value1}} readings", {
+    value0: shown,
+    value1: measurement.readings,
+  })
 }
 
 export function formatProgressDate(date: string | null) {
-  if (!date) return "No check-in"
-  return new Intl.DateTimeFormat("en-US", {
+  if (!date) return tr("No check-in")
+  return new Intl.DateTimeFormat(uiLocale(), {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -151,12 +155,17 @@ export function formatProgressDate(date: string | null) {
 }
 
 function signed(value: number, suffix = "") {
-  return `${value > 0 ? "+" : ""}${value.toLocaleString("en-US")}${suffix}`
+  return `${value > 0 ? "+" : ""}${value.toLocaleString(uiLocale())}${suffix}`
 }
 
 function comparisonText(value: number, noun: string) {
-  if (value === 0) return `Same ${noun} as the prior 7 days`
-  return `${Math.abs(value)} ${noun} ${value > 0 ? "more" : "fewer"} than the prior 7 days`
+  if (value === 0)
+    return tr("Same {{value0}} as the prior 7 days", { value0: noun })
+  return tr("{{value0}} {{value1}} {{value2}} than the prior 7 days", {
+    value0: Math.abs(value),
+    value1: noun,
+    value2: choice(value > 0 ? "more" : "fewer"),
+  })
 }
 
 function WeekAxis({ days }: { days: ProgressDayView[] }) {
@@ -190,7 +199,9 @@ function NutritionWeekBars({ days }: { days: ProgressDayView[] }) {
     <div
       className="mt-5"
       role="img"
-      aria-label="Seven-day nutrition chart. Orange bars show calories as a percentage of the daily target. Purple dots mark days reaching at least 90 percent of the protein target."
+      aria-label={tr(
+        "Seven-day nutrition chart. Orange bars show calories as a percentage of the daily target. Purple dots mark days reaching at least 90 percent of the protein target."
+      )}
     >
       <div className="grid h-24 grid-cols-7 items-end gap-2 border-b border-border pb-1">
         {days.map((day) => {
@@ -206,8 +217,19 @@ function NutritionWeekBars({ days }: { days: ProgressDayView[] }) {
               className="relative flex h-full items-end justify-center"
               title={
                 isLogged
-                  ? `${day.date}: ${energyDisplay(day.nutrition.calories, energyUnit)} ${energyUnit} and ${Math.round(day.nutrition.protein)} g protein`
-                  : `${day.date}: no food logged`
+                  ? tr(
+                      "{{value0}}: {{value1}} {{value2}} and {{value3}} g protein",
+                      {
+                        value0: day.date,
+                        value1: energyDisplay(
+                          day.nutrition.calories,
+                          energyUnit
+                        ),
+                        value2: energyUnit,
+                        value3: Math.round(day.nutrition.protein),
+                      }
+                    )
+                  : tr("{{value0}}: no food logged", { value0: day.date })
               }
             >
               {proteinHit && (
@@ -233,8 +255,9 @@ function NutritionWeekBars({ days }: { days: ProgressDayView[] }) {
       </div>
       <WeekAxis days={days} />
       <ChartLegend>
-        Orange = calories versus target. Purple dot = protein target reached.
-        Empty days are not counted as zero-calorie days.
+        {tr(
+          "Orange = calories versus target. Purple dot = protein target reached. Empty days are not counted as zero-calorie days."
+        )}
       </ChartLegend>
     </div>
   )
@@ -247,7 +270,9 @@ function TrainingWeekBars({ days }: { days: ProgressDayView[] }) {
     <div
       className="mt-5"
       role="img"
-      aria-label="Seven-day training chart. Purple bar height represents completed sets for each day."
+      aria-label={tr(
+        "Seven-day training chart. Purple bar height represents completed sets for each day."
+      )}
     >
       <div className="grid h-24 grid-cols-7 items-end gap-2 border-b border-border pb-1">
         {days.map((day) => {
@@ -262,8 +287,16 @@ function TrainingWeekBars({ days }: { days: ProgressDayView[] }) {
               className="flex h-full items-end justify-center"
               title={
                 trained
-                  ? `${day.date}: ${day.training.workouts} workout${day.training.workouts === 1 ? "" : "s"}, ${day.training.completedSets} completed sets`
-                  : `${day.date}: no workout logged`
+                  ? tr(
+                      "{{value0}}: {{value1}} workout{{value2}}, {{value3}} completed sets",
+                      {
+                        value0: day.date,
+                        value1: day.training.workouts,
+                        value2: day.training.workouts === 1 ? "" : "s",
+                        value3: day.training.completedSets,
+                      }
+                    )
+                  : tr("{{value0}}: no workout logged", { value0: day.date })
               }
             >
               <span
@@ -283,8 +316,9 @@ function TrainingWeekBars({ days }: { days: ProgressDayView[] }) {
       </div>
       <WeekAxis days={days} />
       <ChartLegend>
-        Bar height compares completed sets within this week. It does not compare
-        weight lifted or exercise difficulty.
+        {tr(
+          "Bar height compares completed sets within this week. It does not compare weight lifted or exercise difficulty."
+        )}
       </ChartLegend>
     </div>
   )
@@ -357,7 +391,7 @@ export function Interpretation({ children }: { children: ReactNode }) {
           aria-hidden="true"
         />
         <div>
-          <h3 className="text-[15px] font-semibold">What to do next</h3>
+          <h3 className="text-[15px] font-semibold">{tr("What to do next")}</h3>
           <p className="mt-1 text-[14px] leading-6 text-muted-foreground">
             {children}
           </p>
@@ -378,7 +412,14 @@ function WeightChart({ summary }: { summary: ProgressSummaryView }) {
           <svg
             viewBox="0 0 320 92"
             role="img"
-            aria-label={`${values.length} body-weight check-ins from ${summary.body.weightPoints[0]?.date} to ${summary.body.weightPoints.at(-1)?.date}`}
+            aria-label={tr(
+              "{{value0}} body-weight check-ins from {{value1}} to {{value2}}",
+              {
+                value0: values.length,
+                value1: summary.body.weightPoints[0]?.date,
+                value2: summary.body.weightPoints.at(-1)?.date,
+              }
+            )}
             className="h-full w-full overflow-visible"
           >
             <defs>
@@ -451,7 +492,7 @@ function WeightChart({ summary }: { summary: ProgressSummaryView }) {
           </svg>
         ) : (
           <div className="flex h-full items-center justify-center text-[13px] text-muted-foreground">
-            Add a second check-in to reveal a trend.
+            {tr("Add a second check-in to reveal a trend.")}
           </div>
         )}
       </div>
@@ -502,31 +543,45 @@ export function BodyProgress({
   )
   const guidance =
     summary.body.weightPoints.length === 0
-      ? "Add a baseline measurement. Progress needs at least two comparable check-ins before it can describe direction."
+      ? tr(
+          "Add a baseline measurement. Progress needs at least two comparable check-ins before it can describe direction."
+        )
       : summary.body.weightPoints.length === 1
-        ? "Add another check-in after several days under similar conditions. One measurement is a baseline, not a trend."
+        ? tr(
+            "Add another check-in after several days under similar conditions. One measurement is a baseline, not a trend."
+          )
         : daysSinceCheckIn != null && daysSinceCheckIn >= 8
-          ? `Your latest check-in is ${daysSinceCheckIn} days old. Add a current measurement before acting on the trend.`
-          : "Keep check-ins under similar conditions and judge the multi-check-in direction, not a single day’s fluctuation."
+          ? tr(
+              "Your latest check-in is {{value0}} days old. Add a current measurement before acting on the trend.",
+              { value0: daysSinceCheckIn }
+            )
+          : tr(
+              "Keep check-ins under similar conditions and judge the multi-check-in direction, not a single day’s fluctuation."
+            )
 
   return (
     <div className="grid gap-5">
       <section
         className="progress-tab-enter app-surface px-4 py-4"
-        aria-label="Body progress"
+        aria-label={tr("Body progress")}
       >
         <MetricHeading
           icon={<Scales size={20} />}
-          title="Weight trend"
-          tooltip="The change uses the oldest and newest of your latest 12 valid weight check-ins. Weekly pace normalizes that change by the number of elapsed days."
+          title={tr("Weight trend")}
+          tooltip={tr(
+            "The change uses the oldest and newest of your latest 12 valid weight check-ins. Weekly pace normalizes that change by the number of elapsed days."
+          )}
         />
         <p className="mt-4 text-[2rem] leading-none font-bold tracking-tight tabular-nums">
           {formatProgressWeight(summary.body.latestWeightKg, unit)}
         </p>
         <p className="mt-2 text-[14px] text-muted-foreground">
           {summary.body.weightDeltaKg == null
-            ? "Add at least two weight check-ins"
-            : `${formatWeightDelta(summary.body.weightDeltaKg, unit)} across ${summary.body.weightTrendDays} days`}
+            ? tr("Add at least two weight check-ins")
+            : tr("{{value0}} across {{value1}} days", {
+                value0: formatWeightDelta(summary.body.weightDeltaKg, unit),
+                value1: summary.body.weightTrendDays,
+              })}
         </p>
         <WeightChart summary={summary} />
       </section>
@@ -534,47 +589,67 @@ export function BodyProgress({
       <section
         className="progress-tab-enter"
         style={{ animationDelay: "60ms" }}
-        aria-label="Body insights"
+        aria-label={tr("Body insights")}
       >
-        <h2 className="native-section-title mb-1">Body insights</h2>
+        <h2 className="native-section-title mb-1">{tr("Body insights")}</h2>
         <div className="border-y border-border">
           <InsightRow
-            label="Weekly pace"
+            label={tr("Weekly pace")}
             value={formatWeightDelta(summary.body.weeklyWeightDeltaKg, unit)}
-            detail="Normalized from your check-in trend"
-            tooltip="This is not a prediction. It is the observed change between your oldest and newest displayed check-ins, divided by elapsed time and expressed per seven days."
+            detail={tr("Normalized from your check-in trend")}
+            tooltip={tr(
+              "This is not a prediction. It is the observed change between your oldest and newest displayed check-ins, divided by elapsed time and expressed per seven days."
+            )}
           />
           <InsightRow
-            label="Body fat"
+            label={tr("Body fat")}
             value={
               summary.body.latestBodyFatPct == null
-                ? "Not logged"
+                ? tr("Not logged")
                 : `${summary.body.latestBodyFatPct.toFixed(1)}%`
             }
             detail={
               summary.body.bodyFatDeltaPct == null
-                ? "Two estimates are needed for change"
-                : `${signed(Number(summary.body.bodyFatDeltaPct.toFixed(1)), " pts")} across recorded estimates`
+                ? tr("Two estimates are needed for change")
+                : tr("{{value0}} across recorded estimates", {
+                    value0: signed(
+                      Number(summary.body.bodyFatDeltaPct.toFixed(1)),
+                      " pts"
+                    ),
+                  })
             }
-            tooltip="Consumer body-fat estimates can vary with hydration and device. Use the same method and focus on the longer-term direction."
+            tooltip={tr(
+              "Consumer body-fat estimates can vary with hydration and device. Use the same method and focus on the longer-term direction."
+            )}
           />
           <InsightRow
-            label="Waist"
+            label={tr("Waist")}
             value={
               summary.body.latestWaistCm == null
-                ? "Not logged"
+                ? tr("Not logged")
                 : `${summary.body.latestWaistCm.toFixed(1)} cm`
             }
             detail={
               summary.body.waistDeltaCm == null
-                ? "Two measurements are needed for change"
-                : `${signed(Number(summary.body.waistDeltaCm.toFixed(1)), " cm")} across recorded measurements`
+                ? tr("Two measurements are needed for change")
+                : tr("{{value0}} across recorded measurements", {
+                    value0: signed(
+                      Number(summary.body.waistDeltaCm.toFixed(1)),
+                      " cm"
+                    ),
+                  })
             }
-            tooltip="Measure at the same anatomical point, posture, and time of day. Small differences can be measurement noise."
+            tooltip={tr(
+              "Measure at the same anatomical point, posture, and time of day. Small differences can be measurement noise."
+            )}
           />
           <InsightRow
-            label="Latest check-in"
-            value={daysSinceCheckIn == null ? "—" : `${daysSinceCheckIn}d ago`}
+            label={tr("Latest check-in")}
+            value={
+              daysSinceCheckIn == null
+                ? "—"
+                : tr("{{value0}}d ago", { value0: daysSinceCheckIn })
+            }
             detail={formatProgressDate(summary.body.latestCheckInDate)}
           />
         </div>
@@ -587,9 +662,11 @@ export function BodyProgress({
         <section
           className="progress-tab-enter"
           style={{ animationDelay: "90ms" }}
-          aria-label="Body composition"
+          aria-label={tr("Body composition")}
         >
-          <h2 className="native-section-title mb-1">Body composition</h2>
+          <h2 className="native-section-title mb-1">
+            {tr("Body composition")}
+          </h2>
           <div className="border-y border-border">
             {composition.map((measurement) => (
               <InsightRow
@@ -603,8 +680,12 @@ export function BodyProgress({
                 detail={formatMeasurementDelta(measurement, unit)}
                 tooltip={
                   measurement.key === "basalMetabolicRateKcal"
-                    ? "What your body burns at rest, as your scale estimates it. A useful sanity check on a calorie target, not a number to eat to."
-                    : "Scale estimates of composition move with hydration and the time of day. Read the direction over weeks, not the figure on one morning."
+                    ? tr(
+                        "What your body burns at rest, as your scale estimates it. A useful sanity check on a calorie target, not a number to eat to."
+                      )
+                    : tr(
+                        "Scale estimates of composition move with hydration and the time of day. Read the direction over weeks, not the figure on one morning."
+                      )
                 }
               />
             ))}
@@ -616,9 +697,9 @@ export function BodyProgress({
         <section
           className="progress-tab-enter"
           style={{ animationDelay: "100ms" }}
-          aria-label="Tape measurements"
+          aria-label={tr("Tape measurements")}
         >
-          <h2 className="native-section-title mb-1">Measurements</h2>
+          <h2 className="native-section-title mb-1">{tr("Measurements")}</h2>
           <div className="border-y border-border">
             {tape.map((measurement) => (
               <InsightRow
@@ -639,16 +720,18 @@ export function BodyProgress({
       <Interpretation>{guidance}</Interpretation>
 
       <PrimaryButton onClick={onAdd} className="w-full">
-        Add measurement
+        {tr("Add measurement")}
       </PrimaryButton>
 
       {recentMeasurements.length > 0 && (
         <section
           className="progress-tab-enter"
           style={{ animationDelay: "160ms" }}
-          aria-label="Recent body check-ins"
+          aria-label={tr("Recent body check-ins")}
         >
-          <h2 className="native-section-title mb-1">Recent check-ins</h2>
+          <h2 className="native-section-title mb-1">
+            {tr("Recent check-ins")}
+          </h2>
           <div className="border-y border-border">
             {recentMeasurements.map((measurement) => (
               <div
@@ -661,8 +744,10 @@ export function BodyProgress({
                   </p>
                   <p className="text-[13px] text-muted-foreground">
                     {measurement.bodyFatPct != null
-                      ? `${measurement.bodyFatPct.toFixed(1)}% body fat`
-                      : "Weight check-in"}
+                      ? tr("{{value0}}% body fat", {
+                          value0: measurement.bodyFatPct.toFixed(1),
+                        })
+                      : tr("Weight check-in")}
                   </p>
                 </div>
                 <p className="text-[15px] font-semibold tabular-nums">
@@ -692,33 +777,65 @@ export function NutritionProgress({
   const logged = summary.nutrition.loggedDays
   const guidance =
     logged < 4
-      ? `Only ${logged} of 7 days contain food logs. Log at least four representative days before using the averages to change your plan.`
+      ? tr(
+          "Only {{value0}} of 7 days contain food logs. Log at least four representative days before using the averages to change your plan.",
+          { value0: logged }
+        )
       : summary.nutrition.proteinTargetDays < Math.ceil(logged / 2)
-        ? `Protein reached at least 90% of target on ${summary.nutrition.proteinTargetDays} of ${logged} logged days. Plan a reliable protein source earlier in the day.`
+        ? tr(
+            "Protein reached at least 90% of target on {{value0}} of {{value1}} logged days. Plan a reliable protein source earlier in the day.",
+            { value0: summary.nutrition.proteinTargetDays, value1: logged }
+          )
         : summary.nutrition.calorieTargetDays < Math.ceil(logged / 2)
-          ? `Calories landed within 80–120% of target on ${summary.nutrition.calorieTargetDays} of ${logged} logged days. Review the outlier days before changing the target.`
-          : "Logging coverage and target consistency are strong enough to review alongside your body trend. Keep the plan stable unless the longer-term outcome disagrees."
+          ? tr(
+              "Calories landed within 80–120% of target on {{value0}} of {{value1}} logged days. Review the outlier days before changing the target.",
+              { value0: summary.nutrition.calorieTargetDays, value1: logged }
+            )
+          : tr(
+              "Logging coverage and target consistency are strong enough to review alongside your body trend. Keep the plan stable unless the longer-term outcome disagrees."
+            )
 
   return (
     <div className="grid gap-5">
       <section
         className="progress-tab-enter app-surface px-4 py-4"
-        aria-label="Nutrition progress"
+        aria-label={tr("Nutrition progress")}
       >
         <MetricHeading
           icon={<ForkKnife size={20} />}
-          title="Average intake"
-          tooltip="Averages include only days with at least one food entry. Unlogged days are excluded rather than treated as zero intake."
+          title={tr("Average intake")}
+          tooltip={tr(
+            "Averages include only days with at least one food entry. Unlogged days are excluded rather than treated as zero intake."
+          )}
         />
         <p className="mt-4 text-[2rem] leading-none font-bold tracking-tight tabular-nums">
           {logged > 0
-            ? `${energyDisplay(summary.nutrition.averageCalories, energyUnit).toLocaleString("en-US")} ${energyUnit}`
-            : "No data"}
+            ? tr("{{value0}} {{value1}}", {
+                value0: energyDisplay(
+                  summary.nutrition.averageCalories,
+                  energyUnit
+                ).toLocaleString(uiLocale()),
+                value1: energyUnit,
+              })
+            : tr("No data")}
         </p>
         <p className="mt-2 text-[14px] text-muted-foreground">
           {summary.nutrition.calorieDeltaFromTarget == null
-            ? `Daily target ${energyDisplay(calorieTarget, energyUnit).toLocaleString("en-US")} ${energyUnit}`
-            : `${signed(energyDisplay(summary.nutrition.calorieDeltaFromTarget, energyUnit), ` ${energyUnit}`)} versus target on logged days`}
+            ? tr("Daily target {{value0}} {{value1}}", {
+                value0: energyDisplay(calorieTarget, energyUnit).toLocaleString(
+                  uiLocale()
+                ),
+                value1: energyUnit,
+              })
+            : tr("{{value0}} versus target on logged days", {
+                value0: signed(
+                  energyDisplay(
+                    summary.nutrition.calorieDeltaFromTarget,
+                    energyUnit
+                  ),
+                  ` ${energyUnit}`
+                ),
+              })}
         </p>
         <NutritionWeekBars days={summary.days} />
       </section>
@@ -726,42 +843,52 @@ export function NutritionProgress({
       <section
         className="progress-tab-enter"
         style={{ animationDelay: "60ms" }}
-        aria-label="Nutrition insights"
+        aria-label={tr("Nutrition insights")}
       >
-        <h2 className="native-section-title mb-1">Nutrition insights</h2>
+        <h2 className="native-section-title mb-1">
+          {tr("Nutrition insights")}
+        </h2>
         <div className="border-y border-border">
           <InsightRow
-            label="Logging coverage"
-            value={`${logged}/7 days`}
+            label={tr("Logging coverage")}
+            value={tr("{{value0}}/7 days", { value0: logged })}
             detail={
               logged >= 4
-                ? "Enough coverage for a directional weekly view"
-                : "Low coverage; averages may not represent the week"
+                ? tr("Enough coverage for a directional weekly view")
+                : tr("Low coverage; averages may not represent the week")
             }
-            tooltip="Four logged days is used here as a practical confidence cue, not a scientific threshold. Include typical weekdays and weekends when possible."
+            tooltip={tr(
+              "Four logged days is used here as a practical confidence cue, not a scientific threshold. Include typical weekdays and weekends when possible."
+            )}
           />
           <InsightRow
-            label="Calorie consistency"
+            label={tr("Calorie consistency")}
             value={`${summary.nutrition.calorieTargetDays}/${Math.max(1, logged)}`}
-            detail="Logged days within 80–120% of target"
-            tooltip="The range is deliberately broad to identify major outliers. It is not a pass/fail judgment and does not replace goal calibration."
+            detail={tr("Logged days within 80–120% of target")}
+            tooltip={tr(
+              "The range is deliberately broad to identify major outliers. It is not a pass/fail judgment and does not replace goal calibration."
+            )}
           />
           <InsightRow
-            label="Protein consistency"
+            label={tr("Protein consistency")}
             value={`${summary.nutrition.proteinTargetDays}/${Math.max(1, logged)}`}
-            detail={`Days reaching at least 90% of ${proteinTarget} g`}
-            tooltip="A day counts when recorded protein reaches at least 90% of the current target. Unlogged days are excluded."
+            detail={tr("Days reaching at least 90% of {{value0}} g", {
+              value0: proteinTarget,
+            })}
+            tooltip={tr(
+              "A day counts when recorded protein reaches at least 90% of the current target. Unlogged days are excluded."
+            )}
           />
           <InsightRow
-            label="Average macros"
+            label={tr("Average macros")}
             value={`${summary.nutrition.averageProtein}P · ${summary.nutrition.averageCarbs}C · ${summary.nutrition.averageFat}F`}
-            detail="Grams per logged day"
+            detail={tr("Grams per logged day")}
           />
           <InsightRow
-            label="Prior-week change"
+            label={tr("Prior-week change")}
             value={
               summary.nutrition.averageCalorieChange == null
-                ? "No comparison"
+                ? tr("No comparison")
                 : signed(
                     energyDisplay(
                       summary.nutrition.averageCalorieChange,
@@ -772,17 +899,29 @@ export function NutritionProgress({
             }
             detail={
               summary.nutrition.previousAverageCalories == null
-                ? "No food was logged in the prior 7 days"
-                : `Prior average ${energyDisplay(summary.nutrition.previousAverageCalories, energyUnit).toLocaleString("en-US")} ${energyUnit} across ${summary.nutrition.previousLoggedDays} logged days`
+                ? tr("No food was logged in the prior 7 days")
+                : tr(
+                    "Prior average {{value0}} {{value1}} across {{value2}} logged days",
+                    {
+                      value0: energyDisplay(
+                        summary.nutrition.previousAverageCalories,
+                        energyUnit
+                      ).toLocaleString(uiLocale()),
+                      value1: energyUnit,
+                      value2: summary.nutrition.previousLoggedDays,
+                    }
+                  )
             }
-            tooltip="This compares average calories per logged day. Large changes can reflect different logging coverage, so check the day counts before interpreting it."
+            tooltip={tr(
+              "This compares average calories per logged day. Large changes can reflect different logging coverage, so check the day counts before interpreting it."
+            )}
           />
         </div>
       </section>
 
       <Interpretation>{guidance}</Interpretation>
       <PrimaryButton onClick={onOpenDiary} className="w-full">
-        Open nutrition diary
+        {tr("Open nutrition diary")}
       </PrimaryButton>
     </div>
   )
@@ -797,26 +936,39 @@ export function TrainingProgress({
 }) {
   const guidance =
     summary.training.workouts === 0
-      ? "No workout was completed in the last 7 days. Start the next planned session; a single completed workout is more useful than an arbitrary activity score."
+      ? tr(
+          "No workout was completed in the last 7 days. Start the next planned session; a single completed workout is more useful than an arbitrary activity score."
+        )
       : summary.training.activeDays === 1
-        ? "Training is concentrated on one day. If your plan calls for more sessions, schedule the next one now rather than chasing extra sets today."
+        ? tr(
+            "Training is concentrated on one day. If your plan calls for more sessions, schedule the next one now rather than chasing extra sets today."
+          )
         : summary.training.completedSetChange > 6
-          ? "Completed-set volume rose meaningfully from the prior week. Keep recovery and exercise quality stable before increasing it again."
-          : "Use completed sets and active days to check plan execution. Exercise difficulty and load still matter, so review session history before changing volume."
+          ? tr(
+              "Completed-set volume rose meaningfully from the prior week. Keep recovery and exercise quality stable before increasing it again."
+            )
+          : tr(
+              "Use completed sets and active days to check plan execution. Exercise difficulty and load still matter, so review session history before changing volume."
+            )
 
   return (
     <div className="grid gap-5">
       <section
         className="progress-tab-enter app-surface px-4 py-4"
-        aria-label="Training progress"
+        aria-label={tr("Training progress")}
       >
         <MetricHeading
           icon={<Barbell size={20} />}
-          title="Completed-set volume"
-          tooltip="This counts sets marked complete during the last 7 days. It is a simple consistency proxy and does not account for weight, reps, proximity to failure, or exercise difficulty."
+          title={tr("Completed-set volume")}
+          tooltip={tr(
+            "This counts sets marked complete during the last 7 days. It is a simple consistency proxy and does not account for weight, reps, proximity to failure, or exercise difficulty."
+          )}
         />
         <p className="mt-4 text-[2rem] leading-none font-bold tracking-tight tabular-nums">
-          {summary.training.completedSets} sets
+          <Message
+            text={"{{value0}} sets"}
+            values={{ value0: summary.training.completedSets }}
+          />
         </p>
         <p className="mt-2 text-[14px] text-muted-foreground">
           {comparisonText(summary.training.completedSetChange, "set")}
@@ -827,39 +979,45 @@ export function TrainingProgress({
       <section
         className="progress-tab-enter"
         style={{ animationDelay: "60ms" }}
-        aria-label="Training insights"
+        aria-label={tr("Training insights")}
       >
-        <h2 className="native-section-title mb-1">Training insights</h2>
+        <h2 className="native-section-title mb-1">{tr("Training insights")}</h2>
         <div className="border-y border-border">
           <InsightRow
-            label="Sessions"
+            label={tr("Sessions")}
             value={`${summary.training.workouts}`}
             detail={comparisonText(summary.training.workoutChange, "session")}
           />
           <InsightRow
-            label="Active days"
+            label={tr("Active days")}
             value={`${summary.training.activeDays}/7`}
-            detail="Calendar days with at least one completed workout"
-            tooltip="Multiple sessions on one day count as one active day. This helps distinguish training frequency from session count."
+            detail={tr("Calendar days with at least one completed workout")}
+            tooltip={tr(
+              "Multiple sessions on one day count as one active day. This helps distinguish training frequency from session count."
+            )}
           />
           <InsightRow
-            label="Training time"
+            label={tr("Training time")}
             value={`${summary.training.durationMinutes} min`}
-            detail="Total recorded session duration"
-            tooltip="This is elapsed workout time, not time under tension. Pauses and incomplete timer data can affect it."
+            detail={tr("Total recorded session duration")}
+            tooltip={tr(
+              "This is elapsed workout time, not time under tension. Pauses and incomplete timer data can affect it."
+            )}
           />
           <InsightRow
-            label="Sets per session"
+            label={tr("Sets per session")}
             value={`${summary.training.averageSetsPerWorkout}`}
-            detail="Completed sets divided by recorded sessions"
-            tooltip="Use this to spot unusually short or dense weeks. It does not indicate whether those sets were appropriate for a specific muscle group."
+            detail={tr("Completed sets divided by recorded sessions")}
+            tooltip={tr(
+              "Use this to spot unusually short or dense weeks. It does not indicate whether those sets were appropriate for a specific muscle group."
+            )}
           />
         </div>
       </section>
 
       <Interpretation>{guidance}</Interpretation>
       <PrimaryButton onClick={onOpenTraining} className="w-full">
-        Open training
+        {tr("Open training")}
       </PrimaryButton>
     </div>
   )
@@ -867,7 +1025,11 @@ export function TrainingProgress({
 
 export function ProgressLoading() {
   return (
-    <div className="grid gap-4" aria-busy="true" aria-label="Loading progress">
+    <div
+      className="grid gap-4"
+      aria-busy="true"
+      aria-label={tr("Loading progress")}
+    >
       <div className="app-surface h-64 animate-pulse bg-muted/50" />
       <div className="h-52 animate-pulse border-y border-border bg-muted/30" />
     </div>

@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 import { Capacitor } from "@capacitor/core"
 import { Haptics, NotificationType } from "@capacitor/haptics"
 import { LocalNotifications } from "@capacitor/local-notifications"
@@ -28,8 +29,8 @@ export async function scheduleRestAlert(endAt: number) {
     notifications: [
       {
         id: REST_NOTIFICATION_ID,
-        title: "Rest complete",
-        body: "Next set.",
+        title: tr("Rest complete"),
+        body: tr("Next set."),
         schedule: { at: new Date(endAt), allowWhileIdle: true },
         // "default" is an iOS token. Android expects a res/raw filename and
         // ignores the field entirely on API 26+, where the channel owns sound.

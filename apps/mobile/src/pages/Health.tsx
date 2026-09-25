@@ -1,3 +1,4 @@
+import { Message, tr, uiLocale } from "@repo/ui/i18n"
 import { PageBarActions } from "@/components/page-bar-actions"
 import { type CSSProperties, useState } from "react"
 import { HealthSleepStrainOverview } from "@/components/health-sleep-strain-overview"
@@ -67,8 +68,8 @@ const BAND_COPY: Record<string, string> = {
   excellent: "excellent",
   solid: "solid",
   fair: "fair",
-  poor: "needs work",
-  unknown: "no reading",
+  poor: tr("needs work"),
+  unknown: tr("no reading"),
 }
 
 export default function Health() {
@@ -106,7 +107,7 @@ export default function Health() {
       {scored !== null && <ReactiveOrbField className="health-hero-wash" />}
       <main className="app-page pb-28">
         <header className="app-header flex items-center justify-between gap-3">
-          <h1 className="app-title">Health</h1>
+          <h1 className="app-title">{tr("Health")}</h1>
           {/* The pair sits tight enough to read as one control cluster; two
               free-floating circles at the usual header gap looked like the
               second one had wandered in from another screen. */}
@@ -119,7 +120,7 @@ export default function Health() {
               <button
                 type="button"
                 onClick={() => setLogOpen(true)}
-                aria-label="Log a custom metric"
+                aria-label={tr("Log a custom metric")}
                 className="app-translucent motion-tactile inline-flex size-10 shrink-0 items-center justify-center rounded-full"
               >
                 <Plus size={17} weight="bold" />
@@ -127,7 +128,7 @@ export default function Health() {
               <button
                 type="button"
                 onClick={() => setEditorOpen(true)}
-                aria-label="Correct a reading"
+                aria-label={tr("Correct a reading")}
                 className="app-translucent motion-tactile inline-flex size-10 shrink-0 items-center justify-center rounded-full"
               >
                 <PencilSimple size={17} weight="bold" />
@@ -135,7 +136,7 @@ export default function Health() {
               <button
                 type="button"
                 onClick={() => setDialsOpen(true)}
-                aria-label="Choose which dials to show"
+                aria-label={tr("Choose which dials to show")}
                 className="app-translucent motion-tactile inline-flex size-10 shrink-0 items-center justify-center rounded-full"
               >
                 <SlidersHorizontal size={17} weight="bold" />
@@ -149,17 +150,23 @@ export default function Health() {
         ) : !data || data.score === null ? (
           <EmptyState
             icon={HeartbeatIcon}
-            title="Nothing to read yet"
+            title={tr("Nothing to read yet")}
             detail={
               isHealthSyncSupportedPlatform()
-                ? "Connect Apple Health or Health Connect and give it a few days. The scores need about a week of readings before they mean anything."
-                : "This page reads the health store on your phone. Open OneRep on iOS or Android with health sync on and the numbers will follow."
+                ? tr(
+                    "Connect Apple Health or Health Connect and give it a few days. The scores need about a week of readings before they mean anything."
+                  )
+                : tr(
+                    "This page reads the health store on your phone. Open OneRep on iOS or Android with health sync on and the numbers will follow."
+                  )
             }
             action={
               <PrimaryButton
-                onClick={() => navigate("/settings?view=health", { motion: "forward" })}
+                onClick={() =>
+                  navigate("/settings?view=health", { motion: "forward" })
+                }
               >
-                Open health settings
+                {tr("Open health settings")}
               </PrimaryButton>
             }
           />
@@ -181,17 +188,20 @@ export default function Health() {
 
       {dialsOpen && (
         <MobileSheet
-          ariaLabel="Choose which dials to show"
+          ariaLabel={tr("Choose which dials to show")}
           onClose={() => setDialsOpen(false)}
           overlayClassName="bg-black/45"
           panelClassName="mx-auto w-full max-w-md"
         >
           <div className="px-1 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
             <div className="px-4 pb-1">
-              <h2 className="text-[19px] font-bold tracking-tight">Dials</h2>
+              <h2 className="text-[19px] font-bold tracking-tight">
+                {tr("Dials")}
+              </h2>
               <p className="mt-1 text-[13px] leading-5 text-muted-foreground">
-                Which areas sit at the top of this page. Switching one off hides
-                the dial; its charts stay in Trends.
+                {tr(
+                  "Which areas sit at the top of this page. Switching one off hides the dial; its charts stay in Trends."
+                )}
               </p>
             </div>
             <MetricToggleList
@@ -202,7 +212,7 @@ export default function Health() {
               groups={[
                 {
                   key: "dials",
-                  label: "Show on Health",
+                  label: tr("Show on Health"),
                   items: HEALTH_DIALS.map((dial) => ({
                     key: dial.key,
                     label: dial.label,
@@ -245,7 +255,7 @@ function HealthHub({ data }: { data: Dashboard }) {
   const weightUnit = useWeightUnit()
   const weightCaption =
     latestWeightKg == null
-      ? "nothing recorded"
+      ? tr("nothing recorded")
       : formatWeight(latestWeightKg, weightUnit)
   const selection = resolveHealthDialSelection(
     (preferences as { healthSync?: { dials?: Record<string, boolean> } } | null)
@@ -270,39 +280,46 @@ function HealthHub({ data }: { data: Dashboard }) {
       score: data.recoveryScore,
       detail:
         recovery?.status === "ready"
-          ? "nothing in your way"
+          ? tr("nothing in your way")
           : recovery?.status === "steady"
-            ? "hold something back"
+            ? tr("hold something back")
             : recovery?.status === "compromised"
-              ? "back off today"
-              : "needs a week of data",
+              ? tr("back off today")
+              : tr("needs a week of data"),
     },
     sleep: {
       native: recovery?.sleep != null,
       score: sleep?.score ?? null,
       detail: recovery?.sleep
-        ? `${formatHours(recovery.sleep.recent)} a night`
-        : "nothing recorded",
+        ? tr("{{value0}} a night", {
+            value0: formatHours(recovery.sleep.recent),
+          })
+        : tr("nothing recorded"),
     },
     activity: {
       native: exercise?.value != null,
       score: exercise?.score ?? null,
       detail:
         exercise?.value == null
-          ? "nothing recorded"
-          : `${Math.round(exercise.value)} of ${exercise.target} minutes`,
+          ? tr("nothing recorded")
+          : tr("{{value0}} of {{value1}} minutes", {
+              value0: Math.round(exercise.value),
+              value1: exercise.target,
+            }),
     },
     heart: {
       native: recovery?.restingHeartRate != null,
       score: cardio?.score ?? null,
       detail: recovery?.restingHeartRate
-        ? `${Math.round(recovery.restingHeartRate.recent)}bpm resting`
-        : "needs a week of data",
+        ? tr("{{value0}}bpm resting", {
+            value0: Math.round(recovery.restingHeartRate.recent),
+          })
+        : tr("needs a week of data"),
     },
     body: {
       native: latestWeightKg != null,
       score: null,
-      detail: latestWeightKg == null ? "nothing recorded" : weightCaption,
+      detail: latestWeightKg == null ? tr("nothing recorded") : weightCaption,
     },
   }
 
@@ -353,13 +370,19 @@ function HealthHub({ data }: { data: Dashboard }) {
             {data.score}
           </span>
           <span className="text-[1.05rem] font-semibold text-muted-foreground">
-            {BAND_COPY[data.band] ?? "no reading"}
+            {BAND_COPY[data.band] ?? tr("no reading")}
           </span>
         </p>
         <p className="mt-2.5 text-[13px] text-muted-foreground tabular-nums">
-          {data.measuredDays} of {data.windowDays} days measured ·{" "}
-          {data.pillars.filter((pillar) => pillar.score !== null).length}{" "}
-          signals
+          <Message
+            text={"{{value0}} of {{value1}} days measured · {{value2}} signals"}
+            values={{
+              value0: data.measuredDays,
+              value1: data.windowDays,
+              value2: data.pillars.filter((pillar) => pillar.score !== null)
+                .length,
+            }}
+          />
         </p>
 
         {/*
@@ -401,7 +424,7 @@ function HealthHub({ data }: { data: Dashboard }) {
         <section
           className="progress-tab-enter border-t border-border px-1 py-4"
           style={{ animationDelay: "80ms" }}
-          aria-label="Summary"
+          aria-label={tr("Summary")}
         >
           <p className="text-[15px] leading-5 font-semibold">
             {data.narrative.headline}
@@ -413,8 +436,8 @@ function HealthHub({ data }: { data: Dashboard }) {
       )}
 
       {data.recommendations.length > 0 && (
-        <section className="mt-5" aria-label="How to move it">
-          <p className="app-section-title mb-3">How to move it</p>
+        <section className="mt-5" aria-label={tr("How to move it")}>
+          <p className="app-section-title mb-3">{tr("How to move it")}</p>
           {/* Centred and wrapping rather than a grid: there are two to four of
               these depending on what is measured, and a four-column grid
               holding three cards leaves a hole on the right. The cards keep
@@ -434,7 +457,7 @@ function HealthHub({ data }: { data: Dashboard }) {
                 <ActionMotif variant={index} />
                 <p className="flex items-baseline gap-1 text-[2rem] leading-none font-extrabold tracking-tight tabular-nums">
                   {recommendation.amount > 0 && "+"}
-                  {recommendation.amount.toLocaleString()}
+                  {recommendation.amount.toLocaleString(uiLocale())}
                   <span className="text-[0.95rem] font-bold text-muted-foreground">
                     {recommendation.unit}
                   </span>
@@ -444,7 +467,10 @@ function HealthHub({ data }: { data: Dashboard }) {
                 </p>
                 {recommendation.potentialPoints > 0 && (
                   <p className="mt-3 text-[11px] font-semibold text-muted-foreground tabular-nums">
-                    +{recommendation.potentialPoints} to score
+                    <Message
+                      text={"+{{value0}} to score"}
+                      values={{ value0: recommendation.potentialPoints }}
+                    />
                   </p>
                 )}
               </li>
@@ -459,7 +485,7 @@ function HealthHub({ data }: { data: Dashboard }) {
       <TrackSomethingNew
         className="mt-5"
         tab="body"
-        detail="A metric of your own, filed under the dial it belongs to"
+        detail={tr("A metric of your own, filed under the dial it belongs to")}
       />
 
       <button
@@ -469,12 +495,14 @@ function HealthHub({ data }: { data: Dashboard }) {
           navigate("/health/trends", { motion: "forward" })
         }}
         className="flex min-h-14 w-full items-center justify-between gap-3 border-b border-border px-1 py-3.5 text-left transition-colors active:bg-muted/45"
-        aria-label="Open trends and history"
+        aria-label={tr("Open trends and history")}
       >
         <div className="min-w-0">
-          <p className="text-[14px] font-semibold">Trends and history</p>
+          <p className="text-[14px] font-semibold">
+            {tr("Trends and history")}
+          </p>
           <p className="mt-0.5 text-[13px] leading-5 text-muted-foreground">
-            Every signal by week, month or year
+            {tr("Every signal by week, month or year")}
           </p>
         </div>
         <CaretRight

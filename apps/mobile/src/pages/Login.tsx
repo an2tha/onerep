@@ -1,3 +1,4 @@
+import { Message, tr, translateError } from "@repo/ui/i18n"
 import { useEffect, useRef, useState, type FormEvent } from "react"
 import {
   AUTH_CARD_CLASS,
@@ -38,7 +39,10 @@ const INPUT_CLASS = "native-input disabled:opacity-60"
 const AUTH_ACTION_TIMEOUT_MS = 20_000
 
 function authActionTimeoutMessage(label: string) {
-  return `${label} is taking too long. Check your connection and try again.`
+  return tr(
+    "{{value0}} is taking too long. Check your connection and try again.",
+    { value0: label }
+  )
 }
 
 async function withAuthActionTimeout<T>(label: string, action: Promise<T>) {
@@ -64,10 +68,10 @@ function AuthRedirectFallback() {
       <section aria-labelledby="auth-redirect-title">
         <div className="mb-6 h-5 w-5 animate-spin rounded-full border-2 border-border border-t-foreground" />
         <h1 id="auth-redirect-title" className="app-title">
-          Opening OneRep
+          {tr("Opening OneRep")}
         </h1>
         <p className="native-supporting mt-2">
-          Your sign-in is ready. Sending you back to where you left off.
+          {tr("Your sign-in is ready. Sending you back to where you left off.")}
         </p>
       </section>
     </AuthLayout>
@@ -159,7 +163,7 @@ export default function Login() {
     if (convexAuth.isAuthenticated) {
       navigate(nextPath, { replace: true })
     } else {
-      setMessage("Finishing your secure sign-in…")
+      setMessage(tr("Finishing your secure sign-in…"))
     }
     return true
   }
@@ -169,13 +173,13 @@ export default function Login() {
     hapticSelection()
     setModeDirection(nextMode === "signup" ? "forward" : "back")
     setMode(nextMode)
-    setError(undefined)
+    setError(translateError(undefined))
     setMessage(undefined)
     setShowPassword(false)
   }
 
   function handlePasswordReset() {
-    setError(undefined)
+    setError(translateError(undefined))
     setMessage(undefined)
     const trimmed = email.trim()
     navigate(
@@ -189,11 +193,15 @@ export default function Login() {
   async function handleGoogleSignIn() {
     if (redirectIfSignedIn()) return
 
-    setError(undefined)
+    setError(translateError(undefined))
     setMessage(undefined)
     if (mode === "signup" && !legalAccepted) {
       setError(
-        `Confirm that you are at least ${MINIMUM_AGE} and accept the Terms`
+        translateError(
+          tr("Confirm that you are at least {{value0}} and accept the Terms", {
+            value0: MINIMUM_AGE,
+          })
+        )
       )
       return
     }
@@ -220,14 +228,16 @@ export default function Login() {
         })
       )
       if (error) {
-        setError(betterAuthErrorMessage(error, "Google sign-in failed"))
+        setError(
+          translateError(betterAuthErrorMessage(error, "Google sign-in failed"))
+        )
         return
       }
 
       if (native) {
         const url = (data as { url?: string } | null)?.url
         if (!url) {
-          setError("Google sign-in failed")
+          setError(translateError(tr("Google sign-in failed")))
           return
         }
         await openNativeOAuth(url)
@@ -235,13 +245,15 @@ export default function Login() {
 
       // The browser is on its way to Google; keep the button busy so the page
       // does not flash back to an idle state before it unloads.
-      setMessage("Opening Google…")
+      setMessage(tr("Opening Google…"))
       return
     } catch (error) {
       setError(
-        betterAuthErrorMessage(
-          error,
-          "Could not reach Google. Check your connection and try again."
+        translateError(
+          betterAuthErrorMessage(
+            error,
+            "Could not reach Google. Check your connection and try again."
+          )
         )
       )
     } finally {
@@ -253,11 +265,15 @@ export default function Login() {
   async function handleAppleSignIn() {
     if (redirectIfSignedIn()) return
 
-    setError(undefined)
+    setError(translateError(undefined))
     setMessage(undefined)
     if (mode === "signup" && !legalAccepted) {
       setError(
-        `Confirm that you are at least ${MINIMUM_AGE} and accept the Terms`
+        translateError(
+          tr("Confirm that you are at least {{value0}} and accept the Terms", {
+            value0: MINIMUM_AGE,
+          })
+        )
       )
       return
     }
@@ -281,26 +297,30 @@ export default function Login() {
         })
       )
       if (error) {
-        setError(betterAuthErrorMessage(error, "Apple sign-in failed"))
+        setError(
+          translateError(betterAuthErrorMessage(error, "Apple sign-in failed"))
+        )
         return
       }
 
       if (native) {
         const url = (data as { url?: string } | null)?.url
         if (!url) {
-          setError("Apple sign-in failed")
+          setError(translateError(tr("Apple sign-in failed")))
           return
         }
         await openNativeOAuth(url)
       }
 
-      setMessage("Opening Apple…")
+      setMessage(tr("Opening Apple…"))
       return
     } catch (error) {
       setError(
-        betterAuthErrorMessage(
-          error,
-          "Could not reach Apple. Check your connection and try again."
+        translateError(
+          betterAuthErrorMessage(
+            error,
+            "Could not reach Apple. Check your connection and try again."
+          )
         )
       )
     } finally {
@@ -312,11 +332,15 @@ export default function Login() {
   async function handleOidcSignIn() {
     if (redirectIfSignedIn()) return
 
-    setError(undefined)
+    setError(translateError(undefined))
     setMessage(undefined)
     if (mode === "signup" && !legalAccepted) {
       setError(
-        `Confirm that you are at least ${MINIMUM_AGE} and accept the Terms`
+        translateError(
+          tr("Confirm that you are at least {{value0}} and accept the Terms", {
+            value0: MINIMUM_AGE,
+          })
+        )
       )
       return
     }
@@ -340,14 +364,25 @@ export default function Login() {
         })
       )
       if (error) {
-        setError(betterAuthErrorMessage(error, `${oidcName} sign-in failed`))
+        setError(
+          translateError(
+            betterAuthErrorMessage(
+              error,
+              tr("{{value0}} sign-in failed", { value0: oidcName })
+            )
+          )
+        )
         return
       }
 
       if (native) {
         const url = (data as { url?: string } | null)?.url
         if (!url) {
-          setError(`${oidcName} sign-in failed`)
+          setError(
+            translateError(
+              tr("{{value0}} sign-in failed", { value0: oidcName })
+            )
+          )
           return
         }
         await openNativeOAuth(url)
@@ -355,13 +390,18 @@ export default function Login() {
 
       // Same as Google: the browser is leaving for the identity provider, so
       // keep the button busy until the page unloads.
-      setMessage(`Opening ${oidcName}…`)
+      setMessage(tr("Opening {{value0}}…", { value0: oidcName }))
       return
     } catch (error) {
       setError(
-        betterAuthErrorMessage(
-          error,
-          `Could not reach ${oidcName}. Check your connection and try again.`
+        translateError(
+          betterAuthErrorMessage(
+            error,
+            tr(
+              "Could not reach {{value0}}. Check your connection and try again.",
+              { value0: oidcName }
+            )
+          )
         )
       )
     } finally {
@@ -374,16 +414,20 @@ export default function Login() {
     event.preventDefault()
     if (redirectIfSignedIn()) return
 
-    setError(undefined)
+    setError(translateError(undefined))
     setMessage(undefined)
     const trimmedEmail = email.trim()
     if (!trimmedEmail) {
-      setError("Enter your email")
+      setError(translateError(tr("Enter your email")))
       return
     }
     if (mode === "signup" && !legalAccepted) {
       setError(
-        `Confirm that you are at least ${MINIMUM_AGE} and accept the Terms`
+        translateError(
+          tr("Confirm that you are at least {{value0}} and accept the Terms", {
+            value0: MINIMUM_AGE,
+          })
+        )
       )
       return
     }
@@ -409,12 +453,14 @@ export default function Login() {
             navigate("/verify-email-required", { replace: true })
             return
           }
-          setError(betterAuthErrorMessage(error, "Sign in failed"))
+          setError(
+            translateError(betterAuthErrorMessage(error, "Sign in failed"))
+          )
           return
         }
 
         captureFeatureUsage("user_signed_in", { method: "email" })
-        setMessage("Sign-in accepted. Opening OneRep…")
+        setMessage(tr("Sign-in accepted. Opening OneRep…"))
         return
       } else {
         const displayName = name.trim() || trimmedEmail.split("@")[0]
@@ -428,7 +474,9 @@ export default function Login() {
           })
         )
         if (error) {
-          setError(betterAuthErrorMessage(error, "Sign up failed"))
+          setError(
+            translateError(betterAuthErrorMessage(error, "Sign up failed"))
+          )
           return
         }
 
@@ -437,7 +485,7 @@ export default function Login() {
         // returns an active session and the verify screen would be a dead end.
         const session = await authClient.getSession()
         if (session.data?.session) {
-          setMessage("Account created. Opening OneRep…")
+          setMessage(tr("Account created. Opening OneRep…"))
           return
         }
         rememberPendingVerification(trimmedEmail, "/onboarding")
@@ -446,9 +494,11 @@ export default function Login() {
       }
     } catch (error) {
       setError(
-        betterAuthErrorMessage(
-          error,
-          "Something went wrong. Check your details and try again."
+        translateError(
+          betterAuthErrorMessage(
+            error,
+            "Something went wrong. Check your details and try again."
+          )
         )
       )
     } finally {
@@ -471,23 +521,23 @@ export default function Login() {
           className="auth-mode-panel"
         >
           <h1 className="app-title mt-7">
-            {mode === "signin" ? "Welcome back" : "Create your account"}
+            {mode === "signin" ? tr("Welcome back") : tr("Create your account")}
           </h1>
           <p className="native-supporting mx-auto mt-2 max-w-[32ch] text-balance">
             {mode === "signin"
-              ? "Sign in to pick up where you left off."
-              : "Training, nutrition, and progress in one place."}
+              ? tr("Sign in to pick up where you left off.")
+              : tr("Training, nutrition, and progress in one place.")}
           </p>
         </div>
       </header>
 
       <section
-        aria-label={mode === "signin" ? "Sign in" : "Create account"}
+        aria-label={mode === "signin" ? tr("Sign in") : tr("Create account")}
         className={AUTH_CARD_CLASS}
       >
         <div
           role="tablist"
-          aria-label="Sign in or create account"
+          aria-label={tr("Sign in or create account")}
           className="app-segmented mb-6 grid-cols-2"
         >
           <ModeTab
@@ -495,14 +545,14 @@ export default function Login() {
             disabled={submitting}
             onSelect={() => switchMode("signin")}
           >
-            Sign in
+            {tr("Sign in")}
           </ModeTab>
           <ModeTab
             active={mode === "signup"}
             disabled={submitting}
             onSelect={() => switchMode("signup")}
           >
-            Create account
+            {tr("Create account")}
           </ModeTab>
         </div>
 
@@ -514,13 +564,13 @@ export default function Login() {
         >
           {mode === "signup" ? (
             <label className={FIELD_CLASS}>
-              <span className={LABEL_CLASS}>Name</span>
+              <span className={LABEL_CLASS}>{tr("Name")}</span>
               <input
                 type="text"
                 name="name"
                 value={name}
                 onChange={(event) => setName(event.target.value)}
-                placeholder="Your name"
+                placeholder={tr("Your name")}
                 required
                 autoComplete="name"
                 disabled={submitting}
@@ -530,13 +580,13 @@ export default function Login() {
           ) : null}
 
           <label className={FIELD_CLASS}>
-            <span className={LABEL_CLASS}>Email</span>
+            <span className={LABEL_CLASS}>{tr("Email")}</span>
             <input
               type="email"
               name="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              placeholder="you@example.com"
+              placeholder={tr("you@example.com")}
               required
               autoComplete="email"
               disabled={submitting}
@@ -545,7 +595,7 @@ export default function Login() {
           </label>
 
           <label className={FIELD_CLASS}>
-            <span className={LABEL_CLASS}>Password</span>
+            <span className={LABEL_CLASS}>{tr("Password")}</span>
             <span className="relative block">
               <input
                 type={showPassword ? "text" : "password"}
@@ -566,7 +616,9 @@ export default function Login() {
                 onClick={() => setShowPassword((visible) => !visible)}
                 disabled={submitting}
                 className="absolute inset-y-0 right-0 inline-flex w-12 items-center justify-center text-muted-foreground transition-colors hover:text-foreground active:opacity-60 disabled:opacity-40"
-                aria-label={showPassword ? "Hide password" : "Show password"}
+                aria-label={
+                  showPassword ? tr("Hide password") : tr("Show password")
+                }
                 aria-pressed={showPassword}
               >
                 {showPassword ? (
@@ -577,7 +629,9 @@ export default function Login() {
               </button>
             </span>
             {mode === "signup" && (
-              <span className="native-field-hint">At least 8 characters</span>
+              <span className="native-field-hint">
+                {tr("At least 8 characters")}
+              </span>
             )}
             {/*
               Below the field, not beside the label. Sharing that top-right
@@ -593,7 +647,7 @@ export default function Login() {
                 disabled={submitting}
                 className="-my-2 -mr-1 self-end px-1 py-2 text-[13px] font-semibold text-muted-foreground transition-colors hover:text-foreground active:opacity-60 disabled:opacity-50"
               >
-                Forgot password?
+                {tr("Forgot password?")}
               </button>
             )}
           </label>
@@ -609,25 +663,34 @@ export default function Login() {
                 className="mt-0.5 size-4 shrink-0 accent-foreground"
               />
               <span>
-                I confirm that I am at least {MINIMUM_AGE} and agree to the{" "}
-                <a
-                  href="https://onerep.life/terms"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="font-semibold text-foreground underline decoration-border underline-offset-4"
-                >
-                  Terms and Conditions
-                </a>
-                . I acknowledge the{" "}
-                <a
-                  href="https://onerep.life/privacy"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="font-semibold text-foreground underline decoration-border underline-offset-4"
-                >
-                  Privacy Policy
-                </a>
-                .
+                <Message
+                  text={
+                    "I confirm that I am at least {{value0}} and agree to the {{value1}}. I acknowledge the {{value2}}."
+                  }
+                  values={{
+                    value0: MINIMUM_AGE,
+                    value1: (
+                      <a
+                        href="https://onerep.life/terms"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="font-semibold text-foreground underline decoration-border underline-offset-4"
+                      >
+                        {tr("Terms and Conditions")}
+                      </a>
+                    ),
+                    value2: (
+                      <a
+                        href="https://onerep.life/privacy"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="font-semibold text-foreground underline decoration-border underline-offset-4"
+                      >
+                        {tr("Privacy Policy")}
+                      </a>
+                    ),
+                  }}
+                />
               </span>
             </label>
           )}
@@ -658,11 +721,11 @@ export default function Login() {
           >
             {loading
               ? mode === "signin"
-                ? "Signing in…"
-                : "Creating…"
+                ? tr("Signing in…")
+                : tr("Creating…")
               : mode === "signin"
-                ? "Sign in"
-                : "Create account"}
+                ? tr("Sign in")
+                : tr("Create account")}
           </button>
         </form>
 
@@ -670,7 +733,7 @@ export default function Login() {
           <>
             <div className="my-5 flex items-center gap-3">
               <span className="h-px flex-1 bg-border" />
-              <span className="native-row-detail">or</span>
+              <span className="native-row-detail">{tr("or")}</span>
               <span className="h-px flex-1 bg-border" />
             </div>
 
@@ -684,7 +747,9 @@ export default function Login() {
                   className="native-secondary-button min-h-12 w-full rounded-[0.8rem]"
                 >
                   <GoogleMark />
-                  {googleLoading ? "Opening Google…" : "Continue with Google"}
+                  {googleLoading
+                    ? tr("Opening Google…")
+                    : tr("Continue with Google")}
                 </button>
               )}
 
@@ -697,7 +762,9 @@ export default function Login() {
                   className="native-secondary-button min-h-12 w-full rounded-[0.8rem]"
                 >
                   <AppleMark />
-                  {appleLoading ? "Opening Apple…" : "Continue with Apple"}
+                  {appleLoading
+                    ? tr("Opening Apple…")
+                    : tr("Continue with Apple")}
                 </button>
               )}
 
@@ -710,8 +777,8 @@ export default function Login() {
                   className="native-secondary-button min-h-12 w-full rounded-[0.8rem]"
                 >
                   {oidcLoading
-                    ? `Opening ${oidcName}…`
-                    : `Continue with ${oidcName}`}
+                    ? tr("Opening {{value0}}…", { value0: oidcName })
+                    : tr("Continue with {{value0}}", { value0: oidcName })}
                 </button>
               )}
             </div>
@@ -731,7 +798,7 @@ export default function Login() {
           aria-controls="server-picker"
           className="motion-tactile flex min-h-12 w-full items-center justify-between gap-3 text-left disabled:opacity-50"
         >
-          <span className="native-row-title">Server</span>
+          <span className="native-row-title">{tr("Server")}</span>
           <span className="flex items-center gap-1.5">
             <span className="native-row-value text-muted-foreground">
               {currentServerLabel()}
@@ -772,7 +839,7 @@ export default function Login() {
         </div>
 
         <p className="native-row-detail border-t border-border py-4 text-center">
-          Your data stays private and is never sold.
+          {tr("Your data stays private and is never sold.")}
         </p>
       </footer>
     </AuthLayout>

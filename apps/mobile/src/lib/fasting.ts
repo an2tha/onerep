@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 /**
  * Intermittent fasting: presets, duration formatting and history statistics.
  *
@@ -19,25 +20,25 @@ export const FASTING_PRESETS: FastingPreset[] = [
     id: "16:8",
     label: "16:8",
     targetMinutes: 16 * 60,
-    detail: "16 hours fasting, 8 hour window",
+    detail: tr("16 hours fasting, 8 hour window"),
   },
   {
     id: "18:6",
     label: "18:6",
     targetMinutes: 18 * 60,
-    detail: "18 hours fasting, 6 hour window",
+    detail: tr("18 hours fasting, 6 hour window"),
   },
   {
     id: "20:4",
     label: "20:4",
     targetMinutes: 20 * 60,
-    detail: "20 hours fasting, 4 hour window",
+    detail: tr("20 hours fasting, 4 hour window"),
   },
   {
     id: "omad",
-    label: "OMAD",
+    label: tr("OMAD"),
     targetMinutes: 23 * 60,
-    detail: "One meal a day",
+    detail: tr("One meal a day"),
   },
 ]
 
@@ -68,7 +69,12 @@ export function formatFastDuration(seconds: number): string {
 
   const pad = (value: number) => String(value).padStart(2, "0")
 
-  if (days > 0) return `${days}d ${pad(hours)}:${pad(minutes)}`
+  if (days > 0)
+    return tr("{{value0}}d {{value1}}:{{value2}}", {
+      value0: days,
+      value1: pad(hours),
+      value2: pad(minutes),
+    })
   return `${pad(hours)}:${pad(minutes)}:${pad(secs)}`
 }
 

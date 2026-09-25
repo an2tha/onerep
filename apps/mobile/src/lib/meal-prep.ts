@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 import {
   FOOD_MICRONUTRIENT_KEYS,
   offsetDateKey,
@@ -63,9 +64,9 @@ export const MEAL_PREP_STORAGE_OPTIONS: {
   /** Typical safe-keeping window used to pre-fill the use-by date. */
   defaultDays: number
 }[] = [
-  { id: "fridge", label: "Fridge", defaultDays: 4 },
-  { id: "freezer", label: "Freezer", defaultDays: 60 },
-  { id: "pantry", label: "Pantry", defaultDays: 14 },
+  { id: "fridge", label: tr("Fridge"), defaultDays: 4 },
+  { id: "freezer", label: tr("Freezer"), defaultDays: 60 },
+  { id: "pantry", label: tr("Pantry"), defaultDays: 14 },
 ]
 
 export function mealPrepStorageOption(storage: MealPrepStorage) {
@@ -129,12 +130,12 @@ export function mealPrepFreshness(
   today: string
 ): MealPrepFreshness {
   if (!batch.useByOn) {
-    return { status: "unknown", label: "No use-by date" }
+    return { status: "unknown", label: tr("No use-by date") }
   }
 
   const daysLeft = daysBetweenDateKeys(today, batch.useByOn)
   if (!Number.isFinite(daysLeft)) {
-    return { status: "unknown", label: "No use-by date" }
+    return { status: "unknown", label: tr("No use-by date") }
   }
 
   if (daysLeft < 0) {
@@ -142,15 +143,22 @@ export function mealPrepFreshness(
     return {
       status: "expired",
       daysLeft,
-      label: `Past use-by by ${days} day${days === 1 ? "" : "s"}`,
+      label: tr("Past use-by by {{value0}} day{{value1}}", {
+        value0: days,
+        value1: days === 1 ? "" : "s",
+      }),
     }
   }
   if (daysLeft === 0)
-    return { status: "use-soon", daysLeft, label: "Use today" }
+    return { status: "use-soon", daysLeft, label: tr("Use today") }
   if (daysLeft <= 1) {
-    return { status: "use-soon", daysLeft, label: "Use by tomorrow" }
+    return { status: "use-soon", daysLeft, label: tr("Use by tomorrow") }
   }
-  return { status: "fresh", daysLeft, label: `${daysLeft} days left` }
+  return {
+    status: "fresh",
+    daysLeft,
+    label: tr("{{value0}} days left", { value0: daysLeft }),
+  }
 }
 
 /** Active batches first, then the ones expiring soonest. */
@@ -235,11 +243,11 @@ export function resolveMealPrepDraft(
 ): MealPrepDraftResult {
   const errors: MealPrepDraftResult["errors"] = {}
 
-  if (!draft.name.trim()) errors.name = "Name this batch"
+  if (!draft.name.trim()) errors.name = tr("Name this batch")
 
   const servingsTotal = roundServings(parseNumber(draft.servingsTotal))
   if (servingsTotal <= 0) {
-    errors.servingsTotal = "How many servings did this batch make?"
+    errors.servingsTotal = tr("How many servings did this batch make?")
   }
 
   const batchTotals: MealPrepNutrients = {
@@ -255,7 +263,7 @@ export function resolveMealPrepDraft(
     batchTotals.carbs <= 0 &&
     batchTotals.fat <= 0
   ) {
-    errors.nutrition = "Enter the nutrition for the whole batch"
+    errors.nutrition = tr("Enter the nutrition for the whole batch")
   }
 
   return {
@@ -375,9 +383,10 @@ export function foodLogEntryFromMealPrep(
     fat: nutrients.fat,
     meal: options.meal ?? batch.meal ?? "lunch",
     loggedAt: options.loggedAt ?? new Date().toISOString(),
-    servingLabel: `${formatServings(servings)} serving${
-      servings === 1 ? "" : "s"
-    } · meal prep`,
+    servingLabel: tr("{{value0}} serving{{value1}} · meal prep", {
+      value0: formatServings(servings),
+      value1: servings === 1 ? "" : "s",
+    }),
     recipeId: batch.sourceRecipeId,
   }
 

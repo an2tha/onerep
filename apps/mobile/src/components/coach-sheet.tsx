@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 /**
  * The full Coach, as a draggable sheet over whatever you were doing.
  *
@@ -31,7 +32,7 @@ export function CoachSheet({
 }) {
   return (
     <MobileSheet
-      ariaLabel="Coach"
+      ariaLabel={tr("Coach")}
       onClose={onClose}
       minHeight="35vh"
       maxHeight="94vh"

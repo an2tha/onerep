@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 import { useQuery } from "convex/react"
 import { api } from "../../../../../convex/_generated/api"
 import { currentDateKey } from "@/lib/food-log"
@@ -20,7 +21,7 @@ const STATUS_CAPTION: Record<string, string> = {
   ready: "recovered",
   steady: "steady",
   compromised: "compromised",
-  unknown: "no baseline",
+  unknown: tr("no baseline"),
 }
 
 /**
@@ -37,8 +38,8 @@ export default function HealthRecovery() {
 
   return (
     <HealthDetailShell
-      title="Recovery"
-      subtitle="Measured against your own baseline"
+      title={tr("Recovery")}
+      subtitle={tr("Measured against your own baseline")}
       heroFill={data?.recoveryScore ?? null}
       charts={
         <>
@@ -46,7 +47,7 @@ export default function HealthRecovery() {
             hideWhenEmpty
             today={today}
             metric="recovery"
-            title="Recovery score"
+            title={tr("Recovery score")}
             format={formatCount}
             tone={AREA_TONES.recovery}
           />
@@ -54,7 +55,7 @@ export default function HealthRecovery() {
             hideWhenEmpty
             today={today}
             metric="sleep"
-            title="Sleep"
+            title={tr("Sleep")}
             format={formatHours}
             tone="var(--accent-health)"
           />
@@ -63,7 +64,7 @@ export default function HealthRecovery() {
             today={today}
             metric="hrv"
             kind="line"
-            title="Heart rate variability"
+            title={tr("Heart rate variability")}
             format={(value) => `${formatCount(value)}ms`}
             tone="var(--accent-water)"
           />
@@ -72,7 +73,7 @@ export default function HealthRecovery() {
             today={today}
             metric="restingHeartRate"
             kind="line"
-            title="Resting heart rate"
+            title={tr("Resting heart rate")}
             format={(value) => `${formatCount(value)}bpm`}
             tone="var(--accent-progress)"
           />
@@ -83,23 +84,27 @@ export default function HealthRecovery() {
           items={[
             {
               term: "How the score is built",
-              detail:
-                "The mean of your last three days for each signal, against the median of your own last 28. Median, so one bad week does not move the baseline.",
+              detail: tr(
+                "The mean of your last three days for each signal, against the median of your own last 28. Median, so one bad week does not move the baseline."
+              ),
             },
             {
               term: "Why there are no target numbers",
-              detail:
-                "Resting heart rate and HRV vary enormously between healthy people. The signal is movement against your own normal, not a threshold you can pass or fail.",
+              detail: tr(
+                "Resting heart rate and HRV vary enormously between healthy people. The signal is movement against your own normal, not a threshold you can pass or fail."
+              ),
             },
             {
               term: "Ready, steady, compromised",
-              detail:
-                "Two independent signals have to agree before this says compromised. One signal moving is a bad night, and calling that under-recovery is how an app gets ignored.",
+              detail: tr(
+                "Two independent signals have to agree before this says compromised. One signal moving is a bad night, and calling that under-recovery is how an app gets ignored."
+              ),
             },
             {
               term: "When it stays quiet",
-              detail:
-                "A signal needs seven readings in the window before it gets a baseline. Below that it is left out rather than guessed at.",
+              detail: tr(
+                "A signal needs seven readings in the window before it gets a baseline. Below that it is left out rather than guessed at."
+              ),
             },
           ]}
         />
@@ -120,18 +125,20 @@ export default function HealthRecovery() {
             {recovery && recovery.status !== "unknown" ? (
               <StatGrid>
                 <StatCell
-                  label="HRV"
+                  label={tr("HRV")}
                   value={
                     recovery.hrv ? `${Math.round(recovery.hrv.recent)}ms` : "—"
                   }
                   caption={
                     recovery.hrv
-                      ? `baseline ${Math.round(recovery.hrv.baseline)}ms`
-                      : "no readings"
+                      ? tr("baseline {{value0}}ms", {
+                          value0: Math.round(recovery.hrv.baseline),
+                        })
+                      : tr("no readings")
                   }
                 />
                 <StatCell
-                  label="Resting HR"
+                  label={tr("Resting HR")}
                   value={
                     recovery.restingHeartRate
                       ? `${Math.round(recovery.restingHeartRate.recent)}bpm`
@@ -139,24 +146,34 @@ export default function HealthRecovery() {
                   }
                   caption={
                     recovery.restingHeartRate
-                      ? `baseline ${Math.round(recovery.restingHeartRate.baseline)}bpm`
-                      : "no readings"
+                      ? tr("baseline {{value0}}bpm", {
+                          value0: Math.round(
+                            recovery.restingHeartRate.baseline
+                          ),
+                        })
+                      : tr("no readings")
                   }
                 />
                 <StatCell
-                  label="Sleep"
+                  label={tr("Sleep")}
                   value={
                     recovery.sleep ? formatHours(recovery.sleep.recent) : "—"
                   }
                   caption={
                     recovery.sleep
-                      ? `baseline ${formatHours(recovery.sleep.baseline)}`
-                      : "no readings"
+                      ? tr("baseline {{value0}}", {
+                          value0: formatHours(recovery.sleep.baseline),
+                        })
+                      : tr("no readings")
                   }
                 />
               </StatGrid>
             ) : (
-              <NoReadings detail="Recovery needs about a week of readings before it can compare you with yourself." />
+              <NoReadings
+                detail={tr(
+                  "Recovery needs about a week of readings before it can compare you with yourself."
+                )}
+              />
             )}
           </DialHero>
 
@@ -165,9 +182,9 @@ export default function HealthRecovery() {
             recovery.notes.length > 0 && (
               <section
                 className="progress-tab-enter border-t border-border px-1 py-4"
-                aria-label="What stands out"
+                aria-label={tr("What stands out")}
               >
-                <p className="app-section-title">What stands out</p>
+                <p className="app-section-title">{tr("What stands out")}</p>
                 <ul className="mt-2.5 space-y-2">
                   {recovery.notes.map((note) => (
                     <li
@@ -188,7 +205,7 @@ export default function HealthRecovery() {
 
           <TrackSomethingNew
             tab="body"
-            detail="Soreness, mood, whatever you judge a day by."
+            detail={tr("Soreness, mood, whatever you judge a day by.")}
           />
         </>
       )}

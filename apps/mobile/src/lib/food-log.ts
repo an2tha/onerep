@@ -1,3 +1,4 @@
+import { tr, uiLocale } from "@repo/ui/i18n"
 import type {
   FoodDetail,
   FoodResult,
@@ -539,6 +540,21 @@ export function foodPortionLabel(portion: FoodPortion) {
   return `${formatFoodPortionAmount(portion.amount)} ${foodPortionUnitLabel(portion.unit)}`
 }
 
+/** Display only: keep foodPortionLabel canonical for storage and parsing. */
+export function foodPortionDisplayLabel(portion: FoodPortion) {
+  const locale = uiLocale() === "pt" ? "pt-PT" : uiLocale()
+  const amount = new Intl.NumberFormat(uiLocale(), {
+    useGrouping: false,
+    maximumFractionDigits: 20,
+  }).format(Number(formatFoodPortionAmount(portion.amount)))
+  const unit =
+    portion.unit === "cup" &&
+    new Intl.PluralRules(locale).select(portion.amount) !== "one"
+      ? tr("cups")
+      : tr(foodPortionUnitLabel(portion.unit))
+  return `${amount} ${unit}`
+}
+
 // ─── Named servings ──────────────────────────────────────────────────────────
 // A food that ships its own serving text ("8 ONZ", "1 cup, chopped") carries a
 // unit we cannot spell. Those get multiplied whole rather than converted.
@@ -736,42 +752,42 @@ export function stripUndefined<T>(value: T): T {
 export const DEFAULT_MEAL_CATEGORIES: MealCategory[] = [
   {
     id: "breakfast",
-    label: "Breakfast",
+    label: tr("Breakfast"),
     color: DEFAULT_MEAL_TONES.breakfast.color,
     bg: DEFAULT_MEAL_TONES.breakfast.bg,
     isDefault: true,
   },
   {
     id: "lunch",
-    label: "Lunch",
+    label: tr("Lunch"),
     color: DEFAULT_MEAL_TONES.lunch.color,
     bg: DEFAULT_MEAL_TONES.lunch.bg,
     isDefault: true,
   },
   {
     id: "dinner",
-    label: "Dinner",
+    label: tr("Dinner"),
     color: DEFAULT_MEAL_TONES.dinner.color,
     bg: DEFAULT_MEAL_TONES.dinner.bg,
     isDefault: true,
   },
   {
     id: "snack-post-breakfast",
-    label: "Post-breakfast snack",
+    label: tr("Post-breakfast snack"),
     color: DEFAULT_MEAL_TONES.snack.color,
     bg: DEFAULT_MEAL_TONES.snack.bg,
     isDefault: true,
   },
   {
     id: "snack-post-lunch",
-    label: "Post-lunch snack",
+    label: tr("Post-lunch snack"),
     color: DEFAULT_MEAL_TONES.snack.color,
     bg: DEFAULT_MEAL_TONES.snack.bg,
     isDefault: true,
   },
   {
     id: "snack-post-dinner",
-    label: "Post-dinner snack",
+    label: tr("Post-dinner snack"),
     color: DEFAULT_MEAL_TONES.snack.color,
     bg: DEFAULT_MEAL_TONES.snack.bg,
     isDefault: true,
@@ -783,7 +799,7 @@ export const DISPLAY_MEAL_CATEGORIES: MealCategory[] = [
   ...DEFAULT_MEAL_CATEGORIES,
   {
     id: "snack",
-    label: "Snack",
+    label: tr("Snack"),
     color: DEFAULT_MEAL_TONES.snack.color,
     bg: DEFAULT_MEAL_TONES.snack.bg,
     isDefault: false,
@@ -1135,7 +1151,7 @@ export function findSmartMealPresetSuggestion({
     key: repeatedMeal.key,
     meal: repeatedMeal.meal,
     mealLabel: label,
-    name: `Usual ${label}`,
+    name: tr("Usual {{value0}}", { value0: label }),
     signature: repeatedMeal.signature,
     entries: repeatedMeal.entries,
     count: repeatedMeal.count,

@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 export type Appearance = "dark" | "light" | "system"
 export type ResolvedAppearance = Exclude<Appearance, "system">
 
@@ -193,7 +194,7 @@ export function defineVisualIdentity<const T extends VisualIdentity>(
  */
 export const ONE_REP_VISUAL_IDENTITY = defineVisualIdentity({
   id: "onerep",
-  label: "OneRep",
+  label: tr("OneRep"),
   assets: {
     appName: "OneRep",
     appIconSrc: "/app-icon.svg",
