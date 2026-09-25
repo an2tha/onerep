@@ -1,3 +1,4 @@
+import { Message, tr, translateError } from "@repo/ui/i18n"
 import React, { useEffect, useRef, useState } from "react"
 import { readCachedWeightUnit } from "@/lib/use-weight-unit"
 import { useParams } from "react-router"
@@ -132,27 +133,27 @@ const SET_ORDER: SetType[] = ["working", "warmup", "failure", "myoreps", "drop"]
 
 const SET_CFG: Record<SetType, { label: string; color: string; bg: string }> = {
   working: {
-    label: "Working",
+    label: tr("Working"),
     color: SET_TYPE_TONES.working.color,
     bg: SET_TYPE_TONES.working.bg,
   },
   warmup: {
-    label: "Warm-up",
+    label: tr("Warm-up"),
     color: SET_TYPE_TONES.warmup.color,
     bg: SET_TYPE_TONES.warmup.bg,
   },
   failure: {
-    label: "Failure",
+    label: tr("Failure"),
     color: SET_TYPE_TONES.failure.color,
     bg: SET_TYPE_TONES.failure.bg,
   },
   myoreps: {
-    label: "Myo-reps",
+    label: tr("Myo-reps"),
     color: SET_TYPE_TONES.myoreps.color,
     bg: SET_TYPE_TONES.myoreps.bg,
   },
   drop: {
-    label: "Drop set",
+    label: tr("Drop set"),
     color: SET_TYPE_TONES.drop.color,
     bg: SET_TYPE_TONES.drop.bg,
   },
@@ -612,7 +613,7 @@ function PresetExerciseCard({
       {showSupersetRing && !inSuperset && (
         <div className="pointer-events-none absolute inset-1 z-20 flex items-center justify-center rounded-md border border-dashed border-foreground/55 bg-background/55 backdrop-blur-[1px]">
           <span className="bg-foreground px-3 py-2 text-[13px] font-semibold text-background">
-            Drop to create a superset
+            {tr("Drop to create a superset")}
           </span>
         </div>
       )}
@@ -641,8 +642,12 @@ function PresetExerciseCard({
               <p className="mt-1 truncate text-[13px] text-muted-foreground">
                 {collapsed
                   ? isCardio
-                    ? "Cardio"
-                    : `${data.sets.length} set${data.sets.length !== 1 ? "s" : ""} · ${formatRest(totalRest)} rest`
+                    ? tr("Cardio")
+                    : tr("{{value0}} set{{value1}} · {{value2}} rest", {
+                        value0: data.sets.length,
+                        value1: data.sets.length !== 1 ? "s" : "",
+                        value2: formatRest(totalRest),
+                      })
                   : exercise.muscle}
               </p>
             </div>
@@ -652,8 +657,10 @@ function PresetExerciseCard({
               <button
                 type="button"
                 onClick={onBreakOut}
-                aria-label={`Move ${exercise.name} out of superset`}
-                title="Move out of superset"
+                aria-label={tr("Move {{value0}} out of superset", {
+                  value0: exercise.name,
+                })}
+                title={tr("Move out of superset")}
                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground active:bg-muted active:text-foreground"
               >
                 <ArrowsOutSimple size={15} weight="bold" />
@@ -662,7 +669,7 @@ function PresetExerciseCard({
             <button
               onClick={onRemove}
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors active:bg-destructive/10 active:text-destructive"
-              aria-label={`Remove ${exercise.name}`}
+              aria-label={tr("Remove {{value0}}", { value0: exercise.name })}
             >
               <X size={15} weight="bold" />
             </button>
@@ -671,8 +678,8 @@ function PresetExerciseCard({
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors active:bg-muted active:text-foreground"
               aria-label={
                 collapsed
-                  ? `Expand ${exercise.name}`
-                  : `Collapse ${exercise.name}`
+                  ? tr("Expand {{value0}}", { value0: exercise.name })
+                  : tr("Collapse {{value0}}", { value0: exercise.name })
               }
             >
               {collapsed ? (
@@ -748,7 +755,7 @@ function PresetExerciseCard({
                   className="flex w-full items-center justify-center gap-2 border-t border-border/30 px-4 py-3 text-left text-muted-foreground/70 transition-colors active:bg-muted/30 active:text-foreground"
                 >
                   <Plus size={14} weight="bold" />
-                  <span className="text-[13px] font-bold">Add set</span>
+                  <span className="text-[13px] font-bold">{tr("Add set")}</span>
                 </button>
               </>
             )}
@@ -894,7 +901,7 @@ function SearchSheet({
         )}
         role="dialog"
         aria-modal="true"
-        aria-label="Add exercise"
+        aria-label={tr("Add exercise")}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Search bar row */}
@@ -908,17 +915,17 @@ function SearchSheet({
               ref={inputRef}
               type="search"
               name="preset-exercise-search"
-              aria-label="Search exercises"
+              aria-label={tr("Search exercises")}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search exercises…"
+              placeholder={tr("Search exercises…")}
               className="h-11 w-full rounded-xl border border-border/60 bg-muted/40 pr-4 pl-10 text-[14px] transition-all outline-none placeholder:text-muted-foreground focus:border-foreground/20 focus:bg-background"
             />
             {query && (
               <button
                 type="button"
                 onClick={() => setQuery("")}
-                aria-label="Clear exercise search"
+                aria-label={tr("Clear exercise search")}
                 className="absolute top-1/2 right-0 flex h-11 w-11 -translate-y-1/2 items-center justify-center text-muted-foreground active:text-foreground"
               >
                 <X size={13} weight="bold" />
@@ -930,7 +937,7 @@ function SearchSheet({
             onClick={requestClose}
             className="min-h-11 shrink-0 px-2 text-[15px] font-semibold text-muted-foreground transition-colors active:bg-muted/45 active:text-foreground"
           >
-            Done
+            {tr("Done")}
           </button>
         </div>
 
@@ -940,7 +947,7 @@ function SearchSheet({
             <div className="flex flex-col items-center gap-2 py-20">
               <div className="h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground/25 border-t-muted-foreground/70" />
               <p className="text-[13px] font-semibold text-muted-foreground">
-                Searching exercises…
+                {tr("Searching exercises…")}
               </p>
             </div>
           ) : filtered.length > 0 ? (
@@ -971,10 +978,10 @@ function SearchSheet({
             <div className="flex flex-col items-center gap-3 px-5 py-16 text-center">
               <div className="flex flex-col items-center gap-2">
                 <p className="text-[13px] font-semibold text-muted-foreground">
-                  No exercises found
+                  {tr("No exercises found")}
                 </p>
                 <p className="text-[15px] text-muted-foreground">
-                  Try a broader exercise or muscle name.
+                  {tr("Try a broader exercise or muscle name.")}
                 </p>
               </div>
               <CreateExerciseButton
@@ -983,7 +990,7 @@ function SearchSheet({
               />
               <ExerciseSuggestionGroups
                 variant="chips"
-                popularLabel="Try instead"
+                popularLabel={tr("Try instead")}
                 recentSuggestions={recentSuggestions}
                 popularSuggestions={popularSuggestions}
                 onChoose={chooseSuggestion}
@@ -993,22 +1000,22 @@ function SearchSheet({
             <div className="flex flex-col items-center gap-3 px-5 py-16 text-center">
               <div className="flex flex-col items-center gap-2">
                 <p className="text-[13px] font-semibold text-muted-foreground">
-                  Search failed
+                  {tr("Search failed")}
                 </p>
                 <p className="text-[15px] text-muted-foreground">
-                  Check your connection, then retry the search.
+                  {tr("Check your connection, then retry the search.")}
                 </p>
                 <button
                   type="button"
                   onClick={retrySearch}
                   className="app-button app-button-primary mt-1 min-h-11 px-4"
                 >
-                  Retry search
+                  {tr("Retry search")}
                 </button>
               </div>
               <ExerciseSuggestionGroups
                 variant="chips"
-                popularLabel="Try instead"
+                popularLabel={tr("Try instead")}
                 recentSuggestions={recentSuggestions}
                 popularSuggestions={popularSuggestions}
                 onChoose={chooseSuggestion}
@@ -1062,7 +1069,7 @@ function SearchExerciseCard({
           </p>
           {exercise.custom && (
             <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[11px] leading-none font-semibold text-muted-foreground">
-              Yours
+              {tr("Yours")}
             </span>
           )}
         </div>
@@ -1071,7 +1078,7 @@ function SearchExerciseCard({
         </p>
         {added && (
           <p className="mt-1 text-[13px] font-medium text-muted-foreground">
-            Already in preset
+            {tr("Already in preset")}
           </p>
         )}
       </button>
@@ -1080,7 +1087,7 @@ function SearchExerciseCard({
         <button
           onClick={onEdit}
           className="flex min-h-11 min-w-11 items-center justify-center px-2 text-muted-foreground transition-colors active:text-foreground"
-          aria-label={`Edit ${exercise.name}`}
+          aria-label={tr("Edit {{value0}}", { value0: exercise.name })}
         >
           <PencilSimple size={15} weight="bold" />
         </button>
@@ -1089,7 +1096,11 @@ function SearchExerciseCard({
       <button
         onClick={onAdd}
         className="flex min-h-11 min-w-11 items-center justify-center px-3 text-muted-foreground transition-colors active:text-foreground"
-        aria-label={added ? `Remove ${exercise.name}` : `Add ${exercise.name}`}
+        aria-label={
+          added
+            ? tr("Remove {{value0}}", { value0: exercise.name })
+            : tr("Add {{value0}}", { value0: exercise.name })
+        }
       >
         {added ? (
           <X size={14} weight="bold" className="text-foreground/40" />
@@ -1117,7 +1128,7 @@ function ExerciseModal({
   return (
     <MobileSheet
       onClose={onClose}
-      ariaLabel={`${exercise.name} details`}
+      ariaLabel={tr("{{value0}} details", { value0: exercise.name })}
       overlayClassName="bg-black/50 backdrop-blur-[4px]"
       panelClassName="rounded-t-3xl bg-card shadow-2xl"
       panelStyle={{
@@ -1141,7 +1152,7 @@ function ExerciseModal({
         <div className="mt-4 flex items-center gap-2 rounded-xl bg-muted/50 px-3.5 py-3">
           <Timer size={13} className="shrink-0 text-muted-foreground/60" />
           <span className="text-[13px] font-medium text-muted-foreground/70">
-            Suggested volume
+            {tr("Suggested volume")}
           </span>
           <span className="ml-auto text-[13px] font-bold tabular-nums">
             {exercise.sets}
@@ -1160,7 +1171,7 @@ function ExerciseModal({
               : "bg-foreground text-background shadow-sm"
           )}
         >
-          {added ? "Remove from preset" : "Add to preset"}
+          {added ? tr("Remove from preset") : tr("Add to preset")}
         </button>
       </div>
     </MobileSheet>
@@ -1201,17 +1212,18 @@ function PastePresetSheet({
           <div className="flex items-start gap-3">
             <div className="min-w-0 flex-1">
               <h2 className="text-[19px] leading-tight font-bold tracking-tight">
-                Paste a workout plan
+                {tr("Paste a workout plan")}
               </h2>
               <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground/70">
-                Coach notes, a split you found, whatever. It gets turned into
-                sets you can edit.
+                {tr(
+                  "Coach notes, a split you found, whatever. It gets turned into sets you can edit."
+                )}
               </p>
             </div>
             <button
               onClick={onClose}
               disabled={loading}
-              aria-label="Close paste sheet"
+              aria-label={tr("Close paste sheet")}
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors active:bg-muted/60 active:text-foreground disabled:opacity-40"
             >
               <X size={15} weight="bold" />
@@ -1232,7 +1244,7 @@ function PastePresetSheet({
                       : "text-muted-foreground active:text-foreground"
                   )}
                 >
-                  {value}
+                  {value === "replace" ? tr("Replace") : tr("Append")}
                 </button>
               ))}
             </div>
@@ -1240,13 +1252,13 @@ function PastePresetSheet({
 
           <textarea
             name="preset-import-text"
-            aria-label="Workout plan text"
+            aria-label={tr("Workout plan text")}
             value={text}
             onChange={(e) => setText(e.target.value)}
             disabled={loading}
-            placeholder={
+            placeholder={tr(
               "Upper Body Strength\nBench press 4x6 @ 185 lb, rest 2 min\nPull-up 4xAMRAP\nSeated cable row 3x10\nLateral raise 3x15"
-            }
+            )}
             className="mt-5 min-h-52 w-full resize-none rounded-2xl border border-border/60 bg-background/70 px-4 py-3 text-[14px] leading-relaxed outline-none placeholder:text-muted-foreground focus:border-foreground/20 disabled:opacity-60"
           />
 
@@ -1260,14 +1272,14 @@ function PastePresetSheet({
               {loading && (
                 <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-background/30 border-t-background" />
               )}
-              {loading ? "Building preset…" : "Create preset"}
+              {loading ? tr("Building preset…") : tr("Create preset")}
             </button>
             <button
               onClick={onClose}
               disabled={loading}
               className="h-11 w-full rounded-xl bg-muted/55 text-[13px] font-semibold text-muted-foreground transition-colors active:bg-muted active:text-foreground disabled:opacity-40"
             >
-              Cancel
+              {tr("Cancel")}
             </button>
           </div>
         </div>
@@ -1438,7 +1450,9 @@ export default function NewPreset() {
       navigate(-1)
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Could not save preset"
+        translateError(
+          error instanceof Error ? error.message : tr("Could not save preset")
+        )
       )
     } finally {
       savingRef.current = false
@@ -1538,12 +1552,19 @@ export default function NewPreset() {
       setPasteOpen(false)
       toast.success(
         unmatched.length > 0
-          ? `Added ${nextItems.length} exercises. ${unmatched.length} couldn't be matched.`
-          : `Created ${nextItems.length}-exercise preset draft`
+          ? tr("Added {{value0}} exercises. {{value1}} couldn't be matched.", {
+              value0: nextItems.length,
+              value1: unmatched.length,
+            })
+          : tr("Created {{value0}}-exercise preset draft", {
+              value0: nextItems.length,
+            })
       )
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Could not create preset"
+        translateError(
+          error instanceof Error ? error.message : tr("Could not create preset")
+        )
       )
     } finally {
       generatingPresetRef.current = false
@@ -1863,14 +1884,17 @@ export default function NewPreset() {
           }}
         >
           <span className="text-[13px] font-bold tracking-[0.08em] text-foreground uppercase">
-            Superset · {item.exerciseIds.length}
+            <Message
+              text={"Superset · {{value0}}"}
+              values={{ value0: item.exerciseIds.length }}
+            />
           </span>
         </div>
 
         {reorderMode && (
           <div className="flex justify-end border-b border-border px-3 py-2">
             <ExerciseMoveControls
-              label="superset"
+              label={tr("superset")}
               canMoveUp={itemIndex > 0}
               canMoveDown={itemIndex < items.length - 1}
               onMoveUp={() => moveItemByStep(item.id, -1)}
@@ -1940,8 +1964,10 @@ export default function NewPreset() {
             }}
             className="flex min-h-11 items-center gap-1.5 px-2 text-[15px] font-medium text-muted-foreground transition-colors active:bg-muted/45 active:text-foreground"
           >
-            <ArrowLeft size={14} weight="bold" />
-            Back
+            <Message
+              text={"{{value0}}Back"}
+              values={{ value0: <ArrowLeft size={14} weight="bold" /> }}
+            />
           </button>
 
           <button
@@ -1955,7 +1981,7 @@ export default function NewPreset() {
               weight="bold"
               className={saving ? "animate-spin" : ""}
             />
-            {saving ? "Saving…" : "Save"}
+            {saving ? tr("Saving…") : tr("Save")}
           </button>
         </div>
 
@@ -1965,16 +1991,16 @@ export default function NewPreset() {
             htmlFor="preset-name"
             className="text-[13px] font-medium text-muted-foreground"
           >
-            Workout name
+            {tr("Workout name")}
           </label>
           <input
             id="preset-name"
             name="preset-name"
-            aria-label="Preset name"
+            aria-label={tr("Preset name")}
             value={presetName}
             onChange={(e) => setPresetName(e.target.value)}
             placeholder={
-              loadingPreset ? "Loading preset..." : "Untitled Preset"
+              loadingPreset ? tr("Loading preset...") : tr("Untitled Preset")
             }
             maxLength={40}
             disabled={loadingPreset}
@@ -1983,13 +2009,19 @@ export default function NewPreset() {
           <div className="mt-2 flex items-center gap-3">
             {addedIds.length > 0 && (
               <p className="text-[13px] font-medium text-muted-foreground">
-                {addedIds.length} exercise{addedIds.length !== 1 ? "s" : ""}
+                <Message
+                  text={"{{value0}} exercise{{value1}}"}
+                  values={{
+                    value0: addedIds.length,
+                    value1: addedIds.length !== 1 ? "s" : "",
+                  }}
+                />
               </p>
             )}
             {/* kg / lbs toggle */}
             <div
               className="ml-auto grid grid-cols-2 border border-border text-[13px] font-semibold"
-              aria-label="Weight unit"
+              aria-label={tr("Weight unit")}
             >
               {(["kg", "lbs"] as WeightUnit[]).map((u) => (
                 <button
@@ -2027,13 +2059,13 @@ export default function NewPreset() {
                     className="shrink-0 text-foreground/65"
                   />
                   <p className="min-w-0 flex-1 text-[13px] leading-5 font-medium">
-                    Drag one exercise onto another to make a superset.
+                    {tr("Drag one exercise onto another to make a superset.")}
                   </p>
                   <button
                     type="button"
                     onClick={dismissSupersetTip}
                     className="flex h-11 w-11 shrink-0 items-center justify-center text-muted-foreground transition-colors active:bg-muted active:text-foreground"
-                    aria-label="Hide superset tip"
+                    aria-label={tr("Hide superset tip")}
                   >
                     <X size={12} weight="bold" />
                   </button>
@@ -2052,7 +2084,7 @@ export default function NewPreset() {
               className="border-y border-border px-4 py-6 text-[15px] text-muted-foreground"
               role="status"
             >
-              Loading workout…
+              {tr("Loading workout…")}
             </div>
           )}
 
@@ -2068,7 +2100,9 @@ export default function NewPreset() {
             <span
               className={items.length === 0 ? "text-[14.5px]" : "text-[14px]"}
             >
-              {items.length === 0 ? "Add exercises" : "Add another exercise"}
+              {items.length === 0
+                ? tr("Add exercises")
+                : tr("Add another exercise")}
             </span>
           </button>
 
@@ -2083,7 +2117,9 @@ export default function NewPreset() {
               className="app-button app-button-secondary min-h-12 w-full disabled:opacity-45"
             >
               <ClipboardText size={15} weight="bold" />
-              {generatingPreset ? "Building preset…" : "Paste a workout plan"}
+              {generatingPreset
+                ? tr("Building preset…")
+                : tr("Paste a workout plan")}
             </button>
           )}
         </div>
@@ -2143,7 +2179,7 @@ export default function NewPreset() {
       {confirming && (
         <MobileSheet
           onClose={() => setConfirming(false)}
-          ariaLabel="Discard preset?"
+          ariaLabel={tr("Discard preset?")}
           overlayClassName="bg-black/50 backdrop-blur-[3px]"
           panelClassName="max-w-sm rounded-t-3xl bg-card shadow-2xl"
           panelStyle={{
@@ -2152,10 +2188,10 @@ export default function NewPreset() {
         >
           <div className="px-6">
             <h2 className="text-[17px] font-bold tracking-tight">
-              Discard preset?
+              {tr("Discard preset?")}
             </h2>
             <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground/70">
-              You'll lose all exercises and sets you've added.
+              {tr("You'll lose all exercises and sets you've added.")}
             </p>
             <div className="mt-6 flex flex-col gap-2">
               <button
@@ -2163,13 +2199,13 @@ export default function NewPreset() {
                 className="h-12 w-full rounded-xl text-[14px] font-bold text-white transition-opacity active:opacity-80"
                 style={{ backgroundColor: APP_ACCENT_COLORS.danger }}
               >
-                Discard
+                {tr("Discard")}
               </button>
               <button
                 onClick={() => setConfirming(false)}
                 className="h-12 w-full rounded-xl bg-muted/60 text-[14px] font-semibold text-foreground/80 transition-colors active:bg-muted"
               >
-                Keep editing
+                {tr("Keep editing")}
               </button>
             </div>
           </div>

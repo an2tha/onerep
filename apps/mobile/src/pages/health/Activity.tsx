@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 import { useQuery } from "convex/react"
 import { api } from "../../../../../convex/_generated/api"
 import { currentDateKey } from "@/lib/food-log"
@@ -40,8 +41,8 @@ export default function HealthActivity() {
 
   return (
     <HealthDetailShell
-      title="Activity"
-      subtitle="Against public guidance"
+      title={tr("Activity")}
+      subtitle={tr("Against public guidance")}
       heroFill={exercise?.score ?? null}
       charts={
         <>
@@ -49,7 +50,7 @@ export default function HealthActivity() {
             hideWhenEmpty
             today={today}
             metric="exercise"
-            title="Exercise minutes"
+            title={tr("Exercise minutes")}
             format={formatHours}
             tone={AREA_TONES.activity}
           />
@@ -57,7 +58,7 @@ export default function HealthActivity() {
             hideWhenEmpty
             today={today}
             metric="steps"
-            title="Steps"
+            title={tr("Steps")}
             format={formatCount}
             tone="var(--accent-health)"
           />
@@ -65,7 +66,7 @@ export default function HealthActivity() {
             hideWhenEmpty
             today={today}
             metric="energy"
-            title="Active calories"
+            title={tr("Active calories")}
             format={(value) =>
               `${formatCount(energyDisplay(value, energyUnit))} ${energyUnit}`
             }
@@ -78,23 +79,27 @@ export default function HealthActivity() {
           items={[
             {
               term: "150 minutes a week",
-              detail:
-                "The World Health Organization guideline for moderate aerobic activity in adults. Read from the health store, so runs, classes and rides count even when OneRep never saw them.",
+              detail: tr(
+                "The World Health Organization guideline for moderate aerobic activity in adults. Read from the health store, so runs, classes and rides count even when OneRep never saw them."
+              ),
             },
             {
               term: "Why 8,000 steps, not 10,000",
-              detail:
-                "The 10,000 figure came from the brand name of a 1960s Japanese pedometer, not from research. Cohort studies since put most of the mortality benefit between 7,000 and 8,000, with returns flattening after.",
+              detail: tr(
+                "The 10,000 figure came from the brand name of a 1960s Japanese pedometer, not from research. Cohort studies since put most of the mortality benefit between 7,000 and 8,000, with returns flattening after."
+              ),
             },
             {
               term: "Active calories",
-              detail:
-                "Energy burned above what you would have spent lying still. Device estimates vary a lot between makes, so the trend is worth more than any single day.",
+              detail: tr(
+                "Energy burned above what you would have spent lying still. Device estimates vary a lot between makes, so the trend is worth more than any single day."
+              ),
             },
             {
               term: "Minutes beat steps",
-              detail:
-                "Exercise minutes carry more of this score than steps do, because sustained effort and ambient walking are not interchangeable however similar the totals look.",
+              detail: tr(
+                "Exercise minutes carry more of this score than steps do, because sustained effort and ambient walking are not interchangeable however similar the totals look."
+              ),
             },
           ]}
         />
@@ -112,36 +117,45 @@ export default function HealthActivity() {
             score={exercise?.score ?? null}
             caption={
               exercise?.value == null
-                ? "no reading"
-                : `${Math.round(exercise.value)} of ${exercise.target} min`
+                ? tr("no reading")
+                : tr("{{value0}} of {{value1}} min", {
+                    value0: Math.round(exercise.value),
+                    value1: exercise.target,
+                  })
             }
           >
             <StatGrid>
               <StatCell
-                label="Exercise"
+                label={tr("Exercise")}
                 value={
                   exercise?.value == null
                     ? "—"
                     : `${Math.round(exercise.value)}m`
                 }
-                caption={`of ${exercise?.target ?? 150}m weekly`}
+                caption={tr("of {{value0}}m weekly", {
+                  value0: exercise?.target ?? 150,
+                })}
               />
               <StatCell
-                label="Steps"
+                label={tr("Steps")}
                 value={steps?.value == null ? "—" : formatCount(steps.value)}
-                caption={`of ${formatCount(steps?.target ?? 8000)} daily`}
+                caption={tr("of {{value0}} daily", {
+                  value0: formatCount(steps?.target ?? 8000),
+                })}
               />
               <StatCell
-                label={`Active ${energyUnit}`}
+                label={tr("Active {{value0}}", { value0: energyUnit })}
                 value={energy?.value == null ? "—" : formatCount(energy.value)}
-                caption={`of ${formatCount(energy?.target ?? 400)} daily`}
+                caption={tr("of {{value0}} daily", {
+                  value0: formatCount(energy?.target ?? 400),
+                })}
               />
             </StatGrid>
           </DialHero>
 
           {advice && advice.length > 0 && (
-            <section aria-label="How to move it">
-              <p className="app-section-title mb-2">How to move it</p>
+            <section aria-label={tr("How to move it")}>
+              <p className="app-section-title mb-2">{tr("How to move it")}</p>
               <ul className="divide-y divide-border border-t border-border">
                 {advice.map((item, index) => (
                   <li
@@ -164,7 +178,9 @@ export default function HealthActivity() {
 
           <TrackSomethingNew
             tab="training"
-            detail="A session, a distance, a habit OneRep does not count yet."
+            detail={tr(
+              "A session, a distance, a habit OneRep does not count yet."
+            )}
           />
         </>
       )}

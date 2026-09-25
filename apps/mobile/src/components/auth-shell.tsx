@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 import { type ReactNode } from "react"
 
 /**
@@ -71,7 +72,7 @@ export function AuthMark() {
         className="text-[1.4rem] leading-none font-[720] tracking-[-0.03em]"
         style={{ fontFamily: '"Instrument Sans Variable", sans-serif' }}
       >
-        OneRep
+        {tr("OneRep")}
       </span>
     </div>
   )

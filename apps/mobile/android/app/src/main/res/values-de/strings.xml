@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_quick_actions_label">OneRep-Aktionen</string>
+    <string name="widget_quick_actions_description">Starte ein Training oder protokolliere eine Mahlzeit.</string>
+    <string name="widget_nutrition_label">Ernährungsübersicht</string>
+    <string name="widget_nutrition_description">Live-Kalorien und Makros von OneRep.</string>
+    <string name="widget_schedule_label">Heutiges Training</string>
+    <string name="widget_schedule_description">Für heute geplante Übungen und Sätze.</string>
+    <string name="widget_combined_label">Ernährungsdetails</string>
+    <string name="widget_combined_description">Erfasste Lebensmittel, verbleibende Kalorien und Makronährstoffaufteilung.</string>
+    <string name="health_permissions_rationale">OneRep liest abgeschlossene Cardio-Workouts, Herzfrequenz, Distanz und aktive Energie ein, sodass Ihre Trainingshistorie vollständig ist. Mit Ihrer Zustimmung kann es auch abgeschlossene OneRep-Sitzungen an Health Connect zurückschreiben.</string>
+    <string name="widget_snap_camera_label">Schnappschusskamera</string>
+    <string name="widget_snap_camera_caption">Mahlzeit eintragen</string>
+    <string name="widget_snap_camera_description">Öffne die Kamera, um eine Mahlzeit aufzunehmen und zu protokollieren.</string>
+    <string name="widget_open_to_sync">OneRep zum Synchronisieren öffnen</string>
+    <string name="widget_updates_from_account">Die Widget-Daten werden aus deinem Konto aktualisiert.</string>
+    <string name="widget_start_workout">Workout starten</string>
+    <string name="widget_log_meal">Mahlzeit eintragen</string>
+    <string name="widget_water_summary">Wasser %1$s</string>
+    <string name="widget_kcal_left">kcal übrig</string>
+    <string name="widget_calories_left">%1$d kcal übrig</string>
+    <string name="widget_calories_eaten">%1$d von %2$d gegessen</string>
+    <string name="widget_protein">Protein</string>
+    <string name="widget_carbs">Kohlenh.</string>
+    <string name="widget_fat">Fett</string>
+    <string name="navigation_open">Navigations öffnen</string>
+</resources>

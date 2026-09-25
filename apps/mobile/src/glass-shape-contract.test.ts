@@ -1,4 +1,5 @@
-import { readFileSync } from "node:fs"
+import { readLocalizedSource as readFileSync } from "../tests/helpers/localized-source"
+
 import { describe, expect, test } from "vitest"
 
 const UI_CSS = readFileSync(
@@ -12,7 +13,9 @@ const MOBILE_MODAL_CSS = readFileSync(
 
 describe("glass shape contracts", () => {
   test("keeps pills circular instead of remapping them to control corners", () => {
-    expect(UI_CSS).not.toMatch(/\.rounded-full\[class\*=["'](?:p|pr|pl)x?-["']\]/)
+    expect(UI_CSS).not.toMatch(
+      /\.rounded-full\[class\*=["'](?:p|pr|pl)x?-["']\]/
+    )
   })
 
   test("top-rounded sheets do not acquire rounded bottom corners", () => {

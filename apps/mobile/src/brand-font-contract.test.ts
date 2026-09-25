@@ -1,8 +1,11 @@
+import { readLocalizedSource as readFileSync } from "../tests/helpers/localized-source"
 import { expect, test } from "bun:test"
-import { readFileSync } from "node:fs"
 
 const NAVIGATION = readFileSync(
-  new URL("../../../packages/ui/src/components/app-navigation.tsx", import.meta.url),
+  new URL(
+    "../../../packages/ui/src/components/app-navigation.tsx",
+    import.meta.url
+  ),
   "utf8"
 )
 const AUTH_MARK = readFileSync(

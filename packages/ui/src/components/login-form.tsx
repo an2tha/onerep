@@ -1,3 +1,4 @@
+import { Message, tr } from "@repo/ui/i18n"
 import * as React from "react"
 import { cn } from "../lib/utils"
 
@@ -35,13 +36,13 @@ export function LoginForm({
         {mode === "signup" && (
           <div className="relative">
             <label className="absolute top-2.5 left-4 text-[9.5px] font-semibold tracking-[0.14em] text-foreground/35 uppercase select-none">
-              Name
+              {tr("Name")}
             </label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="What should we call you?"
+              placeholder={tr("What should we call you?")}
               required
               autoComplete="name"
               className="w-full rounded-2xl border border-border/50 bg-muted/40 pt-7 pr-4 pb-3.5 pl-4 text-[15px] font-medium transition-colors outline-none placeholder:text-muted-foreground/30 focus:border-foreground/30 focus:bg-muted/60"
@@ -51,13 +52,13 @@ export function LoginForm({
 
         <div className="relative">
           <label className="absolute top-2.5 left-4 text-[9.5px] font-semibold tracking-[0.14em] text-foreground/35 uppercase select-none">
-            Email
+            {tr("Email")}
           </label>
           <input
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
+            placeholder={tr("you@example.com")}
             required
             autoComplete="email"
             className="w-full rounded-2xl border border-border/50 bg-muted/40 pt-7 pr-4 pb-3.5 pl-4 text-[15px] font-medium transition-colors outline-none placeholder:text-muted-foreground/30 focus:border-foreground/30 focus:bg-muted/60"
@@ -66,7 +67,7 @@ export function LoginForm({
 
         <div className="relative">
           <label className="absolute top-2.5 left-4 text-[9.5px] font-semibold tracking-[0.14em] text-foreground/35 uppercase select-none">
-            Password
+            {tr("Password")}
           </label>
           <input
             type="password"
@@ -84,7 +85,7 @@ export function LoginForm({
         {error && (
           <p className="rounded-xl border border-destructive/20 bg-destructive/8 px-3.5 py-2.5 text-[12.5px] font-medium text-destructive">
             {error.trim() ||
-              "We could not complete that request. Please try again."}
+              tr("We could not complete that request. Please try again.")}
           </p>
         )}
 
@@ -95,36 +96,48 @@ export function LoginForm({
         >
           {loading
             ? mode === "signin"
-              ? "Signing in…"
-              : "Creating account…"
+              ? tr("Signing in…")
+              : tr("Creating account…")
             : mode === "signin"
-              ? "Sign in"
-              : "Create account"}
+              ? tr("Sign in")
+              : tr("Create account")}
         </button>
       </form>
 
       <div className="mt-5 text-center">
         {mode === "signin" ? (
           <p className="text-[13px] text-muted-foreground/55">
-            No account?{" "}
-            <button
-              type="button"
-              onClick={() => onModeChange?.("signup")}
-              className="font-semibold text-foreground/80 transition-opacity active:opacity-60"
-            >
-              Sign up →
-            </button>
+            <Message
+              text={"No account? {{value0}}"}
+              values={{
+                value0: (
+                  <button
+                    type="button"
+                    onClick={() => onModeChange?.("signup")}
+                    className="font-semibold text-foreground/80 transition-opacity active:opacity-60"
+                  >
+                    {tr("Sign up →")}
+                  </button>
+                ),
+              }}
+            />
           </p>
         ) : (
           <p className="text-[13px] text-muted-foreground/55">
-            Already a member?{" "}
-            <button
-              type="button"
-              onClick={() => onModeChange?.("signin")}
-              className="font-semibold text-foreground/80 transition-opacity active:opacity-60"
-            >
-              Sign in →
-            </button>
+            <Message
+              text={"Already a member? {{value0}}"}
+              values={{
+                value0: (
+                  <button
+                    type="button"
+                    onClick={() => onModeChange?.("signin")}
+                    className="font-semibold text-foreground/80 transition-opacity active:opacity-60"
+                  >
+                    {tr("Sign in →")}
+                  </button>
+                ),
+              }}
+            />
           </p>
         )}
       </div>

@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 import { useState } from "react"
 import { CalendarDots, CaretLeft, CaretRight } from "@phosphor-icons/react"
 import { Calendar, Popover, PopoverContent, PopoverTrigger } from "@repo/ui"
@@ -42,7 +43,7 @@ export function DateNav({
         onClick={() => onChange(Math.max(MIN_DAY_OFFSET, offset - 1))}
         disabled={offset <= MIN_DAY_OFFSET}
         className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground transition-colors active:bg-muted/45 active:text-foreground disabled:opacity-25"
-        aria-label="Previous day"
+        aria-label={tr("Previous day")}
       >
         <CaretLeft size={14} weight="bold" />
       </button>
@@ -52,7 +53,9 @@ export function DateNav({
           <button
             type="button"
             className="app-icon-button h-10 w-10 bg-transparent text-muted-foreground hover:text-foreground"
-            aria-label={`Choose date, ${dayOffsetLabel(offset, timeZone)}`}
+            aria-label={tr("Choose date, {{value0}}", {
+              value0: dayOffsetLabel(offset, timeZone),
+            })}
           >
             <CalendarDots size={15} weight="bold" />
           </button>
@@ -72,7 +75,7 @@ export function DateNav({
         onClick={() => onChange(Math.min(0, offset + 1))}
         disabled={offset >= 0}
         className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground transition-colors active:bg-muted/45 active:text-foreground disabled:opacity-25"
-        aria-label="Next day"
+        aria-label={tr("Next day")}
       >
         <CaretRight size={14} weight="bold" />
       </button>

@@ -1,5 +1,6 @@
+import { readLocalizedSource as readFileSync } from "../../../tests/helpers/localized-source"
 import { beforeEach, describe, expect, test } from "bun:test"
-import { readFileSync } from "node:fs"
+
 import { cacheWeightUnit, readCachedWeightUnit } from "../use-weight-unit"
 
 const read = (path: string) =>

@@ -42,7 +42,7 @@ struct OneRepLiveActivity: Widget {
                     Image(systemName: context.state.isResting ? "timer" : "figure.strengthtraining.traditional")
                         .font(.title2.weight(.semibold))
                     VStack(alignment: .leading, spacing: 3) {
-                        Text(context.state.isResting ? "Rest" : context.state.exerciseName)
+                        Text(context.state.isResting ? String(localized: "Rest") : context.state.exerciseName)
                             .font(.headline).lineLimit(1)
                         Text(context.state.isResting ? context.state.exerciseName : context.state.setLabel)
                             .font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
@@ -86,7 +86,7 @@ struct OneRepLiveActivity: Widget {
                     VStack(spacing: 10) {
                         HStack {
                             VStack(alignment: .leading) {
-                                Text(context.state.isResting ? "Rest" : context.state.exerciseName).font(.headline).lineLimit(1)
+                                Text(context.state.isResting ? String(localized: "Rest") : context.state.exerciseName).font(.headline).lineLimit(1)
                                 Text(context.state.isResting ? context.state.exerciseName : context.state.setLabel).font(.caption).foregroundStyle(.secondary)
                             }
                             Spacer()

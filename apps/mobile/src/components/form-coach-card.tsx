@@ -1,3 +1,4 @@
+import { Message, tr, translateError, uiLocale } from "@repo/ui/i18n"
 import { Suspense, lazy, useEffect, useState, type ReactNode } from "react"
 import {
   ArrowLeft,
@@ -133,15 +134,25 @@ function PoseLegend({ className }: { className?: string }) {
       )}
     >
       <span className="flex items-center gap-1 text-[11px] font-semibold text-white">
-        <span
-          className="h-1.5 w-4 rounded-full"
-          style={{ backgroundColor: CORRECTED_HEX }}
+        <Message
+          text={"{{value0}}Corrected"}
+          values={{
+            value0: (
+              <span
+                className="h-1.5 w-4 rounded-full"
+                style={{ backgroundColor: CORRECTED_HEX }}
+              />
+            ),
+          }}
         />
-        Corrected
       </span>
       <span className="flex items-center gap-1 text-[11px] text-white/60">
-        <span className="h-1.5 w-4 rounded-full bg-white/30" />
-        Yours
+        <Message
+          text={"{{value0}}Yours"}
+          values={{
+            value0: <span className="h-1.5 w-4 rounded-full bg-white/30" />,
+          }}
+        />
       </span>
     </div>
   )
@@ -192,7 +203,7 @@ export function PoseExpandModal({
         className="sheet-overlay fixed inset-0 z-[100] flex flex-col bg-black/85 backdrop-blur-[10px]"
         role="dialog"
         aria-modal="true"
-        aria-label={`${exerciseName} pose, expanded`}
+        aria-label={tr("{{value0}} pose, expanded", { value0: exerciseName })}
       >
         <div
           className="mx-auto flex w-full max-w-5xl shrink-0 items-center gap-3 px-4"
@@ -203,7 +214,7 @@ export function PoseExpandModal({
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close expanded pose"
+            aria-label={tr("Close expanded pose")}
             className="flex size-10 shrink-0 items-center justify-center rounded-full text-white/70 active:bg-white/10"
           >
             <X size={16} weight="bold" />
@@ -242,13 +253,13 @@ export function PoseExpandModal({
               step={0.01}
               value={blend}
               onChange={(event) => setBlend(Number(event.target.value))}
-              aria-label="Fade between your rep and the corrected one"
+              aria-label={tr("Fade between your rep and the corrected one")}
               className="h-9 w-full"
               style={{ accentColor: CORRECTED_HEX }}
             />
             <div className="flex justify-between text-[12px] font-medium">
-              <span className="text-white/50">Yours</span>
-              <span style={{ color: CORRECTED_HEX }}>Corrected</span>
+              <span className="text-white/50">{tr("Yours")}</span>
+              <span style={{ color: CORRECTED_HEX }}>{tr("Corrected")}</span>
             </div>
           </div>
         )}
@@ -262,21 +273,21 @@ const SEVERITY: Record<
   { label: string; icon: typeof Warning; text: string; tint: string }
 > = {
   strength: {
-    label: "Working",
+    label: tr("Working"),
     icon: CheckCircle,
-    text: "text-primary",
+    text: tr("text-primary"),
     tint: "border-primary/25 bg-primary/10",
   },
   minor: {
-    label: "Worth a look",
+    label: tr("Worth a look"),
     icon: Info,
-    text: "text-foreground",
+    text: tr("text-foreground"),
     tint: "border-border/60 bg-foreground/[0.05]",
   },
   major: {
-    label: "Fix this",
+    label: tr("Fix this"),
     icon: Warning,
-    text: "text-destructive",
+    text: tr("text-destructive"),
     tint: "border-destructive/25 bg-destructive/10",
   },
 }
@@ -315,7 +326,7 @@ function FormCoachDetailSheet({
         <div
           role="dialog"
           aria-modal="true"
-          aria-label={`${exerciseName} form notes`}
+          aria-label={tr("{{value0}} form notes", { value0: exerciseName })}
           className="sheet-panel max-h-[92svh] w-full max-w-sm overflow-y-auto rounded-t-3xl bg-card shadow-[0_-12px_60px_rgba(0,0,0,0.22)] sm:rounded-3xl"
           style={{
             paddingBottom: "max(1.5rem, env(safe-area-inset-bottom, 1.5rem))",
@@ -330,7 +341,7 @@ function FormCoachDetailSheet({
             <button
               type="button"
               onClick={onClose}
-              aria-label="Close form notes"
+              aria-label={tr("Close form notes")}
               className="flex size-10 shrink-0 items-center justify-center rounded-full transition-colors active:bg-muted/60"
               style={{
                 color: "color-mix(in srgb, var(--foreground) 40%, transparent)",
@@ -366,7 +377,7 @@ function FormCoachDetailSheet({
           {checklist.length > 0 && (
             <div className="mx-5 mb-4 rounded-[18px] border border-border/60 bg-foreground/[0.04] px-4 py-3.5">
               <p className="pb-2 text-[11px] font-bold tracking-[0.12em] text-muted-foreground/60 uppercase">
-                Next set
+                {tr("Next set")}
               </p>
               <ol className="flex flex-col gap-2">
                 {checklist.map((item, index) => (
@@ -429,7 +440,7 @@ function FormCoachDetailSheet({
           {detail.drills.length > 0 && (
             <div className="px-5 pt-4">
               <p className="pb-1.5 text-[11px] font-bold tracking-[0.12em] text-muted-foreground/60 uppercase">
-                Work on
+                {tr("Work on")}
               </p>
               <div className="flex flex-col gap-1">
                 {detail.drills.map((drill, index) => (
@@ -451,8 +462,10 @@ function FormCoachDetailSheet({
           {detail.notMeasured.length > 0 && (
             <div className="px-5 pt-4">
               <p className="flex items-center gap-1.5 pb-1.5 text-[11px] font-bold tracking-[0.12em] text-muted-foreground/60 uppercase">
-                <Eye size={11} weight="bold" />
-                Not visible
+                <Message
+                  text={"{{value0}}Not visible"}
+                  values={{ value0: <Eye size={11} weight="bold" /> }}
+                />
               </p>
               <ul className="flex flex-col gap-0.5">
                 {detail.notMeasured.map((item, index) => (
@@ -482,8 +495,8 @@ function FormCoachDetailSheet({
 }
 
 const SURFACES = [
-  { key: "workouts" as const, label: "Workouts" },
-  { key: "progress" as const, label: "Progress" },
+  { key: "workouts" as const, label: tr("Workouts") },
+  { key: "progress" as const, label: tr("Progress") },
 ]
 
 function toFrames(pose: FormCoachPose): FormCoachFrame[] {
@@ -551,7 +564,7 @@ export function ExpandPoseButton({ onExpand }: { onExpand: () => void }) {
         void hapticTap()
         onExpand()
       }}
-      aria-label="Expand the pose"
+      aria-label={tr("Expand the pose")}
       className="absolute top-2.5 right-2.5 flex size-9 items-center justify-center rounded-full bg-black/55 text-white/80 backdrop-blur-md active:bg-black/75"
     >
       <ArrowsOut size={14} weight="bold" />
@@ -599,9 +612,13 @@ export function FormCoachCard({
     try {
       void hapticSelection()
       await pin({ reportId, surface })
-      toast(`Pinned to ${surface === "workouts" ? "Workouts" : "Progress"}`)
+      toast(
+        tr("Pinned to {{value0}}", {
+          value0: surface === "workouts" ? tr("Workouts") : tr("Progress"),
+        })
+      )
     } catch {
-      toast.error("Couldn't pin that")
+      toast.error(translateError(tr("Couldn't pin that")))
     } finally {
       setBusy(false)
     }
@@ -639,7 +656,7 @@ export function FormCoachCard({
             </p>
             {date && (
               <p className="text-[12px] text-muted-foreground tabular-nums">
-                {new Date(`${date}T12:00:00Z`).toLocaleDateString("en-US", {
+                {new Date(`${date}T12:00:00Z`).toLocaleDateString(uiLocale(), {
                   month: "short",
                   day: "numeric",
                 })}
@@ -654,7 +671,7 @@ export function FormCoachCard({
                   void hapticTap()
                   setExpanded(true)
                 }}
-                aria-label="See everything the coach said"
+                aria-label={tr("See everything the coach said")}
                 className="flex size-9 items-center justify-center rounded-full text-muted-foreground active:bg-muted"
               >
                 <ArrowsOut size={14} weight="bold" />
@@ -668,7 +685,7 @@ export function FormCoachCard({
                   await unpin({ pinId })
                   onUnpin()
                 }}
-                aria-label="Unpin this card"
+                aria-label={tr("Unpin this card")}
                 className="flex size-9 items-center justify-center rounded-full text-muted-foreground active:bg-muted"
               >
                 <PushPinSlash size={14} weight="bold" />
@@ -690,8 +707,13 @@ export function FormCoachCard({
             }}
             className="pt-2 text-[12px] font-semibold text-muted-foreground active:text-foreground"
           >
-            {openableDetail.findings.length} note
-            {openableDetail.findings.length === 1 ? "" : "s"} from the coach
+            <Message
+              text={"{{value0}} note{{value1}} from the coach"}
+              values={{
+                value0: openableDetail.findings.length,
+                value1: openableDetail.findings.length === 1 ? "" : "s",
+              }}
+            />
           </button>
         )}
 
@@ -713,7 +735,9 @@ export function FormCoachCard({
                   )}
                 >
                   <PushPin size={12} weight={already ? "fill" : "bold"} />
-                  {already ? `On ${label}` : `Pin to ${label}`}
+                  {already
+                    ? tr("On {{value0}}", { value0: label })
+                    : tr("Pin to {{value0}}", { value0: label })}
                 </button>
               )
             })}
@@ -766,7 +790,7 @@ function FormCoachHistorySheet({ onClose }: { onClose: () => void }) {
           <div
             role="dialog"
             aria-modal="true"
-            aria-label="Form Coach history"
+            aria-label={tr("Form Coach history")}
             className="sheet-panel max-h-[92svh] w-full max-w-sm overflow-y-auto rounded-t-3xl bg-card shadow-[0_-12px_60px_rgba(0,0,0,0.22)] sm:rounded-3xl"
             style={{
               paddingBottom: "max(1.5rem, env(safe-area-inset-bottom, 1.5rem))",
@@ -781,7 +805,7 @@ function FormCoachHistorySheet({ onClose }: { onClose: () => void }) {
               <button
                 type="button"
                 onClick={onClose}
-                aria-label="Close Form Coach history"
+                aria-label={tr("Close Form Coach history")}
                 className="flex size-10 shrink-0 items-center justify-center rounded-full transition-colors active:bg-muted/60"
                 style={{
                   color:
@@ -791,7 +815,7 @@ function FormCoachHistorySheet({ onClose }: { onClose: () => void }) {
                 <ArrowLeft size={14} weight="bold" />
               </button>
               <h2 className="min-w-0 flex-1 truncate text-[17px] font-semibold tracking-tight">
-                Form Coach history
+                {tr("Form Coach history")}
               </h2>
             </div>
 
@@ -806,8 +830,9 @@ function FormCoachHistorySheet({ onClose }: { onClose: () => void }) {
               </div>
             ) : reports.length === 0 ? (
               <p className="px-5 pb-6 text-[14px] leading-5 text-muted-foreground">
-                Record a set with the form coach and every report will collect
-                here.
+                {tr(
+                  "Record a set with the form coach and every report will collect here."
+                )}
               </p>
             ) : (
               <ul className="px-5 pb-5">
@@ -835,10 +860,18 @@ function FormCoachHistorySheet({ onClose }: { onClose: () => void }) {
                         </span>
                         {report.findingCount > 0 && (
                           <span className="mt-1 block text-[11px] text-muted-foreground">
-                            {report.findingCount} note
-                            {report.findingCount === 1 ? "" : "s"}
-                            {report.majorCount > 0 &&
-                              ` · ${report.majorCount} to fix`}
+                            <Message
+                              text={"{{value0}} note{{value1}}{{value2}}"}
+                              values={{
+                                value0: report.findingCount,
+                                value1: report.findingCount === 1 ? "" : "s",
+                                value2:
+                                  report.majorCount > 0 &&
+                                  tr(" · {{value0}} to fix", {
+                                    value0: report.majorCount,
+                                  }),
+                              }}
+                            />
                           </span>
                         )}
                       </span>
@@ -921,9 +954,9 @@ export function FormCoachPinnedCards({
           className="flex min-h-12 w-full items-center justify-between gap-3 text-left"
         >
           <span>
-            <span className="app-section-title block">Form Coach</span>
+            <span className="app-section-title block">{tr("Form Coach")}</span>
             <span className="app-section-subtitle block">
-              Review your past technique reports
+              {tr("Review your past technique reports")}
             </span>
           </span>
           <Eye size={16} className="shrink-0 text-muted-foreground" />
@@ -939,9 +972,9 @@ export function FormCoachPinnedCards({
     <section className="pt-2">
       <div className="flex items-start justify-between gap-3 pb-4">
         <div className="min-w-0">
-          <p className="app-section-title">Form Coach</p>
+          <p className="app-section-title">{tr("Form Coach")}</p>
           <p className="app-section-subtitle">
-            Technique notes you pinned from a recorded set
+            {tr("Technique notes you pinned from a recorded set")}
           </p>
         </div>
         {hasHistory && (
@@ -953,7 +986,7 @@ export function FormCoachPinnedCards({
             }}
             className="min-h-10 shrink-0 text-[13px] font-semibold text-muted-foreground"
           >
-            History
+            {tr("History")}
           </button>
         )}
       </div>

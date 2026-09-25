@@ -1,3 +1,4 @@
+import { Message, tr, uiLocale } from "@repo/ui/i18n"
 import { Card } from "./ui/card"
 import { MuscleBodySvg, type MuscleRecoveryItem } from "./muscle-body-svg"
 import { energyDisplay, useEnergyUnitLabel } from "../lib/energy-unit"
@@ -40,14 +41,14 @@ export type TrendMetric =
   | "neckCm"
 
 const METRICS: Array<{ id: TrendMetric; label: string; unit: string }> = [
-  { id: "bodyFatPct", label: "Body fat", unit: "%" },
-  { id: "waistCm", label: "Waist", unit: "cm" },
-  { id: "hipsCm", label: "Hips", unit: "cm" },
-  { id: "chestCm", label: "Chest", unit: "cm" },
-  { id: "armsCm", label: "Arms", unit: "cm" },
-  { id: "thighsCm", label: "Thighs", unit: "cm" },
-  { id: "calvesCm", label: "Calves", unit: "cm" },
-  { id: "neckCm", label: "Neck", unit: "cm" },
+  { id: "bodyFatPct", label: tr("Body fat"), unit: "%" },
+  { id: "waistCm", label: tr("Waist"), unit: "cm" },
+  { id: "hipsCm", label: tr("Hips"), unit: "cm" },
+  { id: "chestCm", label: tr("Chest"), unit: "cm" },
+  { id: "armsCm", label: tr("Arms"), unit: "cm" },
+  { id: "thighsCm", label: tr("Thighs"), unit: "cm" },
+  { id: "calvesCm", label: tr("Calves"), unit: "cm" },
+  { id: "neckCm", label: tr("Neck"), unit: "cm" },
 ]
 
 /**
@@ -97,7 +98,7 @@ function TrendChart({
             viewBox="0 0 260 64"
             className="mt-2 h-16 w-full"
             role="img"
-            aria-label={`${label} trend`}
+            aria-label={tr("{{value0}} trend", { value0: label })}
           >
             <path d="M0 61H260" stroke="currentColor" strokeOpacity="0.08" />
             <polyline
@@ -128,7 +129,10 @@ function TrendChart({
         </>
       ) : (
         <p className="py-7 text-center text-[13px] text-muted-foreground">
-          Log {label.toLowerCase()} in Progress to start this trend.
+          <Message
+            text={"Log {{value0}} in Progress to start this trend."}
+            values={{ value0: label.toLowerCase() }}
+          />
         </p>
       )}
     </div>
@@ -146,16 +150,16 @@ function RecoveryChart({
 }) {
   const total = Math.max(1, trained + recovering + ready)
   const bars = [
-    { label: "Trained", value: trained, opacity: 1 },
-    { label: "Recovering", value: recovering, opacity: 0.55 },
-    { label: "Ready", value: ready, opacity: 0.2 },
+    { label: tr("Trained"), value: trained, opacity: 1 },
+    { label: tr("Recovering"), value: recovering, opacity: 0.55 },
+    { label: tr("Ready"), value: ready, opacity: 0.2 },
   ]
 
   return (
     <div
       className="mt-4 grid grid-cols-3 items-end gap-3"
       role="img"
-      aria-label="Muscle recovery distribution"
+      aria-label={tr("Muscle recovery distribution")}
     >
       {bars.map((bar) => (
         <div key={bar.label} className="text-center">
@@ -216,27 +220,43 @@ export function DashboardProgressPanels({
   return (
     <section
       className="mx-[var(--app-page-x)] mt-4 md:mx-8"
-      aria-label="Progress snapshot"
+      aria-label={tr("Progress snapshot")}
     >
       <p className="sr-only">
-        Daily target is maintenance minus the planned deficit.
+        {tr("Daily target is maintenance minus the planned deficit.")}
       </p>
       <div className="mb-2 flex items-end justify-between gap-4">
         <div>
-          <p className="app-section-title">Progress snapshot</p>
+          <p className="app-section-title">{tr("Progress snapshot")}</p>
           {checkInCount > 0 && (
             <p className="native-row-detail mt-0.5">
-              Last {checkInCount} check-in{checkInCount === 1 ? "" : "s"}
+              <Message
+                text={"Last {{value0}} check-in{{value1}}"}
+                values={{
+                  value0: checkInCount,
+                  value1: checkInCount === 1 ? "" : "s",
+                }}
+              />
             </p>
           )}
         </div>
         <div className="text-right">
           <p className="rounded-full bg-muted px-2 py-1 text-[12px] font-bold tabular-nums">
-            {energyDisplay(calorieTarget, energyUnit).toLocaleString("en-US")}{" "}
+            {energyDisplay(calorieTarget, energyUnit).toLocaleString(
+              uiLocale()
+            )}{" "}
             {energyUnit}
           </p>
           <p className="text-[11px] text-muted-foreground">
-            daily target{deficit > 0 ? ` · ${deficit} deficit` : ""}
+            <Message
+              text={"daily target{{value0}}"}
+              values={{
+                value0:
+                  deficit > 0
+                    ? tr(" · {{value0}} deficit", { value0: deficit })
+                    : "",
+              }}
+            />
           </p>
         </div>
       </div>
@@ -244,11 +264,11 @@ export function DashboardProgressPanels({
         <div className="grid divide-border md:grid-cols-2 md:divide-x md:divide-y-0">
           <div className="border-b border-border px-4 pt-4 pb-2 md:border-b-0">
             <p className="text-[13px] font-semibold text-muted-foreground">
-              Weight
+              {tr("Weight")}
             </p>
             <TrendChart
               values={weightValues}
-              label="Weight"
+              label={tr("Weight")}
               unit={weightUnit}
             />
           </div>
@@ -256,7 +276,7 @@ export function DashboardProgressPanels({
           <div className="px-4 pt-3 pb-2 md:pt-4">
             <div className="flex items-center justify-end gap-3">
               <label>
-                <span className="sr-only">Choose dashboard metric</span>
+                <span className="sr-only">{tr("Choose dashboard metric")}</span>
                 <select
                   value={metric}
                   onChange={(event) =>
@@ -284,9 +304,9 @@ export function DashboardProgressPanels({
       {muscleRecovery && (
         <Card className="h-full p-4">
           <div>
-            <p className="app-section-title">Muscle recovery</p>
+            <p className="app-section-title">{tr("Muscle recovery")}</p>
             <p className="mt-1 text-[13px] text-muted-foreground">
-              Recovery distribution across tracked muscle groups
+              {tr("Recovery distribution across tracked muscle groups")}
             </p>
           </div>
           {muscleRecovery.length > 0 ? (
@@ -304,7 +324,7 @@ export function DashboardProgressPanels({
             </div>
           ) : (
             <p className="py-10 text-center text-[13px] text-muted-foreground">
-              Finish a workout to start the recovery chart.
+              {tr("Finish a workout to start the recovery chart.")}
             </p>
           )}
         </Card>

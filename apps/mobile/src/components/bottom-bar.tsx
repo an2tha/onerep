@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 import {
   createContext,
   useContext,
@@ -67,7 +68,7 @@ type TabDef = {
 
 const BASE_TABS: TabDef[] = [
   { path: "/", Icon: House, labelKey: "nav.today" },
-  { path: "/journal", Icon: BookOpen, labelKey: "Journal" },
+  { path: "/journal", Icon: BookOpen, labelKey: tr("Journal") },
   { path: "/nutrition", Icon: ForkKnife, labelKey: "nav.nutrition" },
   { path: "/workouts", Icon: Barbell, labelKey: "nav.training" },
   { path: "/progress", Icon: ChartLine, labelKey: "nav.progress" },
@@ -91,7 +92,12 @@ function isNutritionPath(pathname: string) {
 }
 
 function isTrainingPath(pathname: string) {
-  return pathname === "/workouts" || pathname.startsWith("/workouts/") || pathname === "/endurance" || pathname.startsWith("/endurance/")
+  return (
+    pathname === "/workouts" ||
+    pathname.startsWith("/workouts/") ||
+    pathname === "/endurance" ||
+    pathname.startsWith("/endurance/")
+  )
 }
 
 // The library lives inside Progress now, so a single exercise lights up the

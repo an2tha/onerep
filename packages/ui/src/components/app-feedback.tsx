@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 import {
   ArrowsClockwise,
   CloudArrowUp,
@@ -35,7 +36,7 @@ export function MetricTooltip({
         <TooltipTrigger asChild>
           <button
             type="button"
-            aria-label={`About ${label}`}
+            aria-label={tr("About {{value0}}", { value0: label })}
             aria-expanded={open}
             onClick={() => setOpen((current) => !current)}
             className="-m-2 inline-flex min-h-11 min-w-11 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground focus-visible:text-foreground"
@@ -125,8 +126,8 @@ export function OfflineSyncStatus({
             aria-busy={syncing}
             aria-label={
               status.tone === "error"
-                ? "Try saving your changes again"
-                : "Save your changes now"
+                ? tr("Try saving your changes again")
+                : tr("Save your changes now")
             }
             className="min-h-11 rounded-[8px] bg-foreground px-3 text-[13px] font-semibold text-background"
           >
@@ -135,10 +136,10 @@ export function OfflineSyncStatus({
                 <ArrowsClockwise size={11} className="animate-spin" />
               )}
               {syncing
-                ? "Saving"
+                ? tr("Saving")
                 : status.tone === "error"
-                  ? "Try again"
-                  : "Save now"}
+                  ? tr("Try again")
+                  : tr("Save now")}
             </span>
           </button>
         )}
@@ -146,7 +147,7 @@ export function OfflineSyncStatus({
           type="button"
           onClick={onDismiss}
           disabled={syncing}
-          aria-label="Dismiss the unsaved changes message"
+          aria-label={tr("Dismiss the unsaved changes message")}
           className="flex h-11 w-11 items-center justify-center rounded-[8px] text-muted-foreground transition-colors active:bg-muted disabled:opacity-40"
         >
           <X size={12} weight="bold" />

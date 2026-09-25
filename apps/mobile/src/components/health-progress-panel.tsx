@@ -1,3 +1,4 @@
+import { Message, choice, tr, uiLocale } from "@repo/ui/i18n"
 import { Heartbeat } from "@phosphor-icons/react"
 import { useQuery } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
@@ -36,18 +37,18 @@ export type HealthWeekSeries = NonNullable<
 type WeekMetric = HealthWeekSeries["metrics"][keyof HealthWeekSeries["metrics"]]
 
 const BAND_COPY: Record<HealthDashboard["band"], string> = {
-  excellent: "Excellent",
-  solid: "Solid",
-  fair: "Fair",
-  poor: "Needs work",
-  unknown: "No reading",
+  excellent: tr("Excellent"),
+  solid: tr("Solid"),
+  fair: tr("Fair"),
+  poor: tr("Needs work"),
+  unknown: tr("No reading"),
 }
 
 const RECOVERY_COPY: Record<HealthDashboard["recovery"]["status"], string> = {
-  ready: "Ready to train",
-  steady: "Steady",
-  compromised: "Under-recovered",
-  unknown: "No baseline yet",
+  ready: tr("Ready to train"),
+  steady: tr("Steady"),
+  compromised: tr("Under-recovered"),
+  unknown: tr("No baseline yet"),
 }
 
 /** The rows on the comparison list, in the order a coach would read them. */
@@ -57,30 +58,35 @@ const WEEK_ROWS: Array<{
 }> = [
   {
     id: "sleep",
-    tooltip:
-      "Time asleep, not time in bed, credited to the day you woke up. The comparison is against your average for the seven days before.",
+    tooltip: tr(
+      "Time asleep, not time in bed, credited to the day you woke up. The comparison is against your average for the seven days before."
+    ),
   },
   { id: "steps" },
   {
     id: "exercise",
-    tooltip:
-      "Minutes of recorded sessions from your health store, so runs and classes logged elsewhere count too.",
+    tooltip: tr(
+      "Minutes of recorded sessions from your health store, so runs and classes logged elsewhere count too."
+    ),
   },
   { id: "energy" },
   {
     id: "restingHeartRate",
-    tooltip:
-      "Lower is usually better. A resting rate creeping up over a week is one of the earlier signs of under-recovery or coming down with something.",
+    tooltip: tr(
+      "Lower is usually better. A resting rate creeping up over a week is one of the earlier signs of under-recovery or coming down with something."
+    ),
   },
   {
     id: "hrv",
-    tooltip:
-      "Heart rate variability, in your phone's own statistic. Only compare it against your own history — the number is not comparable between devices.",
+    tooltip: tr(
+      "Heart rate variability, in your phone's own statistic. Only compare it against your own history — the number is not comparable between devices."
+    ),
   },
   {
     id: "recovery",
-    tooltip:
-      "A daily readiness score from sleep, resting heart rate and HRV against your own 28-day baseline.",
+    tooltip: tr(
+      "A daily readiness score from sleep, resting heart rate and HRV against your own 28-day baseline."
+    ),
   },
 ]
 
@@ -89,7 +95,7 @@ export function formatWeekValue(metric: WeekMetric) {
   if (metric.id === "sleep" || metric.id === "exercise") {
     return formatHours(metric.average)
   }
-  const rounded = Math.round(metric.average).toLocaleString("en-US")
+  const rounded = Math.round(metric.average).toLocaleString(uiLocale())
   return metric.unit ? `${rounded} ${metric.unit}` : rounded
 }
 
@@ -102,13 +108,16 @@ export function formatWeekValue(metric: WeekMetric) {
  * gaining phase.
  */
 export function formatWeekChange(metric: WeekMetric) {
-  if (metric.average === null) return "Nothing recorded this week"
+  if (metric.average === null) return tr("Nothing recorded this week")
   if (metric.previousAverage === null || metric.deltaPercent === null) {
-    return "No prior week to compare"
+    return tr("No prior week to compare")
   }
   const rounded = Math.round(metric.deltaPercent)
-  if (rounded === 0) return "Level with the prior 7 days"
-  return `${rounded > 0 ? "+" : ""}${rounded}% vs prior 7 days`
+  if (rounded === 0) return tr("Level with the prior 7 days")
+  return tr("{{value0}}{{value1}}% vs prior 7 days", {
+    value0: choice(rounded > 0 ? "+" : ""),
+    value1: rounded,
+  })
 }
 
 export function HealthProgress({
@@ -126,15 +135,19 @@ export function HealthProgress({
     return (
       <EmptyState
         icon={Heartbeat}
-        title="Nothing to read yet"
+        title={tr("Nothing to read yet")}
         detail={
           isHealthSyncSupportedPlatform()
-            ? "Connect Apple Health or Health Connect and give it a few days. The week needs readings before it has anything to compare."
-            : "This tab reads the health store on your phone. Open OneRep on iOS or Android with health sync on and the numbers will follow."
+            ? tr(
+                "Connect Apple Health or Health Connect and give it a few days. The week needs readings before it has anything to compare."
+              )
+            : tr(
+                "This tab reads the health store on your phone. Open OneRep on iOS or Android with health sync on and the numbers will follow."
+              )
         }
         action={
           <PrimaryButton onClick={onOpenSettings}>
-            Open health settings
+            {tr("Open health settings")}
           </PrimaryButton>
         }
       />
@@ -146,18 +159,22 @@ export function HealthProgress({
   const guidance = recommendation
     ? `${recommendation.title.replace(/[.!]?$/, ".")} ${recommendation.detail}`
     : (dashboard.narrative?.body ??
-      "Keep the sync running. A week of readings is the minimum before any of this means anything.")
+      tr(
+        "Keep the sync running. A week of readings is the minimum before any of this means anything."
+      ))
 
   return (
     <div className="grid gap-5">
       <section
         className="progress-tab-enter app-surface px-4 py-4"
-        aria-label="Health score"
+        aria-label={tr("Health score")}
       >
         <MetricHeading
           icon={<Heartbeat size={20} />}
-          title="Health score"
-          tooltip="Sleep, steps, exercise minutes, active energy and cardio fitness, each graded against a target and weighted into one number over the last seven days. Pillars with no readings are left out rather than scored as zero."
+          title={tr("Health score")}
+          tooltip={tr(
+            "Sleep, steps, exercise minutes, active energy and cardio fitness, each graded against a target and weighted into one number over the last seven days. Pillars with no readings are left out rather than scored as zero."
+          )}
         />
         <p className="mt-4 text-[2rem] leading-none font-bold tracking-tight tabular-nums">
           {dashboard.score}
@@ -167,19 +184,27 @@ export function HealthProgress({
         </p>
         <p className="mt-2 text-[14px] text-muted-foreground">
           {BAND_COPY[dashboard.band]}
-          {dashboard.narrative ? ` · ${dashboard.narrative.headline}` : ""}
+          {dashboard.narrative
+            ? tr(" · {{value0}}", { value0: dashboard.narrative.headline })
+            : ""}
         </p>
         <p className="mt-1 text-[13px] text-muted-foreground tabular-nums">
-          {dashboard.measuredDays} of {dashboard.windowDays} days measured
+          <Message
+            text={"{{value0}} of {{value1}} days measured"}
+            values={{
+              value0: dashboard.measuredDays,
+              value1: dashboard.windowDays,
+            }}
+          />
         </p>
       </section>
 
       <section
         className="progress-tab-enter"
         style={{ animationDelay: "60ms" }}
-        aria-label="Health this week"
+        aria-label={tr("Health this week")}
       >
-        <h2 className="native-section-title mb-1">This week</h2>
+        <h2 className="native-section-title mb-1">{tr("This week")}</h2>
         <div className="border-y border-border">
           {WEEK_ROWS.map((row) => {
             const metric = series.metrics[row.id]
@@ -196,7 +221,7 @@ export function HealthProgress({
           {/* The row above is the week's average; this one is this morning.
               Same instrument, different day, and the label has to say so. */}
           <InsightRow
-            label="Recovery today"
+            label={tr("Recovery today")}
             value={
               dashboard.recoveryScore === null
                 ? "—"
@@ -204,9 +229,15 @@ export function HealthProgress({
             }
             detail={
               recovery.notes[0] ??
-              `${RECOVERY_COPY[recovery.status]} · ${recovery.days} of ${recovery.windowDays} baseline days`
+              tr("{{value0}} · {{value1}} of {{value2}} baseline days", {
+                value0: RECOVERY_COPY[recovery.status],
+                value1: recovery.days,
+                value2: recovery.windowDays,
+              })
             }
-            tooltip="Today's readiness against your own 28-day baseline. It needs about a week of sleep and heart readings before it says anything."
+            tooltip={tr(
+              "Today's readiness against your own 28-day baseline. It needs about a week of sleep and heart readings before it says anything."
+            )}
           />
         </div>
       </section>
@@ -214,7 +245,7 @@ export function HealthProgress({
       <Interpretation>{guidance}</Interpretation>
 
       <PrimaryButton onClick={onOpenHealth} className="w-full">
-        Open health
+        {tr("Open health")}
       </PrimaryButton>
     </div>
   )

@@ -1,5 +1,5 @@
+import { readLocalizedSource as readFileSync } from "../../tests/helpers/localized-source"
 import { describe, expect, test } from "bun:test"
-import { readFileSync } from "node:fs"
 
 const AUTH_GUARD_SOURCE = readFileSync(
   new URL("./auth-guard.tsx", import.meta.url),

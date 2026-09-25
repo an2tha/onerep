@@ -1,3 +1,4 @@
+import { Message, tr, translateError } from "@repo/ui/i18n"
 import { useRef, useState, type FormEvent } from "react"
 import { useSearchParams } from "react-router"
 import { CaretLeft, Eye, EyeSlash } from "@phosphor-icons/react"
@@ -9,8 +10,9 @@ import { getEmailCallbackUrl } from "@/lib/auth-redirects"
 const FIELD_CLASS = "native-field"
 const LABEL_CLASS = "native-field-label"
 const INPUT_CLASS = "native-input disabled:opacity-60"
-const PASSWORD_CHANGED_MESSAGE =
+const PASSWORD_CHANGED_MESSAGE = tr(
   "Password changed. Sign in with the new password."
+)
 
 function PasswordInput({
   label,
@@ -50,7 +52,11 @@ function PasswordInput({
           onClick={onToggleVisible}
           disabled={disabled}
           className="absolute inset-y-0 right-0 inline-flex w-12 items-center justify-center text-muted-foreground transition-colors hover:text-foreground active:opacity-60 disabled:opacity-40"
-          aria-label={visible ? `Hide ${label}` : `Show ${label}`}
+          aria-label={
+            visible
+              ? tr("Hide {{value0}}", { value0: label })
+              : tr("Show {{value0}}", { value0: label })
+          }
           aria-pressed={visible}
         >
           {visible ? (
@@ -90,12 +96,12 @@ export default function ResetPassword() {
   async function sendCode(event?: FormEvent<HTMLFormElement>) {
     event?.preventDefault()
     if (resetActionRef.current || loading) return
-    setError(undefined)
+    setError(translateError(undefined))
     setMessage(undefined)
 
     const trimmedEmail = email.trim()
     if (!trimmedEmail) {
-      setError("Enter your email")
+      setError(translateError(tr("Enter your email")))
       return
     }
     resetActionRef.current = true
@@ -107,15 +113,21 @@ export default function ResetPassword() {
       })
       if (sent.error) {
         setError(
-          betterAuthErrorMessage(sent.error, "Could not send reset link")
+          translateError(
+            betterAuthErrorMessage(sent.error, "Could not send reset link")
+          )
         )
         return
       }
 
       setCodeSent(true)
-      setMessage("Reset link sent. Check your email.")
+      setMessage(tr("Reset link sent. Check your email."))
     } catch (error) {
-      setError(betterAuthErrorMessage(error, "Could not send reset link"))
+      setError(
+        translateError(
+          betterAuthErrorMessage(error, "Could not send reset link")
+        )
+      )
     } finally {
       resetActionRef.current = false
       setLoading(false)
@@ -125,19 +137,21 @@ export default function ResetPassword() {
   async function changePassword(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (resetActionRef.current || loading) return
-    setError(undefined)
+    setError(translateError(undefined))
     setMessage(undefined)
 
     if (!token) {
-      setError("Open the reset link from your email first.")
+      setError(translateError(tr("Open the reset link from your email first.")))
       return
     }
     if (newPassword.length < 8) {
-      setError("Use at least 8 characters for your new password.")
+      setError(
+        translateError(tr("Use at least 8 characters for your new password."))
+      )
       return
     }
     if (newPassword !== confirmPassword) {
-      setError("Passwords do not match.")
+      setError(translateError(tr("Passwords do not match.")))
       return
     }
 
@@ -150,7 +164,9 @@ export default function ResetPassword() {
       })
       if (submitted.error) {
         setError(
-          betterAuthErrorMessage(submitted.error, "Could not reset password")
+          translateError(
+            betterAuthErrorMessage(submitted.error, "Could not reset password")
+          )
         )
         return
       }
@@ -161,7 +177,11 @@ export default function ResetPassword() {
       setShowConfirmPassword(false)
       setMessage(PASSWORD_CHANGED_MESSAGE)
     } catch (error) {
-      setError(betterAuthErrorMessage(error, "Could not reset password"))
+      setError(
+        translateError(
+          betterAuthErrorMessage(error, "Could not reset password")
+        )
+      )
     } finally {
       resetActionRef.current = false
       setLoading(false)
@@ -179,18 +199,22 @@ export default function ResetPassword() {
             onClick={backToSignIn}
             className="native-toolbar-button -ml-2.5 pl-1.5 text-muted-foreground transition-colors hover:text-foreground active:opacity-60"
           >
-            <CaretLeft size={18} weight="bold" />
-            Sign in
+            <Message
+              text={"{{value0}}Sign in"}
+              values={{ value0: <CaretLeft size={18} weight="bold" /> }}
+            />
           </button>
         </div>
         <AuthMark />
         <h1 id="reset-password-title" className="app-title mt-7">
-          {codeSent ? "Choose a new password" : "Reset your password"}
+          {codeSent ? tr("Choose a new password") : tr("Reset your password")}
         </h1>
         <p className="native-supporting mx-auto mt-2 max-w-[32ch] text-balance">
           {codeSent
-            ? "Use the link from your email and enter a new password below."
-            : "Enter your account email. We’ll send you a secure reset link."}
+            ? tr("Use the link from your email and enter a new password below.")
+            : tr(
+                "Enter your account email. We’ll send you a secure reset link."
+              )}
         </p>
       </header>
 
@@ -204,13 +228,13 @@ export default function ResetPassword() {
         >
           {!codeSent && (
             <label className={FIELD_CLASS}>
-              <span className={LABEL_CLASS}>Email</span>
+              <span className={LABEL_CLASS}>{tr("Email")}</span>
               <input
                 type="email"
                 name="email"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                placeholder="you@example.com"
+                placeholder={tr("you@example.com")}
                 required
                 autoComplete="email"
                 disabled={loading || Boolean(message)}
@@ -222,7 +246,7 @@ export default function ResetPassword() {
           {codeSent && !passwordChanged && (
             <>
               <PasswordInput
-                label="New password"
+                label={tr("New password")}
                 name="new-password"
                 value={newPassword}
                 onChange={setNewPassword}
@@ -234,7 +258,7 @@ export default function ResetPassword() {
               />
 
               <PasswordInput
-                label="Confirm password"
+                label={tr("Confirm password")}
                 name="confirm-password"
                 value={confirmPassword}
                 onChange={setConfirmPassword}
@@ -271,7 +295,7 @@ export default function ResetPassword() {
               onClick={backToSignIn}
               className="native-primary-button mt-2 min-h-12 w-full rounded-[0.8rem]"
             >
-              Back to sign in
+              {tr("Back to sign in")}
             </button>
           ) : (
             <button
@@ -282,11 +306,11 @@ export default function ResetPassword() {
             >
               {loading
                 ? codeSent
-                  ? "Changing…"
-                  : "Sending…"
+                  ? tr("Changing…")
+                  : tr("Sending…")
                 : codeSent
-                  ? "Change password"
-                  : "Send link"}
+                  ? tr("Change password")
+                  : tr("Send link")}
             </button>
           )}
         </form>
@@ -301,7 +325,7 @@ export default function ResetPassword() {
             aria-busy={loading}
             className="native-secondary-button mt-3 min-h-12 w-full rounded-[0.8rem] text-muted-foreground disabled:opacity-50"
           >
-            Resend link
+            {tr("Resend link")}
           </button>
         )}
       </section>

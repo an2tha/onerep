@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 import {
   FOOD_MICRONUTRIENT_KEYS,
   stripUndefined,
@@ -46,7 +47,7 @@ export const CUSTOM_FOOD_BASES = ["serving", "100g"] as const
 export type CustomFoodBasis = (typeof CUSTOM_FOOD_BASES)[number]
 
 /** How a copy written on the per-100 g basis names its serving. */
-export const PER_100G_SERVING_LABEL = "100 g"
+export const PER_100G_SERVING_LABEL = tr("100 g")
 
 /** Editor state — every numeric field is a raw string so inputs stay uncontrolled-friendly. */
 export type CustomFoodDraft = {
@@ -82,35 +83,35 @@ export const CUSTOM_FOOD_NUTRIENT_LABELS: Record<
   CustomFoodNutrientKey,
   { label: string; unit: string }
 > = {
-  calories: { label: "Calories", unit: "kcal" },
-  protein: { label: "Protein", unit: "g" },
-  carbs: { label: "Carbs", unit: "g" },
-  fat: { label: "Fat", unit: "g" },
-  fiber: { label: "Fiber", unit: "g" },
-  sugar: { label: "Sugar", unit: "g" },
-  saturatedFat: { label: "Saturated fat", unit: "g" },
-  transFat: { label: "Trans fat", unit: "g" },
-  cholesterol: { label: "Cholesterol", unit: "mg" },
-  sodium: { label: "Sodium", unit: "mg" },
-  potassium: { label: "Potassium", unit: "mg" },
-  calcium: { label: "Calcium", unit: "mg" },
-  iron: { label: "Iron", unit: "mg" },
-  magnesium: { label: "Magnesium", unit: "mg" },
-  phosphorus: { label: "Phosphorus", unit: "mg" },
-  zinc: { label: "Zinc", unit: "mg" },
-  vitaminC: { label: "Vitamin C", unit: "mg" },
-  vitaminA: { label: "Vitamin A", unit: "mcg" },
-  vitaminD: { label: "Vitamin D", unit: "mcg" },
-  vitaminB12: { label: "Vitamin B12", unit: "mcg" },
-  caffeine: { label: "Caffeine", unit: "mg" },
-  alcohol: { label: "Alcohol", unit: "g" },
+  calories: { label: tr("Calories"), unit: "kcal" },
+  protein: { label: tr("Protein"), unit: "g" },
+  carbs: { label: tr("Carbs"), unit: "g" },
+  fat: { label: tr("Fat"), unit: "g" },
+  fiber: { label: tr("Fiber"), unit: "g" },
+  sugar: { label: tr("Sugar"), unit: "g" },
+  saturatedFat: { label: tr("Saturated fat"), unit: "g" },
+  transFat: { label: tr("Trans fat"), unit: "g" },
+  cholesterol: { label: tr("Cholesterol"), unit: "mg" },
+  sodium: { label: tr("Sodium"), unit: "mg" },
+  potassium: { label: tr("Potassium"), unit: "mg" },
+  calcium: { label: tr("Calcium"), unit: "mg" },
+  iron: { label: tr("Iron"), unit: "mg" },
+  magnesium: { label: tr("Magnesium"), unit: "mg" },
+  phosphorus: { label: tr("Phosphorus"), unit: "mg" },
+  zinc: { label: tr("Zinc"), unit: "mg" },
+  vitaminC: { label: tr("Vitamin C"), unit: "mg" },
+  vitaminA: { label: tr("Vitamin A"), unit: "mcg" },
+  vitaminD: { label: tr("Vitamin D"), unit: "mcg" },
+  vitaminB12: { label: tr("Vitamin B12"), unit: "mcg" },
+  caffeine: { label: tr("Caffeine"), unit: "mg" },
+  alcohol: { label: tr("Alcohol"), unit: "g" },
 }
 
 // ─── Draft helpers ────────────────────────────────────────────────────────────
 
 function emptyNutrientFields() {
   return Object.fromEntries(
-    CUSTOM_FOOD_NUTRIENT_KEYS.map((key) => [key, ""]),
+    CUSTOM_FOOD_NUTRIENT_KEYS.map((key) => [key, ""])
   ) as Record<CustomFoodNutrientKey, string>
 }
 
@@ -118,7 +119,7 @@ export function emptyCustomFoodDraft(): CustomFoodDraft {
   return {
     name: "",
     brand: "",
-    servingLabel: "1 serving",
+    servingLabel: tr("1 serving"),
     servingGrams: "",
     barcode: "",
     notes: "",
@@ -138,7 +139,7 @@ export function emptyCustomFoodDraft(): CustomFoodDraft {
  */
 function basisFor(
   servingLabel: string | undefined,
-  servingGrams: number | undefined | null,
+  servingGrams: number | undefined | null
 ): CustomFoodBasis {
   // A serving nobody weighed is not a scale the numbers can be in: they are per
   // 100 g, which is what the card prints for such a row whatever serving text it
@@ -182,7 +183,7 @@ export function parseNutrientInput(raw: string): number | undefined {
 }
 
 export function customFoodNutrientsFromDraft(
-  draft: CustomFoodDraft,
+  draft: CustomFoodDraft
 ): CustomFoodNutrients {
   const nutrients: CustomFoodNutrients = {
     calories: parseNutrientInput(draft.nutrients.calories) ?? 0,
@@ -205,7 +206,7 @@ export type CustomFoodValidation = {
 }
 
 export function validateCustomFoodDraft(
-  draft: CustomFoodDraft,
+  draft: CustomFoodDraft
 ): CustomFoodValidation {
   const errors: CustomFoodValidation["errors"] = {}
 
@@ -230,7 +231,7 @@ export function validateCustomFoodDraft(
  */
 export function caloriesFromMacros(nutrients: CustomFoodNutrients) {
   return Math.round(
-    nutrients.protein * 4 + nutrients.carbs * 4 + nutrients.fat * 9,
+    nutrients.protein * 4 + nutrients.carbs * 4 + nutrients.fat * 9
   )
 }
 
@@ -264,7 +265,7 @@ export function parseServingGramsInput(raw: string): number | undefined {
 
 /** The grams one unit of a draft's basis weighs — 100 g, or the serving. */
 export function customFoodDraftBasisGrams(
-  draft: CustomFoodDraft,
+  draft: CustomFoodDraft
 ): number | undefined {
   return draft.basis === "100g"
     ? 100
@@ -285,7 +286,7 @@ export function customFoodDraftBasisGrams(
  */
 export function customFoodDraftInBasis(
   draft: CustomFoodDraft,
-  basis: CustomFoodBasis,
+  basis: CustomFoodBasis
 ): CustomFoodDraft {
   if (basis === draft.basis) return draft
   const from = customFoodDraftBasisGrams(draft)
@@ -309,7 +310,7 @@ export function customFoodDraftInBasis(
  */
 function rescaleNutrientFields(
   fields: Record<CustomFoodNutrientKey, string>,
-  factor: number,
+  factor: number
 ): Record<CustomFoodNutrientKey, string> {
   const scaled = { ...fields }
   for (const key of CUSTOM_FOOD_NUTRIENT_KEYS) {
@@ -383,7 +384,7 @@ export function customFoodSaveArgs(draft: CustomFoodDraft) {
         : {
             ...draft,
             nutrients: rescaleNutrientFields(draft.nutrients, serving.factor),
-          },
+          }
     ),
   }
 }
@@ -398,7 +399,7 @@ export function customFoodSaveArgs(draft: CustomFoodDraft) {
  */
 export function customFoodFromDraft(
   draft: CustomFoodDraft,
-  id?: string,
+  id?: string
 ): CustomFood {
   return { ...(id ? { id } : {}), ...customFoodSaveArgs(draft) }
 }
@@ -429,7 +430,7 @@ export function applyCorrectedCopy<
   const nutrients = food.nutrients?.map((row) =>
     Object.hasOwn(macros, row.key)
       ? { ...row, per100g: macros[row.key as keyof typeof macros] }
-      : row,
+      : row
   )
   return {
     ...food,
@@ -457,7 +458,7 @@ export function applyCorrectedCopy<
 
 export function scaleCustomFoodNutrients(
   nutrients: CustomFoodNutrients,
-  servings: number,
+  servings: number
 ): CustomFoodNutrients {
   const factor = Number.isFinite(servings) && servings > 0 ? servings : 0
   const round = (value: number) => Math.round(value * 100) / 100
@@ -488,7 +489,7 @@ export function servingsLabel(servings: number, servingLabel: string) {
 /** Turns a saved custom food into a food log entry ready for `setDay`. */
 export function foodLogEntryFromCustomFood(
   food: CustomFood,
-  options: { meal: MealType; servings?: number; loggedAt?: string },
+  options: { meal: MealType; servings?: number; loggedAt?: string }
 ): FoodLogEntry {
   const servings =
     options.servings && options.servings > 0 ? options.servings : 1
@@ -525,7 +526,7 @@ export function filterCustomFoods(foods: CustomFood[], query: string) {
   const needle = query.trim().toLowerCase()
   if (!needle) return foods
   return foods.filter((food) =>
-    `${food.name} ${food.brand ?? ""}`.toLowerCase().includes(needle),
+    `${food.name} ${food.brand ?? ""}`.toLowerCase().includes(needle)
   )
 }
 
@@ -540,7 +541,7 @@ export function filterCustomFoods(foods: CustomFood[], query: string) {
  */
 export function correctedCopyForBarcode(
   foods: CustomFood[],
-  barcode?: string | null,
+  barcode?: string | null
 ): CustomFood | null {
   const code = (barcode ?? "").trim()
   if (!code) return null

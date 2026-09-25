@@ -1,3 +1,4 @@
+import { choice, tr } from "@repo/ui/i18n"
 import { useQuery } from "convex/react"
 import { api } from "../../../../../convex/_generated/api"
 import { currentDateKey } from "@/lib/food-log"
@@ -33,8 +34,8 @@ export default function HealthHeart() {
 
   return (
     <HealthDetailShell
-      title="Heart"
-      subtitle="Relative to your own normal"
+      title={tr("Heart")}
+      subtitle={tr("Relative to your own normal")}
       heroFill={cardio?.score ?? null}
       charts={
         <>
@@ -43,7 +44,7 @@ export default function HealthHeart() {
             today={today}
             metric="hrv"
             kind="line"
-            title="Heart rate variability"
+            title={tr("Heart rate variability")}
             format={(value) => `${formatCount(value)}ms`}
             tone="var(--accent-water)"
           />
@@ -52,7 +53,7 @@ export default function HealthHeart() {
             today={today}
             metric="restingHeartRate"
             kind="line"
-            title="Resting heart rate"
+            title={tr("Resting heart rate")}
             format={(value) => `${formatCount(value)}bpm`}
             tone={AREA_TONES.heart}
           />
@@ -63,23 +64,27 @@ export default function HealthHeart() {
           items={[
             {
               term: "What HRV means here",
-              detail:
-                "Apple Health reports SDNN and Health Connect reports RMSSD. They are different statistics and are never comparable between platforms, so everything on this page is measured against your own history on one device.",
+              detail: tr(
+                "Apple Health reports SDNN and Health Connect reports RMSSD. They are different statistics and are never comparable between platforms, so everything on this page is measured against your own history on one device."
+              ),
             },
             {
               term: "Resting heart rate",
-              detail:
-                "The lowest rate your device saw across long stretches of inactivity, often but not only while asleep. Within one person, a drift downward over months tends to track improving aerobic fitness.",
+              detail: tr(
+                "The lowest rate your device saw across long stretches of inactivity, often but not only while asleep. Within one person, a drift downward over months tends to track improving aerobic fitness."
+              ),
             },
             {
               term: "No good and bad numbers",
-              detail:
-                "A fit 25-year-old and a fit 60-year-old differ by more than any threshold could survive, and so do two people the same age. Only the movement is informative.",
+              detail: tr(
+                "A fit 25-year-old and a fit 60-year-old differ by more than any threshold could survive, and so do two people the same age. Only the movement is informative."
+              ),
             },
             {
               term: "What moves them",
-              detail:
-                "Training load, alcohol, illness and short sleep all raise resting heart rate and suppress HRV, usually together and usually within a day. None of that is a diagnosis.",
+              detail: tr(
+                "Training load, alcohol, illness and short sleep all raise resting heart rate and suppress HRV, usually together and usually within a day. None of that is a diagnosis."
+              ),
             },
           ]}
         />
@@ -95,23 +100,28 @@ export default function HealthHeart() {
           <DialHero
             tone={AREA_TONES.heart}
             score={cardio?.score ?? null}
-            caption={cardio?.score == null ? "no baseline" : "stability"}
+            caption={
+              cardio?.score == null ? tr("no baseline") : tr("stability")
+            }
           >
             {recovery?.hrv || recovery?.restingHeartRate ? (
               <StatGrid columns={2}>
                 <StatCell
-                  label="Heart rate variability"
+                  label={tr("Heart rate variability")}
                   value={
                     recovery.hrv ? `${Math.round(recovery.hrv.recent)}ms` : "—"
                   }
                   caption={
                     recovery.hrv
-                      ? `${recovery.hrv.delta >= 0 ? "+" : "−"}${Math.abs(Math.round(recovery.hrv.delta))}ms on baseline`
-                      : "no readings"
+                      ? tr("{{value0}}{{value1}}ms on baseline", {
+                          value0: choice(recovery.hrv.delta >= 0 ? "+" : "−"),
+                          value1: Math.abs(Math.round(recovery.hrv.delta)),
+                        })
+                      : tr("no readings")
                   }
                 />
                 <StatCell
-                  label="Resting heart rate"
+                  label={tr("Resting heart rate")}
                   value={
                     recovery.restingHeartRate
                       ? `${Math.round(recovery.restingHeartRate.recent)}bpm`
@@ -119,13 +129,24 @@ export default function HealthHeart() {
                   }
                   caption={
                     recovery.restingHeartRate
-                      ? `${recovery.restingHeartRate.delta >= 0 ? "+" : "−"}${Math.abs(Math.round(recovery.restingHeartRate.delta))}bpm on baseline`
-                      : "no readings"
+                      ? tr("{{value0}}{{value1}}bpm on baseline", {
+                          value0: choice(
+                            recovery.restingHeartRate.delta >= 0 ? "+" : "−"
+                          ),
+                          value1: Math.abs(
+                            Math.round(recovery.restingHeartRate.delta)
+                          ),
+                        })
+                      : tr("no readings")
                   }
                 />
               </StatGrid>
             ) : (
-              <NoReadings detail="Needs about a week of heart-rate readings before there is a baseline to compare against." />
+              <NoReadings
+                detail={tr(
+                  "Needs about a week of heart-rate readings before there is a baseline to compare against."
+                )}
+              />
             )}
           </DialHero>
 
@@ -136,7 +157,7 @@ export default function HealthHeart() {
 
           <TrackSomethingNew
             tab="body"
-            detail="Anything else you want counted against your heart."
+            detail={tr("Anything else you want counted against your heart.")}
           />
         </>
       )}

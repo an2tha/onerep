@@ -1,3 +1,4 @@
+import { tr, uiLocale } from "@repo/ui/i18n"
 /**
  * One exercise in the active session: header, action row, last-session line,
  * and the set grid (or the cardio panel).
@@ -213,7 +214,7 @@ export function ActiveExerciseCard({
       {supersetDropActive && !inSuperset && (
         <div className="pointer-events-none absolute inset-1 z-20 flex items-center justify-center rounded-md border border-dashed border-foreground/55 bg-background/55 backdrop-blur-[1px]">
           <span className="rounded-full bg-foreground px-3 py-1.5 text-[13px] font-semibold tracking-tight text-background shadow-lg">
-            drop to superset
+            {tr("drop to superset")}
           </span>
         </div>
       )}
@@ -227,7 +228,7 @@ export function ActiveExerciseCard({
               <div
                 {...dragHandlers}
                 role="button"
-                aria-label="Reorder exercise"
+                aria-label={tr("Reorder exercise")}
                 className="flex h-9 w-7 shrink-0 cursor-grab touch-none items-center justify-center text-muted-foreground transition-colors select-none active:cursor-grabbing active:text-foreground"
               >
                 <DotsSixVertical size={13} weight="bold" />
@@ -237,7 +238,9 @@ export function ActiveExerciseCard({
               <button
                 type="button"
                 onClick={onOpenDetail}
-                aria-label={`Open ${exercise.name} instructions`}
+                aria-label={tr("Open {{value0}} instructions", {
+                  value0: exercise.name,
+                })}
                 className="min-w-0 flex-1 text-left"
               >
                 <div className="flex min-w-0 items-center gap-1.5">
@@ -252,7 +255,7 @@ export function ActiveExerciseCard({
                   {isActive && (
                     <span
                       className="h-2 w-2 shrink-0 rounded-full bg-primary"
-                      aria-label="Active"
+                      aria-label={tr("Active")}
                     />
                   )}
                 </div>
@@ -263,7 +266,11 @@ export function ActiveExerciseCard({
                           cardioDetailsFromState(data.cardio),
                           data.cardio.distanceUnit
                         )
-                      : `${doneSets}/${data.sets.length} sets · ${formatRest(totalRest)} rest`
+                      : tr("{{value0}}/{{value1}} sets · {{value2}} rest", {
+                          value0: doneSets,
+                          value1: data.sets.length,
+                          value2: formatRest(totalRest),
+                        })
                     : exercise.muscle}
                 </p>
               </button>
@@ -276,7 +283,7 @@ export function ActiveExerciseCard({
                   {isActive && (
                     <span
                       className="h-2 w-2 shrink-0 rounded-full bg-primary"
-                      aria-label="Active"
+                      aria-label={tr("Active")}
                     />
                   )}
                 </div>
@@ -287,7 +294,11 @@ export function ActiveExerciseCard({
                           cardioDetailsFromState(data.cardio),
                           data.cardio.distanceUnit
                         )
-                      : `${doneSets}/${data.sets.length} sets · ${formatRest(totalRest)} rest`
+                      : tr("{{value0}}/{{value1}} sets · {{value2}} rest", {
+                          value0: doneSets,
+                          value1: data.sets.length,
+                          value2: formatRest(totalRest),
+                        })
                     : exercise.muscle}
                 </p>
               </div>
@@ -300,17 +311,22 @@ export function ActiveExerciseCard({
             >
               {isCardio
                 ? cardioLogged
-                  ? "Logged"
-                  : "Open"
-                : `${doneSets}/${data.sets.length}`}
+                  ? tr("Logged")
+                  : tr("Open")
+                : tr("{{value0}}/{{value1}}", {
+                    value0: doneSets,
+                    value1: data.sets.length,
+                  })}
             </span>
             {reorderControls}
             {inSuperset && onBreakOut && (
               <button
                 type="button"
                 onClick={onBreakOut}
-                aria-label={`Move ${exercise.name} out of superset`}
-                title="Move out of superset"
+                aria-label={tr("Move {{value0}} out of superset", {
+                  value0: exercise.name,
+                })}
+                title={tr("Move out of superset")}
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors active:bg-muted active:text-foreground"
               >
                 <ArrowsOutSimple size={15} weight="bold" />
@@ -318,7 +334,9 @@ export function ActiveExerciseCard({
             )}
             <button
               onClick={onToggleCollapse}
-              aria-label={collapsed ? "Expand exercise" : "Collapse exercise"}
+              aria-label={
+                collapsed ? tr("Expand exercise") : tr("Collapse exercise")
+              }
               className="flex h-9 w-9 shrink-0 items-center justify-center text-muted-foreground transition-colors active:bg-muted/30 active:text-foreground"
             >
               {collapsed ? (
@@ -346,8 +364,8 @@ export function ActiveExerciseCard({
                   slug: formCoachMovement.slug,
                 })
               }}
-              aria-label="Coach me on my form"
-              title="Coach me on my form"
+              aria-label={tr("Coach me on my form")}
+              title={tr("Coach me on my form")}
               className={cn(iconActionCls, "text-primary active:bg-primary/10")}
             >
               <VideoCamera size={16} weight="fill" />
@@ -357,7 +375,7 @@ export function ActiveExerciseCard({
             <button
               onClick={onShowHistory}
               className={iconActionCls}
-              aria-label="Exercise history"
+              aria-label={tr("Exercise history")}
             >
               <ChartLine size={16} weight="bold" />
             </button>
@@ -366,7 +384,7 @@ export function ActiveExerciseCard({
             <button
               onClick={onAiChange}
               className={iconActionCls}
-              aria-label="Ask Coach to change exercise"
+              aria-label={tr("Ask Coach to change exercise")}
             >
               <Sparkle size={15} weight="fill" />
             </button>
@@ -375,8 +393,10 @@ export function ActiveExerciseCard({
             <button
               onClick={onSwap}
               className={iconActionCls}
-              aria-label={`Swap ${exercise.name} for another exercise`}
-              title="Swap exercise"
+              aria-label={tr("Swap {{value0}} for another exercise", {
+                value0: exercise.name,
+              })}
+              title={tr("Swap exercise")}
             >
               <ArrowsClockwise size={15} weight="bold" />
             </button>
@@ -384,7 +404,7 @@ export function ActiveExerciseCard({
           <button
             onClick={onRemove}
             className="ml-auto flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground active:bg-destructive/10 active:text-destructive"
-            aria-label={`Remove ${exercise.name}`}
+            aria-label={tr("Remove {{value0}}", { value0: exercise.name })}
           >
             <X size={16} weight="bold" />
           </button>
@@ -429,7 +449,7 @@ export function ActiveExerciseCard({
                     <span className="text-[13px] font-medium text-muted-foreground">
                       {new Date(
                         `${lastSession.date}T12:00:00Z`
-                      ).toLocaleDateString("en-US", {
+                      ).toLocaleDateString(uiLocale(), {
                         month: "short",
                         day: "numeric",
                       })}
@@ -441,7 +461,9 @@ export function ActiveExerciseCard({
                       <button
                         type="button"
                         onClick={applyProgression}
-                        aria-label={`Apply progression: ${progression.label}`}
+                        aria-label={tr("Apply progression: {{value0}}", {
+                          value0: progression.label,
+                        })}
                         className="flex min-h-11 shrink-0 items-center gap-1 px-3 text-[13px] font-semibold text-foreground transition-colors active:bg-muted"
                       >
                         <TrendUp size={11} weight="bold" />
@@ -489,7 +511,7 @@ export function ActiveExerciseCard({
                   }}
                 >
                   <Plus size={14} weight="bold" />
-                  <span className="text-[13px] font-bold">Add set</span>
+                  <span className="text-[13px] font-bold">{tr("Add set")}</span>
                 </button>
               </>
             )}

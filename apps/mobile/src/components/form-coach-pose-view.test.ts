@@ -1,5 +1,6 @@
+import { readLocalizedSource as readFileSync } from "../../tests/helpers/localized-source"
 import { describe, expect, it } from "bun:test"
-import { readFileSync } from "node:fs"
+
 import { join } from "node:path"
 import { blendOpacity } from "./form-coach-card"
 

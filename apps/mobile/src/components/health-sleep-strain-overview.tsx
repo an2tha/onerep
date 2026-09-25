@@ -1,3 +1,4 @@
+import { Message, tr, uiLocale } from "@repo/ui/i18n"
 import { useId, useState, type ReactNode } from "react"
 import { Link } from "react-router"
 import { useQuery } from "convex/react"
@@ -23,17 +24,14 @@ function Overview({
   const [open, setOpen] = useState(false)
   const id = useId()
   return (
-    <section
-      className="health-insight-accordion"
-      data-open={open}
-    >
+    <section className="health-insight-accordion" data-open={open}>
       <button
         type="button"
         className="health-insight-trigger"
         id={`${id}-trigger`}
         aria-expanded={open}
         aria-controls={`${id}-panel`}
-        onClick={() => setOpen(value => !value)}
+        onClick={() => setOpen((value) => !value)}
       >
         <div className="health-insight-summary">
           <strong>{title}</strong>
@@ -42,7 +40,7 @@ function Overview({
         {score !== null && (
           <span
             className="health-insight-score"
-            aria-label={`${score} out of 100`}
+            aria-label={tr("{{value0}} out of 100", { value0: score })}
           >
             {score}
             <small className="ml-0.5 text-xs text-muted-foreground">/100</small>
@@ -50,7 +48,14 @@ function Overview({
         )}
         <CaretDown className="health-insight-chevron" size={16} />
       </button>
-      <div className="health-insight-reveal" id={`${id}-panel`} role="region" aria-labelledby={`${id}-trigger`} aria-hidden={!open} inert={!open}>
+      <div
+        className="health-insight-reveal"
+        id={`${id}-panel`}
+        role="region"
+        aria-labelledby={`${id}-trigger`}
+        aria-hidden={!open}
+        inert={!open}
+      >
         <div className="health-insight-clip">
           <div className="health-insight-expanded">
             <div className={night ? "health-insight-night" : undefined}>
@@ -73,38 +78,59 @@ export function HealthSleepStrainOverview() {
     null
   const strain = data?.strain
   const duration = (minutes: number) =>
-    `${Math.floor(minutes / 60)}h ${Math.round(minutes % 60)}m`
+    tr("{{value0}}h {{value1}}m", {
+      value0: Math.floor(minutes / 60),
+      value1: Math.round(minutes % 60),
+    })
   const nightDate =
     night?.date === today
-      ? "Last night"
+      ? tr("Last night")
       : night
-        ? `Last recorded · ${new Date(`${night.date}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`
-        : "Your night, explained"
+        ? tr("Last recorded · {{value0}}", {
+            value0: new Date(`${night.date}T12:00:00`).toLocaleDateString(
+              uiLocale(),
+              { month: "short", day: "numeric" }
+            ),
+          })
+        : tr("Your night, explained")
   return (
-    <section aria-label="Sleep and strain insights" className="mt-6">
+    <section aria-label={tr("Sleep and strain insights")} className="mt-6">
       <Overview
-        title="Sleep quality"
+        title={tr("Sleep quality")}
         summary={
           data === undefined
-            ? "Loading your sleep overview…"
+            ? tr("Loading your sleep overview…")
             : night
-              ? `${nightDate} · ${duration(night.minutes)} · ${night.band.toLowerCase()}`
-              : "Duration, sleep stages, and a focus for tonight"
+              ? tr("{{value0}} · {{value1}} · {{value2}}", {
+                  value0: nightDate,
+                  value1: duration(night.minutes),
+                  value2: night.band.toLowerCase(),
+                })
+              : tr("Duration, sleep stages, and a focus for tonight")
         }
         score={night?.score ?? null}
         night
       >
         <p>
           {night?.tip ??
-            "See how you slept, what shaped your score, and what might help tonight. Sync your wearable to build your first night."}
+            tr(
+              "See how you slept, what shaped your score, and what might help tonight. Sync your wearable to build your first night."
+            )}
         </p>
         {night && (
           <div className="health-insight-values">
-            <span>{night.confidence} data confidence</span>
+            <span>
+              <Message
+                text={"{{value0}} data confidence"}
+                values={{ value0: night.confidence }}
+              />
+            </span>
             <span>
               {night.efficiency === null
-                ? "Duration-based estimate"
-                : `${Math.round(night.efficiency)}% recorded efficiency`}
+                ? tr("Duration-based estimate")
+                : tr("{{value0}}% recorded efficiency", {
+                    value0: Math.round(night.efficiency),
+                  })}
             </span>
           </div>
         )}
@@ -112,43 +138,61 @@ export function HealthSleepStrainOverview() {
           className="health-insight-link"
           to={night ? `/health/sleep?date=${night.date}` : "/health/sleep"}
         >
-          Explore your sleep
-          <ArrowRight size={18} />
+          <Message
+            text={"Explore your sleep{{value0}}"}
+            values={{ value0: <ArrowRight size={18} /> }}
+          />
         </Link>
       </Overview>
       <Overview
-        title="Daily strain"
+        title={tr("Daily strain")}
         summary={
           data === undefined
-            ? "Loading your strain overview…"
+            ? tr("Loading your strain overview…")
             : strain?.score != null
-              ? `${strain.band} demand · today so far`
-              : "Your whole-day demand and training load"
+              ? tr("{{value0}} demand · today so far", { value0: strain.band })
+              : tr("Your whole-day demand and training load")
         }
         score={strain?.score ?? null}
       >
         <p>
           {strain?.score != null
-            ? "See how your daily activity and workouts contribute to demand, alongside your recovery."
-            : "A single view of physiological strain and training load. Your score builds as activity and workout readings arrive."}
+            ? tr(
+                "See how your daily activity and workouts contribute to demand, alongside your recovery."
+              )
+            : tr(
+                "A single view of physiological strain and training load. Your score builds as activity and workout readings arrive."
+              )}
         </p>
         <div className="health-insight-values">
           <span>
-            Physiological{" "}
-            {strain?.physiological != null
-              ? `${strain.physiological}/100`
-              : "· no reading"}
+            <Message
+              text={"Physiological {{value0}}"}
+              values={{
+                value0:
+                  strain?.physiological != null
+                    ? tr("{{value0}}/100", { value0: strain.physiological })
+                    : tr("· no reading"),
+              }}
+            />
           </span>
           <span>
-            Training{" "}
-            {strain?.training != null
-              ? `${strain.training}/100`
-              : "· no reading"}
+            <Message
+              text={"Training {{value0}}"}
+              values={{
+                value0:
+                  strain?.training != null
+                    ? tr("{{value0}}/100", { value0: strain.training })
+                    : tr("· no reading"),
+              }}
+            />
           </span>
         </div>
         <Link className="health-insight-link" to="/health/strain">
-          Explore daily strain
-          <ArrowRight size={18} />
+          <Message
+            text={"Explore daily strain{{value0}}"}
+            values={{ value0: <ArrowRight size={18} /> }}
+          />
         </Link>
       </Overview>
     </section>

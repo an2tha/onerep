@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 import { clearNativeEnduranceOnSignOut } from "@/lib/native-endurance"
 import { Capacitor } from "@capacitor/core"
 import { useEffect, useState } from "react"
@@ -122,9 +123,13 @@ export function useAppAuth() {
     authLoadTimedOut: loadTimedOut,
     authServiceConfigured,
     authServiceError: !authServiceConfigured
-      ? "Sign-in is unavailable right now. Your data on this device is safe. Try again shortly, and contact support if it continues."
+      ? tr(
+          "Sign-in is unavailable right now. Your data on this device is safe. Try again shortly, and contact support if it continues."
+        )
       : loadTimedOut
-        ? "Authentication is taking too long to respond. Check your connection and try again."
+        ? tr(
+            "Authentication is taking too long to respond. Check your connection and try again."
+          )
         : null,
     isLoaded: !session.isPending || loadTimedOut || !authServiceConfigured,
     isSignedIn: Boolean(session.data?.session),

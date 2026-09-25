@@ -1,4 +1,5 @@
-import { readFileSync } from "node:fs"
+import { readLocalizedSource as readFileSync } from "../../tests/helpers/localized-source"
+
 import { describe, expect, test } from "bun:test"
 
 const SETTINGS_SOURCE = readFileSync(

@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 import { useState } from "react"
 import { CaretRight } from "@phosphor-icons/react"
 import { hapticSelection } from "@/lib/haptics"
@@ -48,7 +49,9 @@ export function TrackSomethingNew({
         )}
       >
         <div className="min-w-0">
-          <p className="text-[14px] font-semibold">Track something new</p>
+          <p className="text-[14px] font-semibold">
+            {tr("Track something new")}
+          </p>
           <p className="mt-0.5 text-[13px] leading-5 text-muted-foreground">
             {detail}
           </p>

@@ -1,3 +1,4 @@
+import { choice, tr } from "@repo/ui/i18n"
 import { MagnifyingGlass, Timer, X } from "@phosphor-icons/react"
 import { useEffect, useState } from "react"
 import { createPortal } from "react-dom"
@@ -53,7 +54,7 @@ function ExerciseSuggestionSection<T extends ExerciseSuggestionItem>({
       <p className="px-2 pb-2 text-[13px] font-semibold text-muted-foreground">
         {label}
       </p>
-      <div className="overflow-hidden rounded-xl border border-foreground/10 bg-background/35 divide-y divide-foreground/8">
+      <div className="divide-y divide-foreground/8 overflow-hidden rounded-xl border border-foreground/10 bg-background/35">
         {suggestions.map((exercise) => (
           <button
             key={exercise.id}
@@ -90,8 +91,8 @@ export function ExerciseSuggestionGroups<
   recentSuggestions,
   popularSuggestions,
   onChoose,
-  recentLabel = "Recent",
-  popularLabel = "Popular",
+  recentLabel = tr("Recent"),
+  popularLabel = tr("Popular"),
   variant = "list",
 }: {
   recentSuggestions: readonly TRecent[]
@@ -133,7 +134,7 @@ export const REST_TIMER_OPTIONS = [
 ] as const
 
 export function formatRestDuration(seconds: number) {
-  if (seconds <= 0) return "Off"
+  if (seconds <= 0) return tr("Off")
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`
 }
 
@@ -216,13 +217,13 @@ export function RestTimerSheet({
                 workout ? "text-[14px] font-bold" : "text-[13px] font-semibold"
               }
             >
-              Rest timer
+              {tr("Rest timer")}
             </span>
           </div>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close rest timer"
+            aria-label={tr("Close rest timer")}
             className={
               workout
                 ? "app-icon-button"
@@ -244,7 +245,9 @@ export function RestTimerSheet({
               type="button"
               onClick={() => onSelect(option)}
               aria-pressed={option === current}
-              aria-label={`Set rest to ${formatRestDuration(option)}`}
+              aria-label={tr("Set rest to {{value0}}", {
+                value0: formatRestDuration(option),
+              })}
               className={cn(
                 workout
                   ? "h-[52px] rounded-[10px] text-[14px] font-semibold tabular-nums transition-all"
@@ -272,11 +275,11 @@ export function RestTimerSheet({
               workout ? "font-medium" : "font-bold tracking-[0.18em] uppercase"
             )}
           >
-            {workout ? "Custom" : "Custom rest"}
+            {workout ? tr("Custom") : tr("Custom rest")}
           </p>
           <div className="flex items-end gap-2">
             <RestTimerInput
-              label="Min"
+              label={tr("Min")}
               value={minutes}
               onChange={setMinutes}
               workout={workout}
@@ -287,7 +290,7 @@ export function RestTimerSheet({
               </span>
             )}
             <RestTimerInput
-              label="Sec"
+              label={tr("Sec")}
               value={seconds}
               onChange={setSeconds}
               workout={workout}
@@ -301,7 +304,7 @@ export function RestTimerSheet({
                 workout ? "h-12 rounded-[10px] px-5" : "h-11 rounded-xl px-4"
               )}
             >
-              {workout ? "Set" : "Apply"}
+              {workout ? tr("Set") : tr("Apply")}
             </button>
           </div>
         </div>
@@ -336,7 +339,9 @@ function RestTimerInput({
       </span>
       <input
         type="number"
-        aria-label={`Custom rest ${label === "Min" ? "minutes" : "seconds"}`}
+        aria-label={tr("Custom rest {{value0}}", {
+          value0: choice(label === "Min" ? "minutes" : "seconds"),
+        })}
         min="0"
         max={max}
         inputMode="numeric"

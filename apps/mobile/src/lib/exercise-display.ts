@@ -1,3 +1,4 @@
+import { tr, uiLocale } from "@repo/ui/i18n"
 /**
  * Formatting shared between the exercise list and the exercise detail page.
  * Both screens show the same muscles, the same dates and the same weights, and
@@ -8,27 +9,29 @@
 import type { WeightUnit } from "./health-goals"
 
 export const EXERCISE_CATEGORY_LABELS: Record<string, string> = {
-  strength: "Strength",
-  cardio: "Cardio",
-  mobility: "Mobility",
-  core: "Core",
+  strength: tr("Strength"),
+  cardio: tr("Cardio"),
+  mobility: tr("Mobility"),
+  core: tr("Core"),
 }
 
 export function titleCase(value: string) {
-  return value
-    .split(/[\s_-]+/g)
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ")
+  return tr(
+    value
+      .split(/[\s_-]+/g)
+      .filter(Boolean)
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(" ")
+  )
 }
 
 export function muscleSummary(primaryMuscles: string[] | undefined) {
   const muscles = (primaryMuscles ?? []).map(titleCase)
-  return muscles.length > 0 ? muscles.join(" · ") : "Full body"
+  return muscles.length > 0 ? muscles.join(" · ") : tr("Full body")
 }
 
 export function formatSessionDate(date: string) {
-  return new Date(`${date}T12:00:00Z`).toLocaleDateString("en-US", {
+  return new Date(`${date}T12:00:00Z`).toLocaleDateString(uiLocale(), {
     month: "short",
     day: "numeric",
     year: "numeric",

@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 import { localDateKey } from "./utils"
 import { Capacitor } from "@capacitor/core"
 import { Directory, Filesystem } from "@capacitor/filesystem"
@@ -157,8 +158,8 @@ export async function shareOrDownloadJsonExport(
     })
     try {
       await Share.share({
-        title: "OneRep data export",
-        text: "Your OneRep data export",
+        title: tr("OneRep data export"),
+        text: tr("Your OneRep data export"),
         files: [uri],
         dialogTitle: "Save or share your OneRep export",
       })
@@ -179,8 +180,8 @@ export async function shareOrDownloadJsonExport(
     try {
       await nav!.share({
         files: [file],
-        title: "OneRep data export",
-        text: "Your OneRep data export",
+        title: tr("OneRep data export"),
+        text: tr("Your OneRep data export"),
       })
       return "shared"
     } catch (error) {

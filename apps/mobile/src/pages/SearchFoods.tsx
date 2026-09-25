@@ -1,3 +1,4 @@
+import { Message, tr, translateError, uiLocale } from "@repo/ui/i18n"
 import {
   foodLogContextParams,
   foodLogTimestamp,
@@ -47,7 +48,10 @@ import {
   writeRecentFoodSearches,
 } from "@/lib/food-search-recents"
 import { promoteLoggedFoods } from "@/lib/food-search-ranking"
-import { buildQuickRepeatFoods, type QuickRepeatFood } from "@/lib/food-quick-repeat"
+import {
+  buildQuickRepeatFoods,
+  type QuickRepeatFood,
+} from "@/lib/food-quick-repeat"
 import {
   currentMeasurementSystem,
   quantityLabel,
@@ -196,9 +200,8 @@ export default function SearchFoods() {
   // database claims. Saving it stores a private custom food — the user's
   // numbers, on their account (queued locally when offline) — and future
   // searches rank it over the database row it came from.
-  const [correctionDraft, setCorrectionDraft] = useState<CustomFoodDraft | null>(
-    null
-  )
+  const [correctionDraft, setCorrectionDraft] =
+    useState<CustomFoodDraft | null>(null)
   const [savingCorrection, setSavingCorrection] = useState(false)
 
   async function saveCorrection() {
@@ -236,7 +239,7 @@ export default function SearchFoods() {
         )
       }
       setCorrectionDraft(null)
-      toast.success("Corrected values saved to your foods")
+      toast.success(tr("Corrected values saved to your foods"))
     } catch (error) {
       reportOfflineMutationError(error)
     } finally {
@@ -303,10 +306,12 @@ export default function SearchFoods() {
   const quickRepeats = useMemo(
     () =>
       buildQuickRepeatFoods(
-        ((recentLoggedDays ?? []) as Array<{
-          date: string
-          entries: FoodLogEntry[]
-        }>).filter((day) => day.date !== date),
+        (
+          (recentLoggedDays ?? []) as Array<{
+            date: string
+            entries: FoodLogEntry[]
+          }>
+        ).filter((day) => day.date !== date),
         6
       ),
     [date, recentLoggedDays]
@@ -330,8 +335,7 @@ export default function SearchFoods() {
       80
     ).filter((food) => food.entry.name.toLowerCase().includes(needle))
   }, [completedQuery, recentLoggedDays])
-  const showQuickRepeats =
-    searchState === "idle" && quickRepeats.length > 0
+  const showQuickRepeats = searchState === "idle" && quickRepeats.length > 0
   const loggedNames = useMemo(
     () =>
       (
@@ -462,13 +466,13 @@ export default function SearchFoods() {
       })
       setAdded({ itemId: food.key })
       hapticSelection()
-      toast.success(`${previous.name} logged`, {
+      toast.success(tr("{{value0}} logged", { value0: previous.name }), {
         action: {
-          label: "Undo",
+          label: tr("Undo"),
           onClick: () => {
             announceOrbActivity("delete")
             void removeFoodEntry({ date, entryId: entry.id }).catch(() =>
-              toast.error("Couldn't undo that")
+              toast.error(translateError(tr("Couldn't undo that")))
             )
           },
         },
@@ -506,13 +510,13 @@ export default function SearchFoods() {
       })
       setAdded({ itemId: key })
       hapticSelection()
-      toast.success(`${food.name} logged`, {
+      toast.success(tr("{{value0}} logged", { value0: food.name }), {
         action: {
-          label: "Undo",
+          label: tr("Undo"),
           onClick: () => {
             announceOrbActivity("delete")
             void removeFoodEntry({ date, entryId: entry.id }).catch(() =>
-              toast.error("Couldn't undo that")
+              toast.error(translateError(tr("Couldn't undo that")))
             )
           },
         },
@@ -534,7 +538,10 @@ export default function SearchFoods() {
     matchedLoggedFoods.length === 0 &&
     completedQuery !== ""
   const showResults =
-    results.length > 0 || recipeResults.length > 0 || matchedCustomFoods.length > 0 || matchedLoggedFoods.length > 0
+    results.length > 0 ||
+    recipeResults.length > 0 ||
+    matchedCustomFoods.length > 0 ||
+    matchedLoggedFoods.length > 0
 
   function openFoodReview(item: FoodSearchItem) {
     if (shouldOpenReviewAsPage()) {
@@ -584,7 +591,7 @@ export default function SearchFoods() {
           >
             <button
               onClick={() => navigate(-1)}
-              aria-label="Go back"
+              aria-label={tr("Go back")}
               className="app-icon-button motion-tactile"
             >
               <ArrowLeft size={15} weight="bold" />
@@ -602,12 +609,12 @@ export default function SearchFoods() {
               <input
                 type="text"
                 name="food-search-query"
-                placeholder="Search foods…"
+                placeholder={tr("Search foods…")}
                 value={query}
                 ref={inputRef}
                 onChange={(e) => setQuery(e.target.value)}
                 maxLength={80}
-                aria-label="Search foods"
+                aria-label={tr("Search foods")}
                 className="app-input h-11 w-full border-border bg-muted/45 pr-11 pl-8 text-[14px] placeholder:text-muted-foreground"
               />
 
@@ -619,7 +626,7 @@ export default function SearchFoods() {
                     setSearchResults([])
                     setSearchState("idle")
                   }}
-                  aria-label="Clear search"
+                  aria-label={tr("Clear search")}
                   className="absolute top-1/2 right-0 flex h-11 w-11 -translate-y-1/2 items-center justify-center text-muted-foreground transition-colors active:bg-muted"
                 >
                   <X size={13} weight="bold" />
@@ -630,14 +637,21 @@ export default function SearchFoods() {
 
           <div className="flex items-center justify-between gap-3 px-[var(--app-page-x)] pb-3">
             <p className="text-[14px] text-muted-foreground">
-              Logging for{" "}
-              {new Date(`${date}T12:00:00`).toLocaleDateString([], {
-                month: "short",
-                day: "numeric",
-              })}
-              {searchParams.get("time")
-                ? ` at ${searchParams.get("time")}`
-                : ""}
+              <Message
+                text={"Logging for {{value0}}{{value1}}"}
+                values={{
+                  value0: new Date(`${date}T12:00:00`).toLocaleDateString(
+                    uiLocale(),
+                    {
+                      month: "short",
+                      day: "numeric",
+                    }
+                  ),
+                  value1: searchParams.get("time")
+                    ? tr(" at {{value0}}", { value0: searchParams.get("time") })
+                    : "",
+                }}
+              />
             </p>
             <button
               type="button"
@@ -648,7 +662,7 @@ export default function SearchFoods() {
                 )
               }
             >
-              My foods
+              {tr("My foods")}
             </button>
           </div>
           <div className="mx-[var(--app-page-x)] h-px bg-border/40" />
@@ -662,17 +676,20 @@ export default function SearchFoods() {
             {searchState === "idle" && (
               <div className="mt-7 grid gap-6">
                 <div>
-                  <h1 className="text-[20px] font-semibold">Find a food</h1>
+                  <h1 className="text-[20px] font-semibold">
+                    {tr("Find a food")}
+                  </h1>
                   <p className="mt-1 max-w-md text-[14px] leading-5 text-muted-foreground">
-                    Search by food, brand, or the barcode number printed on the
-                    package.
+                    {tr(
+                      "Search by food, brand, or the barcode number printed on the package."
+                    )}
                   </p>
                 </div>
 
                 {showQuickRepeats && (
                   <div>
                     <p className="mb-2 px-1 text-[12px] font-semibold tracking-wide text-muted-foreground uppercase">
-                      Log again
+                      {tr("Log again")}
                     </p>
                     <div className="overflow-hidden rounded-2xl border border-border">
                       {quickRepeats.map((food, index) => {
@@ -712,7 +729,9 @@ export default function SearchFoods() {
                                   {energyDisplay(card.calories, energyUnit)}{" "}
                                   {energyUnit}
                                   {food.count > 1
-                                    ? ` · logged ${food.count}× recently`
+                                    ? tr(" · logged {{value0}}× recently", {
+                                        value0: food.count,
+                                      })
                                     : ""}
                                 </span>
                               </span>
@@ -731,7 +750,7 @@ export default function SearchFoods() {
                                 ) : isAdding ? (
                                   <span className="h-3.5 w-3.5 animate-spin rounded-full border border-muted-foreground/20 border-t-muted-foreground/60" />
                                 ) : (
-                                  "Log"
+                                  tr("Log")
                                 )}
                               </span>
                             </button>
@@ -744,7 +763,7 @@ export default function SearchFoods() {
 
                 {recentSearches.length > 0 && (
                   <SearchSuggestionGroup
-                    title="Recent"
+                    title={tr("Recent")}
                     suggestions={recentSearches}
                     onSelect={runSuggestedSearch}
                   />
@@ -752,7 +771,7 @@ export default function SearchFoods() {
 
                 {popularSearches.length > 0 && (
                   <SearchSuggestionGroup
-                    title="Popular"
+                    title={tr("Popular")}
                     suggestions={popularSearches}
                     onSelect={runSuggestedSearch}
                   />
@@ -768,17 +787,17 @@ export default function SearchFoods() {
                   aria-hidden
                 />
                 <p className="mt-2 text-[15px] font-semibold">
-                  Food search is unavailable
+                  {tr("Food search is unavailable")}
                 </p>
                 <p className="mx-auto mt-1 max-w-sm text-[14px] leading-5 text-muted-foreground">
-                  Check your connection, then try the same search again.
+                  {tr("Check your connection, then try the same search again.")}
                 </p>
                 <button
                   type="button"
                   onClick={() => setRetryNonce((value) => value + 1)}
                   className="native-toolbar-button mt-3 border border-border bg-card"
                 >
-                  Try again
+                  {tr("Try again")}
                 </button>
               </div>
             )}
@@ -786,19 +805,28 @@ export default function SearchFoods() {
             {showEmpty && (
               <div className="mt-8 border-y border-border py-5 text-center">
                 <p className="text-[15px] font-semibold">
-                  No foods found for “{completedQuery}”
+                  <Message
+                    text={"No foods found for “{{value0}}”"}
+                    values={{ value0: completedQuery }}
+                  />
                 </p>
                 <p className="mt-1 text-[14px] text-muted-foreground">
-                  Check the spelling, or enter it yourself once and it is there
-                  for good.
+                  {tr(
+                    "Check the spelling, or enter it yourself once and it is there for good."
+                  )}
                 </p>
                 <button
                   type="button"
                   onClick={() => createCustomFood(completedQuery)}
                   className="native-toolbar-button mt-3 border border-border bg-card"
                 >
-                  <Plus size={15} weight="bold" />
-                  Add “{completedQuery}” yourself
+                  <Message
+                    text={"{{value0}}Add “{{value1}}” yourself"}
+                    values={{
+                      value0: <Plus size={15} weight="bold" />,
+                      value1: completedQuery,
+                    }}
+                  />
                 </button>
               </div>
             )}
@@ -808,20 +836,38 @@ export default function SearchFoods() {
                 <div className="mt-1 mb-4 flex items-end justify-between gap-3">
                   <div>
                     <h1 className="text-[18px] font-semibold tracking-[-0.02em]">
-                      Results
+                      {tr("Results")}
                     </h1>
                     <p className="mt-0.5 text-[12px] text-muted-foreground">
-                      {results.length} food{results.length === 1 ? "" : "s"}
-                      {matchedCustomFoods.length > 0
-                        ? ` · ${matchedCustomFoods.length} of yours`
-                        : ""}
-                      {matchedLoggedFoods.length > 0
-                        ? ` · ${matchedLoggedFoods.length} from your history`
-                        : ""}
-                      {recipeResults.length > 0
-                        ? ` · ${recipeResults.length} recipe${recipeResults.length === 1 ? "" : "s"}`
-                        : ""}{" "}
-                      for “{completedQuery}”
+                      <Message
+                        text={
+                          "{{value0}} food{{value1}}{{value2}}{{value3}}{{value4}} for “{{value5}}”"
+                        }
+                        values={{
+                          value0: results.length,
+                          value1: results.length === 1 ? "" : "s",
+                          value2:
+                            matchedCustomFoods.length > 0
+                              ? tr(" · {{value0}} of yours", {
+                                  value0: matchedCustomFoods.length,
+                                })
+                              : "",
+                          value3:
+                            matchedLoggedFoods.length > 0
+                              ? tr(" · {{value0}} from your history", {
+                                  value0: matchedLoggedFoods.length,
+                                })
+                              : "",
+                          value4:
+                            recipeResults.length > 0
+                              ? tr(" · {{value0}} recipe{{value1}}", {
+                                  value0: recipeResults.length,
+                                  value1: recipeResults.length === 1 ? "" : "s",
+                                })
+                              : "",
+                          value5: completedQuery,
+                        }}
+                      />
                     </p>
                   </div>
                   <button
@@ -829,13 +875,13 @@ export default function SearchFoods() {
                     onClick={() => createCustomFood(completedQuery)}
                     className="min-h-11 shrink-0 text-[11px] font-semibold text-muted-foreground"
                   >
-                    Not here? Add it
+                    {tr("Not here? Add it")}
                   </button>
                 </div>
                 {matchedLoggedFoods.length > 0 && (
                   <div className="mb-2.5">
                     <p className="mb-1 px-1 text-[12px] font-semibold tracking-wide text-muted-foreground uppercase">
-                      From your history
+                      {tr("From your history")}
                     </p>
                     <div className="overflow-hidden rounded-2xl border border-border">
                       {matchedLoggedFoods.map((food, index) => {
@@ -862,8 +908,12 @@ export default function SearchFoods() {
                               aria-busy={isAdding}
                               aria-label={
                                 isAdded
-                                  ? `${food.entry.name} added`
-                                  : `Log ${food.entry.name} again`
+                                  ? tr("{{value0}} added", {
+                                      value0: food.entry.name,
+                                    })
+                                  : tr("Log {{value0}} again", {
+                                      value0: food.entry.name,
+                                    })
                               }
                               className="flex min-h-14 min-w-0 flex-1 items-center gap-3 py-2 text-left"
                             >
@@ -880,7 +930,9 @@ export default function SearchFoods() {
                                   {energyDisplay(card.calories, energyUnit)}{" "}
                                   {energyUnit}
                                   {food.count > 1
-                                    ? ` · logged ${food.count}×`
+                                    ? tr(" · logged {{value0}}×", {
+                                        value0: food.count,
+                                      })
                                     : ""}
                                 </span>
                               </span>
@@ -898,11 +950,11 @@ export default function SearchFoods() {
                                   />
                                 ) : isAdding ? (
                                   <span className="text-[12px] text-muted-foreground">
-                                    Logging…
+                                    {tr("Logging…")}
                                   </span>
                                 ) : (
                                   <span className="text-muted-foreground">
-                                    Log
+                                    {tr("Log")}
                                   </span>
                                 )}
                               </span>
@@ -930,7 +982,9 @@ export default function SearchFoods() {
                           disabled={isAdded || addingFoodId !== null}
                           aria-busy={isAdding}
                           aria-label={
-                            isAdded ? `${food.name} added` : `Log ${food.name}`
+                            isAdded
+                              ? tr("{{value0}} added", { value0: food.name })
+                              : tr("Log {{value0}}", { value0: food.name })
                           }
                           className="motion-list-row flex min-h-[4.5rem] min-w-0 flex-1 items-center gap-3 text-left"
                         >
@@ -942,20 +996,47 @@ export default function SearchFoods() {
                               {food.name}
                             </span>
                             <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
-                              My food{food.brand ? ` · ${food.brand}` : ""} ·{" "}
-                              {food.servingLabel}
+                              <Message
+                                text={"My food{{value0}} · {{value1}}"}
+                                values={{
+                                  value0: food.brand
+                                    ? tr(" · {{value0}}", {
+                                        value0: food.brand,
+                                      })
+                                    : "",
+                                  value1: food.servingLabel,
+                                }}
+                              />
                             </span>
                             <span className="mt-1.5 flex flex-wrap items-center gap-x-2 text-[11px] text-muted-foreground tabular-nums">
                               <strong className="font-semibold text-foreground">
-                                {energyDisplay(
-                                  perServing.calories,
-                                  energyUnit
-                                )}{" "}
+                                {energyDisplay(perServing.calories, energyUnit)}{" "}
                                 {energyUnit}
                               </strong>
-                              <span>P {Math.round(perServing.protein)}g</span>
-                              <span>C {Math.round(perServing.carbs)}g</span>
-                              <span>F {Math.round(perServing.fat)}g</span>
+                              <span>
+                                <Message
+                                  text={"P {{value0}}g"}
+                                  values={{
+                                    value0: Math.round(perServing.protein),
+                                  }}
+                                />
+                              </span>
+                              <span>
+                                <Message
+                                  text={"C {{value0}}g"}
+                                  values={{
+                                    value0: Math.round(perServing.carbs),
+                                  }}
+                                />
+                              </span>
+                              <span>
+                                <Message
+                                  text={"F {{value0}}g"}
+                                  values={{
+                                    value0: Math.round(perServing.fat),
+                                  }}
+                                />
+                              </span>
                             </span>
                           </span>
                           <span
@@ -1030,9 +1111,24 @@ export default function SearchFoods() {
                                 {energyDisplay(card.calories, energyUnit)}{" "}
                                 {energyUnit}
                               </strong>
-                              <span>P {Math.round(card.protein)}g</span>
-                              <span>C {Math.round(card.carbs)}g</span>
-                              <span>F {Math.round(card.fat)}g</span>
+                              <span>
+                                <Message
+                                  text={"P {{value0}}g"}
+                                  values={{ value0: Math.round(card.protein) }}
+                                />
+                              </span>
+                              <span>
+                                <Message
+                                  text={"C {{value0}}g"}
+                                  values={{ value0: Math.round(card.carbs) }}
+                                />
+                              </span>
+                              <span>
+                                <Message
+                                  text={"F {{value0}}g"}
+                                  values={{ value0: Math.round(card.fat) }}
+                                />
+                              </span>
                             </p>
                           </div>
                         </button>
@@ -1046,7 +1142,9 @@ export default function SearchFoods() {
                           disabled={isAdded || addingFoodId !== null}
                           aria-busy={isAdding}
                           aria-label={
-                            isAdded ? `${item.name} added` : `Add ${item.name}`
+                            isAdded
+                              ? tr("{{value0}} added", { value0: item.name })
+                              : tr("Add {{value0}}", { value0: item.name })
                           }
                           className={cn(
                             "motion-tactile grid size-10 shrink-0 place-items-center rounded-full bg-muted text-foreground disabled:opacity-60",
@@ -1112,7 +1210,7 @@ export default function SearchFoods() {
         <CustomFoodEditorSheet
           draft={correctionDraft}
           saving={savingCorrection}
-          title="Correct these values"
+          title={tr("Correct these values")}
           onChange={setCorrectionDraft}
           onClose={() => setCorrectionDraft(null)}
           onSave={() => void saveCorrection()}
@@ -1154,17 +1252,19 @@ function RecipeSearchCard({
     : (item.recipe.prepMinutes ?? 0) + (item.recipe.cookMinutes ?? 0)
   const source =
     item.kind === "official"
-      ? "OneRep recipe"
+      ? tr("OneRep recipe")
       : item.kind === "saved"
-        ? "Your recipe"
-        : `By ${item.recipe.communityAuthorName ?? "OneRep community"}`
+        ? tr("Your recipe")
+        : tr("By {{value0}}", {
+            value0: item.recipe.communityAuthorName ?? "OneRep community",
+          })
 
   return (
     <button
       type="button"
       onClick={onOpen}
       className="group relative flex h-[11.625rem] w-full overflow-hidden rounded-2xl border border-border bg-card text-left transition-colors hover:bg-muted/20 md:row-span-2 md:h-auto md:min-h-0"
-      aria-label={`Open recipe ${recipe.name}`}
+      aria-label={tr("Open recipe {{value0}}", { value0: recipe.name })}
     >
       <span className="relative w-[42%] shrink-0 overflow-hidden bg-muted/55">
         {image ? (
@@ -1195,14 +1295,22 @@ function RecipeSearchCard({
         <span className="mt-auto flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground tabular-nums">
           {totalMinutes > 0 ? (
             <span className="inline-flex items-center gap-1">
-              <Clock size={12} /> {totalMinutes} min
+              <Message
+                text={"{{value0}}  {{value1}} min"}
+                values={{ value0: <Clock size={12} />, value1: totalMinutes }}
+              />
             </span>
           ) : null}
           <span>
             {energyDisplay(nutrition.calories / servings, energyUnit)}{" "}
             {energyUnit}
           </span>
-          <span>{Math.round(nutrition.protein / servings)}g Protein</span>
+          <span>
+            <Message
+              text={"{{value0}}g Protein"}
+              values={{ value0: Math.round(nutrition.protein / servings) }}
+            />
+          </span>
         </span>
       </span>
     </button>

@@ -1,3 +1,4 @@
+import { Message, choice, tr, translateError } from "@repo/ui/i18n"
 import { hapticConfirm } from "@/lib/haptics"
 import { ActiveRouteOnly } from "@/lib/route-activity"
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
@@ -312,7 +313,7 @@ function renderSupersetItem(
       {supersetDropActive && (
         <div className="pointer-events-none absolute inset-1 z-20 flex items-center justify-center rounded-md border border-dashed border-foreground/55 bg-background/55 backdrop-blur-[1px]">
           <span className="rounded-full bg-foreground px-3 py-1.5 text-[13px] font-semibold tracking-tight text-background shadow-lg">
-            drop to superset
+            {tr("drop to superset")}
           </span>
         </div>
       )}
@@ -324,13 +325,13 @@ function renderSupersetItem(
           <div
             {...makeDragHandlers(key)}
             role="button"
-            aria-label="Reorder superset"
+            aria-label={tr("Reorder superset")}
             className="flex h-11 w-9 shrink-0 cursor-grab touch-none items-center justify-center text-muted-foreground transition-colors select-none active:cursor-grabbing active:text-foreground"
           >
             <DotsSixVertical size={15} weight="bold" />
           </div>
           <span className="ml-1 truncate text-[13px] font-semibold">
-            Superset
+            {tr("Superset")}
           </span>
         </div>
         <div className="flex shrink-0 items-center">
@@ -346,7 +347,7 @@ function renderSupersetItem(
             type="button"
             onClick={() => toggleGroupCollapsed(item.exerciseIds)}
             aria-label={
-              groupCollapsed ? "Expand superset" : "Collapse superset"
+              groupCollapsed ? tr("Expand superset") : tr("Collapse superset")
             }
             aria-expanded={!groupCollapsed}
             className="flex h-11 w-11 items-center justify-center text-muted-foreground transition-colors active:bg-muted active:text-foreground"
@@ -362,7 +363,7 @@ function renderSupersetItem(
       {reorderMode && (
         <div className="flex justify-end border-b border-border/45 px-3 py-2">
           <ExerciseMoveControls
-            label="superset"
+            label={tr("superset")}
             canMoveUp={itemIndex > 0}
             canMoveDown={itemIndex < itemCount - 1}
             onMoveUp={() => onMoveItem(key, -1)}
@@ -765,7 +766,9 @@ function ActiveWorkoutSession() {
       if (newlyHitId) {
         celebrateAchievement("target")
         setAchievementMessage(
-          `${exerciseLookup[newlyHitId]?.name ?? "Exercise"} complete`
+          tr("{{value0}} complete", {
+            value0: exerciseLookup[newlyHitId]?.name ?? "Exercise",
+          })
         )
       }
     }
@@ -806,13 +809,13 @@ function ActiveWorkoutSession() {
     totalSets > 0 ? `${Math.round((doneSets / totalSets) * 100)}%` : "0%"
   const workoutSyncLabel =
     workoutSyncStatus === "pending"
-      ? "Save pending"
+      ? tr("Save pending")
       : workoutSyncStatus === "saving"
-        ? "Saving workout"
+        ? tr("Saving workout")
         : workoutSyncStatus === "saved"
-          ? "Workout saved"
+          ? tr("Workout saved")
           : workoutSyncStatus === "error"
-            ? "Workout not saved"
+            ? tr("Workout not saved")
             : ""
 
   // Find the next set to highlight
@@ -825,16 +828,20 @@ function ActiveWorkoutSession() {
     : undefined
   const nextSetLabel = nextTarget
     ? nextTarget.kind === "cardio"
-      ? `${nextExercise?.name ?? "Cardio"} · details`
-      : `${nextExercise?.name ?? "Next exercise"} · set ${nextTarget.setIndex + 1}`
+      ? tr("{{value0}} · details", { value0: nextExercise?.name ?? "Cardio" })
+      : tr("{{value0}} · set {{value1}}", {
+          value0: nextExercise?.name ?? "Next exercise",
+          value1: nextTarget.setIndex + 1,
+        })
     : totalSets > 0
-      ? "Ready to finish"
-      : "Add an exercise"
+      ? tr("Ready to finish")
+      : tr("Add an exercise")
   const activeExerciseIndex = nextTarget
     ? Math.max(0, uniqueExerciseIds.indexOf(nextTarget.exerciseId)) + 1
     : Math.min(uniqueExerciseIds.length, uniqueExerciseIds.length || 1)
   const activeExerciseName =
-    nextExercise?.name ?? (totalSets > 0 ? "Workout" : "No exercise yet")
+    nextExercise?.name ??
+    (totalSets > 0 ? tr("Workout") : tr("No exercise yet"))
   const activeSetNumber =
     nextTarget?.kind === "set" ? nextTarget.setIndex + 1 : doneSets + 1
   const liveActivityState = useMemo(
@@ -842,7 +849,7 @@ function ActiveWorkoutSession() {
       exerciseName: nextExercise?.name ?? "OneRep workout",
       setLabel: nextTarget
         ? nextTarget.kind === "set"
-          ? `Set ${nextTarget.setIndex + 1}`
+          ? tr("Set {{value0}}", { value0: nextTarget.setIndex + 1 })
           : "Log cardio"
         : "Ready to finish",
       completedSets: doneSets,
@@ -879,8 +886,18 @@ function ActiveWorkoutSession() {
       : 0
   const activeSetContext =
     activeWorkoutItem?.kind === "superset"
-      ? `Superset · exercise ${activeSupersetPosition} of ${activeWorkoutItem.exerciseIds.length}${nextTarget?.kind === "set" ? ` · round ${activeSetNumber}` : ""}`
-      : `Exercise ${activeExerciseIndex} of ${uniqueExerciseIds.length}`
+      ? tr("Superset · exercise {{value0}} of {{value1}}{{value2}}", {
+          value0: activeSupersetPosition,
+          value1: activeWorkoutItem.exerciseIds.length,
+          value2:
+            nextTarget?.kind === "set"
+              ? tr(" · round {{value0}}", { value0: activeSetNumber })
+              : "",
+        })
+      : tr("Exercise {{value0}} of {{value1}}", {
+          value0: activeExerciseIndex,
+          value1: uniqueExerciseIds.length,
+        })
 
   // The simple view keeps a single exercise on screen. Everything else in the
   // session is still one tap away through the "next up" card beneath it.
@@ -940,7 +957,15 @@ function ActiveWorkoutSession() {
         sets: state?.sets ?? [],
       }
     })
-    return `${Math.round(elapsed / 60)} minutes in, ${doneSets} of ${totalSets} sets done. The session so far: ${JSON.stringify(exercises)}`
+    return tr(
+      "{{value0}} minutes in, {{value1}} of {{value2}} sets done. The session so far: {{value3}}",
+      {
+        value0: Math.round(elapsed / 60),
+        value1: doneSets,
+        value2: totalSets,
+        value3: JSON.stringify(exercises),
+      }
+    )
   }, [uniqueExerciseIds, exerciseLookup, exData, elapsed, doneSets, totalSets])
 
   // Form Coach only knows a fixed catalogue of movements; the menu greys the
@@ -985,14 +1010,19 @@ function ActiveWorkoutSession() {
   const upcomingDetail = (() => {
     if (!upcomingItem || !upcomingExerciseId) return ""
     if (upcomingItem.kind === "superset") {
-      return `Superset · ${upcomingItem.exerciseIds.length} exercises`
+      return tr("Superset · {{value0}} exercises", {
+        value0: upcomingItem.exerciseIds.length,
+      })
     }
     const data = exData[upcomingExerciseId]
     if (!data) return ""
     if (exerciseLookup[upcomingExerciseId]?.category === "cardio") {
-      return "Cardio · log details"
+      return tr("Cardio · log details")
     }
-    return `${data.sets.length} set${data.sets.length === 1 ? "" : "s"}`
+    return tr("{{value0}} set{{value1}}", {
+      value0: data.sets.length,
+      value1: data.sets.length === 1 ? "" : "s",
+    })
   })()
 
   // In the expanded view the list still opens with only the active exercise
@@ -1078,7 +1108,11 @@ function ActiveWorkoutSession() {
           } catch (err) {
             logDevWarn("Failed to sync workout to Convex:", err)
             setWorkoutSyncError(
-              "Your latest sets have not been saved yet. Check your connection and try again."
+              translateError(
+                tr(
+                  "Your latest sets have not been saved yet. Check your connection and try again."
+                )
+              )
             )
             setWorkoutSyncStatus("error")
           } finally {
@@ -1213,7 +1247,11 @@ function ActiveWorkoutSession() {
     }
 
     const localDraft = readActiveWorkoutDraft(slot)
-    if (resumeDecision !== "discard" && localDraft && localDraft.items.length > 0) {
+    if (
+      resumeDecision !== "discard" &&
+      localDraft &&
+      localDraft.items.length > 0
+    ) {
       if (resumeDecision === "pending") {
         setResumePrompt({ source: "local", draft: localDraft })
         return
@@ -1445,7 +1483,11 @@ function ActiveWorkoutSession() {
     try {
       const draft = await draftLogFromText({ text, unit })
       if (draft.exercises.length === 0) {
-        toast.error(draft.notes ?? "Nothing recognisable in that description.")
+        toast.error(
+          translateError(
+            draft.notes ?? tr("Nothing recognisable in that description.")
+          )
+        )
         return
       }
 
@@ -1509,18 +1551,25 @@ function ActiveWorkoutSession() {
 
       if (unmatched.length > 0) {
         toast.error(
-          `Could not find ${unmatched.join(", ")}. Add ${
-            unmatched.length > 1 ? "them" : "it"
-          } by hand.`
+          translateError(
+            tr("Could not find {{value0}}. Add {{value1}} by hand.", {
+              value0: unmatched.join(", "),
+              value1: choice(unmatched.length > 1 ? "them" : "it"),
+            })
+          )
         )
       }
       if (matched.length > 0) setBrainDumpOpen(false)
     } catch (error) {
       logDevError("Failed to draft workout from text", error)
       toast.error(
-        error instanceof Error && error.message.includes("limit")
-          ? error.message
-          : "Could not read that description. Try again or add sets by hand."
+        translateError(
+          error instanceof Error && error.message.includes("limit")
+            ? error.message
+            : tr(
+                "Could not read that description. Try again or add sets by hand."
+              )
+        )
       )
     } finally {
       setBrainDumpPending(false)
@@ -1641,7 +1690,9 @@ function ActiveWorkoutSession() {
         reply:
           typeof response.reply === "string" && response.reply.trim()
             ? response.reply.trim()
-            : "I built this around your recent training and recovery. Review it before replacing the active session.",
+            : tr(
+                "I built this around your recent training and recovery. Review it before replacing the active session."
+              ),
         draft,
         mode: "replace",
       }
@@ -1686,7 +1737,11 @@ function ActiveWorkoutSession() {
           uniqueExerciseIds.filter((id) => id !== targetId)
         )
         if (duplicateIds.has(exercise.id)) {
-          throw new Error(`${exercise.name} is already in this workout.`)
+          throw new Error(
+            tr("{{value0}} is already in this workout.", {
+              value0: exercise.name,
+            })
+          )
         }
 
         const nextState = makeExerciseStateFromAgentDraft(
@@ -1714,7 +1769,7 @@ function ActiveWorkoutSession() {
           matched_count: 1,
           unmatched_count: resolved.length - 1,
         })
-        toast.success(`Changed to ${exercise.name}`)
+        toast.success(tr("Changed to {{value0}}", { value0: exercise.name }))
         return
       }
 
@@ -1807,14 +1862,23 @@ function ActiveWorkoutSession() {
 
       toast.success(
         unmatched.length > 0
-          ? `Added ${nextItems.length} exercises. ${unmatched.length} couldn't be matched.`
+          ? tr("Added {{value0}} exercises. {{value1}} couldn't be matched.", {
+              value0: nextItems.length,
+              value1: unmatched.length,
+            })
           : mode === "replace"
-            ? `Rebuilt workout with ${nextItems.length} exercises`
-            : `Added ${nextItems.length} exercises`
+            ? tr("Rebuilt workout with {{value0}} exercises", {
+                value0: nextItems.length,
+              })
+            : tr("Added {{value0}} exercises", { value0: nextItems.length })
       )
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Could not update workout"
+        translateError(
+          error instanceof Error
+            ? error.message
+            : tr("Could not update workout")
+        )
       )
     } finally {
       aiUpdatingRef.current = false
@@ -1855,7 +1919,11 @@ function ActiveWorkoutSession() {
   /** Manual counterpart to the AI swap: same slot, fresh sets. */
   function swapExercise(targetId: string, ex: Exercise) {
     if (ex.id !== targetId && uniqueExerciseIds.includes(ex.id)) {
-      toast.error(`${ex.name} is already in this workout.`)
+      toast.error(
+        translateError(
+          tr("{{value0}} is already in this workout.", { value0: ex.name })
+        )
+      )
       return
     }
     setExerciseLookup((prev) => ({ ...prev, [ex.id]: ex }))
@@ -1873,7 +1941,7 @@ function ActiveWorkoutSession() {
       return next
     })
     setSwapTarget(null)
-    toast.success(`Swapped to ${ex.name}`)
+    toast.success(tr("Swapped to {{value0}}", { value0: ex.name }))
   }
   function updateExData(id: string, data: ExerciseState) {
     // Compare stable set IDs so edits, reordering and adding empty rows don't
@@ -2065,8 +2133,11 @@ function ActiveWorkoutSession() {
         endedAt,
         title:
           exerciseCount > 0
-            ? `OneRep · ${exerciseCount} exercise${exerciseCount === 1 ? "" : "s"}`
-            : "OneRep workout",
+            ? tr("OneRep · {{value0}} exercise{{value1}}", {
+                value0: exerciseCount,
+                value1: exerciseCount === 1 ? "" : "s",
+              })
+            : tr("OneRep workout"),
       })
     } catch (error) {
       logDevWarn("Failed to save the workout to the health store", error)
@@ -2148,9 +2219,13 @@ function ActiveWorkoutSession() {
       } catch (err) {
         logDevError("Failed to log past workout:", err)
         toast.error(
-          err instanceof Error && err.message.includes("two sessions")
-            ? "Two sessions are already logged that day. Edit one instead."
-            : "Could not save that workout. Please try again."
+          translateError(
+            err instanceof Error && err.message.includes("two sessions")
+              ? tr(
+                  "Two sessions are already logged that day. Edit one instead."
+                )
+              : tr("Could not save that workout. Please try again.")
+          )
         )
         throw err
       }
@@ -2193,7 +2268,9 @@ function ActiveWorkoutSession() {
         window.setTimeout(() => navigate(-1), 450)
       } catch (fallbackErr) {
         logDevError("Failed to log workout as fallback:", fallbackErr)
-        toast.error("Failed to finish workout. Please try again.")
+        toast.error(
+          translateError(tr("Failed to finish workout. Please try again."))
+        )
         throw fallbackErr
       }
     }
@@ -2278,11 +2355,15 @@ function ActiveWorkoutSession() {
     return (
       <div className="desktop-canvas flex min-h-svh flex-col items-center justify-center gap-4 bg-background px-8 text-center">
         <h1 className="text-[20px] font-semibold tracking-tight">
-          {formatRetroDateLabel(retroDate)} is full
+          <Message
+            text={"{{value0}} is full"}
+            values={{ value0: formatRetroDateLabel(retroDate) }}
+          />
         </h1>
         <p className="max-w-xs text-[14px] leading-relaxed text-muted-foreground">
-          Two sessions are already logged that day. Open one to add what you
-          did.
+          {tr(
+            "Two sessions are already logged that day. Open one to add what you did."
+          )}
         </p>
         <div className="flex w-full max-w-xs flex-col gap-2">
           {(retroDayLogs ?? []).map((log, index) => (
@@ -2299,7 +2380,10 @@ function ActiveWorkoutSession() {
               }
               className="motion-tactile h-[52px] w-full rounded-[20px] bg-muted/60 text-[15px] font-semibold transition-opacity active:opacity-80"
             >
-              Edit workout {log.slot ?? index + 1}
+              <Message
+                text={"Edit workout {{value0}}"}
+                values={{ value0: log.slot ?? index + 1 }}
+              />
             </button>
           ))}
           <button
@@ -2307,7 +2391,7 @@ function ActiveWorkoutSession() {
             onClick={() => navigate(-1)}
             className="motion-tactile h-[52px] w-full rounded-[20px] text-[14px] font-semibold text-muted-foreground transition-colors active:bg-muted/35"
           >
-            Go back
+            {tr("Go back")}
           </button>
         </div>
       </div>
@@ -2349,7 +2433,7 @@ function ActiveWorkoutSession() {
             >
               <button
                 type="button"
-                aria-label="Discard or leave workout"
+                aria-label={tr("Discard or leave workout")}
                 onClick={() => setConfirmAbort(true)}
                 className="motion-tactile inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-transparent text-muted-foreground active:text-foreground"
               >
@@ -2360,8 +2444,8 @@ function ActiveWorkoutSession() {
                   type="button"
                   aria-label={
                     simpleView
-                      ? "Switch to expanded view"
-                      : "Switch to simple view"
+                      ? tr("Switch to expanded view")
+                      : tr("Switch to simple view")
                   }
                   aria-pressed={simpleView}
                   onClick={() => {
@@ -2393,13 +2477,13 @@ function ActiveWorkoutSession() {
                 <p className="text-[12px] font-semibold text-muted-foreground">
                   {isRetro
                     ? retroMode === "edit"
-                      ? "Editing"
-                      : "Logging"
+                      ? tr("Editing")
+                      : tr("Logging")
                     : simpleView
-                      ? "Elapsed"
+                      ? tr("Elapsed")
                       : rest.remaining !== null
-                        ? "Rest"
-                        : "Elapsed"}
+                        ? tr("Rest")
+                        : tr("Elapsed")}
                 </p>
                 <p
                   key={
@@ -2427,18 +2511,20 @@ function ActiveWorkoutSession() {
                 <button
                   type="button"
                   onClick={() => setBrainDumpOpen(true)}
-                  aria-label="Describe your workout"
+                  aria-label={tr("Describe your workout")}
                   className="motion-tactile inline-flex h-11 shrink-0 items-center gap-1.5 rounded-xl bg-muted px-3 text-[13px] font-semibold text-foreground"
                 >
-                  <Sparkle size={16} weight="bold" />
-                  Describe
+                  <Message
+                    text={"{{value0}}Describe"}
+                    values={{ value0: <Sparkle size={16} weight="bold" /> }}
+                  />
                 </button>
               ) : !simpleView && rest.remaining !== null ? (
                 <button
                   onClick={rest.dismiss}
                   className="motion-tactile h-11 shrink-0 rounded-xl bg-muted px-4 text-[13px] font-extrabold text-foreground"
                 >
-                  Skip
+                  {tr("Skip")}
                 </button>
               ) : (
                 <button
@@ -2453,16 +2539,16 @@ function ActiveWorkoutSession() {
                   )}
                 >
                   {nextTarget?.kind === "set"
-                    ? "Complete set"
+                    ? tr("Complete set")
                     : totalSets > 0
-                      ? "Finish"
-                      : "Add"}
+                      ? tr("Finish")
+                      : tr("Add")}
                 </button>
               )}
               <div
                 className="flex h-11 shrink-0 overflow-hidden rounded-lg border border-border text-[13px] font-semibold"
                 role="group"
-                aria-label="Weight unit"
+                aria-label={tr("Weight unit")}
               >
                 {(["kg", "lbs"] as WeightUnit[]).map((u) => (
                   <button
@@ -2493,15 +2579,15 @@ function ActiveWorkoutSession() {
                     type="button"
                     onClick={() => syncToConvex({ immediate: true })}
                     className="motion-tactile min-h-11 shrink-0 rounded-[10px] border border-destructive/30 bg-destructive/10 px-3 text-[13px] font-extrabold text-destructive"
-                    aria-label="Save workout again"
+                    aria-label={tr("Save workout again")}
                   >
-                    Retry
+                    {tr("Retry")}
                   </button>
                 )}
                 <div
                   className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-muted"
                   role="progressbar"
-                  aria-label="Workout completion"
+                  aria-label={tr("Workout completion")}
                   aria-valuemin={0}
                   aria-valuemax={100}
                   aria-valuenow={
@@ -2524,18 +2610,25 @@ function ActiveWorkoutSession() {
                   disabled={!nextTarget}
                   aria-label={
                     nextTarget
-                      ? `Go to active set: ${activeExerciseName}, ${activeSetContext}`
+                      ? tr("Go to active set: {{value0}}, {{value1}}", {
+                          value0: activeExerciseName,
+                          value1: activeSetContext,
+                        })
                       : undefined
                   }
                   className="min-w-0 truncate active:text-foreground disabled:pointer-events-none"
                 >
                   {uniqueExerciseIds.length > 0
-                    ? `${activeExerciseIndex}/${uniqueExerciseIds.length} · ${nextSetLabel}`
-                    : "Active workout"}
+                    ? tr("{{value0}}/{{value1}} · {{value2}}", {
+                        value0: activeExerciseIndex,
+                        value1: uniqueExerciseIds.length,
+                        value2: nextSetLabel,
+                      })
+                    : tr("Active workout")}
                 </button>
                 {slot === 2 && (
                   <span className="shrink-0 text-[13px] text-muted-foreground">
-                    Second workout
+                    {tr("Second workout")}
                   </span>
                 )}
                 {workoutSyncStatus !== "idle" && (
@@ -2571,7 +2664,9 @@ function ActiveWorkoutSession() {
           <>
             <button
               type="button"
-              aria-label={coachMenuOpen ? "Close coach menu" : "Ask your coach"}
+              aria-label={
+                coachMenuOpen ? tr("Close coach menu") : tr("Ask your coach")
+              }
               aria-expanded={coachMenuOpen}
               aria-busy={aiUpdating}
               data-open={coachMenuOpen ? "true" : "false"}
@@ -2634,7 +2729,20 @@ function ActiveWorkoutSession() {
             />
           </>
         )}
-        {!isRetro && <div className="px-[var(--app-page-x)] md:px-0"><ProgrammeWorkout data={exData} names={Object.fromEntries(uniqueExerciseIds.map(id => [id, exerciseLookup[id]?.name ?? id]))} onApply={setExData} /></div>}
+        {!isRetro && (
+          <div className="px-[var(--app-page-x)] md:px-0">
+            <ProgrammeWorkout
+              data={exData}
+              names={Object.fromEntries(
+                uniqueExerciseIds.map((id) => [
+                  id,
+                  exerciseLookup[id]?.name ?? id,
+                ])
+              )}
+              onApply={setExData}
+            />
+          </div>
+        )}
         {simpleViewActive ? (
           <FocusWorkoutView
             exerciseName={activeExerciseName}
@@ -2691,13 +2799,13 @@ function ActiveWorkoutSession() {
                       className="shrink-0 text-foreground/65"
                     />
                     <p className="min-w-0 flex-1 text-[13px] leading-5 font-medium">
-                      Drag one exercise onto another to make a superset.
+                      {tr("Drag one exercise onto another to make a superset.")}
                     </p>
                     <button
                       type="button"
                       onClick={dismissSupersetTip}
                       className="flex h-11 w-11 shrink-0 items-center justify-center text-muted-foreground transition-colors active:bg-muted active:text-foreground"
-                      aria-label="Hide superset tip"
+                      aria-label={tr("Hide superset tip")}
                     >
                       <X size={12} weight="bold" />
                     </button>
@@ -2825,12 +2933,15 @@ function ActiveWorkoutSession() {
                       setSimpleView(false)
                       safeLocalStorageSet(SIMPLE_VIEW_KEY, "false")
                     }}
-                    aria-label={`Next up: ${upcomingExercise.name}. Show the whole workout`}
+                    aria-label={tr(
+                      "Next up: {{value0}}. Show the whole workout",
+                      { value0: upcomingExercise.name }
+                    )}
                     className="motion-tactile -mt-2 flex w-full items-center gap-3 rounded-2xl border border-border/60 bg-card/45 px-4 py-3.5 text-left"
                   >
                     <div className="min-w-0 flex-1">
                       <p className="text-[12px] font-semibold text-muted-foreground">
-                        Next up
+                        {tr("Next up")}
                       </p>
                       <p className="mt-0.5 truncate text-[15px] font-semibold">
                         {upcomingExercise.name}
@@ -2850,7 +2961,7 @@ function ActiveWorkoutSession() {
                 ) : (
                   uniqueExerciseIds.length > 1 && (
                     <p className="-mt-1 text-center text-[13px] text-muted-foreground">
-                      Last exercise of the session.
+                      {tr("Last exercise of the session.")}
                     </p>
                   )
                 ))}
@@ -2858,17 +2969,21 @@ function ActiveWorkoutSession() {
             {items.length === 0 ? (
               <section className="border-y border-border py-8 text-center">
                 <h2 className="text-[18px] font-semibold">
-                  Build this workout
+                  {tr("Build this workout")}
                 </h2>
                 <p className="mx-auto mt-2 max-w-sm text-[15px] leading-6 text-muted-foreground">
-                  Add an exercise to start logging sets, weight, reps, and rest.
+                  {tr(
+                    "Add an exercise to start logging sets, weight, reps, and rest."
+                  )}
                 </p>
                 <button
                   onClick={() => setSearchOpen(true)}
                   className="app-button app-button-primary mt-5 min-h-12 w-full"
                 >
-                  <Plus size={16} weight="bold" />
-                  Add first exercise
+                  <Message
+                    text={"{{value0}}Add first exercise"}
+                    values={{ value0: <Plus size={16} weight="bold" /> }}
+                  />
                 </button>
               </section>
             ) : (
@@ -2876,8 +2991,10 @@ function ActiveWorkoutSession() {
                 onClick={() => setSearchOpen(true)}
                 className="app-button app-button-secondary min-h-12 w-full"
               >
-                <Plus size={15} weight="bold" />
-                Add exercise
+                <Message
+                  text={"{{value0}}Add exercise"}
+                  values={{ value0: <Plus size={15} weight="bold" /> }}
+                />
               </button>
             )}
           </main>
@@ -2932,7 +3049,14 @@ function ActiveWorkoutSession() {
             workoutHistory !== undefined &&
             schedule !== undefined
           }
-          contextSummary={`${coachContext.workoutDays7} recent session${coachContext.workoutDays7 === 1 ? "" : "s"}, ${coachContext.hardSets7} completed sets, recovery check-ins, goals, routine, and saved preferences.`}
+          contextSummary={tr(
+            "{{value0}} recent session{{value1}}, {{value2}} completed sets, recovery check-ins, goals, routine, and saved preferences.",
+            {
+              value0: coachContext.workoutDays7,
+              value1: coachContext.workoutDays7 === 1 ? "" : "s",
+              value2: coachContext.hardSets7,
+            }
+          )}
           onAsk={handleAskCoachForWorkout}
           onApply={handleAiWorkoutChange}
           onClose={() => setAiSheetTarget(null)}
@@ -2973,37 +3097,39 @@ function ActiveWorkoutSession() {
       {confirmAbort && (
         <AbortSheet
           onConfirm={async () => {
-              try {
-                abortingRef.current = true
-                isDirtyRef.current = false
-                if (syncTimeoutRef.current) {
-                  clearTimeout(syncTimeoutRef.current)
-                  syncTimeoutRef.current = null
-                }
-                if (!isRetro) {
-                  await abortWorkoutAfterPendingWrites(
-                    [pendingCreateRef.current, pendingUpdateRef.current],
-                    () => abortActive({ slot })
-                  )
-                  wasRestingRef.current = false
-                  rest.dismiss()
-                  liveActivityStartedRef.current = false
-                  safeSessionStorageSet(ABORTED_WORKOUT_SLOT_KEY, String(slot))
-                  await endWorkoutLiveActivity(liveActivityState).catch((error) =>
-                    logDevWarn("Failed to end workout status", error)
-                  )
-                }
-                clearActiveWorkoutDraft(slot, retroDraftKey ?? undefined)
-                navigate("/workouts", { replace: true, motion: "back" })
-              } catch (err) {
-                abortingRef.current = false
-                isDirtyRef.current = true
-                dirtyVersionRef.current += 1
-                logDevError("Failed to abort workout in Convex:", err)
-                toast.error("Failed to abort workout. Please try again.")
-                throw err
+            try {
+              abortingRef.current = true
+              isDirtyRef.current = false
+              if (syncTimeoutRef.current) {
+                clearTimeout(syncTimeoutRef.current)
+                syncTimeoutRef.current = null
               }
-            }}
+              if (!isRetro) {
+                await abortWorkoutAfterPendingWrites(
+                  [pendingCreateRef.current, pendingUpdateRef.current],
+                  () => abortActive({ slot })
+                )
+                wasRestingRef.current = false
+                rest.dismiss()
+                liveActivityStartedRef.current = false
+                safeSessionStorageSet(ABORTED_WORKOUT_SLOT_KEY, String(slot))
+                await endWorkoutLiveActivity(liveActivityState).catch((error) =>
+                  logDevWarn("Failed to end workout status", error)
+                )
+              }
+              clearActiveWorkoutDraft(slot, retroDraftKey ?? undefined)
+              navigate("/workouts", { replace: true, motion: "back" })
+            } catch (err) {
+              abortingRef.current = false
+              isDirtyRef.current = true
+              dirtyVersionRef.current += 1
+              logDevError("Failed to abort workout in Convex:", err)
+              toast.error(
+                translateError(tr("Failed to abort workout. Please try again."))
+              )
+              throw err
+            }
+          }}
           onCancel={() => setConfirmAbort(false)}
         />
       )}
@@ -3021,38 +3147,42 @@ function ActiveWorkoutSession() {
             setResumePrompt(null)
           }}
           onDiscard={async () => {
-              hapticMedium()
-              abortingRef.current = true
-              isDirtyRef.current = false
-              if (syncTimeoutRef.current) {
-                clearTimeout(syncTimeoutRef.current)
-                syncTimeoutRef.current = null
-              }
-              try {
-                // Keep the prompt open until deletion succeeds. A stale query
-                // must never become the replacement session's contents.
-                await abortWorkoutAfterPendingWrites(
-                  [pendingCreateRef.current, pendingUpdateRef.current],
-                  () => abortActive({ slot })
+            hapticMedium()
+            abortingRef.current = true
+            isDirtyRef.current = false
+            if (syncTimeoutRef.current) {
+              clearTimeout(syncTimeoutRef.current)
+              syncTimeoutRef.current = null
+            }
+            try {
+              // Keep the prompt open until deletion succeeds. A stale query
+              // must never become the replacement session's contents.
+              await abortWorkoutAfterPendingWrites(
+                [pendingCreateRef.current, pendingUpdateRef.current],
+                () => abortActive({ slot })
+              )
+              clearActiveWorkoutDraft(slot)
+              wasRestingRef.current = false
+              rest.dismiss()
+              liveActivityStartedRef.current = false
+              await endWorkoutLiveActivity(liveActivityState).catch((error) =>
+                logDevWarn("Failed to end workout status", error)
+              )
+              createdActiveRef.current = false
+              setResumeDecision("discard")
+              setResumePrompt(null)
+              setLocalStartedAt(Date.now())
+            } catch (error) {
+              toast.error(
+                translateError(
+                  tr("Failed to discard workout. Please try again.")
                 )
-                clearActiveWorkoutDraft(slot)
-                wasRestingRef.current = false
-                rest.dismiss()
-                liveActivityStartedRef.current = false
-                await endWorkoutLiveActivity(liveActivityState).catch((error) =>
-                  logDevWarn("Failed to end workout status", error)
-                )
-                createdActiveRef.current = false
-                setResumeDecision("discard")
-                setResumePrompt(null)
-                setLocalStartedAt(Date.now())
-              } catch (error) {
-                toast.error("Failed to discard workout. Please try again.")
-                throw error
-              } finally {
-                abortingRef.current = false
-              }
-            }}
+              )
+              throw error
+            } finally {
+              abortingRef.current = false
+            }
+          }}
         />
       )}
       {infoSheet && (

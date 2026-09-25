@@ -1,3 +1,4 @@
+import { Message, tr } from "@repo/ui/i18n"
 import { NudgeIllustration } from "@repo/ui/mobile"
 import { useRef, useState } from "react"
 import { Barbell, ForkKnife, Sparkle, X } from "@phosphor-icons/react"
@@ -53,24 +54,29 @@ export function WelcomeNudge({
   const hour = new Date().getHours()
   const greeting =
     hour < 5
-      ? "Up early"
+      ? tr("Up early")
       : hour < 12
-        ? "Good morning"
+        ? tr("Good morning")
         : hour < 18
-          ? "Good afternoon"
-          : "Good evening"
+          ? tr("Good afternoon")
+          : tr("Good evening")
   const planLine = workoutLogged
-    ? "Today's workout is already logged."
+    ? tr("Today's workout is already logged.")
     : scheduledWorkout
-      ? `On the plan: ${scheduledWorkout.name} · ${scheduledWorkout.duration}`
-      : "Rest day — nothing scheduled."
-  const weekLine = `${
-    workoutsThisWeek === 0
-      ? "No workouts yet"
-      : workoutsThisWeek === 1
-        ? "1 workout"
-        : `${workoutsThisWeek} workouts`
-  } this week${daysLast28 > 0 ? ` · ${daysLast28} days in 4 weeks` : ""}`
+      ? tr("On the plan: {{value0}} · {{value1}}", {
+          value0: scheduledWorkout.name,
+          value1: scheduledWorkout.duration,
+        })
+      : tr("Rest day — nothing scheduled.")
+  const weekLine = tr("{{value0}} this week{{value1}}", {
+    value0:
+      workoutsThisWeek === 0
+        ? "No workouts yet"
+        : workoutsThisWeek === 1
+          ? "1 workout"
+          : `${workoutsThisWeek} workouts`,
+    value1: daysLast28 > 0 ? ` · ${daysLast28} days in 4 weeks` : "",
+  })
 
   const actionCls =
     "motion-tactile flex h-9 items-center gap-1.5 rounded-xl bg-muted/40 px-3 text-[12px] font-semibold text-foreground/80 transition-colors active:bg-muted/70"
@@ -101,7 +107,7 @@ export function WelcomeNudge({
             </div>
             <button
               type="button"
-              aria-label="Dismiss welcome for today"
+              aria-label={tr("Dismiss welcome for today")}
               onClick={dismiss}
               className="app-icon-button h-9 w-9 shrink-0 bg-transparent text-muted-foreground/60"
             >
@@ -122,8 +128,10 @@ export function WelcomeNudge({
                 }
                 className="motion-tactile flex h-9 items-center gap-1.5 rounded-xl bg-foreground px-3 text-[12px] font-semibold text-background transition-opacity active:opacity-80"
               >
-                <Barbell size={13} weight="bold" />
-                Start workout
+                <Message
+                  text={"{{value0}}Start workout"}
+                  values={{ value0: <Barbell size={13} weight="bold" /> }}
+                />
               </button>
             )}
             <button
@@ -131,16 +139,20 @@ export function WelcomeNudge({
               onClick={() => navigate("/nutrition")}
               className={actionCls}
             >
-              <ForkKnife size={13} weight="bold" />
-              Log food
+              <Message
+                text={"{{value0}}Log food"}
+                values={{ value0: <ForkKnife size={13} weight="bold" /> }}
+              />
             </button>
             <button
               type="button"
               onClick={() => navigate("/coach", { motion: "switch" })}
               className={actionCls}
             >
-              <Sparkle size={13} weight="bold" />
-              Ask Coach
+              <Message
+                text={"{{value0}}Ask Coach"}
+                values={{ value0: <Sparkle size={13} weight="bold" /> }}
+              />
             </button>
           </div>
         </div>
@@ -177,8 +189,10 @@ export function UnloggedWorkoutNudge() {
                 {formatNudgeDate(workout.date)} · {workout.activityName}
               </p>
               <p className="mt-0.5 text-[12px] text-muted-foreground">
-                {Math.round(workout.durationSeconds / 60)} min recorded, not
-                logged
+                <Message
+                  text={"{{value0}} min recorded, not logged"}
+                  values={{ value0: Math.round(workout.durationSeconds / 60) }}
+                />
               </p>
             </div>
             <button
@@ -190,11 +204,14 @@ export function UnloggedWorkoutNudge() {
               }
               className="motion-tactile h-9 shrink-0 rounded-xl bg-foreground px-3 text-[12px] font-semibold text-background transition-opacity active:opacity-80"
             >
-              Add
+              {tr("Add")}
             </button>
             <button
               type="button"
-              aria-label={`Dismiss ${workout.activityName} on ${workout.date}`}
+              aria-label={tr("Dismiss {{value0}} on {{value1}}", {
+                value0: workout.activityName,
+                value1: workout.date,
+              })}
               onClick={() => void dismiss({ id: workout._id })}
               className="app-icon-button h-9 w-9 shrink-0 bg-transparent text-muted-foreground/60"
             >

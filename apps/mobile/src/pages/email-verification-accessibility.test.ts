@@ -1,5 +1,5 @@
+import { readLocalizedSource as readFileSync } from "../../tests/helpers/localized-source"
 import { describe, expect, test } from "bun:test"
-import { readFileSync } from "node:fs"
 
 const EMAIL_VERIFIED_SOURCE = readFileSync(
   new URL("./EmailVerified.tsx", import.meta.url),

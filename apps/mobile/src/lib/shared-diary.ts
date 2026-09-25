@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 /**
  * Diary sharing: invite hygiene, scope maths and comment grouping.
  *
@@ -59,10 +60,14 @@ export function shareScopeLabel(scope: DiaryShareScope): string {
   if (scope?.diary) parts.push("diary")
   if (scope?.report) parts.push("report")
   if (scope?.comments) parts.push("comments")
-  if (parts.length === 0) return "Nothing shared"
-  if (parts.length === 1) return `Can see your ${parts[0]}`
+  if (parts.length === 0) return tr("Nothing shared")
+  if (parts.length === 1)
+    return tr("Can see your {{value0}}", { value0: parts[0] })
   const last = parts.pop()
-  return `Can see your ${parts.join(", ")} and ${last}`
+  return tr("Can see your {{value0}} and {{value1}}", {
+    value0: parts.join(", "),
+    value1: last,
+  })
 }
 
 /** Whether a grant covers a date. Absent bounds mean unbounded. */
@@ -153,11 +158,14 @@ export async function shareDiaryInvite(
   inviteeEmail: string
 ): Promise<"shared" | "copied" | "failed"> {
   const link = diaryInviteLink(token)
-  const text = `I'm sharing my OneRep food diary with you (${inviteeEmail}). Open this link on a phone with OneRep installed: ${link}`
+  const text = tr(
+    "I'm sharing my OneRep food diary with you ({{value0}}). Open this link on a phone with OneRep installed: {{value1}}",
+    { value0: inviteeEmail, value1: link }
+  )
   try {
     const { Share } = await import("@capacitor/share")
     await Share.share({
-      title: "OneRep diary invitation",
+      title: tr("OneRep diary invitation"),
       text,
       dialogTitle: "Send your diary invitation",
     })

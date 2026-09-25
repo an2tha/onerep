@@ -1,3 +1,4 @@
+import { Message, choice, tr, translateError, uiLocale } from "@repo/ui/i18n"
 import { PageBarActions } from "@/components/page-bar-actions"
 import { useRecovery } from "@/lib/use-recovery"
 import { RecoveryBanner } from "@/components/recovery/recovery-banner"
@@ -118,33 +119,38 @@ const FOCUS_ICON: Record<
 const DEFAULT_PRESETS: WorkoutPresetCard[] = [
   {
     id: "p1",
-    name: "Lift day",
+    name: tr("Lift day"),
     focus: "strength",
-    duration: "45 min",
-    steps: ["Warm up 5 min", "Squat 4×5", "Bench press 4×5", "Barbell row 3×8"],
+    duration: tr("45 min"),
+    steps: [
+      tr("Warm up 5 min"),
+      tr("Squat 4×5"),
+      tr("Bench press 4×5"),
+      tr("Barbell row 3×8"),
+    ],
   },
   {
     id: "p2",
-    name: "Cardio day",
+    name: tr("Cardio day"),
     focus: "cardio",
-    duration: "35 min",
+    duration: tr("35 min"),
     steps: [
-      "Warm up 5 min",
-      "Zone 2 run 20 min",
-      "Intervals 6 min",
-      "Cool down 4 min",
+      tr("Warm up 5 min"),
+      tr("Zone 2 run 20 min"),
+      tr("Intervals 6 min"),
+      tr("Cool down 4 min"),
     ],
   },
   {
     id: "p3",
-    name: "Mobility day",
+    name: tr("Mobility day"),
     focus: "mobility",
-    duration: "25 min",
+    duration: tr("25 min"),
     steps: [
-      "Breath work 2 min",
-      "Joint flow 8 min",
-      "Deep stretch 10 min",
-      "Walk 5 min",
+      tr("Breath work 2 min"),
+      tr("Joint flow 8 min"),
+      tr("Deep stretch 10 min"),
+      tr("Walk 5 min"),
     ],
   },
 ]
@@ -179,11 +185,11 @@ function dayFromDateKey(dateKey: string): Day {
 }
 
 function formatDateLabel(dateKey: string, todayKey: string) {
-  if (dateKey === todayKey) return "Today"
+  if (dateKey === todayKey) return tr("Today")
   const yesterday = offsetDateKey(todayKey, -1)
-  if (dateKey === yesterday) return "Yesterday"
+  if (dateKey === yesterday) return tr("Yesterday")
   const date = new Date(`${dateKey}T12:00:00Z`)
-  return date.toLocaleDateString([], {
+  return date.toLocaleDateString(uiLocale(), {
     weekday: "short",
     month: "short",
     day: "numeric",
@@ -222,7 +228,10 @@ function PresetSteps({
       ))}
       {hidden > 0 && (
         <li className="py-2 text-[13px] font-medium text-muted-foreground">
-          +{hidden} more movement{hidden === 1 ? "" : "s"}
+          <Message
+            text={"+{{value0}} more movement{{value1}}"}
+            values={{ value0: hidden, value1: hidden === 1 ? "" : "s" }}
+          />
         </li>
       )}
     </ol>
@@ -236,7 +245,7 @@ function ConfirmDeleteSheet({
   description,
   confirmLabel,
   busyLabel,
-  cancelLabel = "Keep it",
+  cancelLabel = tr("Keep it"),
   onConfirm,
   onCancel,
 }: {
@@ -352,16 +361,21 @@ function WorkoutLogSummary({
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-[15px] font-semibold">Workout {slot}</span>
+          <span className="text-[15px] font-semibold">
+            <Message text={"Workout {{value0}}"} values={{ value0: slot }} />
+          </span>
           <span className="text-[13px] text-muted-foreground">
-            Complete · {fmtDuration(log.durationSeconds)}
+            <Message
+              text={"Complete · {{value0}}"}
+              values={{ value0: fmtDuration(log.durationSeconds) }}
+            />
           </span>
         </div>
         {onEdit && (
           <button
             onClick={onEdit}
             className="app-icon-button h-10 w-10 bg-muted/45"
-            aria-label="Edit workout"
+            aria-label={tr("Edit workout")}
           >
             <PencilSimple size={13} />
           </button>
@@ -385,7 +399,10 @@ function WorkoutLogSummary({
               <span className="max-w-[12rem] shrink truncate text-right text-[13px] text-muted-foreground tabular-nums">
                 {isCardio
                   ? compactCardioSummary(ex.cardio, ex.cardio?.distanceUnit)
-                  : `${done}/${total}`}
+                  : tr("{{value0}}/{{value1}}", {
+                      value0: done,
+                      value1: total,
+                    })}
               </span>
             </div>
           )
@@ -394,11 +411,20 @@ function WorkoutLogSummary({
 
       <div className="flex items-center justify-between text-[13px] text-muted-foreground">
         <span>
-          {completedExercises.length} exercises · {totalSets} sets
-          {cardioCount > 0 ? ` · ${cardioCount} cardio` : ""}
+          <Message
+            text={"{{value0}} exercises · {{value1}} sets{{value2}}"}
+            values={{
+              value0: completedExercises.length,
+              value1: totalSets,
+              value2:
+                cardioCount > 0
+                  ? tr(" · {{value0}} cardio", { value0: cardioCount })
+                  : "",
+            }}
+          />
         </span>
         <span>
-          {new Date(log.completedAt).toLocaleTimeString("en-US", {
+          {new Date(log.completedAt).toLocaleTimeString(uiLocale(), {
             hour: "numeric",
             minute: "2-digit",
           })}
@@ -472,7 +498,7 @@ function WorkoutLogCarousel({
                 ? "h-1.5 w-4 bg-foreground/50"
                 : "h-1.5 w-1.5 bg-foreground/20"
             )}
-            aria-label={`Workout ${i + 1}`}
+            aria-label={tr("Workout {{value0}}", { value0: i + 1 })}
           />
         ))}
       </div>
@@ -484,7 +510,7 @@ function WorkoutLogCarousel({
 
 function PickSecondWorkoutSheet({
   presets,
-  title = "Add second workout",
+  title = tr("Add second workout"),
   onPick,
   onClose,
 }: {
@@ -508,7 +534,7 @@ function PickSecondWorkoutSheet({
         <p className="text-[15px] font-semibold tracking-tight">{title}</p>
         <button
           onClick={onClose}
-          aria-label="Close"
+          aria-label={tr("Close")}
           className="app-icon-button h-10 w-10 bg-muted/60 text-muted-foreground"
         >
           <X size={12} weight="bold" />
@@ -534,7 +560,13 @@ function PickSecondWorkoutSheet({
               <div className="min-w-0 flex-1">
                 <p className="text-[13px] font-semibold">{preset.name}</p>
                 <p className="text-[13px] text-muted-foreground">
-                  {preset.steps.length} exercises · {preset.duration}
+                  <Message
+                    text={"{{value0}} exercises · {{value1}}"}
+                    values={{
+                      value0: preset.steps.length,
+                      value1: preset.duration,
+                    }}
+                  />
                 </p>
               </div>
             </button>
@@ -568,7 +600,7 @@ function MuscleVolumeCard({ muscleVolume }: { muscleVolume: MuscleSets[] }) {
     return (
       <div className="border-y border-border py-5 text-center">
         <p className="text-[15px] text-muted-foreground">
-          No workouts logged this week yet
+          {tr("No workouts logged this week yet")}
         </p>
       </div>
     )
@@ -579,8 +611,10 @@ function MuscleVolumeCard({ muscleVolume }: { muscleVolume: MuscleSets[] }) {
   return (
     <section className="border-y border-border py-5">
       <div className="mb-3">
-        <p className="app-section-title">Volume</p>
-        <p className="app-section-subtitle">This week · sets per muscle</p>
+        <p className="app-section-title">{tr("Volume")}</p>
+        <p className="app-section-subtitle">
+          {tr("This week · sets per muscle")}
+        </p>
       </div>
       <div className="flex flex-col gap-2.5">
         {muscleVolume.map((item) => {
@@ -593,10 +627,18 @@ function MuscleVolumeCard({ muscleVolume }: { muscleVolume: MuscleSets[] }) {
                   {item.muscle}
                 </span>
                 <span className="text-[13px] font-medium text-muted-foreground tabular-nums">
-                  {item.primarySets} primary
-                  {item.secondarySets > 0
-                    ? ` + ${item.secondarySets} supporting`
-                    : ""}
+                  <Message
+                    text={"{{value0}} primary{{value1}}"}
+                    values={{
+                      value0: item.primarySets,
+                      value1:
+                        item.secondarySets > 0
+                          ? tr(" + {{value0}} supporting", {
+                              value0: item.secondarySets,
+                            })
+                          : "",
+                    }}
+                  />
                 </span>
               </div>
               <div className="h-1.5 w-full overflow-hidden rounded-full bg-foreground/[0.06]">
@@ -614,7 +656,9 @@ function MuscleVolumeCard({ muscleVolume }: { muscleVolume: MuscleSets[] }) {
         })}
       </div>
       <p className="mt-3 text-[13px] leading-5 text-muted-foreground">
-        Supporting sets count as half a set when estimating muscle volume.
+        {tr(
+          "Supporting sets count as half a set when estimating muscle volume."
+        )}
       </p>
     </section>
   )
@@ -681,7 +725,11 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
   const editRetroLog = useCallback(
     (date: string, sessionId?: string) => {
       if (!sessionId) {
-        toast.error("This workout is too old to edit. Delete and re-log it.")
+        toast.error(
+          translateError(
+            tr("This workout is too old to edit. Delete and re-log it.")
+          )
+        )
         return
       }
       hapticSelection()
@@ -741,7 +789,7 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
         announceOrbActivity("log")
       }
     } catch {
-      toast.error("Couldn't save that. Try again.")
+      toast.error(translateError(tr("Couldn't save that. Try again.")))
     }
   }
 
@@ -872,8 +920,14 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
   const presetRefs = useRef<(HTMLDivElement | null)[]>([])
 
   const today = isToday ? todayDay() : dayFromDateKey(dateKey)
-  const todayPreset = recovery?.active?.deferTraining && dateKey >= todayKey ? null : presets.find((p) => p.id === routine[today]) ?? null
-  const todayPreset2 = recovery?.active?.deferTraining && dateKey >= todayKey ? null : presets.find((p) => p.id === routine2[today]) ?? null
+  const todayPreset =
+    recovery?.active?.deferTraining && dateKey >= todayKey
+      ? null
+      : (presets.find((p) => p.id === routine[today]) ?? null)
+  const todayPreset2 =
+    recovery?.active?.deferTraining && dateKey >= todayKey
+      ? null
+      : (presets.find((p) => p.id === routine2[today]) ?? null)
 
   useEffect(() => {
     if (syncing) return
@@ -903,11 +957,14 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
       workoutExercises:
         exerciseNames.length > 0
           ? exerciseNames.join(" · ")
-          : "No workout scheduled",
+          : tr("No workout scheduled"),
       workoutBrief:
         exerciseNames.length > 0
-          ? `${exerciseNames.length} exercises · ${totalSets} sets`
-          : "Recovery day",
+          ? tr("{{value0}} exercises · {{value1}} sets", {
+              value0: exerciseNames.length,
+              value1: totalSets,
+            })
+          : tr("Recovery day"),
     })
   }, [serverPresets, syncing, todayPreset, todayPreset2])
 
@@ -1156,7 +1213,7 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
     setDuplicatingPresetId(preset.id)
     try {
       await createPresetMutation({
-        name: `${preset.name} copy`,
+        name: tr("{{value0}} copy", { value0: preset.name }),
         items: (source?.items as unknown[]) ?? [],
         exerciseData: source?.exerciseData ?? {},
         focus: source?.focus ?? preset.focus,
@@ -1164,9 +1221,9 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
         steps: source?.steps ?? preset.steps,
       })
       hapticMedium()
-      toast.success(`${preset.name} duplicated`)
+      toast.success(tr("{{value0}} duplicated", { value0: preset.name }))
     } catch {
-      toast.error("Could not duplicate this preset")
+      toast.error(translateError(tr("Could not duplicate this preset")))
     } finally {
       setDuplicatingPresetId(null)
     }
@@ -1197,12 +1254,14 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
       setRoutine(previousRoutine)
       setRoutine2(previousRoutine2)
       toast.error(
-        error instanceof Error ? error.message : "Could not delete preset"
+        translateError(
+          error instanceof Error ? error.message : tr("Could not delete preset")
+        )
       )
       return
     }
     hapticMedium()
-    toast.success("Preset deleted")
+    toast.success(tr("Preset deleted"))
     setConfirmDeleteId(null)
   }
 
@@ -1213,9 +1272,9 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
     try {
       await removeWorkoutLog({ id })
       announceOrbActivity("delete")
-      toast.success("Workout removed")
+      toast.success(tr("Workout removed"))
     } catch {
-      toast.error("Could not remove workout")
+      toast.error(translateError(tr("Could not remove workout")))
     }
   }
 
@@ -1255,24 +1314,27 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
 
   const heroTitle =
     workoutLogs.length === 2
-      ? "Training complete"
+      ? tr("Training complete")
       : workoutLogs.length === 1
         ? todayPreset2
           ? todayPreset2.name
-          : "One workout logged"
+          : tr("One workout logged")
         : todayPreset
           ? todayPreset.name
-          : "Rest day"
+          : tr("Rest day")
   const heroDetail =
     workoutLogs.length === 2
-      ? "Both workout slots are complete today."
+      ? tr("Both workout slots are complete today.")
       : workoutLogs.length === 1
         ? todayPreset2
-          ? `Next: ${todayPreset2.duration}`
-          : "Add a second session if today needs one."
+          ? tr("Next: {{value0}}", { value0: todayPreset2.duration })
+          : tr("Add a second session if today needs one.")
         : todayPreset
-          ? `${todayPreset.steps.length} exercises · ${todayPreset.duration}`
-          : "No workout scheduled. Log an open session anytime."
+          ? tr("{{value0}} exercises · {{value1}}", {
+              value0: todayPreset.steps.length,
+              value1: todayPreset.duration,
+            })
+          : tr("No workout scheduled. Log an open session anytime.")
   const nextWorkoutPreset =
     workoutLogs.length === 1 && todayPreset2 ? todayPreset2 : todayPreset
   const nextWorkoutHref = nextWorkoutPreset
@@ -1280,10 +1342,10 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
     : "/workout/active"
   const nextWorkoutAction =
     workoutLogs.length === 1 && todayPreset2
-      ? `Start ${todayPreset2.name}`
+      ? tr("Start {{value0}}", { value0: todayPreset2.name })
       : nextWorkoutPreset
-        ? `Start ${nextWorkoutPreset.name}`
-        : "Start open workout"
+        ? tr("Start {{value0}}", { value0: nextWorkoutPreset.name })
+        : tr("Start open workout")
   // The week's own plan is the denominator: a five-day routine shouldn't be
   // graded against seven. An empty schedule falls back to a plain five.
   const scheduledDaysThisWeek =
@@ -1307,21 +1369,21 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
   // they run left to right along the crown.
   const heroStats = [
     {
-      name: "Week",
+      name: tr("Week"),
       value: workoutsThisWeek,
       target: scheduledDaysThisWeek,
       suffix: "",
       color: APP_ACCENT_COLORS.neutral,
     },
     {
-      name: "Sets",
+      name: tr("Sets"),
       value: weeklyEffectiveSets,
       target: weeklySetTarget,
       suffix: "",
       color: APP_ACCENT_COLORS.workout,
     },
     {
-      name: "Ready",
+      name: tr("Ready"),
       value: recoveredMuscles,
       target: Math.max(1, muscleRecovery.length),
       suffix: "",
@@ -1331,7 +1393,7 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
       // Four weeks of density rather than a streak: it dips on a missed day
       // instead of going to zero, which is the difference between a reading
       // and a punishment.
-      name: "Month",
+      name: tr("Month"),
       value: trainingDaysLast28,
       target: scheduledDaysThisWeek * 4,
       suffix: "d",
@@ -1355,7 +1417,9 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
   return (
     <div
       className={cn(
-        embedded ? "training-embedded" : "desktop-canvas min-h-svh bg-background lg:pr-8 lg:pl-72",
+        embedded
+          ? "training-embedded"
+          : "desktop-canvas min-h-svh bg-background lg:pr-8 lg:pl-72",
         // The wash starts at the very top of the page so the title row sits
         // inside the same field as the dials, and it deepens as the week fills.
         isToday && !embedded && "app-hero"
@@ -1369,12 +1433,16 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
           : undefined
       }
     >
-      {isToday && !embedded && <ReactiveOrbField className="training-hero-wash" />}
+      {isToday && !embedded && (
+        <ReactiveOrbField className="training-hero-wash" />
+      )}
       <div className={embedded ? "" : "app-page"}>
         <header className="app-header" ref={trainingHeaderRef}>
-          {!embedded && <div className="min-w-0">
-            <h1 className="app-title">Training</h1>
-          </div>}
+          {!embedded && (
+            <div className="min-w-0">
+              <h1 className="app-title">{tr("Training")}</h1>
+            </div>
+          )}
           <PageBarActions>
             <div className="ml-auto flex items-center gap-1">
               <DateSelectorButton
@@ -1384,7 +1452,7 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
                 onChange={setDateKey}
                 open={dateSelectorOpen}
                 onOpenChange={setDateSelectorOpen}
-                label="Workout date"
+                label={tr("Workout date")}
               />
             </div>
           </PageBarActions>
@@ -1400,17 +1468,20 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
                 </p>
                 <h2 className="mt-1 text-[1.55rem] leading-none font-bold">
                   {selectedWorkoutLog
-                    ? "Workout logged"
+                    ? tr("Workout logged")
                     : isRestDay
-                      ? "Rest day"
-                      : "No workout"}
+                      ? tr("Rest day")
+                      : tr("No workout")}
                 </h2>
                 <p className="mt-2 text-[15px] text-muted-foreground">
                   {selectedWorkoutLog
-                    ? `${selectedWorkoutLog.exercises.length} exercises · ${fmtDuration(selectedWorkoutLog.durationSeconds)}`
+                    ? tr("{{value0}} exercises · {{value1}}", {
+                        value0: selectedWorkoutLog.exercises.length,
+                        value1: fmtDuration(selectedWorkoutLog.durationSeconds),
+                      })
                     : isRestDay
-                      ? "You called this one off on purpose."
-                      : "No completed training on this date."}
+                      ? tr("You called this one off on purpose.")
+                      : tr("No completed training on this date.")}
                 </p>
                 {!selectedWorkoutLog && (
                   <button
@@ -1418,7 +1489,7 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
                     onClick={() => void toggleRestDay(dateKey)}
                     className="mt-3 inline-flex min-h-11 items-center text-[14px] font-semibold text-muted-foreground transition-colors active:text-foreground"
                   >
-                    {isRestDay ? "Not a rest day" : "Mark as rest day"}
+                    {isRestDay ? tr("Not a rest day") : tr("Mark as rest day")}
                   </button>
                 )}
               </div>
@@ -1427,7 +1498,7 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
                   type="button"
                   onClick={() => setConfirmDeleteWorkout(true)}
                   className="app-header-icon-action text-destructive/70"
-                  aria-label="Delete workout log"
+                  aria-label={tr("Delete workout log")}
                 >
                   <Trash size={13} weight="bold" />
                 </button>
@@ -1458,14 +1529,19 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
                                 exercise.cardio,
                                 exercise.cardio?.distanceUnit
                               )
-                            : `${done}/${total} sets`}
+                            : tr("{{value0}}/{{value1}} sets", {
+                                value0: done,
+                                value1: total,
+                              })}
                         </p>
                       </div>
                       <button
                         type="button"
                         onClick={() => removeLoggedExercise(key)}
                         className="app-header-icon-action h-11 min-h-11 w-11 min-w-11 text-destructive"
-                        aria-label={`Remove ${exercise.name}`}
+                        aria-label={tr("Remove {{value0}}", {
+                          value0: exercise.name,
+                        })}
                       >
                         <Trash size={12} weight="bold" />
                       </button>
@@ -1473,11 +1549,17 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
                   )
                 })}
                 <p className="pt-3 text-[13px] text-muted-foreground">
-                  Completed{" "}
-                  {new Date(selectedWorkoutLog.completedAt).toLocaleTimeString(
-                    [],
-                    { hour: "numeric", minute: "2-digit" }
-                  )}
+                  <Message
+                    text={"Completed {{value0}}"}
+                    values={{
+                      value0: new Date(
+                        selectedWorkoutLog.completedAt
+                      ).toLocaleTimeString(uiLocale(), {
+                        hour: "numeric",
+                        minute: "2-digit",
+                      }),
+                    }}
+                  />
                 </p>
                 <div className="flex flex-col gap-2 pt-3">
                   <button
@@ -1487,7 +1569,7 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
                     }
                     className="motion-tactile h-[46px] w-full rounded-[18px] bg-muted/60 text-[14px] font-semibold transition-opacity active:opacity-80"
                   >
-                    Add to this workout
+                    {tr("Add to this workout")}
                   </button>
                   {workoutLogs.length < 2 && (
                     <button
@@ -1495,7 +1577,7 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
                       onClick={() => startRetroLog(dateKey)}
                       className="motion-tactile h-[46px] w-full rounded-[18px] text-[14px] font-semibold text-muted-foreground transition-colors active:bg-muted/35 active:text-foreground"
                     >
-                      Log a second session
+                      {tr("Log a second session")}
                     </button>
                   )}
                 </div>
@@ -1503,14 +1585,14 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
             ) : (
               <div className="mt-4 border-t border-border pt-4">
                 <p className="text-[15px] leading-6 text-muted-foreground">
-                  Trained without your phone? Add it now.
+                  {tr("Trained without your phone? Add it now.")}
                 </p>
                 <button
                   type="button"
                   onClick={() => startRetroLog(dateKey)}
                   className="motion-tactile mt-3 h-[52px] w-full rounded-[20px] bg-foreground text-[15px] font-semibold tracking-tight text-background transition-opacity active:opacity-80"
                 >
-                  Log this workout
+                  {tr("Log this workout")}
                 </button>
               </div>
             )}
@@ -1528,7 +1610,10 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
               aria-labelledby="next-training-title"
             >
               <p className="text-[13px] font-medium text-muted-foreground">
-                Today · {today}
+                <Message
+                  text={"Today · {{value0}}"}
+                  values={{ value0: today }}
+                />
               </p>
               <h2
                 id="next-training-title"
@@ -1587,8 +1672,10 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
                       onShortPress={() =>
                         toast.info(
                           nextWorkoutPreset
-                            ? `Press and hold to start ${nextWorkoutPreset.name}.`
-                            : "Press and hold to start an open workout.",
+                            ? tr("Press and hold to start {{value0}}.", {
+                                value0: nextWorkoutPreset.name,
+                              })
+                            : tr("Press and hold to start an open workout."),
                           { id: "training-workout-hold-tip" }
                         )
                       }
@@ -1611,10 +1698,13 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
 
               <p className="mt-1 text-[13px] text-muted-foreground tabular-nums">
                 {daysSinceLastWorkout === null
-                  ? "No sessions in the last month"
+                  ? tr("No sessions in the last month")
                   : daysSinceLastWorkout === 0
-                    ? "Last session today"
-                    : `Last session ${daysSinceLastWorkout} day${daysSinceLastWorkout === 1 ? "" : "s"} ago`}
+                    ? tr("Last session today")
+                    : tr("Last session {{value0}} day{{value1}} ago", {
+                        value0: daysSinceLastWorkout,
+                        value1: daysSinceLastWorkout === 1 ? "" : "s",
+                      })}
               </p>
 
               {workoutLogs.length < 2 && (
@@ -1623,7 +1713,7 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
                   onClick={() => startRetroLog(offsetDateKey(todayKey, -1))}
                   className="motion-tactile mt-3 h-11 w-full rounded-[18px] text-[14px] font-semibold text-muted-foreground transition-colors active:bg-muted/35 active:text-foreground"
                 >
-                  Log a past workout
+                  {tr("Log a past workout")}
                 </button>
               )}
             </section>
@@ -1634,20 +1724,22 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
                   <section className="border-y border-border py-5">
                     <div className="mb-3 flex items-center justify-between gap-3">
                       <div>
-                        <p className="app-section-title">Today's workout</p>
+                        <p className="app-section-title">
+                          {tr("Today's workout")}
+                        </p>
                         <p className="app-section-subtitle">
                           {workoutLogs.length === 2
-                            ? "Both sessions complete"
+                            ? tr("Both sessions complete")
                             : workoutLogs.length === 1
-                              ? "Session one complete"
+                              ? tr("Session one complete")
                               : todayPreset
                                 ? todayPreset.duration
-                                : "Open training"}
+                                : tr("Open training")}
                         </p>
                       </div>
                       {workoutLogs.length === 1 && (
                         <span className="text-[13px] font-medium text-muted-foreground">
-                          1 of 2 complete
+                          {tr("1 of 2 complete")}
                         </span>
                       )}
                     </div>
@@ -1682,7 +1774,10 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
                                   {todayPreset2.name}
                                 </p>
                                 <p className="mt-0.5 text-[13px] text-muted-foreground/56">
-                                  Workout 2 · {todayPreset2.duration}
+                                  <Message
+                                    text={"Workout 2 · {{value0}}"}
+                                    values={{ value0: todayPreset2.duration }}
+                                  />
                                 </p>
                               </div>
                             </div>
@@ -1694,7 +1789,7 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
                                     `/workout/active/${todayPreset2.id}?slot=2`
                                   )
                                 }
-                                label="Start second workout"
+                                label={tr("Start second workout")}
                                 variant="default"
                               />
                             </div>
@@ -1705,8 +1800,12 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
                             onClick={() => setShowSecondWorkoutSheet(true)}
                             className="app-empty w-full justify-center py-3 text-[13px] font-semibold transition-colors active:bg-muted/20 active:text-foreground"
                           >
-                            <Plus size={13} weight="bold" />
-                            Add second workout
+                            <Message
+                              text={"{{value0}}Add second workout"}
+                              values={{
+                                value0: <Plus size={13} weight="bold" />,
+                              }}
+                            />
                           </button>
                         )}
                       </div>
@@ -1719,9 +1818,9 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
                 <section className="py-4">
                   <div className="mb-2.5 flex items-center justify-between gap-3">
                     <div>
-                      <p className="app-section-title">Routine</p>
+                      <p className="app-section-title">{tr("Routine")}</p>
                       <p className="app-section-subtitle">
-                        Drag presets while editing
+                        {tr("Drag presets while editing")}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -1730,8 +1829,8 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
                         onClick={() => setRoutineEditMode((value) => !value)}
                         aria-label={
                           routineEditMode
-                            ? "Done editing routine"
-                            : "Edit routine"
+                            ? tr("Done editing routine")
+                            : tr("Edit routine")
                         }
                         className={cn(
                           "app-icon-button transition-colors",
@@ -1777,7 +1876,7 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
                               "motion-card relative flex min-h-[5.25rem] min-w-0 basis-[calc((100%-1rem)/3)] flex-col items-center justify-center gap-1.5 overflow-hidden rounded-[20px] border border-foreground/10 bg-card/55 px-2 py-2.5 shadow-[0_8px_28px_rgba(0,0,0,0.12)] backdrop-blur-xl backdrop-saturate-150 transition-[transform,background-color,border-color,box-shadow,backdrop-filter] min-[430px]:basis-[calc((100%-1.5rem)/4)] md:min-h-[5.5rem] md:basis-auto md:border-border/55 md:bg-card md:px-2 md:py-3 md:shadow-[0_8px_28px_rgba(0,0,0,0.05)] md:backdrop-blur-none md:backdrop-saturate-100",
                               isToday &&
                                 !isOver &&
-                                "border-foreground/25 bg-card/85 shadow-[0_10px_36px_rgba(0,0,0,0.22),inset_0_1px_0_rgba(255,255,255,0.14)] ring-1 ring-foreground/15 ring-inset backdrop-blur-2xl md:border-foreground/20 md:bg-foreground/[0.055] md:shadow-[0_10px_32px_rgba(0,0,0,0.075)] md:ring-0 md:backdrop-blur-none md:backdrop-saturate-100",
+                                "border-foreground/25 bg-card/85 shadow-[0_10px_36px_rgba(0,0,0,0.22),inset_0_1px_0_rgba(255,255,255,0.14)] ring-1 ring-foreground/15 backdrop-blur-2xl ring-inset md:border-foreground/20 md:bg-foreground/[0.055] md:shadow-[0_10px_32px_rgba(0,0,0,0.075)] md:ring-0 md:backdrop-blur-none md:backdrop-saturate-100",
                               isOver &&
                                 "scale-[1.035] border-foreground/30 bg-foreground/[0.08] shadow-lg"
                             )}
@@ -1802,7 +1901,10 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
                                 type="button"
                                 onClick={() => removeSlot(day)}
                                 className="app-icon-button absolute top-1 right-1 z-10 h-8 w-8 bg-background/80 text-destructive md:top-1.5 md:right-1.5 md:h-9 md:w-9"
-                                aria-label={`Remove workout from ${day}`}
+                                aria-label={tr(
+                                  "Remove workout from {{value0}}",
+                                  { value0: day }
+                                )}
                               >
                                 <X size={11} weight="bold" />
                               </button>
@@ -1816,7 +1918,7 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
                                   : "text-muted-foreground/62"
                               )}
                             >
-                              {day}
+                              {tr(day)}
                             </span>
 
                             {preset && FocusIcon ? (
@@ -1869,12 +1971,16 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
                                 onClick={() => setPickRoutineDay(day)}
                                 className="motion-tactile flex min-h-11 flex-col items-center justify-center gap-1 rounded-xl px-2 text-[13px] font-bold text-muted-foreground/62 transition-colors active:scale-[0.96] active:text-foreground md:min-h-10"
                               >
-                                <Plus size={14} weight="bold" />
-                                Add
+                                <Message
+                                  text={"{{value0}}Add"}
+                                  values={{
+                                    value0: <Plus size={14} weight="bold" />,
+                                  }}
+                                />
                               </button>
                             ) : (
                               <span className="py-0.5 text-[13px] font-medium text-muted-foreground/70">
-                                Rest
+                                {tr("Rest")}
                               </span>
                             )}
                           </div>
@@ -1885,7 +1991,7 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
                 </section>
 
                 <AnimatedAccordion
-                  summary="Training insights"
+                  summary={tr("Training insights")}
                   className="border-y border-border"
                   triggerClassName="min-h-14 text-[15px] font-semibold"
                   contentClassName="grid gap-4 pb-4"
@@ -1893,9 +1999,11 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
                   <MuscleVolumeCard muscleVolume={muscleVolume} />
                   <div>
                     <div className="mb-2 px-1">
-                      <p className="app-section-title">Muscle recovery</p>
+                      <p className="app-section-title">
+                        {tr("Muscle recovery")}
+                      </p>
                       <p className="app-section-subtitle">
-                        Estimate from your latest completed sets
+                        {tr("Estimate from your latest completed sets")}
                       </p>
                     </div>
                     <div className="px-1">
@@ -1914,9 +2022,9 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
                     )}
                   >
                     <div className="min-w-0 flex-1">
-                      <p className="app-section-title">Presets</p>
+                      <p className="app-section-title">{tr("Presets")}</p>
                       <p className="app-section-subtitle">
-                        Your reusable training sessions
+                        {tr("Your reusable training sessions")}
                       </p>
                     </div>
                     <TourAnchor anchor="training-build" className="shrink-0">
@@ -1928,8 +2036,10 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
                         }}
                         className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg px-2 text-[13px] font-semibold text-muted-foreground transition-colors hover:bg-foreground/[0.04] hover:text-foreground"
                       >
-                        <Plus size={14} weight="bold" />
-                        New preset
+                        <Message
+                          text={"{{value0}}New preset"}
+                          values={{ value0: <Plus size={14} weight="bold" /> }}
+                        />
                       </button>
                     </TourAnchor>
                     <button
@@ -1939,7 +2049,9 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
                       aria-expanded={presetsOpen}
                       aria-controls="workout-presets-list"
                       aria-label={
-                        presetsOpen ? "Collapse presets" : "Expand presets"
+                        presetsOpen
+                          ? tr("Collapse presets")
+                          : tr("Expand presets")
                       }
                     >
                       <CaretDown
@@ -1980,18 +2092,19 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
                         {!syncing && presets.length === 0 && (
                           <div className="border-y border-border py-5">
                             <p className="text-[16px] font-semibold text-foreground">
-                              No presets yet
+                              {tr("No presets yet")}
                             </p>
                             <p className="mt-1 text-[15px] leading-6 text-muted-foreground">
-                              Save a repeatable workout, then assign it to your
-                              weekly routine.
+                              {tr(
+                                "Save a repeatable workout, then assign it to your weekly routine."
+                              )}
                             </p>
                             <button
                               type="button"
                               onClick={() => navigate("/workouts/new")}
                               className="app-button app-button-primary mt-3 h-10 w-full"
                             >
-                              Create your first preset
+                              {tr("Create your first preset")}
                             </button>
                           </div>
                         )}
@@ -2000,16 +2113,21 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
                             ? localProgrammeTime(nutritionProgramme.timezone)
                             : null
                           const presetData = serverPresets?.find(
-                            p => String(p._id) === preset.id
+                            (p) => String(p._id) === preset.id
                           )?.exerciseData
-                          const programmeCheck = nutritionProgramme &&
-                            !nutritionProgramme.requiresCare && programmeTime &&
-                            programmeDay(nutritionProgramme, programmeTime.date).active
-                            ? programmeCompatibility(
-                                nutritionProgramme, programmeTime.date,
-                                programmeTime.minute, plannedWorkoutStrain(presetData ?? {})
-                              )
-                            : null
+                          const programmeCheck =
+                            nutritionProgramme &&
+                            !nutritionProgramme.requiresCare &&
+                            programmeTime &&
+                            programmeDay(nutritionProgramme, programmeTime.date)
+                              .active
+                              ? programmeCompatibility(
+                                  nutritionProgramme,
+                                  programmeTime.date,
+                                  programmeTime.minute,
+                                  plannedWorkoutStrain(presetData ?? {})
+                                )
+                              : null
                           const isDraggingThis =
                             drag?.presetId === preset.id && hasMoved
                           const isDropTarget =
@@ -2070,18 +2188,36 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
                                     {preset.name}
                                   </p>
                                   <p className="mt-1.5 text-[13px] text-muted-foreground/75">
-                                    {preset.steps.length} exercises ·{" "}
-                                    {preset.duration}
+                                    <Message
+                                      text={"{{value0}} exercises · {{value1}}"}
+                                      values={{
+                                        value0: preset.steps.length,
+                                        value1: preset.duration,
+                                      }}
+                                    />
                                   </p>
-                                  {programmeCheck && programmeCheck.strain !== null && (
-                                    <p className="mt-2 text-[13px] text-muted-foreground">
-                                      Estimated strain {programmeCheck.strain}/100 · {programmeCheck.status === "too_demanding"
-                                        ? "A lighter version is suggested for your nutrition programme. Adjust when you open the session."
-                                        : programmeCheck.status === "watch"
-                                          ? "Close to your programme's strain ceiling."
-                                          : "Within your programme's strain range."}
-                                    </p>
-                                  )}
+                                  {programmeCheck &&
+                                    programmeCheck.strain !== null && (
+                                      <p className="mt-2 text-[13px] text-muted-foreground">
+                                        <Message
+                                          text={
+                                            "Estimated strain {{value0}}/100 · {{value1}}"
+                                          }
+                                          values={{
+                                            value0: programmeCheck.strain,
+                                            value1: choice(
+                                              programmeCheck.status ===
+                                                "too_demanding"
+                                                ? "A lighter version is suggested for your nutrition programme. Adjust when you open the session."
+                                                : programmeCheck.status ===
+                                                    "watch"
+                                                  ? "Close to your programme's strain ceiling."
+                                                  : "Within your programme's strain range."
+                                            ),
+                                          }}
+                                        />
+                                      </p>
+                                    )}
                                 </div>
                                 <div className="mt-3 flex items-center gap-1 md:mt-0">
                                   <button
@@ -2092,10 +2228,18 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
                                       navigate(`/workout/active/${preset.id}`)
                                     }}
                                     className="motion-tactile flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg px-3 text-[13px] font-semibold text-foreground/70 transition-colors hover:bg-foreground/[0.045] hover:text-foreground md:flex-none"
-                                    aria-label={`Start ${preset.name} now`}
+                                    aria-label={tr("Start {{value0}} now", {
+                                      value0: preset.name,
+                                    })}
                                   >
-                                    <Play size={12} weight="fill" />
-                                    Start
+                                    <Message
+                                      text={"{{value0}}Start"}
+                                      values={{
+                                        value0: (
+                                          <Play size={12} weight="fill" />
+                                        ),
+                                      }}
+                                    />
                                   </button>
                                   <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
@@ -2106,7 +2250,10 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
                                           hapticTap()
                                         }}
                                         className="app-icon-button h-10 w-10 shrink-0 bg-transparent text-muted-foreground/65 hover:bg-foreground/[0.045] hover:text-foreground"
-                                        aria-label={`More actions for ${preset.name}`}
+                                        aria-label={tr(
+                                          "More actions for {{value0}}",
+                                          { value0: preset.name }
+                                        )}
                                         aria-busy={duplicatingThis}
                                       >
                                         {duplicatingThis ? (
@@ -2130,7 +2277,10 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
                                           )
                                         }}
                                       >
-                                        <PencilSimple /> Edit preset
+                                        <Message
+                                          text={"{{value0}} Edit preset"}
+                                          values={{ value0: <PencilSimple /> }}
+                                        />
                                       </DropdownMenuItem>
                                       <DropdownMenuItem
                                         className="rounded-lg py-2.5"
@@ -2140,7 +2290,10 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
                                           void duplicatePreset(preset)
                                         }}
                                       >
-                                        <Copy /> Duplicate
+                                        <Message
+                                          text={"{{value0}} Duplicate"}
+                                          values={{ value0: <Copy /> }}
+                                        />
                                       </DropdownMenuItem>
                                       <DropdownMenuItem
                                         className="rounded-lg py-2.5"
@@ -2149,8 +2302,12 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
                                           quickLogPreset(dateKey, preset.id)
                                         }}
                                       >
-                                        <ClockCounterClockwise /> Log past
-                                        session
+                                        <Message
+                                          text={"{{value0}} Log past session"}
+                                          values={{
+                                            value0: <ClockCounterClockwise />,
+                                          }}
+                                        />
                                       </DropdownMenuItem>
                                       <DropdownMenuSeparator />
                                       <DropdownMenuItem
@@ -2161,7 +2318,10 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
                                           setConfirmDeleteId(preset.id)
                                         }}
                                       >
-                                        <Trash /> Delete preset
+                                        <Message
+                                          text={"{{value0}} Delete preset"}
+                                          values={{ value0: <Trash /> }}
+                                        />
                                       </DropdownMenuItem>
                                     </DropdownMenuContent>
                                   </DropdownMenu>
@@ -2213,7 +2373,7 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
 
       {pickRoutineDay && (
         <PickSecondWorkoutSheet
-          title={`Assign ${pickRoutineDay}`}
+          title={tr("Assign {{value0}}", { value0: pickRoutineDay })}
           presets={presets}
           onPick={(presetId) => {
             const nextRoutine = { ...routine, [pickRoutineDay]: presetId }
@@ -2232,10 +2392,12 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
           if (!p) return null
           return (
             <ConfirmDeleteSheet
-              title={`Delete "${p.name}"?`}
-              description="This preset will be permanently removed. Any routine days using it will be cleared."
-              confirmLabel="Delete preset"
-              busyLabel="Deleting..."
+              title={tr('Delete "{{value0}}"?', { value0: p.name })}
+              description={tr(
+                "This preset will be permanently removed. Any routine days using it will be cleared."
+              )}
+              confirmLabel={tr("Delete preset")}
+              busyLabel={tr("Deleting...")}
               onConfirm={() => deletePreset(confirmDeleteId)}
               onCancel={() => setConfirmDeleteId(null)}
             />
@@ -2244,10 +2406,12 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
 
       {confirmDeleteWorkout && selectedWorkoutLog && (
         <ConfirmDeleteSheet
-          title="Delete this workout log?"
-          description="This completed training session will be permanently removed."
-          confirmLabel="Delete workout"
-          busyLabel="Deleting..."
+          title={tr("Delete this workout log?")}
+          description={tr(
+            "This completed training session will be permanently removed."
+          )}
+          confirmLabel={tr("Delete workout")}
+          busyLabel={tr("Deleting...")}
           onConfirm={async () => {
             await deleteSelectedWorkout()
             setConfirmDeleteWorkout(false)
@@ -2290,7 +2454,9 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
                   <span className="app-icon-button pointer-events-none h-9 w-9 bg-muted/55 text-muted-foreground/70">
                     <Barbell size={16} weight="bold" />
                   </span>
-                  <span className="text-[13px] font-semibold">Log workout</span>
+                  <span className="text-[13px] font-semibold">
+                    {tr("Log workout")}
+                  </span>
                 </span>
                 <CaretRight size={11} className="text-muted-foreground" />
               </button>
@@ -2306,7 +2472,9 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
                   <span className="app-icon-button pointer-events-none h-9 w-9 bg-muted/55 text-muted-foreground/70">
                     <Plus size={16} weight="bold" />
                   </span>
-                  <span className="text-[13px] font-semibold">New preset</span>
+                  <span className="text-[13px] font-semibold">
+                    {tr("New preset")}
+                  </span>
                 </span>
                 <CaretRight size={11} className="text-muted-foreground" />
               </button>

@@ -1,3 +1,4 @@
+import { Message, choice, tr, translateError } from "@repo/ui/i18n"
 import { useMemo, useState } from "react"
 import {
   ArrowLeft,
@@ -123,7 +124,7 @@ export default function MealPrep() {
 
     const remaining = servingsRemaining(batch)
     if (servings > 0 && remaining <= 0) {
-      toast.error("This batch is finished")
+      toast.error(translateError(tr("This batch is finished")))
       return
     }
 
@@ -149,12 +150,15 @@ export default function MealPrep() {
       }
       toast.success(
         amount > 0
-          ? `Logged ${formatServings(amount)} serving${
-              amount === 1 ? "" : "s"
-            } of ${batch.name}`
-          : `Put back ${formatServings(Math.abs(amount))} serving${
-              amount === -1 ? "" : "s"
-            }`
+          ? tr("Logged {{value0}} serving{{value1}} of {{value2}}", {
+              value0: formatServings(amount),
+              value1: amount === 1 ? "" : "s",
+              value2: batch.name,
+            })
+          : tr("Put back {{value0}} serving{{value1}}", {
+              value0: formatServings(Math.abs(amount)),
+              value1: amount === -1 ? "" : "s",
+            })
       )
     } catch (error) {
       reportOfflineMutationError(error, "Could not update this batch")
@@ -168,10 +172,12 @@ export default function MealPrep() {
     const resolved = resolveMealPrepDraft(editorDraft)
     if (!resolved.valid) {
       toast.error(
-        resolved.errors.name ??
-          resolved.errors.servingsTotal ??
-          resolved.errors.nutrition ??
-          "Check the batch details"
+        translateError(
+          resolved.errors.name ??
+            resolved.errors.servingsTotal ??
+            resolved.errors.nutrition ??
+            tr("Check the batch details")
+        )
       )
       return
     }
@@ -192,7 +198,7 @@ export default function MealPrep() {
         nutrientsPerServing: resolved.nutrientsPerServing,
         sourceRecipeId: editorDraft.sourceRecipeId,
       })
-      toast.success(editorDraft.id ? "Batch updated" : "Batch added")
+      toast.success(editorDraft.id ? tr("Batch updated") : tr("Batch added"))
       setEditorDraft(null)
     } catch (error) {
       reportOfflineMutationError(error, "Could not save this batch")
@@ -206,7 +212,7 @@ export default function MealPrep() {
     if (!id) return
     try {
       await removeBatch({ id: id as Id<"mealPrepBatches"> })
-      toast.success("Batch deleted")
+      toast.success(tr("Batch deleted"))
       setEditorDraft(null)
     } catch (error) {
       reportOfflineMutationError(error, "Could not delete this batch")
@@ -216,12 +222,12 @@ export default function MealPrep() {
   return (
     <div className="native-page mx-auto min-h-svh w-full max-w-xl pb-[calc(var(--app-safe-bottom)+6rem)] text-foreground">
       <NavigationBar
-        title="Meal prep"
-        subtitle="Cook once, log all week"
+        title={tr("Meal prep")}
+        subtitle={tr("Cook once, log all week")}
         leading={
           <ToolbarButton
             onClick={() => navigate(-1)}
-            aria-label="Back to nutrition"
+            aria-label={tr("Back to nutrition")}
             className="-ml-2 px-0 text-muted-foreground"
           >
             <ArrowLeft size={19} weight="bold" />
@@ -233,7 +239,7 @@ export default function MealPrep() {
               hapticTap()
               setEditorDraft(emptyMealPrepDraft(today))
             }}
-            aria-label="Add meal prep batch"
+            aria-label={tr("Add meal prep batch")}
           >
             <Plus size={19} weight="bold" />
           </ToolbarButton>
@@ -243,19 +249,31 @@ export default function MealPrep() {
       <div className="px-[var(--app-page-x)] pt-2">
         <SummaryBlock
           tone="food"
-          title="In the fridge"
+          title={tr("In the fridge")}
           value={
             <span className="tabular-nums">
-              {formatServings(inventory.servings)} serving
-              {inventory.servings === 1 ? "" : "s"}
+              <Message
+                text={"{{value0}} serving{{value1}}"}
+                values={{
+                  value0: formatServings(inventory.servings),
+                  value1: inventory.servings === 1 ? "" : "s",
+                }}
+              />
             </span>
           }
           detail={
             inventory.batches === 0
-              ? "No prepped batches yet."
-              : `${inventory.batches} batch${
-                  inventory.batches === 1 ? "" : "es"
-                } · ${energyDisplay(inventory.calories, energyUnit)} ${energyUnit} · ${inventory.protein} g protein ready to eat`
+              ? tr("No prepped batches yet.")
+              : tr(
+                  "{{value0}} batch{{value1}} · {{value2}} {{value3}} · {{value4}} g protein ready to eat",
+                  {
+                    value0: inventory.batches,
+                    value1: choice(inventory.batches === 1 ? "" : "es"),
+                    value2: energyDisplay(inventory.calories, energyUnit),
+                    value3: energyUnit,
+                    value4: inventory.protein,
+                  }
+                )
           }
         />
         {inventory.expiringSoon > 0 && (
@@ -263,29 +281,36 @@ export default function MealPrep() {
             role="status"
             className="mt-2 flex items-center gap-2 text-[13px] text-[var(--accent-food)]"
           >
-            <Warning size={15} weight="bold" aria-hidden />
-            {inventory.expiringSoon} batch
-            {inventory.expiringSoon === 1 ? "" : "es"} need eating soon
+            <Message
+              text={"{{value0}}{{value1}} batch{{value2}} need eating soon"}
+              values={{
+                value0: <Warning size={15} weight="bold" aria-hidden />,
+                value1: inventory.expiringSoon,
+                value2: choice(inventory.expiringSoon === 1 ? "" : "es"),
+              }}
+            />
           </p>
         )}
       </div>
 
       {loading ? (
         <p className="px-[var(--app-page-x)] pt-8 text-[15px] text-muted-foreground">
-          Loading batches…
+          {tr("Loading batches…")}
         </p>
       ) : activeBatches.length === 0 ? (
         <div className="pt-6">
           <EmptyState
             icon={BowlFood}
             tone="food"
-            title="No batches prepped"
-            detail="Add what you cooked and how many servings it made. Logging a portion then takes one tap."
+            title={tr("No batches prepped")}
+            detail={tr(
+              "Add what you cooked and how many servings it made. Logging a portion then takes one tap."
+            )}
             action={
               <PrimaryButton
                 onClick={() => setEditorDraft(emptyMealPrepDraft(today))}
               >
-                Add a batch
+                {tr("Add a batch")}
               </PrimaryButton>
             }
           />
@@ -296,7 +321,7 @@ export default function MealPrep() {
                 onClick={() => setRecipePickerOpen(true)}
                 className="native-secondary-button w-full"
               >
-                Start from a saved recipe
+                {tr("Start from a saved recipe")}
               </button>
             </div>
           )}
@@ -304,10 +329,11 @@ export default function MealPrep() {
       ) : (
         <>
           <SectionHeader
-            title="Ready to eat"
-            subtitle={`${activeBatches.length} batch${
-              activeBatches.length === 1 ? "" : "es"
-            }`}
+            title={tr("Ready to eat")}
+            subtitle={tr("{{value0}} batch{{value1}}", {
+              value0: activeBatches.length,
+              value1: choice(activeBatches.length === 1 ? "" : "es"),
+            })}
             action={
               recipes.length > 0 ? (
                 <button
@@ -315,12 +341,12 @@ export default function MealPrep() {
                   onClick={() => setRecipePickerOpen(true)}
                   className="text-[14px] font-semibold text-[var(--accent-food)]"
                 >
-                  From recipe
+                  {tr("From recipe")}
                 </button>
               ) : undefined
             }
           />
-          <GroupedList label="Prepped batches">
+          <GroupedList label={tr("Prepped batches")}>
             {activeBatches.map((batch) => {
               const batchId = batch.id ?? batch._id
               return (
@@ -347,7 +373,7 @@ export default function MealPrep() {
       {emptiedBatches.length > 0 && (
         <>
           <SectionHeader
-            title="Finished"
+            title={tr("Finished")}
             action={
               <button
                 type="button"
@@ -355,12 +381,14 @@ export default function MealPrep() {
                 className="text-[14px] font-semibold text-[var(--accent-food)]"
                 aria-expanded={showEmptied}
               >
-                {showEmptied ? "Hide" : `Show ${emptiedBatches.length}`}
+                {showEmptied
+                  ? tr("Hide")
+                  : tr("Show {{value0}}", { value0: emptiedBatches.length })}
               </button>
             }
           />
           {showEmptied && (
-            <GroupedList label="Finished batches">
+            <GroupedList label={tr("Finished batches")}>
               {emptiedBatches.map((batch) => (
                 <div
                   key={batch.id ?? batch._id ?? batch.name}
@@ -371,15 +399,22 @@ export default function MealPrep() {
                       {batch.name}
                     </span>
                     <span className="native-row-detail block">
-                      Prepped {batch.preppedOn} · all{" "}
-                      {formatServings(batch.servingsTotal)} servings eaten
+                      <Message
+                        text={
+                          "Prepped {{value0}} · all {{value1}} servings eaten"
+                        }
+                        values={{
+                          value0: batch.preppedOn,
+                          value1: formatServings(batch.servingsTotal),
+                        }}
+                      />
                     </span>
                   </span>
                   <button
                     type="button"
                     onClick={() => void handleRemoveBatch(batch)}
                     className="native-toolbar-button h-11 w-11 shrink-0 px-0 text-muted-foreground"
-                    aria-label={`Delete ${batch.name}`}
+                    aria-label={tr("Delete {{value0}}", { value0: batch.name })}
                   >
                     <Trash size={17} weight="bold" />
                   </button>
@@ -398,12 +433,14 @@ export default function MealPrep() {
         >
           <div className="px-5 pt-4 pb-6">
             <div className="mb-4 flex items-start justify-between gap-4">
-              <h2 className="text-[21px] font-semibold">Prep from a recipe</h2>
+              <h2 className="text-[21px] font-semibold">
+                {tr("Prep from a recipe")}
+              </h2>
               <button
                 type="button"
                 onClick={() => setRecipePickerOpen(false)}
                 className="native-toolbar-button -mt-1 -mr-2 px-0 text-muted-foreground"
-                aria-label="Close recipe picker"
+                aria-label={tr("Close recipe picker")}
               >
                 <X size={17} weight="bold" />
               </button>
@@ -424,9 +461,18 @@ export default function MealPrep() {
                       {recipe.name}
                     </span>
                     <span className="native-row-detail block">
-                      {recipe.ingredients.length} ingredient
-                      {recipe.ingredients.length === 1 ? "" : "s"}
-                      {recipe.servings ? ` · ${recipe.servings} servings` : ""}
+                      <Message
+                        text={"{{value0}} ingredient{{value1}}{{value2}}"}
+                        values={{
+                          value0: recipe.ingredients.length,
+                          value1: recipe.ingredients.length === 1 ? "" : "s",
+                          value2: recipe.servings
+                            ? tr(" · {{value0}} servings", {
+                                value0: recipe.servings,
+                              })
+                            : "",
+                        }}
+                      />
                     </span>
                   </span>
                   <Plus size={17} weight="bold" aria-hidden />
@@ -492,10 +538,19 @@ function BatchRow({
         <div className="min-w-0">
           <p className="native-row-title truncate">{batch.name}</p>
           <p className="native-row-detail mt-0.5 tabular-nums">
-            {energyDisplay(perServing.calories, energyUnit)} {energyUnit} ·{" "}
-            {perServing.protein} P ·{" "}
-            {Math.round(displayCarbs(perServing, carbMode))}{" "}
-            {carbMode === "net" ? "NC" : "C"} · {perServing.fat} F per serving
+            <Message
+              text={
+                "{{value0}}  {{value1}} · {{value2}} P · {{value3}} {{value4}} · {{value5}} F per serving"
+              }
+              values={{
+                value0: energyDisplay(perServing.calories, energyUnit),
+                value1: energyUnit,
+                value2: perServing.protein,
+                value3: Math.round(displayCarbs(perServing, carbMode)),
+                value4: choice(carbMode === "net" ? "NC" : "C"),
+                value5: perServing.fat,
+              }}
+            />
           </p>
           <p
             className={cn(
@@ -508,12 +563,17 @@ function BatchRow({
               <Snowflake size={13} weight="bold" aria-hidden />
             )}
             {freshness.label}
-            {batch.meal ? ` · ${mealLabel(batch.meal)}` : ""}
+            {batch.meal
+              ? tr(" · {{value0}}", { value0: mealLabel(batch.meal) })
+              : ""}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-1">
           <span className="native-row-value tabular-nums">
-            {formatServings(remaining)} left
+            <Message
+              text={"{{value0}} left"}
+              values={{ value0: formatServings(remaining) }}
+            />
           </span>
           {/* Only batches built from a recipe carry ingredients to shop for. */}
           {batch.sourceRecipeId && (
@@ -523,7 +583,7 @@ function BatchRow({
                 navigate(`/nutrition/groceries?recipe=${batch.sourceRecipeId}`)
               }
               className="native-toolbar-button h-10 w-10 px-0 text-muted-foreground"
-              aria-label={`Shop for ${batch.name}`}
+              aria-label={tr("Shop for {{value0}}", { value0: batch.name })}
             >
               <ShoppingCart size={16} weight="bold" />
             </button>
@@ -532,7 +592,7 @@ function BatchRow({
             type="button"
             onClick={onEdit}
             className="native-toolbar-button h-10 w-10 px-0 text-muted-foreground"
-            aria-label={`Edit ${batch.name}`}
+            aria-label={tr("Edit {{value0}}", { value0: batch.name })}
           >
             <PencilSimple size={16} weight="bold" />
           </button>
@@ -545,7 +605,9 @@ function BatchRow({
           onClick={() => onLog(-1)}
           disabled={busy || batch.servingsLogged <= 0}
           className="native-toolbar-button h-10 w-10 shrink-0 px-0 text-muted-foreground disabled:opacity-40"
-          aria-label={`Undo one logged serving of ${batch.name}`}
+          aria-label={tr("Undo one logged serving of {{value0}}", {
+            value0: batch.name,
+          })}
         >
           <Minus size={16} weight="bold" />
         </button>
@@ -556,9 +618,11 @@ function BatchRow({
             onClick={() => onLog(servings)}
             disabled={busy || remaining <= 0}
             aria-busy={busy}
-            aria-label={`Log ${formatServings(servings)} serving${
-              servings === 1 ? "" : "s"
-            } of ${batch.name}`}
+            aria-label={tr("Log {{value0}} serving{{value1}} of {{value2}}", {
+              value0: formatServings(servings),
+              value1: servings === 1 ? "" : "s",
+              value2: batch.name,
+            })}
             className="native-secondary-button h-10 flex-1 text-[14px] font-semibold disabled:opacity-40"
           >
             +{formatServings(servings)}
@@ -603,13 +667,13 @@ function BatchEditorSheet({
       <div className="px-5 pt-4 pb-8">
         <div className="mb-4 flex items-start justify-between gap-4">
           <h2 className="text-[21px] font-semibold">
-            {draft.id ? "Edit batch" : "New batch"}
+            {draft.id ? tr("Edit batch") : tr("New batch")}
           </h2>
           <button
             type="button"
             onClick={onClose}
             className="native-toolbar-button -mt-1 -mr-2 px-0 text-muted-foreground"
-            aria-label="Close batch editor"
+            aria-label={tr("Close batch editor")}
           >
             <X size={17} weight="bold" />
           </button>
@@ -617,19 +681,21 @@ function BatchEditorSheet({
 
         <div className="space-y-3">
           <label className="native-field">
-            <span className="native-field-label">What did you cook?</span>
+            <span className="native-field-label">
+              {tr("What did you cook?")}
+            </span>
             <input
               className="native-input"
               value={draft.name}
               onChange={(event) => update({ name: event.target.value })}
-              placeholder="Chicken and rice"
+              placeholder={tr("Chicken and rice")}
               autoFocus={!draft.id}
             />
           </label>
 
           <div className="grid grid-cols-2 gap-3">
             <label className="native-field">
-              <span className="native-field-label">Servings made</span>
+              <span className="native-field-label">{tr("Servings made")}</span>
               <input
                 className="native-input"
                 inputMode="decimal"
@@ -640,7 +706,7 @@ function BatchEditorSheet({
               />
             </label>
             <label className="native-field">
-              <span className="native-field-label">Default meal</span>
+              <span className="native-field-label">{tr("Default meal")}</span>
               <select
                 className="native-input"
                 value={draft.meal}
@@ -657,7 +723,7 @@ function BatchEditorSheet({
 
           <fieldset>
             <legend className="native-field-label mb-2">
-              Nutrition for the whole batch
+              {tr("Nutrition for the whole batch")}
             </legend>
             <div className="grid grid-cols-2 gap-3">
               {(
@@ -688,16 +754,25 @@ function BatchEditorSheet({
               ))}
             </div>
             <p className="native-field-hint mt-2 tabular-nums">
-              Per serving: {energyDisplay(perServing.calories, energyUnit)}{" "}
-              {energyUnit} · {perServing.protein} g protein ·{" "}
-              {Math.round(displayCarbs(perServing, carbMode))} g{" "}
-              {carbLabelLower(carbMode)} · {perServing.fat} g fat
+              <Message
+                text={
+                  "Per serving: {{value0}} {{value1}} · {{value2}} g protein · {{value3}} g {{value4}} · {{value5}} g fat"
+                }
+                values={{
+                  value0: energyDisplay(perServing.calories, energyUnit),
+                  value1: energyUnit,
+                  value2: perServing.protein,
+                  value3: Math.round(displayCarbs(perServing, carbMode)),
+                  value4: carbLabelLower(carbMode),
+                  value5: perServing.fat,
+                }}
+              />
             </p>
           </fieldset>
 
           <div className="grid grid-cols-2 gap-3">
             <label className="native-field">
-              <span className="native-field-label">Prepped on</span>
+              <span className="native-field-label">{tr("Prepped on")}</span>
               <input
                 type="date"
                 className="native-input"
@@ -714,7 +789,7 @@ function BatchEditorSheet({
               />
             </label>
             <label className="native-field">
-              <span className="native-field-label">Use by</span>
+              <span className="native-field-label">{tr("Use by")}</span>
               <input
                 type="date"
                 className="native-input"
@@ -725,7 +800,7 @@ function BatchEditorSheet({
           </div>
 
           <div>
-            <span className="native-field-label">Stored in</span>
+            <span className="native-field-label">{tr("Stored in")}</span>
             <div className="mt-2 flex gap-2">
               {MEAL_PREP_STORAGE_OPTIONS.map((option) => (
                 <button
@@ -751,12 +826,12 @@ function BatchEditorSheet({
           </div>
 
           <label className="native-field">
-            <span className="native-field-label">Notes (optional)</span>
+            <span className="native-field-label">{tr("Notes (optional)")}</span>
             <input
               className="native-input"
               value={draft.notes}
               onChange={(event) => update({ notes: event.target.value })}
-              placeholder="Two containers in the top shelf"
+              placeholder={tr("Two containers in the top shelf")}
             />
           </label>
         </div>
@@ -767,7 +842,11 @@ function BatchEditorSheet({
           disabled={saving}
           aria-busy={saving}
         >
-          {saving ? "Saving…" : draft.id ? "Save changes" : "Add batch"}
+          {saving
+            ? tr("Saving…")
+            : draft.id
+              ? tr("Save changes")
+              : tr("Add batch")}
         </PrimaryButton>
 
         {onDelete && (
@@ -776,8 +855,10 @@ function BatchEditorSheet({
             onClick={onDelete}
             className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 text-[15px] font-semibold text-destructive"
           >
-            <Trash size={16} weight="bold" aria-hidden />
-            Delete batch
+            <Message
+              text={"{{value0}}Delete batch"}
+              values={{ value0: <Trash size={16} weight="bold" aria-hidden /> }}
+            />
           </button>
         )}
       </div>

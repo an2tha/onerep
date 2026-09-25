@@ -1,4 +1,8 @@
-import { distanceUnitForSystem, currentMeasurementSystem } from "@/lib/measurement-system"
+import { tr } from "@repo/ui/i18n"
+import {
+  distanceUnitForSystem,
+  currentMeasurementSystem,
+} from "@/lib/measurement-system"
 
 export type WorkoutFocus = "strength" | "cardio" | "mobility"
 export type CardioDistanceUnit = "km" | "mi"
@@ -182,10 +186,10 @@ export function hasCardioDetails(cardio?: CardioWorkoutDetails | null) {
 
 export function compactCardioSummary(
   cardio?: CardioWorkoutDetails | null,
-  unit: CardioDistanceUnit =
-    cardio?.distanceUnit ?? distanceUnitForSystem(currentMeasurementSystem())
+  unit: CardioDistanceUnit = cardio?.distanceUnit ??
+    distanceUnitForSystem(currentMeasurementSystem())
 ) {
-  if (!cardio || !hasCardioDetails(cardio)) return "Cardio details"
+  if (!cardio || !hasCardioDetails(cardio)) return tr("Cardio details")
   const pace = cardio.paceSecondsPerKm
     ? cardio.paceSecondsPerKm
     : (calcPaceSecondsPerKm(cardio.distanceMeters, cardio.durationSeconds) ??
@@ -260,11 +264,11 @@ export function normalizePresetCard(input: {
       input.focus === "cardio" || input.focus === "mobility"
         ? input.focus
         : "strength",
-    duration: input.duration ?? "30 min",
+    duration: input.duration ?? tr("30 min"),
     steps:
       Array.isArray(input.steps) && input.steps.length > 0
         ? input.steps
-        : ["Warm up 5 min"],
+        : [tr("Warm up 5 min")],
   }
 }
 

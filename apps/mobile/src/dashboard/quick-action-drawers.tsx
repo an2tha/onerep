@@ -1,3 +1,4 @@
+import { Message, tr, translateError, uiLocale } from "@repo/ui/i18n"
 import {
   foodLogContextParams,
   foodLogTime,
@@ -143,7 +144,11 @@ function macroLine(
   const calories = Math.round(entry.calories ?? 0)
   const protein = Math.round(entry.protein ?? 0)
   return protein > 0
-    ? `${energyDisplay(calories, energyUnit)} ${energyUnit} · ${protein}g protein`
+    ? tr("{{value0}} {{value1}} · {{value2}}g protein", {
+        value0: energyDisplay(calories, energyUnit),
+        value1: energyUnit,
+        value2: protein,
+      })
     : `${energyDisplay(calories, energyUnit)} ${energyUnit}`
 }
 
@@ -228,16 +233,19 @@ function WaterDrawer({
       loggedAt: stampAt(dateKey, atMinutes),
     }
     void addWaterEntry({ date: dateKey, entry })
-    toast.success(`${fmtWater(clamped)} of water logged`, {
-      action: {
-        label: "Undo",
-        onClick: () => {
-          void removeWaterEntry({ date: dateKey, id: entry.id }).catch(() => {
-            toast.error("Couldn't undo that")
-          })
+    toast.success(
+      tr("{{value0}} of water logged", { value0: fmtWater(clamped) }),
+      {
+        action: {
+          label: tr("Undo"),
+          onClick: () => {
+            void removeWaterEntry({ date: dateKey, id: entry.id }).catch(() => {
+              toast.error(translateError(tr("Couldn't undo that")))
+            })
+          },
         },
-      },
-    })
+      }
+    )
   }
 
   function submitCustom() {
@@ -252,7 +260,7 @@ function WaterDrawer({
     // Targeted removeEntry, not a setDay rewrite — same reason the food
     // drawer switched: a day-rewrite races any glass added in between.
     void removeWaterEntry({ date: dateKey, id }).catch(() => {
-      toast.error("Couldn't remove that")
+      toast.error(translateError(tr("Couldn't remove that")))
     })
   }
 
@@ -261,8 +269,11 @@ function WaterDrawer({
   return (
     <div className="flex flex-col gap-4 p-4">
       <DrawerIntro
-        title="Water"
-        detail={`${fmtWater(totalMl)} of ${fmtWater(goalMl)} today`}
+        title={tr("Water")}
+        detail={tr("{{value0}} of {{value1}} today", {
+          value0: fmtWater(totalMl),
+          value1: fmtWater(goalMl),
+        })}
       />
 
       {/* The glass. Fill height is the day's real number. */}
@@ -273,7 +284,9 @@ function WaterDrawer({
           backgroundColor: tint(WATER_COLOR, 4),
         }}
         role="img"
-        aria-label={`Water glass ${percent} percent full`}
+        aria-label={tr("Water glass {{value0}} percent full", {
+          value0: percent,
+        })}
       >
         {rain.active && (
           <span key={rain.key} className="water-rain" aria-hidden="true">
@@ -316,8 +329,13 @@ function WaterDrawer({
           className="motion-tactile col-span-2 flex min-h-14 items-center justify-center gap-2 rounded-2xl text-[17px] font-bold"
           style={{ backgroundColor: WATER_BG, color: WATER_COLOR }}
         >
-          <PintGlass size={19} weight="bold" />
-          Add {fmtWater(oneGlassMl)}
+          <Message
+            text={"{{value0}}Add {{value1}}"}
+            values={{
+              value0: <PintGlass size={19} weight="bold" />,
+              value1: fmtWater(oneGlassMl),
+            }}
+          />
         </button>
         {waterChips.map((ml) => (
           <button
@@ -332,7 +350,7 @@ function WaterDrawer({
       </div>
 
       <label className="flex items-center gap-2 rounded-2xl bg-muted/50 px-3.5">
-        <span className="native-field-label shrink-0">Custom</span>
+        <span className="native-field-label shrink-0">{tr("Custom")}</span>
         <input
           type="number"
           inputMode="numeric"
@@ -347,11 +365,13 @@ function WaterDrawer({
           onKeyDown={(event) => {
             if (event.key === "Enter") submitCustom()
           }}
-          placeholder={imperialWater ? "Amount in fl oz" : "Amount in ml"}
+          placeholder={
+            imperialWater ? tr("Amount in fl oz") : tr("Amount in ml")
+          }
           aria-label={
             imperialWater
-              ? "Custom water amount in fluid ounces"
-              : "Custom water amount in millilitres"
+              ? tr("Custom water amount in fluid ounces")
+              : tr("Custom water amount in millilitres")
           }
           className="h-12 min-w-0 flex-1 bg-transparent text-right text-[15px] tabular-nums outline-none placeholder:text-left placeholder:text-muted-foreground"
         />
@@ -361,7 +381,7 @@ function WaterDrawer({
           disabled={!Number.parseInt(custom, 10)}
           className="-mr-1 flex min-h-9 items-center rounded-xl bg-foreground px-3.5 text-[13px] font-bold text-background disabled:opacity-40"
         >
-          Add
+          {tr("Add")}
         </button>
       </label>
 
@@ -379,7 +399,7 @@ function WaterDrawer({
               >
                 <p className="native-row-detail tabular-nums">
                   {fmtWater(entry.amountMl)} ·{" "}
-                  {new Date(entry.loggedAt).toLocaleTimeString([], {
+                  {new Date(entry.loggedAt).toLocaleTimeString(uiLocale(), {
                     hour: "numeric",
                     minute: "2-digit",
                   })}
@@ -388,7 +408,9 @@ function WaterDrawer({
                   type="button"
                   onClick={() => removeEntry(entry.id)}
                   className="flex size-9 items-center justify-center rounded-lg text-muted-foreground active:bg-muted active:text-destructive"
-                  aria-label={`Remove ${fmtWater(entry.amountMl)} water entry`}
+                  aria-label={tr("Remove {{value0}} water entry", {
+                    value0: fmtWater(entry.amountMl),
+                  })}
                 >
                   <Trash size={15} weight="bold" />
                 </button>
@@ -399,8 +421,8 @@ function WaterDrawer({
 
       <DrawerRow
         icon={<CalendarBlank size={16} weight="bold" />}
-        title="See the whole week"
-        detail="History, goals and trends."
+        title={tr("See the whole week")}
+        detail={tr("History, goals and trends.")}
         onClick={() => {
           onClose()
           navigate("/nutrition", { motion: "forward" })
@@ -474,7 +496,10 @@ function FoodDrawer({
         return {
           key: `saved:${preset.id}`,
           name: preset.name,
-          detail: `${preset.entries.length} items · ${macroLine(totals, energyUnit)}`,
+          detail: tr("{{value0}} items · {{value1}}", {
+            value0: preset.entries.length,
+            value1: macroLine(totals, energyUnit),
+          }),
           icon: <BookmarkSimple size={16} weight="bold" />,
           entries: () =>
             foodLogEntriesFromMealPreset({
@@ -509,22 +534,22 @@ function FoodDrawer({
       )
       announceOrbActivity("log", Math.min(entries.length, 3))
       hapticMedium()
-      toast.success(`${choice.name} logged`, {
+      toast.success(tr("{{value0}} logged", { value0: choice.name }), {
         action: {
-          label: "Undo",
+          label: tr("Undo"),
           onClick: () => {
             announceOrbActivity("delete", Math.min(entries.length, 3))
             void Promise.all(
               entries.map((entry) =>
                 removeFood({ date: dateKey, entryId: entry.id })
               )
-            ).catch(() => toast.error("Couldn't undo that"))
+            ).catch(() => toast.error(translateError(tr("Couldn't undo that"))))
           },
         },
       })
     } catch (error) {
       logDevWarn("Failed to log food from the quick-action drawer", error)
-      toast.error("Couldn't log that. Try again.")
+      toast.error(translateError(tr("Couldn't log that. Try again.")))
     } finally {
       setBusy(false)
     }
@@ -592,7 +617,10 @@ function FoodDrawer({
           <QuickFoodCamera
             onCapture={(snapCapture) => {
               onClose()
-              navigate(`/camera?${context}`, { motion: "forward", state: { snapCapture } })
+              navigate(`/camera?${context}`, {
+                motion: "forward",
+                state: { snapCapture },
+              })
             }}
             onCamera={() => {
               onClose()
@@ -601,7 +629,9 @@ function FoodDrawer({
             onLibrary={() => {
               hapticMedium()
               onClose()
-              navigate(`/camera?source=library&${context}`, { motion: "forward" })
+              navigate(`/camera?source=library&${context}`, {
+                motion: "forward",
+              })
             }}
           />
         )}
@@ -609,13 +639,19 @@ function FoodDrawer({
         {mode === "repeat" && (
           <div className="flex h-full flex-col">
             <div className="px-4 pt-4 pb-2">
-              <h2 className="text-[18px] font-semibold tracking-[-0.02em]">Your usuals</h2>
-              <p className="mt-0.5 text-[13px] text-muted-foreground">Log the same portion again with one tap.</p>
+              <h2 className="text-[18px] font-semibold tracking-[-0.02em]">
+                {tr("Your usuals")}
+              </h2>
+              <p className="mt-0.5 text-[13px] text-muted-foreground">
+                {tr("Log the same portion again with one tap.")}
+              </p>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-2">
               {!loading && choices.length === 0 && (
                 <p className="px-4 py-8 text-center text-[14px] leading-5 text-muted-foreground">
-                  Nothing to repeat yet. Foods and saved meals appear here after you log them.
+                  {tr(
+                    "Nothing to repeat yet. Foods and saved meals appear here after you log them."
+                  )}
                 </p>
               )}
               {choices.map((choice, index) => (
@@ -641,7 +677,10 @@ function FoodDrawer({
                 {searching ? (
                   <span className="size-4 animate-spin rounded-full border border-muted-foreground/25 border-t-foreground" />
                 ) : (
-                  <MagnifyingGlass size={17} className="text-muted-foreground" />
+                  <MagnifyingGlass
+                    size={17}
+                    className="text-muted-foreground"
+                  />
                 )}
                 <input
                   ref={searchInputRef}
@@ -649,35 +688,44 @@ function FoodDrawer({
                   name="quick-food-search"
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Food, brand, or dish"
+                  placeholder={tr("Food, brand, or dish")}
                   maxLength={80}
-                  aria-label="Search foods"
+                  aria-label={tr("Search foods")}
                 />
               </label>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-2">
               {query.trim().length < 2 && (
                 <p className="px-5 py-8 text-center text-[14px] leading-5 text-muted-foreground">
-                  Start typing to search foods, brands, and dishes.
+                  {tr("Start typing to search foods, brands, and dishes.")}
                 </p>
               )}
               {searchError && (
                 <p className="px-5 py-8 text-center text-[14px] leading-5 text-destructive">
-                  Search failed. Check your connection and try again.
+                  {tr("Search failed. Check your connection and try again.")}
                 </p>
               )}
-              {!searching && !searchError && query.trim().length >= 2 && searchResults.length === 0 && (
-                <p className="px-5 py-8 text-center text-[14px] leading-5 text-muted-foreground">
-                  No matches yet. Try a simpler name or create your own food.
-                </p>
-              )}
+              {!searching &&
+                !searchError &&
+                query.trim().length >= 2 &&
+                searchResults.length === 0 && (
+                  <p className="px-5 py-8 text-center text-[14px] leading-5 text-muted-foreground">
+                    {tr(
+                      "No matches yet. Try a simpler name or create your own food."
+                    )}
+                  </p>
+                )}
               {searchResults.map((item, index) => (
                 <div key={item.id}>
                   {index > 0 && <RowDivider />}
                   <DrawerRow
                     icon={<ForkKnife size={16} weight="bold" />}
                     title={item.name}
-                    detail={`${item.brand ? `${item.brand} · ` : ""}${energyDisplay(item.calories, energyUnit)} ${energyUnit}`}
+                    detail={tr("{{value0}}{{value1}} {{value2}}", {
+                      value0: item.brand ? `${item.brand} · ` : "",
+                      value1: energyDisplay(item.calories, energyUnit),
+                      value2: energyUnit,
+                    })}
                     onClick={() => {
                       onClose()
                       navigate(
@@ -697,7 +745,7 @@ function FoodDrawer({
                 navigate(`/foods/search?${context}`, { motion: "forward" })
               }}
             >
-              Open full food search
+              {tr("Open full food search")}
             </button>
           </div>
         )}
@@ -752,11 +800,11 @@ function FoodEntryEditor({
       delete patch._id
       await updateFood({ date: dateKey, entry: patch })
       hapticMedium()
-      toast.success(`${entry.name} updated`)
+      toast.success(tr("{{value0}} updated", { value0: entry.name }))
       onClose()
     } catch (error) {
       logDevWarn("Failed to edit food entry from drawer", error)
-      toast.error("Couldn't save that.")
+      toast.error(translateError(tr("Couldn't save that.")))
     } finally {
       setBusy(false)
     }
@@ -779,21 +827,24 @@ function FoodEntryEditor({
       await addFood({ date: dateKey, entry: copy })
       announceOrbActivity("log")
       hapticMedium()
-      toast.success(`${entry.name} logged as a new entry`, {
-        action: {
-          label: "Undo",
-          onClick: () => {
-            announceOrbActivity("delete")
-            void removeFood({ date: dateKey, entryId: copy.id }).catch(() => {
-              toast.error("Couldn't undo that")
-            })
+      toast.success(
+        tr("{{value0}} logged as a new entry", { value0: entry.name }),
+        {
+          action: {
+            label: tr("Undo"),
+            onClick: () => {
+              announceOrbActivity("delete")
+              void removeFood({ date: dateKey, entryId: copy.id }).catch(() => {
+                toast.error(translateError(tr("Couldn't undo that")))
+              })
+            },
           },
-        },
-      })
+        }
+      )
       onClose()
     } catch (error) {
       logDevWarn("Failed to copy food entry from drawer", error)
-      toast.error("Couldn't copy that.")
+      toast.error(translateError(tr("Couldn't copy that.")))
     } finally {
       setBusy(false)
     }
@@ -806,7 +857,7 @@ function FoodEntryEditor({
       <div className="app-surface overflow-hidden">
         <div className="px-4 py-3">
           <label className="block text-[12px] font-medium text-muted-foreground">
-            Meal
+            {tr("Meal")}
           </label>
           <div className="mt-2 grid grid-cols-2 gap-2">
             {DEFAULT_MEAL_CATEGORIES.map((cat) => (
@@ -829,26 +880,28 @@ function FoodEntryEditor({
 
       <div className="app-surface overflow-hidden px-4 py-3">
         <label className="block text-[12px] font-medium text-muted-foreground">
-          Logged at
+          {tr("Logged at")}
         </label>
         <input
           type="time"
           value={loggedAtTime}
           onChange={(event) => setLoggedAtTime(event.target.value)}
-          aria-label="Logged at time"
+          aria-label={tr("Logged at time")}
           className="mt-2 w-full bg-transparent text-[15px] tabular-nums outline-none"
         />
       </div>
 
       <div className="app-surface overflow-hidden px-4 py-3">
         <label className="block text-[12px] font-medium text-muted-foreground">
-          Serving
+          {tr("Serving")}
         </label>
         <input
           type="text"
           value={serving}
           onChange={(event) => setServing(event.target.value)}
-          placeholder={entry.servingLabel ? undefined : "e.g. 1 cup, 2 slices"}
+          placeholder={
+            entry.servingLabel ? undefined : tr("e.g. 1 cup, 2 slices")
+          }
           className="mt-2 w-full text-[15px] text-foreground outline-none"
         />
       </div>
@@ -860,7 +913,7 @@ function FoodEntryEditor({
           disabled={busy}
           className="motion-tactile flex-1 rounded-xl bg-foreground py-3 font-bold text-background"
         >
-          {busy ? "Saving…" : "Save"}
+          {busy ? tr("Saving…") : tr("Save")}
         </button>
         <button
           type="button"
@@ -868,7 +921,7 @@ function FoodEntryEditor({
           disabled={busy}
           className="motion-tactile rounded-xl border border-border px-4 py-3 text-[14px] font-semibold text-foreground"
         >
-          Copy as new
+          {tr("Copy as new")}
         </button>
       </div>
     </div>
@@ -924,20 +977,20 @@ function RecipesDrawer({
       await addFood({ date: dateKey, entry })
       announceOrbActivity("log")
       hapticMedium()
-      toast.success(`${recipe.name} logged`, {
+      toast.success(tr("{{value0}} logged", { value0: recipe.name }), {
         action: {
-          label: "Undo",
+          label: tr("Undo"),
           onClick: () => {
             announceOrbActivity("delete")
             void removeFood({ date: dateKey, entryId: entry.id }).catch(() => {
-              toast.error("Couldn't undo that")
+              toast.error(translateError(tr("Couldn't undo that")))
             })
           },
         },
       })
     } catch (error) {
       logDevWarn("Failed to log a recipe from the drawer", error)
-      toast.error("Couldn't log that. Try again.")
+      toast.error(translateError(tr("Couldn't log that. Try again.")))
     } finally {
       setBusy(false)
     }
@@ -948,14 +1001,14 @@ function RecipesDrawer({
   return (
     <div className="flex flex-col gap-3 p-4">
       <DrawerIntro
-        title="Recipes"
-        detail="Log a serving of one of yours, or go browsing."
+        title={tr("Recipes")}
+        detail={tr("Log a serving of one of yours, or go browsing.")}
       />
 
       <div className="app-surface overflow-hidden">
         {!loading && (recipes ?? []).length === 0 && (
           <p className="px-4 py-3 text-[13px] leading-snug text-muted-foreground">
-            No recipes yet — create your first one below.
+            {tr("No recipes yet — create your first one below.")}
           </p>
         )}
         {(recipes ?? []).slice(0, 5).map((recipe, index) => (
@@ -964,10 +1017,12 @@ function RecipesDrawer({
             <DrawerRow
               icon={<ForkKnife size={16} weight="bold" />}
               title={recipe.name}
-              detail={`One serving · ${macroLine(
-                recipeTotals(recipe.ingredients, recipe.servings ?? 1),
-                energyUnit
-              )}`}
+              detail={tr("One serving · {{value0}}", {
+                value0: macroLine(
+                  recipeTotals(recipe.ingredients, recipe.servings ?? 1),
+                  energyUnit
+                ),
+              })}
               disabled={busy}
               onClick={() => void logRecipe(recipe)}
             />
@@ -978,7 +1033,7 @@ function RecipesDrawer({
       <div className="app-surface overflow-hidden">
         <DrawerRow
           icon={<CookingPot size={16} weight="bold" />}
-          title="Create a recipe"
+          title={tr("Create a recipe")}
           onClick={() => {
             onClose()
             navigate("/foods/recipe/new", { motion: "forward" })
@@ -987,7 +1042,7 @@ function RecipesDrawer({
         <RowDivider />
         <DrawerRow
           icon={<MagnifyingGlass size={16} weight="bold" />}
-          title="Browse all recipes"
+          title={tr("Browse all recipes")}
           onClick={() => {
             onClose()
             navigate("/recipes", { motion: "forward" })
@@ -1003,14 +1058,14 @@ function CreateRecipeDrawer({ onClose }: { onClose: () => void }) {
   return (
     <div className="flex flex-col gap-3 p-4">
       <DrawerIntro
-        title="New recipe"
-        detail="Build it once, then log it in a tap forever."
+        title={tr("New recipe")}
+        detail={tr("Build it once, then log it in a tap forever.")}
       />
       <div className="app-surface overflow-hidden">
         <DrawerRow
           icon={<CookingPot size={16} weight="bold" />}
-          title="Start from scratch"
-          detail="Name, ingredients, servings."
+          title={tr("Start from scratch")}
+          detail={tr("Name, ingredients, servings.")}
           onClick={() => {
             onClose()
             navigate("/foods/recipe/new", { motion: "forward" })
@@ -1019,8 +1074,8 @@ function CreateRecipeDrawer({ onClose }: { onClose: () => void }) {
         <RowDivider />
         <DrawerRow
           icon={<MagnifyingGlass size={16} weight="bold" />}
-          title="Find inspiration first"
-          detail="Browse saved recipes and ideas."
+          title={tr("Find inspiration first")}
+          detail={tr("Browse saved recipes and ideas.")}
           onClick={() => {
             onClose()
             navigate("/recipes", { motion: "forward" })
@@ -1038,15 +1093,15 @@ function WorkoutDrawer({ onClose }: { onClose: () => void }) {
   return (
     <div className="flex flex-col gap-3 p-4">
       <DrawerIntro
-        title="Workout"
-        detail="Start now, or write down one that already happened."
+        title={tr("Workout")}
+        detail={tr("Start now, or write down one that already happened.")}
       />
       <div className="app-surface overflow-hidden">
         <DrawerRow
           accent="var(--foreground)"
           icon={<Play size={16} weight="bold" />}
-          title="Start an empty session"
-          detail="Exercises added as you go."
+          title={tr("Start an empty session")}
+          detail={tr("Exercises added as you go.")}
           onClick={() => {
             onClose()
             navigate("/workout/active", { motion: "forward" })
@@ -1055,8 +1110,8 @@ function WorkoutDrawer({ onClose }: { onClose: () => void }) {
         <RowDivider />
         <DrawerRow
           icon={<Barbell size={16} weight="bold" />}
-          title="Log a past workout"
-          detail="Pick a routine and a time."
+          title={tr("Log a past workout")}
+          detail={tr("Pick a routine and a time.")}
           onClick={() => {
             onClose()
             navigate("/workouts", { motion: "switch" })
@@ -1108,19 +1163,19 @@ function FastingDrawer({
       hapticMedium()
       // Deleting the session rather than stopping it: a fast started by
       // mistake should leave no three-second entry in the history.
-      toast.success(`${protocol} fast started`, {
+      toast.success(tr("{{value0}} fast started", { value0: protocol }), {
         action: {
-          label: "Undo",
+          label: tr("Undo"),
           onClick: () => {
             void removeFast({ id }).catch(() => {
-              toast.error("Couldn't undo that")
+              toast.error(translateError(tr("Couldn't undo that")))
             })
           },
         },
       })
     } catch (error) {
       logDevWarn("Failed to start a fast from the drawer", error)
-      toast.error("Couldn't start the fast. Try again.")
+      toast.error(translateError(tr("Couldn't start the fast. Try again.")))
     } finally {
       setBusy(false)
     }
@@ -1132,10 +1187,10 @@ function FastingDrawer({
     try {
       await stopFast({ id: active.id, endDate: dateKey })
       hapticMedium()
-      toast.success("Fast ended")
+      toast.success(tr("Fast ended"))
     } catch (error) {
       logDevWarn("Failed to end a fast from the drawer", error)
-      toast.error("Couldn't end the fast. Try again.")
+      toast.error(translateError(tr("Couldn't end the fast. Try again.")))
     } finally {
       setBusy(false)
     }
@@ -1148,11 +1203,11 @@ function FastingDrawer({
   return (
     <div className="flex flex-col gap-3 p-4">
       <DrawerIntro
-        title="Fasting"
+        title={tr("Fasting")}
         detail={
           active
-            ? "A fast is already running."
-            : "Pick a window. It starts the moment you tap."
+            ? tr("A fast is already running.")
+            : tr("Pick a window. It starts the moment you tap.")
         }
       />
 
@@ -1165,22 +1220,27 @@ function FastingDrawer({
             <span className="min-w-0 flex-1">
               <span className="native-row-title block">{active.protocol}</span>
               <span className="native-row-detail mt-0.5 block tabular-nums">
-                Running for {Math.floor(elapsedMinutes / 60)}h{" "}
-                {elapsedMinutes % 60}m
+                <Message
+                  text={"Running for {{value0}}h {{value1}}m"}
+                  values={{
+                    value0: Math.floor(elapsedMinutes / 60),
+                    value1: elapsedMinutes % 60,
+                  }}
+                />
               </span>
             </span>
           </div>
           <RowDivider />
           <DrawerRow
             icon={<Timer size={16} weight="bold" />}
-            title="End the fast"
+            title={tr("End the fast")}
             onClick={() => void endEarly()}
             disabled={busy}
           />
           <RowDivider />
           <DrawerRow
             icon={<CalendarBlank size={16} weight="bold" />}
-            title="Open fasting"
+            title={tr("Open fasting")}
             onClick={() => {
               onClose()
               navigate("/nutrition/fasting", { motion: "switch" })
@@ -1205,7 +1265,10 @@ function FastingDrawer({
                   {preset.protocol}
                 </span>
                 <span className="text-[12px] text-muted-foreground">
-                  {preset.hours} hours
+                  <Message
+                    text={"{{value0}} hours"}
+                    values={{ value0: preset.hours }}
+                  />
                 </span>
               </button>
             ))}
@@ -1213,8 +1276,8 @@ function FastingDrawer({
           <div className="app-surface overflow-hidden">
             <DrawerRow
               icon={<CalendarBlank size={16} weight="bold" />}
-              title="More protocols"
-              detail="Custom windows and history."
+              title={tr("More protocols")}
+              detail={tr("Custom windows and history.")}
               onClick={() => {
                 onClose()
                 navigate("/nutrition/fasting", { motion: "switch" })
@@ -1298,15 +1361,15 @@ function SupplementsDrawer({
           ? (result as { id: Id<"supplementIntakeLogs"> }).id
           : null
       toast.success(
-        `${item.name} taken`,
+        tr("{{value0}} taken", { value0: item.name }),
         logId
           ? {
               action: {
-                label: "Undo",
+                label: tr("Undo"),
                 onClick: () => {
                   announceOrbActivity("delete")
                   void removeLog({ logId }).catch(() => {
-                    toast.error("Couldn't undo that")
+                    toast.error(translateError(tr("Couldn't undo that")))
                   })
                 },
               },
@@ -1315,7 +1378,7 @@ function SupplementsDrawer({
       )
     } catch (error) {
       logDevWarn("Failed to log a supplement from the drawer", error)
-      toast.error("Couldn't log that. Try again.")
+      toast.error(translateError(tr("Couldn't log that. Try again.")))
     } finally {
       setBusyId(null)
     }
@@ -1326,20 +1389,23 @@ function SupplementsDrawer({
   return (
     <div className="flex flex-col gap-3 p-4">
       <DrawerIntro
-        title="Supplements"
+        title={tr("Supplements")}
         detail={
           loading
-            ? "Checking today's plan…"
+            ? tr("Checking today's plan…")
             : items.length === 0
-              ? "Nothing scheduled. Add some in the cabinet."
-              : `${items.length - takenIds.size} of ${items.length} still to take today.`
+              ? tr("Nothing scheduled. Add some in the cabinet.")
+              : tr("{{value0}} of {{value1}} still to take today.", {
+                  value0: items.length - takenIds.size,
+                  value1: items.length,
+                })
         }
       />
 
       <div className="app-surface overflow-hidden">
         {!loading && items.length === 0 && (
           <p className="px-4 py-3 text-[13px] leading-snug text-muted-foreground">
-            Your supplement cabinet is empty or paused.
+            {tr("Your supplement cabinet is empty or paused.")}
           </p>
         )}
         {items.map((item, index) => {
@@ -1386,7 +1452,7 @@ function SupplementsDrawer({
                     disabled={busyId === item._id}
                     className="motion-tactile flex min-h-10 shrink-0 items-center rounded-xl bg-foreground px-3.5 text-[13px] font-bold text-background disabled:opacity-40"
                   >
-                    Take
+                    {tr("Take")}
                   </button>
                 )}
               </div>
@@ -1398,8 +1464,8 @@ function SupplementsDrawer({
       <div className="app-surface overflow-hidden">
         <DrawerRow
           icon={<Pill size={16} weight="bold" />}
-          title="Open the cabinet"
-          detail="Schedule, history and editing."
+          title={tr("Open the cabinet")}
+          detail={tr("Schedule, history and editing.")}
           onClick={() => {
             onClose()
             navigate("/supplements", { motion: "switch" })
@@ -1413,13 +1479,13 @@ function SupplementsDrawer({
 // ─── Host ────────────────────────────────────────────────────────────────────
 
 const DRAWER_LABELS: Record<QuickActionId, string> = {
-  workout: "Workout",
-  food: "Log food",
-  "recipe-create": "New recipe",
-  recipes: "Recipes",
-  water: "Water",
-  fasting: "Fasting",
-  supplements: "Supplements",
+  workout: tr("Workout"),
+  food: tr("Log food"),
+  "recipe-create": tr("New recipe"),
+  recipes: tr("Recipes"),
+  water: tr("Water"),
+  fasting: tr("Fasting"),
+  supplements: tr("Supplements"),
 }
 
 export function QuickActionDrawer({
@@ -1439,7 +1505,10 @@ export function QuickActionDrawer({
   if (!id) return null
 
   return (
-    <MobileSheet onClose={onClose} ariaLabel={`${DRAWER_LABELS[id]} drawer`}>
+    <MobileSheet
+      onClose={onClose}
+      ariaLabel={tr("{{value0}} drawer", { value0: DRAWER_LABELS[id] })}
+    >
       {id === "water" && (
         <WaterDrawer
           dateKey={dateKey}

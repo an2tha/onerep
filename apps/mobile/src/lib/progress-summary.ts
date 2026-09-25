@@ -1,3 +1,4 @@
+import { tr, uiLocale } from "@repo/ui/i18n"
 /**
  * Compact, display-oriented progress summaries. These helpers deliberately use
  * only the shapes already returned by the existing workout, food, and body
@@ -81,19 +82,19 @@ const MEASUREMENT_META: Record<
   ProgressMeasurementKey,
   { label: string; unit: "kg" | "cm" | "kcal"; group: "composition" | "tape" }
 > = {
-  leanBodyMassKg: { label: "Lean mass", unit: "kg", group: "composition" },
-  boneMassKg: { label: "Bone mass", unit: "kg", group: "composition" },
+  leanBodyMassKg: { label: tr("Lean mass"), unit: "kg", group: "composition" },
+  boneMassKg: { label: tr("Bone mass"), unit: "kg", group: "composition" },
   basalMetabolicRateKcal: {
-    label: "Basal metabolic rate",
+    label: tr("Basal metabolic rate"),
     unit: "kcal",
     group: "composition",
   },
-  hipsCm: { label: "Hips", unit: "cm", group: "tape" },
-  chestCm: { label: "Chest", unit: "cm", group: "tape" },
-  armsCm: { label: "Arms", unit: "cm", group: "tape" },
-  thighsCm: { label: "Thighs", unit: "cm", group: "tape" },
-  calvesCm: { label: "Calves", unit: "cm", group: "tape" },
-  neckCm: { label: "Neck", unit: "cm", group: "tape" },
+  hipsCm: { label: tr("Hips"), unit: "cm", group: "tape" },
+  chestCm: { label: tr("Chest"), unit: "cm", group: "tape" },
+  armsCm: { label: tr("Arms"), unit: "cm", group: "tape" },
+  thighsCm: { label: tr("Thighs"), unit: "cm", group: "tape" },
+  calvesCm: { label: tr("Calves"), unit: "cm", group: "tape" },
+  neckCm: { label: tr("Neck"), unit: "cm", group: "tape" },
 }
 
 export type ProgressDay = {
@@ -172,7 +173,7 @@ function clamp(value: number, min: number, max: number) {
 }
 
 function weekDayLabel(date: string) {
-  return new Intl.DateTimeFormat("en-US", { weekday: "narrow" }).format(
+  return new Intl.DateTimeFormat(uiLocale(), { weekday: "narrow" }).format(
     new Date(`${date}T12:00:00Z`)
   )
 }

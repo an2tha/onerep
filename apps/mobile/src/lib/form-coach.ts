@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 import { useMemo } from "react"
 import { useQuery } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
@@ -338,7 +339,7 @@ export async function extractFormCoachLandmarks(
         ? "still"
         : pose.sampleFps
           ? `${pose.sampleFps}fps`
-          : "clip rate"
+          : tr("clip rate")
     console.log(
       `[form-coach] angle ${angle.index} (${angle.kind}): ${result.frames.length} frame(s) at ${rate} in ${Math.round(performance.now() - started)}ms`
     )
@@ -421,7 +422,11 @@ export function selectCoachStills(
     chosen.push({
       angleIndex: rep.angleIndex,
       timeMs: still.timeMs,
-      label: `angle ${rep.angleIndex}, rep ${rep.repIndex}, ${phase}`,
+      label: tr("angle {{value0}}, rep {{value1}}, {{value2}}", {
+        value0: rep.angleIndex,
+        value1: rep.repIndex,
+        value2: phase,
+      }),
       dataUrl: still.dataUrl,
     })
   }

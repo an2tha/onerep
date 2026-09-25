@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 import type { FoodDetail, FoodResult } from "@repo/models"
 
 type FoodMacros = Pick<FoodResult, "calories" | "protein" | "carbs" | "fat">
@@ -68,7 +69,7 @@ export function foodCardMacros(item: FoodResult) {
     // as a third of its calories; a scanned granola bar opened on 100 g under a
     // label that said 40 g. No weight means the card says per 100 g and means
     // it, which is the rule this function exists to enforce.
-    servingLabel: servingGrams === null ? "100 g" : named || "100 g",
+    servingLabel: servingGrams === null ? tr("100 g") : named || tr("100 g"),
     ...scaledFoodMacros(item, grams, initialDetail(item)),
   }
 }

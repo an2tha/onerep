@@ -1,5 +1,6 @@
+import { readLocalizedSource as readFileSync } from "../../../tests/helpers/localized-source"
 import { describe, expect, test } from "bun:test"
-import { readFileSync } from "node:fs"
+
 import { COACH_MAX_MESSAGE_CHARS } from "@repo/models"
 
 const COACH_PAGE = readFileSync(

@@ -1,3 +1,4 @@
+import { choice, tr, uiLocale } from "@repo/ui/i18n"
 /**
  * The weekly report, and the app's view of the moment triggers.
  *
@@ -128,7 +129,7 @@ function average(values: number[]) {
 
 function rangeLabel(start: string, end: string) {
   const format = (key: string) =>
-    new Date(`${key}T12:00:00`).toLocaleDateString(undefined, {
+    new Date(`${key}T12:00:00`).toLocaleDateString(uiLocale(), {
       month: "short",
       day: "numeric",
     })
@@ -136,7 +137,10 @@ function rangeLabel(start: string, end: string) {
 }
 
 function plural(count: number, one: string, many: string) {
-  return `${count} ${count === 1 ? one : many}`
+  return tr("{{value0}} {{value1}}", {
+    value0: count,
+    value1: tr(count === 1 ? one : many),
+  })
 }
 
 /**
@@ -159,29 +163,60 @@ function headlineFor({
 }) {
   if (target !== null) {
     if (workouts >= target) {
-      return `You said ${target}. You did ${workouts}. Nothing further from me.`
+      return tr(
+        "You said {{value0}}. You did {{value1}}. Nothing further from me.",
+        { value0: target, value1: workouts }
+      )
     }
     if (workouts === 0) {
-      return `You said ${target} sessions and did none of them. It happens; it should not happen twice.`
+      return tr(
+        "You said {{value0}} sessions and did none of them. It happens; it should not happen twice.",
+        { value0: target }
+      )
     }
-    return `You said ${target}, you did ${workouts}. Closer than none, short of the plan.`
+    return tr(
+      "You said {{value0}}, you did {{value1}}. Closer than none, short of the plan.",
+      { value0: target, value1: workouts }
+    )
   }
   if (workouts === 0 && loggedDays === 0) {
-    return "Nothing logged, nothing trained. Weeks like this happen; two in a row is a decision."
+    return tr(
+      "Nothing logged, nothing trained. Weeks like this happen; two in a row is a decision."
+    )
   }
   if (workouts === 0) {
-    return `You logged ${plural(loggedDays, "day", "days")} of food and trained none of them.`
+    return tr("You logged {{value0}} of food and trained none of them.", {
+      value0: plural(loggedDays, "day", "days"),
+    })
   }
   if (previousWorkouts === 0) {
-    return `${plural(workouts, "session", "sessions")} after a week off. That is the hard one, and it is behind you.`
+    return tr(
+      "{{value0}} after a week off. That is the hard one, and it is behind you.",
+      { value0: plural(workouts, "session", "sessions") }
+    )
   }
   if (workouts > previousWorkouts) {
-    return `${plural(workouts, "session", "sessions")}, up from ${previousWorkouts}. The line is going the right way.`
+    return tr(
+      "{{value0}}, up from {{value1}}. The line is going the right way.",
+      {
+        value0: plural(workouts, "session", "sessions"),
+        value1: previousWorkouts,
+      }
+    )
   }
   if (workouts < previousWorkouts) {
-    return `${plural(workouts, "session", "sessions")}, down from ${previousWorkouts}. Not a collapse. Worth noticing.`
+    return tr(
+      "{{value0}}, down from {{value1}}. Not a collapse. Worth noticing.",
+      {
+        value0: plural(workouts, "session", "sessions"),
+        value1: previousWorkouts,
+      }
+    )
   }
-  return `${plural(workouts, "session", "sessions")}, same as last week. Consistency, assuming you meant it.`
+  return tr(
+    "{{value0}}, same as last week. Consistency, assuming you meant it.",
+    { value0: plural(workouts, "session", "sessions") }
+  )
 }
 
 export function buildWeeklyReport({
@@ -283,7 +318,7 @@ export function buildWeeklyReport({
     const entries = entriesOf(food)
     return {
       date,
-      label: new Intl.DateTimeFormat(undefined, { weekday: "narrow" }).format(
+      label: new Intl.DateTimeFormat(uiLocale(), { weekday: "narrow" }).format(
         new Date(`${date}T12:00:00`)
       ),
       sets: sum(dayWorkouts.map(completedSets)),
@@ -303,7 +338,13 @@ export function buildWeeklyReport({
     end,
     rangeLabel: rangeLabel(start, end),
     headline: recoveryDays
-      ? `${recoveryDays} recovery ${recoveryDays === 1 ? "day" : "days"} this week. Making room to recover is part of the plan.`
+      ? tr(
+          "{{value0}} recovery {{value1}} this week. Making room to recover is part of the plan.",
+          {
+            value0: recoveryDays,
+            value1: choice(recoveryDays === 1 ? "day" : "days"),
+          }
+        )
       : headlineFor({
           workouts: training.workouts,
           previousWorkouts: training.previousWorkouts,
@@ -319,7 +360,9 @@ export function buildWeeklyReport({
     body: { latestWeightKg, weightDeltaKg },
     highlights: recoveryDays
       ? [
-          "Recovery explains changes in activity and logging. Your long-term goals are unchanged.",
+          tr(
+            "Recovery explains changes in activity and logging. Your long-term goals are unchanged."
+          ),
         ]
       : buildHighlights(training, nutrition, weightDeltaKg, weightUnit),
   }
@@ -335,7 +378,11 @@ function buildHighlights(
 
   if (training.completedSets > 0) {
     lines.push(
-      `${plural(training.completedSets, "set", "sets")} across ${plural(training.activeDays, "day", "days")}, ${training.minutes} minutes under load.`
+      tr("{{value0}} across {{value1}}, {{value2}} minutes under load.", {
+        value0: plural(training.completedSets, "set", "sets"),
+        value1: plural(training.activeDays, "day", "days"),
+        value2: training.minutes,
+      })
     )
   }
 
@@ -343,20 +390,34 @@ function buildHighlights(
     const gap = nutrition.averageProtein - nutrition.proteinTarget
     lines.push(
       gap >= 0
-        ? `Protein averaged ${nutrition.averageProtein}g, clear of your ${nutrition.proteinTarget}g target.`
-        : `Protein averaged ${nutrition.averageProtein}g, ${Math.abs(gap)}g short of target.`
+        ? tr(
+            "Protein averaged {{value0}}g, clear of your {{value1}}g target.",
+            {
+              value0: nutrition.averageProtein,
+              value1: nutrition.proteinTarget,
+            }
+          )
+        : tr("Protein averaged {{value0}}g, {{value1}}g short of target.", {
+            value0: nutrition.averageProtein,
+            value1: Math.abs(gap),
+          })
     )
   }
 
   if (nutrition.loggedDays > 0) {
     lines.push(
-      `${plural(nutrition.onTargetDays, "day", "days")} within 10% of your calorie target, out of ${plural(nutrition.loggedDays, "logged day", "logged days")}.`
+      tr("{{value0}} within 10% of your calorie target, out of {{value1}}.", {
+        value0: plural(nutrition.onTargetDays, "day", "days"),
+        value1: plural(nutrition.loggedDays, "logged day", "logged days"),
+      })
     )
   }
 
   if (weightDeltaKg !== null && weightDeltaKg !== 0) {
     lines.push(
-      `Weight moved ${formatWeightDelta(weightDeltaKg, weightUnit)} across the week.`
+      tr("Weight moved {{value0}} across the week.", {
+        value0: formatWeightDelta(weightDeltaKg, weightUnit),
+      })
     )
   }
 

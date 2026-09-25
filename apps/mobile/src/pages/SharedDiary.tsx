@@ -1,3 +1,4 @@
+import { Message, tr, translateError, uiLocale } from "@repo/ui/i18n"
 import { useEffect, useMemo, useState } from "react"
 import { useParams, useSearchParams } from "react-router"
 import { TourAnchor } from "@/components/walkthrough/tour-anchor"
@@ -46,7 +47,7 @@ import {
 
 function formatDay(dateKey: string): string {
   const [year, month, day] = dateKey.split("-").map(Number)
-  return new Date(year, month - 1, day).toLocaleDateString(undefined, {
+  return new Date(year, month - 1, day).toLocaleDateString(uiLocale(), {
     weekday: "long",
     month: "short",
     day: "numeric",
@@ -96,19 +97,20 @@ export default function SharedDiary() {
 
   async function sendInviteLink(share: DiaryShare) {
     const result = await shareDiaryInvite(share.token, share.inviteeEmail)
-    if (result === "copied") toast.success("Invite link copied")
-    if (result === "failed") toast.error("Could not share the invite link")
+    if (result === "copied") toast.success(tr("Invite link copied"))
+    if (result === "failed")
+      toast.error(translateError(tr("Could not share the invite link")))
   }
 
   return (
     <div className="native-page mx-auto min-h-svh w-full max-w-xl pb-[calc(var(--app-safe-bottom)+6rem)] text-foreground">
       <NavigationBar
-        title="Shared diaries"
-        subtitle="Read-only access you gave or received"
+        title={tr("Shared diaries")}
+        subtitle={tr("Read-only access you gave or received")}
         leading={
           <ToolbarButton
             onClick={() => navigate(-1)}
-            aria-label="Back"
+            aria-label={tr("Back")}
             className="-ml-2 px-0 text-muted-foreground"
           >
             <ArrowLeft size={19} weight="bold" />
@@ -119,8 +121,8 @@ export default function SharedDiary() {
       <div className="px-[var(--app-page-x)] pt-2">
         {pending.length > 0 && (
           <>
-            <SectionHeader title="Invitations" />
-            <GroupedList label="Pending invitations">
+            <SectionHeader title={tr("Invitations")} />
+            <GroupedList label={tr("Pending invitations")}>
               {pending.map((share) => (
                 <button
                   key={share.token}
@@ -128,21 +130,23 @@ export default function SharedDiary() {
                   onClick={() =>
                     navigate(`/shared/accept?token=${share.token}`)
                   }
-                  aria-label={`Review invitation from ${
-                    share.ownerName ?? share.ownerEmail ?? "someone"
-                  }`}
+                  aria-label={tr("Review invitation from {{value0}}", {
+                    value0: share.ownerName ?? share.ownerEmail ?? "someone",
+                  })}
                   className="flex min-h-14 w-full items-center justify-between gap-2 px-1 py-2.5 text-left active:opacity-70"
                 >
                   <span className="min-w-0">
                     <span className="native-row-title block truncate">
-                      {share.ownerName ?? share.ownerEmail ?? "A OneRep user"}
+                      {share.ownerName ??
+                        share.ownerEmail ??
+                        tr("A OneRep user")}
                     </span>
                     <span className="native-row-detail block">
                       {shareScopeLabel(share.scope)}
                     </span>
                   </span>
                   <span className="text-[14px] font-semibold text-[var(--accent-food)]">
-                    Review
+                    {tr("Review")}
                   </span>
                 </button>
               ))}
@@ -152,18 +156,20 @@ export default function SharedDiary() {
 
         {myComments.length > 0 && (
           <>
-            <SectionHeader title="Comments on your diary" />
-            <GroupedList label="Comments on your diary">
+            <SectionHeader title={tr("Comments on your diary")} />
+            <GroupedList label={tr("Comments on your diary")}>
               {myComments.map((comment) => (
                 <button
                   key={comment.id ?? comment._id}
                   type="button"
                   onClick={() => navigate(`/nutrition?date=${comment.date}`)}
-                  aria-label={`Open your diary on ${formatDay(comment.date)}`}
+                  aria-label={tr("Open your diary on {{value0}}", {
+                    value0: formatDay(comment.date),
+                  })}
                   className="w-full px-1 py-2.5 text-left active:opacity-70"
                 >
                   <p className="native-row-detail">
-                    {comment.authorName ?? "Someone"} ·{" "}
+                    {comment.authorName ?? tr("Someone")} ·{" "}
                     {formatDay(comment.date)}
                   </p>
                   <p className="native-row-title mt-0.5 whitespace-pre-wrap">
@@ -175,16 +181,18 @@ export default function SharedDiary() {
           </>
         )}
 
-        <SectionHeader title="Shared with me" />
+        <SectionHeader title={tr("Shared with me")} />
         {accepted.length === 0 ? (
           <EmptyState
             icon={Users}
-            title="No diaries shared with you"
-            detail="When someone shares their food diary, it shows up here."
+            title={tr("No diaries shared with you")}
+            detail={tr(
+              "When someone shares their food diary, it shows up here."
+            )}
           />
         ) : (
           <TourAnchor anchor="shared-diaries" className="block">
-            <GroupedList label="Diaries shared with me">
+            <GroupedList label={tr("Diaries shared with me")}>
               {accepted.map((share) => (
                 <div
                   key={share.id ?? share._id}
@@ -193,13 +201,16 @@ export default function SharedDiary() {
                   <button
                     type="button"
                     onClick={() => navigate(`/shared/${share.ownerUserId}`)}
-                    aria-label={`Open the diary shared by ${
-                      share.ownerName ?? share.ownerEmail ?? "this user"
-                    }`}
+                    aria-label={tr("Open the diary shared by {{value0}}", {
+                      value0:
+                        share.ownerName ?? share.ownerEmail ?? "this user",
+                    })}
                     className="min-w-0 flex-1 text-left active:opacity-70"
                   >
                     <p className="native-row-title truncate">
-                      {share.ownerName ?? share.ownerEmail ?? "A OneRep user"}
+                      {share.ownerName ??
+                        share.ownerEmail ??
+                        tr("A OneRep user")}
                     </p>
                     <p className="native-row-detail mt-0.5">
                       {shareScopeLabel(share.scope)}
@@ -212,14 +223,15 @@ export default function SharedDiary() {
                         await leaveShare({
                           id: (share.id ?? share._id) as Id<"diaryShares">,
                         })
-                        toast.success("You left this shared diary")
+                        toast.success(tr("You left this shared diary"))
                       } catch (error) {
                         reportOfflineMutationError(error, "Could not leave")
                       }
                     }}
-                    aria-label={`Leave the diary shared by ${
-                      share.ownerName ?? share.ownerEmail ?? "this user"
-                    }`}
+                    aria-label={tr("Leave the diary shared by {{value0}}", {
+                      value0:
+                        share.ownerName ?? share.ownerEmail ?? "this user",
+                    })}
                     className="native-toolbar-button h-11 w-11 px-0 text-destructive"
                   >
                     <Trash size={17} weight="bold" />
@@ -230,15 +242,17 @@ export default function SharedDiary() {
           </TourAnchor>
         )}
 
-        <SectionHeader title="People I share with" />
+        <SectionHeader title={tr("People I share with")} />
         {outgoing.length === 0 ? (
           <EmptyState
             icon={Users}
-            title="You are not sharing your diary"
-            detail="Invite a coach or partner from Settings to share read-only access."
+            title={tr("You are not sharing your diary")}
+            detail={tr(
+              "Invite a coach or partner from Settings to share read-only access."
+            )}
           />
         ) : (
-          <GroupedList label="People I share with">
+          <GroupedList label={tr("People I share with")}>
             {outgoing.map((share) => (
               <div
                 key={share.id ?? share._id}
@@ -249,7 +263,7 @@ export default function SharedDiary() {
                     {share.inviteeName ?? share.inviteeEmail}
                   </p>
                   <p className="native-row-detail mt-0.5">
-                    {share.status === "pending" ? "Invite sent · " : ""}
+                    {share.status === "pending" ? tr("Invite sent · ") : ""}
                     {shareScopeLabel(share.scope)}
                   </p>
                 </div>
@@ -257,7 +271,9 @@ export default function SharedDiary() {
                   <button
                     type="button"
                     onClick={() => void sendInviteLink(share)}
-                    aria-label={`Send invite link to ${share.inviteeEmail}`}
+                    aria-label={tr("Send invite link to {{value0}}", {
+                      value0: share.inviteeEmail,
+                    })}
                     className="native-toolbar-button h-11 w-11 px-0 text-muted-foreground"
                   >
                     <PaperPlaneTilt size={17} weight="bold" />
@@ -270,7 +286,7 @@ export default function SharedDiary() {
                       await revoke({
                         id: (share.id ?? share._id) as Id<"diaryShares">,
                       })
-                      toast.success("Access revoked")
+                      toast.success(tr("Access revoked"))
                     } catch (error) {
                       reportOfflineMutationError(
                         error,
@@ -278,7 +294,9 @@ export default function SharedDiary() {
                       )
                     }
                   }}
-                  aria-label={`Revoke access for ${share.inviteeEmail}`}
+                  aria-label={tr("Revoke access for {{value0}}", {
+                    value0: share.inviteeEmail,
+                  })}
                   className="native-toolbar-button h-11 w-11 px-0 text-destructive"
                 >
                   <Trash size={17} weight="bold" />
@@ -395,7 +413,7 @@ export function SharedDiaryDay() {
     try {
       await addComment({ ownerUserId, date: dateKey, body })
       setCommentDraft("")
-      toast.success("Comment added")
+      toast.success(tr("Comment added"))
     } catch (error) {
       reportOfflineMutationError(error, "Could not add this comment")
     } finally {
@@ -407,12 +425,12 @@ export function SharedDiaryDay() {
     <div className="native-page print-sheet mx-auto min-h-svh w-full max-w-xl pb-[calc(var(--app-safe-bottom)+6rem)] text-foreground">
       <NavigationBar
         className="print-hidden"
-        title={profile?.name ?? "Shared diary"}
-        subtitle="Read only"
+        title={profile?.name ?? tr("Shared diary")}
+        subtitle={tr("Read only")}
         leading={
           <ToolbarButton
             onClick={() => navigate("/shared")}
-            aria-label="Back to shared diaries"
+            aria-label={tr("Back to shared diaries")}
             className="-ml-2 px-0 text-muted-foreground"
           >
             <ArrowLeft size={19} weight="bold" />
@@ -424,7 +442,7 @@ export function SharedDiaryDay() {
               onClick={() =>
                 navigate(`/nutrition/report?ownerUserId=${ownerUserId}`)
               }
-              aria-label="Open the shared nutrition report"
+              aria-label={tr("Open the shared nutrition report")}
             >
               <Printer size={19} weight="bold" />
             </ToolbarButton>
@@ -439,7 +457,7 @@ export function SharedDiaryDay() {
               hapticTap()
               setDateKey((current) => offsetDateKey(current, -1))
             }}
-            aria-label="Previous day"
+            aria-label={tr("Previous day")}
           >
             <ArrowLeft size={17} weight="bold" />
           </ToolbarButton>
@@ -449,7 +467,7 @@ export function SharedDiaryDay() {
               hapticTap()
               setDateKey((current) => offsetDateKey(current, 1))
             }}
-            aria-label="Next day"
+            aria-label={tr("Next day")}
           >
             <ArrowLeft size={17} weight="bold" className="rotate-180" />
           </ToolbarButton>
@@ -458,18 +476,19 @@ export function SharedDiaryDay() {
         {profile === null ? (
           <EmptyState
             icon={Users}
-            title="This diary is no longer shared with you"
-            detail="Access was revoked or the link is out of date."
+            title={tr("This diary is no longer shared with you")}
+            detail={tr("Access was revoked or the link is out of date.")}
           />
         ) : !inScope ? (
           <EmptyState
             icon={Users}
-            title="Outside the dates you were given"
+            title={tr("Outside the dates you were given")}
             detail={
               profile?.startDate || profile?.endDate
-                ? `You can see ${profile?.startDate ?? "the start"} to ${
-                    profile?.endDate ?? "today"
-                  }.`
+                ? tr("You can see {{value0}} to {{value1}}.", {
+                    value0: profile?.startDate ?? "the start",
+                    value1: profile?.endDate ?? "today",
+                  })
                 : undefined
             }
           />
@@ -477,7 +496,7 @@ export function SharedDiaryDay() {
           <>
             <SummaryBlock
               tone="food"
-              title="That day"
+              title={tr("That day")}
               value={
                 <span className="tabular-nums">
                   {energyDisplay(totals.calories, energyUnit)} {energyUnit}
@@ -485,24 +504,32 @@ export function SharedDiaryDay() {
               }
               detail={
                 goals
-                  ? `${Math.round(totals.protein)} g protein · goal ${
-                      goals.calories
-                    } ${energyUnit}`
-                  : `${Math.round(totals.protein)} g protein`
+                  ? tr("{{value0}} g protein · goal {{value1}} {{value2}}", {
+                      value0: Math.round(totals.protein),
+                      value1: goals.calories,
+                      value2: energyUnit,
+                    })
+                  : tr("{{value0}} g protein", {
+                      value0: Math.round(totals.protein),
+                    })
               }
             />
 
             {entries.length === 0 ? (
               <EmptyState
                 icon={Users}
-                title="Nothing logged that day"
-                detail="Try another date."
+                title={tr("Nothing logged that day")}
+                detail={tr("Try another date.")}
               />
             ) : (
               byMeal.map(([meal, mealEntries]) => (
                 <div key={meal} className="print-block">
                   <SectionHeader title={mealLabel(meal)} />
-                  <GroupedList label={`${mealLabel(meal)} entries`}>
+                  <GroupedList
+                    label={tr("{{value0}} entries", {
+                      value0: mealLabel(meal),
+                    })}
+                  >
                     {mealEntries.map((entry) => (
                       <div
                         key={entry.id}
@@ -522,24 +549,24 @@ export function SharedDiaryDay() {
               ))
             )}
 
-            <SectionHeader title="Notes" />
+            <SectionHeader title={tr("Notes")} />
             {dayComments.length === 0 ? (
               <EmptyState
                 icon={ChatCircle}
-                title="No notes on this day"
+                title={tr("No notes on this day")}
                 detail={
                   canComment
-                    ? "Leave a note below."
-                    : "You have read-only access without comments."
+                    ? tr("Leave a note below.")
+                    : tr("You have read-only access without comments.")
                 }
               />
             ) : (
-              <GroupedList label="Notes on this day">
+              <GroupedList label={tr("Notes on this day")}>
                 {dayComments.map((comment) => (
                   <div key={comment.id ?? comment._id} className="px-1 py-2.5">
                     <p className="native-row-detail">
-                      {comment.authorName ?? "Someone"}
-                      {comment.authorRole === "owner" ? " (owner)" : ""}
+                      {comment.authorName ?? tr("Someone")}
+                      {comment.authorRole === "owner" ? tr(" (owner)") : ""}
                     </p>
                     <p className="native-row-title mt-0.5 whitespace-pre-wrap">
                       {comment.body}
@@ -553,17 +580,17 @@ export function SharedDiaryDay() {
               <div className="print-hidden mt-3 flex items-center gap-2">
                 <input
                   value={commentDraft}
-                  placeholder="Leave a note"
-                  aria-label="Comment on this day"
+                  placeholder={tr("Leave a note")}
+                  aria-label={tr("Comment on this day")}
                   onChange={(event) => setCommentDraft(event.target.value)}
                   className="h-11 flex-1 rounded-xl border border-border bg-transparent px-3 outline-none"
                 />
                 <PrimaryButton
                   onClick={handleComment}
                   disabled={posting || commentDraft.trim().length === 0}
-                  aria-label="Add comment"
+                  aria-label={tr("Add comment")}
                 >
-                  Post
+                  {tr("Post")}
                 </PrimaryButton>
               </div>
             )}
@@ -597,11 +624,11 @@ export function SharedAccept() {
   return (
     <div className="native-page mx-auto min-h-svh w-full max-w-xl text-foreground">
       <NavigationBar
-        title="Diary invitation"
+        title={tr("Diary invitation")}
         leading={
           <ToolbarButton
             onClick={() => navigate("/shared")}
-            aria-label="Back to shared diaries"
+            aria-label={tr("Back to shared diaries")}
             className="-ml-2 px-0 text-muted-foreground"
           >
             <ArrowLeft size={19} weight="bold" />
@@ -613,35 +640,44 @@ export function SharedAccept() {
         {invite === null || !token ? (
           <EmptyState
             icon={Users}
-            title="This invitation is not available"
-            detail="It may have been withdrawn, already used, or sent to a different email address."
+            title={tr("This invitation is not available")}
+            detail={tr(
+              "It may have been withdrawn, already used, or sent to a different email address."
+            )}
           />
         ) : invite === undefined ? (
-          <EmptyState icon={Users} title="Loading invitation" />
+          <EmptyState icon={Users} title={tr("Loading invitation")} />
         ) : (
           <div className="motion-content-in">
             <SummaryBlock
               tone="food"
-              title={invite.ownerName ?? invite.ownerEmail ?? "A OneRep user"}
-              value={<span>wants to share their diary</span>}
+              title={
+                invite.ownerName ?? invite.ownerEmail ?? tr("A OneRep user")
+              }
+              value={<span>{tr("wants to share their diary")}</span>}
               detail={shareScopeLabel(invite.scope)}
             />
             {(invite.startDate || invite.endDate) && (
               <p className="native-row-detail mt-2">
-                Limited to {invite.startDate ?? "the start"} –{" "}
-                {invite.endDate ?? "today"}.
+                <Message
+                  text={"Limited to {{value0}} – {{value1}}."}
+                  values={{
+                    value0: invite.startDate ?? tr("the start"),
+                    value1: invite.endDate ?? tr("today"),
+                  }}
+                />
               </p>
             )}
             <div className="mt-4 flex items-center gap-2">
               <PrimaryButton
                 disabled={busy}
-                aria-label="Accept diary invitation"
+                aria-label={tr("Accept diary invitation")}
                 className="flex-1"
                 onClick={async () => {
                   setBusy(true)
                   try {
                     await acceptInvite({ token })
-                    toast.success("Invitation accepted")
+                    toast.success(tr("Invitation accepted"))
                     navigate("/shared")
                   } catch (error) {
                     reportOfflineMutationError(
@@ -653,12 +689,12 @@ export function SharedAccept() {
                   }
                 }}
               >
-                Accept
+                {tr("Accept")}
               </PrimaryButton>
               <button
                 type="button"
                 disabled={busy}
-                aria-label="Decline diary invitation"
+                aria-label={tr("Decline diary invitation")}
                 className={cn(
                   "native-toolbar-button h-11 px-4",
                   busy && "opacity-50"
@@ -667,7 +703,7 @@ export function SharedAccept() {
                   setBusy(true)
                   try {
                     await declineInvite({ token })
-                    toast.success("Invitation declined")
+                    toast.success(tr("Invitation declined"))
                     navigate("/shared")
                   } catch (error) {
                     reportOfflineMutationError(
@@ -679,7 +715,7 @@ export function SharedAccept() {
                   }
                 }}
               >
-                Decline
+                {tr("Decline")}
               </button>
             </div>
           </div>

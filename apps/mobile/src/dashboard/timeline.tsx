@@ -1,3 +1,4 @@
+import { Message, tr } from "@repo/ui/i18n"
 import {
   useEffect,
   useMemo,
@@ -446,15 +447,17 @@ export function DayTimeline({
       {!isToday && !loading && entries.length === 0 && (
         <div className="motion-content-in absolute inset-x-0 top-[30%] z-30 flex flex-col items-center gap-2.5">
           <p className="text-[13px] text-muted-foreground">
-            Nothing logged this day.
+            {tr("Nothing logged this day.")}
           </p>
           <button
             type="button"
             onClick={() => onQuickLog?.("past", Math.round(centerMinutes))}
             className="motion-tactile flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-[12px] font-semibold text-foreground"
           >
-            <Plus size={11} weight="bold" />
-            Add to this day
+            <Message
+              text={"{{value0}}Add to this day"}
+              values={{ value0: <Plus size={11} weight="bold" /> }}
+            />
           </button>
         </div>
       )}
@@ -543,12 +546,15 @@ export function DayTimeline({
                 style={{
                   left: LINE_LEFT + 10,
                   top: -8,
-                  background: "linear-gradient(135deg, color-mix(in srgb, var(--foreground) 8%, transparent), color-mix(in srgb, var(--foreground) 3%, transparent))",
-                  color: "color-mix(in srgb, var(--foreground) 70%, transparent)",
-                  border: "1px solid color-mix(in srgb, var(--foreground) 10%, transparent)",
+                  background:
+                    "linear-gradient(135deg, color-mix(in srgb, var(--foreground) 8%, transparent), color-mix(in srgb, var(--foreground) 3%, transparent))",
+                  color:
+                    "color-mix(in srgb, var(--foreground) 70%, transparent)",
+                  border:
+                    "1px solid color-mix(in srgb, var(--foreground) 10%, transparent)",
                 }}
               >
-                Now
+                {tr("Now")}
               </span>
             </span>
           )}
@@ -608,8 +614,8 @@ export function DayTimeline({
                       {
                         phase: "past" as const,
                         label: isToday
-                          ? "Log something earlier today"
-                          : "Log something into this day",
+                          ? tr("Log something earlier today")
+                          : tr("Log something into this day"),
                         icon: Plus,
                       },
                       // Nothing can be scheduled into a day that has already
@@ -619,7 +625,7 @@ export function DayTimeline({
                         ? [
                             {
                               phase: "future" as const,
-                              label: "Schedule something ahead",
+                              label: tr("Schedule something ahead"),
                               icon: Clock,
                             },
                           ]
@@ -689,16 +695,20 @@ export function DayTimeline({
                           <span className="min-w-0 truncate text-[16px] leading-tight font-semibold text-foreground">
                             {single
                               ? nearestGroup.members[0].title
-                              : `${nearestGroup.members.length} logged items`}
+                              : tr("{{value0}} logged items", {
+                                  value0: nearestGroup.members.length,
+                                })}
                           </span>
                           <span className="shrink-0 text-[12px] font-medium text-muted-foreground tabular-nums">
                             {single
                               ? nearestGroup.members[0].time
-                              : `${nearestGroup.members[0].time} – ${
-                                  nearestGroup.members[
-                                    nearestGroup.members.length - 1
-                                  ].time
-                                }`}
+                              : tr("{{value0}} – {{value1}}", {
+                                  value0: nearestGroup.members[0].time,
+                                  value1:
+                                    nearestGroup.members[
+                                      nearestGroup.members.length - 1
+                                    ].time,
+                                })}
                           </span>
                         </div>
                         <p className="mt-0.5 truncate text-[12px] text-muted-foreground">
@@ -748,8 +758,10 @@ export function DayTimeline({
                             aria-expanded={expanded}
                             aria-label={
                               expanded
-                                ? "Hide these entries"
-                                : `Show all ${nearestGroup.members.length} entries`
+                                ? tr("Hide these entries")
+                                : tr("Show all {{value0}} entries", {
+                                    value0: nearestGroup.members.length,
+                                  })
                             }
                             className="motion-tactile flex size-8 items-center justify-center rounded-full text-foreground/80"
                           >
@@ -771,7 +783,8 @@ export function DayTimeline({
               {/* The list, once asked for: small cards of their own, dealt
                 out under the main one one after the next. Nothing scrolls
                 and nothing is cut off — the lift above made the room. */}
-              {stackGroup && (                    <div
+              {stackGroup && (
+                <div
                   data-state={stackClosing ? "closing" : "open"}
                   className="pointer-events-auto absolute inset-x-0 flex flex-col"
                   style={{
@@ -810,8 +823,10 @@ export function DayTimeline({
                       {onEditEntry && (
                         <button
                           type="button"
-                          aria-label={`Edit ${member.title}`}
-                          title="Edit"
+                          aria-label={tr("Edit {{value0}}", {
+                            value0: member.title,
+                          })}
+                          title={tr("Edit")}
                           onClick={() => onEditEntry(member)}
                           className="motion-tactile flex size-6 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground"
                         >
@@ -821,8 +836,10 @@ export function DayTimeline({
                       {onDeleteEntry && (
                         <button
                           type="button"
-                          aria-label={`Delete ${member.title}`}
-                          title="Delete"
+                          aria-label={tr("Delete {{value0}}", {
+                            value0: member.title,
+                          })}
+                          title={tr("Delete")}
                           onClick={() => onDeleteEntry(member)}
                           className="motion-tactile flex size-6 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-destructive"
                         >
@@ -952,7 +969,7 @@ export function DayTimeline({
                   onPointerUp={handleDotPointerUp}
                   title={
                     single && onEntryTimeChange
-                      ? "Drag to change time"
+                      ? tr("Drag to change time")
                       : undefined
                   }
                   className={`absolute top-0 flex touch-none items-center justify-center rounded-full border-[3px] border-background bg-foreground text-background shadow-[0_0_0_1px_var(--border)] transition-transform select-none ${
@@ -1011,7 +1028,9 @@ export function DayTimeline({
                   <p className="truncate text-[18px] leading-tight font-semibold text-foreground">
                     {single
                       ? entry.title
-                      : `${group.members.length} logged items`}
+                      : tr("{{value0}} logged items", {
+                          value0: group.members.length,
+                        })}
                   </p>
                   <p className="mt-0.5 truncate text-[13px] text-muted-foreground">
                     {single
@@ -1053,9 +1072,9 @@ function EntryActions({
   onAdd?: () => void
 }) {
   const actions = [
-    { label: "Edit", icon: PencilSimple, onClick: onEdit },
-    { label: "Delete", icon: Trash, onClick: onDelete },
-    { label: "Add", icon: Plus, onClick: onAdd },
+    { label: tr("Edit"), icon: PencilSimple, onClick: onEdit },
+    { label: tr("Delete"), icon: Trash, onClick: onDelete },
+    { label: tr("Add"), icon: Plus, onClick: onAdd },
   ].filter((action) => action.onClick)
   if (actions.length === 0) return null
   return (

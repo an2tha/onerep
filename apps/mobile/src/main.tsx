@@ -1,8 +1,12 @@
+import { tr } from "@repo/ui/i18n"
 import { CollapsingPageBar } from "./components/collapsing-page-bar"
 import Journal from "./pages/Journal"
 import Recovery from "./pages/Recovery"
 import { RecoveryReminderSync } from "./components/recovery/recovery-reminder-sync"
-import { captureRouteSnapshot, restoreSnapshotScroll } from "./lib/route-snapshot"
+import {
+  captureRouteSnapshot,
+  restoreSnapshotScroll,
+} from "./lib/route-snapshot"
 import {
   StrictMode,
   useCallback,
@@ -162,12 +166,12 @@ function PwaLifecycle() {
 
     const showUpdate = (nextRegistration: AppServiceWorkerRegistration) => {
       if (disposed) return
-      toast.message("A OneRep update is ready", {
+      toast.message(tr("A OneRep update is ready"), {
         id: "onerep-pwa-update",
-        description: "Update now to use the latest version.",
+        description: tr("Update now to use the latest version."),
         duration: Infinity,
         action: {
-          label: "Update",
+          label: tr("Update"),
           onClick: () => activateWaitingServiceWorker(nextRegistration),
         },
       })
@@ -389,7 +393,8 @@ function NavSync() {
   const { identity, setIdentity, identities } = useTheme()
   // Capture before React removes the old outlet or resets the window scroll.
   const outgoingSnapshot =
-    previousLocationKeyRef.current !== location.key && activeRouteFrameRef.current
+    previousLocationKeyRef.current !== location.key &&
+    activeRouteFrameRef.current
       ? captureRouteSnapshot(activeRouteFrameRef.current)
       : null
   const edge = 28
@@ -399,7 +404,9 @@ function NavSync() {
   const showPageBar =
     isAuthenticated &&
     location.pathname !== "/" &&
-    !/^\/(auth|login|signup|onboarding|reset-password|verify-email)/.test(location.pathname)
+    !/^\/(auth|login|signup|onboarding|reset-password|verify-email)/.test(
+      location.pathname
+    )
   // On iOS the floating native bar replaces the web one entirely; the web app
   // keeps routing, the native layer only draws and reports taps.
   const nativeTabBarActive = useNativeTabBar({
@@ -533,7 +540,6 @@ function NavSync() {
       previousLocationKeyRef.current = location.key
       previousPathnameRef.current = location.pathname
     }
-
   }, [location.key, location.pathname, outgoingSnapshot])
 
   useEffect(() => {
@@ -641,7 +647,10 @@ function NavSync() {
                     bottom: "auto",
                   }}
                   ref={(frame) =>
-                    restoreSnapshotScroll(frame, routeTransition.snapshot.scroll)
+                    restoreSnapshotScroll(
+                      frame,
+                      routeTransition.snapshot.scroll
+                    )
                   }
                   dangerouslySetInnerHTML={{
                     __html: routeTransition.snapshot.html,
@@ -681,7 +690,7 @@ function NavSync() {
           )}
         </TourProvider>
         <AppMoments />
-              <RecoveryReminderSync />
+        <RecoveryReminderSync />
       </BottomBarActionProvider>
     </FullScreenEventProvider>
   )
@@ -719,19 +728,12 @@ function AuthCallback() {
     // this is the first point where the event is true rather than attempted.
     if (method && !capturedRef.current) {
       capturedRef.current = true
-      captureFeatureUsage(
-        isNewUser ? "user_signed_up" : "user_signed_in",
-        { method }
-      )
+      captureFeatureUsage(isNewUser ? "user_signed_up" : "user_signed_in", {
+        method,
+      })
     }
     navigate(nextPath, { replace: true })
-  }, [
-    convexAuth.isAuthenticated,
-    isNewUser,
-    method,
-    navigate,
-    nextPath,
-  ])
+  }, [convexAuth.isAuthenticated, isNewUser, method, navigate, nextPath])
 
   return (
     <div className="min-h-svh bg-background text-foreground">
@@ -746,7 +748,7 @@ function AuthCallback() {
             className="mt-4 text-[1.65rem] font-semibold tracking-tight short-phone:mt-3 short-phone:text-[1.45rem]"
             style={{ fontFamily: '"Instrument Sans Variable", sans-serif' }}
           >
-            OneRep
+            {tr("OneRep")}
           </h1>
         </header>
 
@@ -754,25 +756,26 @@ function AuthCallback() {
           {stalled ? (
             <>
               <p className="text-[14px] font-semibold tracking-tight">
-                Sign-in didn’t finish
+                {tr("Sign-in didn’t finish")}
               </p>
               <p className="mt-2 text-[13px] text-muted-foreground">
-                Your connection dropped before your account came through. Try
-                again once you have signal.
+                {tr(
+                  "Your connection dropped before your account came through. Try again once you have signal."
+                )}
               </p>
               <button
                 type="button"
                 onClick={() => navigate(loginPathForAuthRedirect(nextPath))}
                 className="native-primary-button mt-4 w-full"
               >
-                Back to sign in
+                {tr("Back to sign in")}
               </button>
             </>
           ) : (
             <>
               <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-muted-foreground/20 border-t-foreground" />
               <p className="mt-4 text-[14px] font-semibold tracking-tight">
-                Finishing sign in...
+                {tr("Finishing sign in...")}
               </p>
             </>
           )}
@@ -797,7 +800,7 @@ const router = createBrowserRouter([
         path: "/journal",
         element: (
           <AuthGuard>
-            <ErrorBoundary label="Journal">
+            <ErrorBoundary label={tr("Journal")}>
               <Journal />
             </ErrorBoundary>
           </AuthGuard>
@@ -821,7 +824,7 @@ const router = createBrowserRouter([
         path: "/exercises/:exerciseId",
         element: (
           <AuthGuard>
-            <ErrorBoundary label="Exercise">
+            <ErrorBoundary label={tr("Exercise")}>
               <ExerciseDetail />
             </ErrorBoundary>
           </AuthGuard>
@@ -839,7 +842,7 @@ const router = createBrowserRouter([
         path: "/endurance",
         element: (
           <AuthGuard>
-            <ErrorBoundary label="Endurance">
+            <ErrorBoundary label={tr("Endurance")}>
               <LegacyEnduranceRedirect />
             </ErrorBoundary>
           </AuthGuard>
@@ -849,7 +852,7 @@ const router = createBrowserRouter([
         path: "/endurance/trails",
         element: (
           <AuthGuard>
-            <ErrorBoundary label="Hiking trails">
+            <ErrorBoundary label={tr("Hiking trails")}>
               <HikingTrails />
             </ErrorBoundary>
           </AuthGuard>
@@ -858,7 +861,7 @@ const router = createBrowserRouter([
       {
         path: "/trails/:token",
         element: (
-          <ErrorBoundary label="Shared hiking trail">
+          <ErrorBoundary label={tr("Shared hiking trail")}>
             <SharedHikingTrail />
           </ErrorBoundary>
         ),
@@ -867,7 +870,7 @@ const router = createBrowserRouter([
         path: "/endurance/active",
         element: (
           <AuthGuard>
-            <ErrorBoundary label="Active Endurance Workout">
+            <ErrorBoundary label={tr("Active Endurance Workout")}>
               <ActiveEnduranceWorkout />
             </ErrorBoundary>
           </AuthGuard>
@@ -877,7 +880,7 @@ const router = createBrowserRouter([
         path: "/routines",
         element: (
           <AuthGuard>
-            <ErrorBoundary label="Routines">
+            <ErrorBoundary label={tr("Routines")}>
               <RoutinesHub />
             </ErrorBoundary>
           </AuthGuard>
@@ -911,7 +914,7 @@ const router = createBrowserRouter([
         path: "/workout/active",
         element: (
           <AuthGuard>
-            <ErrorBoundary label="Active Workout">
+            <ErrorBoundary label={tr("Active Workout")}>
               <ActiveWorkout />
             </ErrorBoundary>
           </AuthGuard>
@@ -921,7 +924,7 @@ const router = createBrowserRouter([
         path: "/workout/active/:presetId",
         element: (
           <AuthGuard>
-            <ErrorBoundary label="Active Workout">
+            <ErrorBoundary label={tr("Active Workout")}>
               <ActiveWorkout />
             </ErrorBoundary>
           </AuthGuard>
@@ -934,7 +937,7 @@ const router = createBrowserRouter([
         path: "/workout/log/:date",
         element: (
           <AuthGuard>
-            <ErrorBoundary label="Retro Log">
+            <ErrorBoundary label={tr("Retro Log")}>
               <ActiveWorkout />
             </ErrorBoundary>
           </AuthGuard>
@@ -946,7 +949,7 @@ const router = createBrowserRouter([
         path: "/workout/log/:date/quick",
         element: (
           <AuthGuard>
-            <ErrorBoundary label="Quick Log">
+            <ErrorBoundary label={tr("Quick Log")}>
               <QuickLogPreset />
             </ErrorBoundary>
           </AuthGuard>
@@ -956,7 +959,7 @@ const router = createBrowserRouter([
         path: "/camera",
         element: (
           <AuthGuard>
-            <ErrorBoundary label="Snap & Log">
+            <ErrorBoundary label={tr("Snap & Log")}>
               <SnapAndLog />
             </ErrorBoundary>
           </AuthGuard>
@@ -974,7 +977,7 @@ const router = createBrowserRouter([
         path: "/nutrition",
         element: (
           <AuthGuard>
-            <ErrorBoundary label="Nutrition">
+            <ErrorBoundary label={tr("Nutrition")}>
               <Nutrition />
             </ErrorBoundary>
           </AuthGuard>
@@ -984,7 +987,7 @@ const router = createBrowserRouter([
         path: "/nutrition/meal-prep",
         element: (
           <AuthGuard>
-            <ErrorBoundary label="Meal prep">
+            <ErrorBoundary label={tr("Meal prep")}>
               <MealPrep />
             </ErrorBoundary>
           </AuthGuard>
@@ -994,7 +997,7 @@ const router = createBrowserRouter([
         path: "/nutrition/report",
         element: (
           <AuthGuard>
-            <ErrorBoundary label="Nutrition report">
+            <ErrorBoundary label={tr("Nutrition report")}>
               <NutritionReport />
             </ErrorBoundary>
           </AuthGuard>
@@ -1004,7 +1007,7 @@ const router = createBrowserRouter([
         path: "/nutrition/fasting",
         element: (
           <AuthGuard>
-            <ErrorBoundary label="Fasting">
+            <ErrorBoundary label={tr("Fasting")}>
               <Fasting />
             </ErrorBoundary>
           </AuthGuard>
@@ -1014,7 +1017,7 @@ const router = createBrowserRouter([
         path: "/nutrition/groceries",
         element: (
           <AuthGuard>
-            <ErrorBoundary label="Grocery list">
+            <ErrorBoundary label={tr("Grocery list")}>
               <GroceryLists />
             </ErrorBoundary>
           </AuthGuard>
@@ -1024,7 +1027,7 @@ const router = createBrowserRouter([
         path: "/nutrition/groceries/:id",
         element: (
           <AuthGuard>
-            <ErrorBoundary label="Grocery list">
+            <ErrorBoundary label={tr("Grocery list")}>
               <GroceryListDetail />
             </ErrorBoundary>
           </AuthGuard>
@@ -1034,7 +1037,7 @@ const router = createBrowserRouter([
         path: "/shared",
         element: (
           <AuthGuard>
-            <ErrorBoundary label="Shared diary">
+            <ErrorBoundary label={tr("Shared diary")}>
               <SharedDiary />
             </ErrorBoundary>
           </AuthGuard>
@@ -1045,7 +1048,7 @@ const router = createBrowserRouter([
         path: "/shared/accept",
         element: (
           <AuthGuard>
-            <ErrorBoundary label="Shared diary">
+            <ErrorBoundary label={tr("Shared diary")}>
               <SharedAccept />
             </ErrorBoundary>
           </AuthGuard>
@@ -1055,7 +1058,7 @@ const router = createBrowserRouter([
         path: "/shared/:ownerUserId",
         element: (
           <AuthGuard>
-            <ErrorBoundary label="Shared diary">
+            <ErrorBoundary label={tr("Shared diary")}>
               <SharedDiaryDay />
             </ErrorBoundary>
           </AuthGuard>
@@ -1065,7 +1068,7 @@ const router = createBrowserRouter([
         path: "/foods/custom",
         element: (
           <AuthGuard>
-            <ErrorBoundary label="Custom foods">
+            <ErrorBoundary label={tr("Custom foods")}>
               <CustomFoods />
             </ErrorBoundary>
           </AuthGuard>
@@ -1075,7 +1078,7 @@ const router = createBrowserRouter([
         path: "/recipes",
         element: (
           <AuthGuard>
-            <ErrorBoundary label="Recipes">
+            <ErrorBoundary label={tr("Recipes")}>
               <RecipesHub />
             </ErrorBoundary>
           </AuthGuard>
@@ -1093,7 +1096,7 @@ const router = createBrowserRouter([
         path: "/supplements",
         element: (
           <AuthGuard>
-            <ErrorBoundary label="Supplements">
+            <ErrorBoundary label={tr("Supplements")}>
               <Supplements />
             </ErrorBoundary>
           </AuthGuard>
@@ -1111,7 +1114,7 @@ const router = createBrowserRouter([
         path: "/foods/review/:id",
         element: (
           <AuthGuard>
-            <ErrorBoundary label="Food Review">
+            <ErrorBoundary label={tr("Food Review")}>
               <FoodReview />
             </ErrorBoundary>
           </AuthGuard>
@@ -1124,7 +1127,7 @@ const router = createBrowserRouter([
             {/* Every other route has one. Without it a throw here unmounts
                 to whatever is above, which reads as "the pencil sent me back
                 to Nutrition". */}
-            <ErrorBoundary label="Recipe">
+            <ErrorBoundary label={tr("Recipe")}>
               <NewRecipe />
             </ErrorBoundary>
           </AuthGuard>
@@ -1134,7 +1137,7 @@ const router = createBrowserRouter([
         path: "/foods/recipe/:id",
         element: (
           <AuthGuard>
-            <ErrorBoundary label="Recipe">
+            <ErrorBoundary label={tr("Recipe")}>
               <NewRecipe />
             </ErrorBoundary>
           </AuthGuard>
@@ -1144,7 +1147,7 @@ const router = createBrowserRouter([
         path: "/progress",
         element: (
           <AuthGuard>
-            <ErrorBoundary label="Progress">
+            <ErrorBoundary label={tr("Progress")}>
               <Progress />
             </ErrorBoundary>
           </AuthGuard>
@@ -1154,7 +1157,7 @@ const router = createBrowserRouter([
         path: "/health",
         element: (
           <AuthGuard>
-            <ErrorBoundary label="Health">
+            <ErrorBoundary label={tr("Health")}>
               <Health />
             </ErrorBoundary>
           </AuthGuard>
@@ -1163,14 +1166,18 @@ const router = createBrowserRouter([
       {
         path: "/health/strain",
         element: (
-          <AuthGuard><ErrorBoundary label="Health strain"><HealthSleep strainMode /></ErrorBoundary></AuthGuard>
+          <AuthGuard>
+            <ErrorBoundary label={tr("Health strain")}>
+              <HealthSleep strainMode />
+            </ErrorBoundary>
+          </AuthGuard>
         ),
       },
       {
         path: "/health/sleep",
         element: (
           <AuthGuard>
-            <ErrorBoundary label="Health sleep">
+            <ErrorBoundary label={tr("Health sleep")}>
               <HealthSleep />
             </ErrorBoundary>
           </AuthGuard>
@@ -1180,7 +1187,7 @@ const router = createBrowserRouter([
         path: "/health/recovery",
         element: (
           <AuthGuard>
-            <ErrorBoundary label="Health recovery">
+            <ErrorBoundary label={tr("Health recovery")}>
               <HealthRecovery />
             </ErrorBoundary>
           </AuthGuard>
@@ -1190,7 +1197,7 @@ const router = createBrowserRouter([
         path: "/health/activity",
         element: (
           <AuthGuard>
-            <ErrorBoundary label="Health activity">
+            <ErrorBoundary label={tr("Health activity")}>
               <HealthActivity />
             </ErrorBoundary>
           </AuthGuard>
@@ -1200,7 +1207,7 @@ const router = createBrowserRouter([
         path: "/health/heart",
         element: (
           <AuthGuard>
-            <ErrorBoundary label="Health heart">
+            <ErrorBoundary label={tr("Health heart")}>
               <HealthHeart />
             </ErrorBoundary>
           </AuthGuard>
@@ -1210,7 +1217,7 @@ const router = createBrowserRouter([
         path: "/health/body",
         element: (
           <AuthGuard>
-            <ErrorBoundary label="Health body">
+            <ErrorBoundary label={tr("Health body")}>
               <HealthBody />
             </ErrorBoundary>
           </AuthGuard>
@@ -1220,7 +1227,7 @@ const router = createBrowserRouter([
         path: "/health/nutrition",
         element: (
           <AuthGuard>
-            <ErrorBoundary label="Health nutrition">
+            <ErrorBoundary label={tr("Health nutrition")}>
               <HealthNutrition />
             </ErrorBoundary>
           </AuthGuard>
@@ -1230,7 +1237,7 @@ const router = createBrowserRouter([
         path: "/health/vitals",
         element: (
           <AuthGuard>
-            <ErrorBoundary label="Health vitals">
+            <ErrorBoundary label={tr("Health vitals")}>
               <HealthVitals />
             </ErrorBoundary>
           </AuthGuard>
@@ -1240,7 +1247,7 @@ const router = createBrowserRouter([
         path: "/health/mindfulness",
         element: (
           <AuthGuard>
-            <ErrorBoundary label="Health mindfulness">
+            <ErrorBoundary label={tr("Health mindfulness")}>
               <HealthMindfulness />
             </ErrorBoundary>
           </AuthGuard>
@@ -1250,7 +1257,7 @@ const router = createBrowserRouter([
         path: "/health/reproductive",
         element: (
           <AuthGuard>
-            <ErrorBoundary label="Health cycle">
+            <ErrorBoundary label={tr("Health cycle")}>
               <HealthReproductive />
             </ErrorBoundary>
           </AuthGuard>
@@ -1260,7 +1267,7 @@ const router = createBrowserRouter([
         path: "/health/trends",
         element: (
           <AuthGuard>
-            <ErrorBoundary label="Health trends">
+            <ErrorBoundary label={tr("Health trends")}>
               <HealthTrends />
             </ErrorBoundary>
           </AuthGuard>
@@ -1268,13 +1275,19 @@ const router = createBrowserRouter([
       },
       {
         path: "/recovery",
-        element: <AuthGuard><ErrorBoundary label="Recovery"><Recovery /></ErrorBoundary></AuthGuard>,
+        element: (
+          <AuthGuard>
+            <ErrorBoundary label={tr("Recovery")}>
+              <Recovery />
+            </ErrorBoundary>
+          </AuthGuard>
+        ),
       },
       {
         path: "/coach",
         element: (
           <AuthGuard>
-            <ErrorBoundary label="Coach">
+            <ErrorBoundary label={tr("Coach")}>
               <Coach />
             </ErrorBoundary>
           </AuthGuard>
@@ -1304,7 +1317,7 @@ const router = createBrowserRouter([
         path: "/settings",
         element: (
           <AuthGuard>
-            <ErrorBoundary label="Settings">
+            <ErrorBoundary label={tr("Settings")}>
               <Settings onClose={() => window.history.back()} />
             </ErrorBoundary>
           </AuthGuard>
@@ -1317,7 +1330,7 @@ const router = createBrowserRouter([
         path: "/oauth/consent",
         element: (
           <AuthGuard>
-            <ErrorBoundary label="Connect app">
+            <ErrorBoundary label={tr("Connect app")}>
               <OAuthConsent />
             </ErrorBoundary>
           </AuthGuard>
@@ -1375,13 +1388,15 @@ if (Capacitor.isNativePlatform()) {
   // Android's initial activity intent is exposed through getLaunchUrl, whereas
   // appUrlOpen handles subsequent intents. Avoid replaying a launch URL if a
   // newer (or retained iOS) event has already arrived.
-  void CapacitorApp.getLaunchUrl().then((launch) => {
-    if (receivedAppUrl || !launch?.url) return
-    const path = deepLinkToPath(launch.url)
-    if (path) void router.navigate(path, { replace: true })
-  }).catch((error: unknown) => {
-    console.warn("Unable to read app launch URL", error)
-  })
+  void CapacitorApp.getLaunchUrl()
+    .then((launch) => {
+      if (receivedAppUrl || !launch?.url) return
+      const path = deepLinkToPath(launch.url)
+      if (path) void router.navigate(path, { replace: true })
+    })
+    .catch((error: unknown) => {
+      console.warn("Unable to read app launch URL", error)
+    })
 }
 
 /** Feeds the user's energy-label preference to @repo/ui components. */
@@ -1397,30 +1412,30 @@ createRoot(document.getElementById("root")!).render(
       client={convexClient}
       authClient={providerAuthClient}
     >
-        <ThemeProvider identities={PALETTES}>
-          <PwaLifecycle />
-          <ErrorBoundary label="the app">
-            {/* Inside the boundary on purpose: a bundle whose tree crashes
+      <ThemeProvider identities={PALETTES}>
+        <PwaLifecycle />
+        <ErrorBoundary label={tr("the app")}>
+          {/* Inside the boundary on purpose: a bundle whose tree crashes
                 must never reach notifyAppReady() and report itself healthy. */}
-            <OtaLifecycle />
-            <OfflineSyncIndicator />
-            <WidgetDataSync />
-            <HealthSync />
-            <CoachPushRegistration />
-            <MealCategorySync />
-            <RetentionTracking />
-            <AppVersionReport />
-            <EnergyUnitBridge>
-              <RouterProvider router={router} />
-            </EnergyUnitBridge>
-            <Toaster
-              position="top-center"
-              offset="calc(env(safe-area-inset-top, 0px) + 12px)"
-              mobileOffset="calc(env(safe-area-inset-top, 0px) + 12px)"
-              richColors
-            />
-          </ErrorBoundary>
-        </ThemeProvider>
+          <OtaLifecycle />
+          <OfflineSyncIndicator />
+          <WidgetDataSync />
+          <HealthSync />
+          <CoachPushRegistration />
+          <MealCategorySync />
+          <RetentionTracking />
+          <AppVersionReport />
+          <EnergyUnitBridge>
+            <RouterProvider router={router} />
+          </EnergyUnitBridge>
+          <Toaster
+            position="top-center"
+            offset="calc(env(safe-area-inset-top, 0px) + 12px)"
+            mobileOffset="calc(env(safe-area-inset-top, 0px) + 12px)"
+            richColors
+          />
+        </ErrorBoundary>
+      </ThemeProvider>
     </ConvexBetterAuthProvider>
   </StrictMode>
 )

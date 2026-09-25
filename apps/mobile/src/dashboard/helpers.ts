@@ -1,3 +1,4 @@
+import { tr, uiLocale } from "@repo/ui/i18n"
 /**
  * Small pure functions the Today cards share.
  *
@@ -5,9 +6,7 @@
  * that can be reasoned about — and tested — without standing up the dashboard.
  */
 
-import {
-  formatWater,
-} from "@/lib/measurement-system"
+import { formatWater } from "@/lib/measurement-system"
 import type { WaterUnit } from "@/lib/measurement-system"
 import { todayIso } from "@/lib/workout-sync"
 import { ABORTED_WORKOUT_SLOT_KEY } from "./constants"
@@ -16,13 +15,13 @@ import type { FoodLogEntry, RecipeIngredient } from "@/lib/food-log"
 import { dateForOffset } from "@/lib/food-log"
 
 export function greeting(hour: number) {
-  if (hour < 12) return "Good morning"
-  if (hour < 18) return "Good afternoon"
-  return "Good evening"
+  if (hour < 12) return tr("Good morning")
+  if (hour < 18) return tr("Good afternoon")
+  return tr("Good evening")
 }
 
 export function fmtKcal(n: number) {
-  return new Intl.NumberFormat("en-US").format(Math.round(n))
+  return new Intl.NumberFormat(uiLocale()).format(Math.round(n))
 }
 
 export function fmtWater(ml: number, unit: WaterUnit): string {
@@ -34,11 +33,11 @@ export function dateKeyToCalendarDate(dateKey: string) {
 }
 
 export function dayOffsetLabel(offset: number, timeZone: string): string {
-  if (offset === 0) return "Today"
-  if (offset === -1) return "Yesterday"
+  if (offset === 0) return tr("Today")
+  if (offset === -1) return tr("Yesterday")
   return dateKeyToCalendarDate(
     dateForOffset(offset, timeZone)
-  ).toLocaleDateString("en-US", {
+  ).toLocaleDateString(uiLocale(), {
     weekday: "short",
     month: "short",
     day: "numeric",
@@ -56,12 +55,13 @@ export function daysAgoLabel(dateKey: string, todayKey: string): string {
   const from = new Date(`${dateKey}T12:00:00`).getTime()
   const to = new Date(`${todayKey}T12:00:00`).getTime()
   const days = Math.round((to - from) / 86_400_000)
-  if (days <= 0) return "Today"
-  if (days === 1) return "Yesterday"
-  if (days < 7) return `${days} days ago`
-  if (days < 14) return "Last week"
-  if (days < 31) return `${Math.round(days / 7)} weeks ago`
-  return `${Math.round(days / 30)} months ago`
+  if (days <= 0) return tr("Today")
+  if (days === 1) return tr("Yesterday")
+  if (days < 7) return tr("{{value0}} days ago", { value0: days })
+  if (days < 14) return tr("Last week")
+  if (days < 31)
+    return tr("{{value0}} weeks ago", { value0: Math.round(days / 7) })
+  return tr("{{value0}} months ago", { value0: Math.round(days / 30) })
 }
 
 export function dateKeyToDay(dateKey: string, timeZone: string): RoutineDay {
@@ -85,7 +85,7 @@ export function dateKeyToDay(dateKey: string, timeZone: string): RoutineDay {
 
 export function hourInTimeZone(date: Date, timeZone: string) {
   return Number(
-    new Intl.DateTimeFormat("en-US", {
+    new Intl.DateTimeFormat(uiLocale(), {
       timeZone,
       hour: "2-digit",
       hour12: false,
@@ -155,11 +155,11 @@ export function formatNudgeDate(date: string) {
   const daysAgo = Math.round(
     (Date.parse(`${todayIso()}T12:00:00`) - parsed.getTime()) / 86_400_000
   )
-  if (daysAgo === 0) return "Today"
-  if (daysAgo === 1) return "Yesterday"
+  if (daysAgo === 0) return tr("Today")
+  if (daysAgo === 1) return tr("Yesterday")
   if (daysAgo < 7)
-    return parsed.toLocaleDateString(undefined, { weekday: "long" })
-  return parsed.toLocaleDateString(undefined, {
+    return parsed.toLocaleDateString(uiLocale(), { weekday: "long" })
+  return parsed.toLocaleDateString(uiLocale(), {
     month: "short",
     day: "numeric",
   })

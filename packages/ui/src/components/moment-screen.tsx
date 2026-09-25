@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 import * as React from "react"
 import { createPortal } from "react-dom"
 import { X } from "@phosphor-icons/react"
@@ -21,7 +22,7 @@ export function MomentScreen({
   children,
   actions,
   onClose,
-  closeLabel = "Close",
+  closeLabel = tr("Close"),
   showClose = true,
   yielded = false,
 }: {

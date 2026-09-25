@@ -1,3 +1,4 @@
+import { Message, tr, uiLocale } from "@repo/ui/i18n"
 /**
  * Strength history for one exercise, as a bottom sheet: max-weight trend,
  * estimated 1RM table, and the raw session list.
@@ -13,7 +14,7 @@ import { estimate1RM } from "@/lib/one-rm"
 import type { WeightUnit } from "@/lib/workout-logging"
 
 function formatSessionDate(date: string) {
-  return new Date(`${date}T12:00:00Z`).toLocaleDateString("en-US", {
+  return new Date(`${date}T12:00:00Z`).toLocaleDateString(uiLocale(), {
     month: "short",
     day: "numeric",
   })
@@ -75,7 +76,7 @@ export function ExerciseHistorySheet({
   return (
     <MobileSheet
       onClose={onClose}
-      ariaLabel="Exercise history"
+      ariaLabel={tr("Exercise history")}
       overlayClassName="sheet-overlay bg-black/50 backdrop-blur-[8px]"
       panelClassName="w-full max-w-sm overflow-hidden rounded-t-3xl bg-card shadow-[0_-12px_60px_rgba(0,0,0,0.22)]"
       panelStyle={{
@@ -87,7 +88,7 @@ export function ExerciseHistorySheet({
         <div className="flex items-center gap-3 px-5 pt-4 pb-3">
           <button
             onClick={onClose}
-            aria-label="Close history"
+            aria-label={tr("Close history")}
             className="flex h-10 w-10 items-center justify-center rounded-full transition-colors active:bg-muted/60"
             style={{
               color: "color-mix(in srgb, var(--foreground) 40%, transparent)",
@@ -100,14 +101,16 @@ export function ExerciseHistorySheet({
               {exerciseName}
             </h2>
             <p className="text-[13px] text-muted-foreground">
-              Strength history
+              {tr("Strength history")}
             </p>
           </div>
         </div>
 
         {history === undefined ? (
           <div className="flex items-center justify-center py-16">
-            <span className="text-[13px] text-muted-foreground">Loading…</span>
+            <span className="text-[13px] text-muted-foreground">
+              {tr("Loading…")}
+            </span>
           </div>
         ) : completedSessions.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-16">
@@ -118,10 +121,10 @@ export function ExerciseHistorySheet({
               }}
             />
             <p className="text-[13px] font-semibold text-muted-foreground">
-              No history yet
+              {tr("No history yet")}
             </p>
             <p className="text-[13px] text-muted-foreground">
-              Complete this exercise to start tracking
+              {tr("Complete this exercise to start tracking")}
             </p>
           </div>
         ) : (
@@ -129,7 +132,10 @@ export function ExerciseHistorySheet({
             {completedSessions.length >= 2 && (
               <div className="mx-5 mb-4 overflow-hidden rounded-2xl bg-foreground/[0.04] px-4 py-4">
                 <p className="mb-3 text-[13px] font-bold text-muted-foreground">
-                  Max weight · {unit}
+                  <Message
+                    text={"Max weight · {{value0}}"}
+                    values={{ value0: unit }}
+                  />
                 </p>
                 <svg
                   width={chartW}
@@ -207,25 +213,25 @@ export function ExerciseHistorySheet({
               const pcts = [
                 {
                   pct: 100,
-                  label: "1RM (est.)",
+                  label: tr("1RM (est.)"),
                   color:
                     "color-mix(in srgb, var(--foreground) 78%, transparent)",
                 },
                 {
                   pct: 90,
-                  label: "Training max",
+                  label: tr("Training max"),
                   color:
                     "color-mix(in srgb, var(--foreground) 55%, transparent)",
                 },
                 {
                   pct: 80,
-                  label: "Heavy work",
+                  label: tr("Heavy work"),
                   color:
                     "color-mix(in srgb, var(--foreground) 45%, transparent)",
                 },
                 {
                   pct: 70,
-                  label: "Moderate",
+                  label: tr("Moderate"),
                   color:
                     "color-mix(in srgb, var(--foreground) 35%, transparent)",
                 },
@@ -248,10 +254,17 @@ export function ExerciseHistorySheet({
                     }}
                   >
                     <p className="text-[13px] font-bold text-muted-foreground">
-                      Estimated 1RM
+                      {tr("Estimated 1RM")}
                     </p>
                     <p className="text-[13px] text-muted-foreground">
-                      from {fmtW(bestSet.weight)} {unit} × {bestSet.reps} reps
+                      <Message
+                        text={"from {{value0}}  {{value1}} × {{value2}} reps"}
+                        values={{
+                          value0: fmtW(bestSet.weight),
+                          value1: unit,
+                          value2: bestSet.reps,
+                        }}
+                      />
                     </p>
                   </div>
                   <div className="grid grid-cols-4 gap-0">
@@ -296,7 +309,7 @@ export function ExerciseHistorySheet({
               }}
             >
               <p className="px-4 pt-3 pb-2 text-[13px] font-bold text-muted-foreground">
-                Sessions
+                {tr("Sessions")}
               </p>
               <div className="max-h-[240px] overflow-y-auto">
                 {[...completedSessions].reverse().map((session, i) => (

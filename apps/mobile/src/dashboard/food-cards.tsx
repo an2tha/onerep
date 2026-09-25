@@ -1,3 +1,4 @@
+import { Message, tr } from "@repo/ui/i18n"
 import { useEffect, useRef, useState } from "react"
 import {
   CaretDown,
@@ -76,13 +77,15 @@ export function CalorieCard({
         {/* Header row */}
         <div className="mb-2 flex items-center justify-between">
           <div className="flex items-center gap-1.5">
-            <CardTitle className="text-sm font-semibold">Calories</CardTitle>
+            <CardTitle className="text-sm font-semibold">
+              {tr("Calories")}
+            </CardTitle>
             {info?.isTrainingDay && (
               <div
                 className="rounded-full px-1.5 py-0.5 text-[8px] font-bold tracking-wider uppercase"
                 style={{ backgroundColor: FOOD_BG, color: FOOD_COLOR }}
               >
-                Training Day
+                {tr("Training Day")}
               </div>
             )}
           </div>
@@ -120,11 +123,11 @@ export function CalorieCard({
                   )}
                 >
                   {consumed > target
-                    ? `+${fmtKcal(consumed - target)}`
+                    ? tr("+{{value0}}", { value0: fmtKcal(consumed - target) })
                     : fmtKcal(remaining)}
                 </span>
                 <p className="text-[9.5px] text-muted-foreground/35">
-                  {consumed > target ? "over" : "left"}
+                  {consumed > target ? tr("over") : tr("left")}
                   {info?.burnedCalories ? (
                     <span
                       className="ml-1"
@@ -132,7 +135,10 @@ export function CalorieCard({
                         color: `color-mix(in srgb, ${COMPLETE_COLOR} 62%, transparent)`,
                       }}
                     >
-                      (+{info.burnedCalories} activity)
+                      <Message
+                        text={"(+{{value0}} activity)"}
+                        values={{ value0: info.burnedCalories }}
+                      />
                     </span>
                   ) : null}
                 </p>
@@ -152,7 +158,10 @@ export function CalorieCard({
               />
             </div>
             <p className="mt-1 text-[9.5px] text-muted-foreground/30 tabular-nums">
-              of {fmtKcal(target)} {sourceLabel} goal
+              <Message
+                text={"of {{value0}}  {{value1}} goal"}
+                values={{ value0: fmtKcal(target), value1: sourceLabel }}
+              />
             </p>
 
             {/* Macro pills row */}
@@ -160,19 +169,19 @@ export function CalorieCard({
               {[
                 {
                   key: "protein" as const,
-                  label: "P",
+                  label: tr("P"),
                   val: protein,
                   t: info?.protein ?? 140,
                 },
                 {
                   key: "carbs" as const,
-                  label: "C",
+                  label: tr("C"),
                   val: carbs,
                   t: info?.carbs ?? 220,
                 },
                 {
                   key: "fat" as const,
-                  label: "F",
+                  label: tr("F"),
                   val: fat,
                   t: info?.fat ?? 65,
                 },
@@ -195,7 +204,7 @@ export function CalorieCard({
                       {Math.round(val)}
                     </span>
                     <span className="text-[9.5px] text-muted-foreground/35 tabular-nums">
-                      /{t}g
+                      <Message text={"/{{value0}}g"} values={{ value0: t }} />
                     </span>
                   </div>
                 )
@@ -215,7 +224,7 @@ export function CalorieCard({
                     breakdownOpen && "rotate-180"
                   )}
                 />
-                {hasCalculatedBaseline ? "BMR/TDEE" : "Est. BMR/TDEE"}
+                {hasCalculatedBaseline ? tr("BMR/TDEE") : tr("Est. BMR/TDEE")}
               </button>
             </div>
 
@@ -281,7 +290,7 @@ export function SwipeRow({
 
   return (
     <SlideToDeleteRow
-      deleteLabel={`Delete ${entry.name}`}
+      deleteLabel={tr("Delete {{value0}}", { value0: entry.name })}
       onDelete={onDelete}
       actionClassName="rounded-r-lg"
       rowClassName="flex items-center gap-2 bg-background py-[5px]"
@@ -297,7 +306,7 @@ export function SwipeRow({
             editRecipe()
           }}
           className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted/55 text-muted-foreground/55 transition-opacity active:opacity-70"
-          aria-label={`Edit recipe for ${entry.name}`}
+          aria-label={tr("Edit recipe for {{value0}}", { value0: entry.name })}
         >
           <PencilSimple size={11} weight="bold" />
         </button>
@@ -354,7 +363,7 @@ export function LoggedTodayCard({
       <div className="px-4 py-2.5">
         <div className="mb-2">
           <CardTitle className="text-sm font-semibold">
-            {dayOffset === 0 ? "Logged today" : "Food log"}
+            {dayOffset === 0 ? tr("Logged today") : tr("Food log")}
           </CardTitle>
         </div>
 
@@ -368,7 +377,7 @@ export function LoggedTodayCard({
               }}
             />
             <p className="text-[13px] text-muted-foreground/55">
-              Nothing here, yet
+              {tr("Nothing here, yet")}
             </p>
           </div>
         ) : (
@@ -400,13 +409,19 @@ export function LoggedTodayCard({
             })}
             <div className="flex items-center justify-between border-t border-border/30 pt-2.5">
               <span className="text-[9.5px] font-semibold tracking-[0.12em] text-muted-foreground/45 uppercase">
-                Total
+                {tr("Total")}
               </span>
               <div className="flex items-baseline gap-2">
                 {total.p > 0 && (
                   <span className="text-[9.5px] text-muted-foreground/35 tabular-nums">
-                    P{Math.round(total.p)} C{Math.round(total.c)} F
-                    {Math.round(total.f)}g
+                    <Message
+                      text={"P{{value0}} C{{value1}} F{{value2}}g"}
+                      values={{
+                        value0: Math.round(total.p),
+                        value1: Math.round(total.c),
+                        value2: Math.round(total.f),
+                      }}
+                    />
                   </span>
                 )}
                 <span className="text-[14px] font-semibold tabular-nums">
@@ -535,7 +550,7 @@ export function CalorieSmall({
           )}
         >
           <p className="text-[10px] font-semibold text-muted-foreground/50">
-            Calories
+            {tr("Calories")}
           </p>
           <Plus size={10} className="mt-0.5 text-muted-foreground/25" />
         </div>
@@ -565,8 +580,8 @@ export function CalorieSmall({
           </div>
           <p className="mt-1 text-[9px] text-muted-foreground/30 tabular-nums">
             {over
-              ? `+${fmtKcal(consumed - target)} over`
-              : `${fmtKcal(target - consumed)} left`}
+              ? tr("+{{value0}} over", { value0: fmtKcal(consumed - target) })
+              : tr("{{value0}} left", { value0: fmtKcal(target - consumed) })}
           </p>
         </div>
 
@@ -596,7 +611,7 @@ export function CalorieSmall({
                 className="text-[9px] font-semibold"
                 style={{ color: MACRO_COLORS.protein, opacity: 0.85 }}
               >
-                P
+                {tr("P")}
               </span>
               <span className="text-[12px] font-semibold tabular-nums">
                 {Math.round(protein)}
@@ -607,7 +622,7 @@ export function CalorieSmall({
                 className="text-[9px] font-semibold"
                 style={{ color: MACRO_COLORS.carbs, opacity: 0.85 }}
               >
-                C
+                {tr("C")}
               </span>
               <span className="text-[12px] font-semibold tabular-nums">
                 {Math.round(carbs)}
@@ -618,7 +633,7 @@ export function CalorieSmall({
                 className="text-[9px] font-semibold"
                 style={{ color: MACRO_COLORS.fat, opacity: 0.85 }}
               >
-                F
+                {tr("F")}
               </span>
               <span className="text-[12px] font-semibold tabular-nums">
                 {Math.round(fat)}
@@ -638,7 +653,10 @@ export function CalorieSmall({
             />
           </div>
           <p className="mt-1 text-[9px] text-muted-foreground/35 tabular-nums">
-            {pct}% of {fmtKcal(target)}
+            <Message
+              text={"{{value0}}% of {{value1}}"}
+              values={{ value0: pct, value1: fmtKcal(target) }}
+            />
           </p>
         </div>
       </button>
@@ -743,8 +761,8 @@ export function FoodSmall({
         tabIndex={0}
         aria-label={
           expanded
-            ? "Food logged today"
-            : "Food. Tap to view logged food, long-press to add"
+            ? tr("Food logged today")
+            : tr("Food. Tap to view logged food, long-press to add")
         }
         onPointerDown={handlePointerDown}
         onPointerUp={handlePointerUp}
@@ -776,7 +794,7 @@ export function FoodSmall({
           )}
         >
           <p className="text-[10px] font-semibold text-muted-foreground/50">
-            Food
+            {tr("Food")}
           </p>
           <Plus size={10} className="mt-0.5 text-muted-foreground/25" />
         </div>
@@ -796,8 +814,13 @@ export function FoodSmall({
           </div>
           <p className="mt-0.5 text-[9px] text-muted-foreground/35">
             {entries.length === 0
-              ? "Tap to log food"
-              : `${entries.length} item${entries.length !== 1 ? "s" : ""} · ${meals} meal${meals !== 1 ? "s" : ""}`}
+              ? tr("Tap to log food")
+              : tr("{{value0}} item{{value1}} · {{value2}} meal{{value3}}", {
+                  value0: entries.length,
+                  value1: entries.length !== 1 ? "s" : "",
+                  value2: meals,
+                  value3: meals !== 1 ? "s" : "",
+                })}
           </p>
         </div>
 
@@ -813,7 +836,7 @@ export function FoodSmall({
           {/* Header */}
           <div className="flex items-center justify-between px-3.5 pt-3">
             <p className="text-[10px] font-semibold text-muted-foreground/50">
-              Logged today
+              {tr("Logged today")}
             </p>
             <button
               onClick={(e) => {
@@ -822,7 +845,7 @@ export function FoodSmall({
                 haptic(8)
               }}
               className="flex h-10 w-10 items-center justify-center rounded-full bg-muted/40"
-              aria-label="Collapse"
+              aria-label={tr("Collapse")}
             >
               <X size={11} weight="bold" className="text-muted-foreground/50" />
             </button>
@@ -834,7 +857,7 @@ export function FoodSmall({
               <div className="flex flex-col items-center justify-center py-4 text-center">
                 <ForkKnife size={20} className="text-muted-foreground/20" />
                 <p className="mt-1.5 text-[11px] text-muted-foreground/40">
-                  Nothing logged yet
+                  {tr("Nothing logged yet")}
                 </p>
               </div>
             ) : (
@@ -875,7 +898,7 @@ export function FoodSmall({
                 {/* Macro totals */}
                 <div className="mt-1 flex items-center gap-3 border-t border-border/25 pt-2">
                   <span className="text-[8.5px] font-semibold text-muted-foreground/35">
-                    Total
+                    {tr("Total")}
                   </span>
                   <div className="flex items-baseline gap-2">
                     <span className="text-[12px] font-bold tabular-nums">
@@ -887,8 +910,14 @@ export function FoodSmall({
                   </div>
                   {macroTotals.p > 0 && (
                     <span className="text-[9px] text-muted-foreground/30 tabular-nums">
-                      P{Math.round(macroTotals.p)} C{Math.round(macroTotals.c)}{" "}
-                      F{Math.round(macroTotals.f)}g
+                      <Message
+                        text={"P{{value0}} C{{value1}} F{{value2}}g"}
+                        values={{
+                          value0: Math.round(macroTotals.p),
+                          value1: Math.round(macroTotals.c),
+                          value2: Math.round(macroTotals.f),
+                        }}
+                      />
                     </span>
                   )}
                 </div>

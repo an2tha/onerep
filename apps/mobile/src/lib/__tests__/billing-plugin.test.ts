@@ -1,5 +1,5 @@
+import { readLocalizedSource as readFileSync } from "../../../tests/helpers/localized-source"
 import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test"
-import { readFileSync } from "node:fs"
 
 /**
  * The plugin wrapper's job is to be inert off-platform and honest on it.

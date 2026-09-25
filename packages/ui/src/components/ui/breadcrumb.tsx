@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 import * as React from "react"
 import { Slot } from "radix-ui"
 
@@ -7,7 +8,7 @@ import { CaretRightIcon, DotsThreeIcon } from "@phosphor-icons/react"
 function Breadcrumb({ className, ...props }: React.ComponentProps<"nav">) {
   return (
     <nav
-      aria-label="breadcrumb"
+      aria-label={tr("breadcrumb")}
       data-slot="breadcrumb"
       className={cn(className)}
       {...props}
@@ -103,7 +104,7 @@ function BreadcrumbEllipsis({
       {...props}
     >
       <DotsThreeIcon />
-      <span className="sr-only">More</span>
+      <span className="sr-only">{tr("More")}</span>
     </span>
   )
 }

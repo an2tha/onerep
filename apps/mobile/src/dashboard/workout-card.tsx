@@ -1,3 +1,4 @@
+import { Message, tr, uiLocale } from "@repo/ui/i18n"
 import { useRecovery } from "@/lib/use-recovery"
 import { useEffect, useRef, useState } from "react"
 import { Barbell, CaretDown, Trash } from "@phosphor-icons/react"
@@ -47,10 +48,13 @@ export function HomeWorkoutSummary({
           className="rounded-full px-2 py-0.5 text-[9.5px] font-bold tracking-widest uppercase"
           style={{ backgroundColor: COMPLETE_BG, color: COMPLETE_COLOR }}
         >
-          Done
+          {tr("Done")}
         </span>
         <span className="text-[11px] text-muted-foreground/60">
-          Workout {slot} · {durationMin} min
+          <Message
+            text={"Workout {{value0}} · {{value1}} min"}
+            values={{ value0: slot, value1: durationMin }}
+          />
         </span>
       </div>
       <div className="flex flex-col gap-1">
@@ -86,7 +90,10 @@ export function HomeWorkoutSummary({
               >
                 {isCardio
                   ? compactCardioSummary(ex.cardio, ex.cardio?.distanceUnit)
-                  : `${(ex.sets ?? []).filter((s) => s.completed).length}/${ex.sets?.length ?? 0}`}
+                  : tr("{{value0}}/{{value1}}", {
+                      value0: (ex.sets ?? []).filter((s) => s.completed).length,
+                      value1: ex.sets?.length ?? 0,
+                    })}
               </span>
             </div>
           )
@@ -94,11 +101,20 @@ export function HomeWorkoutSummary({
       </div>
       <div className="flex justify-between text-[9.5px] text-muted-foreground/40">
         <span>
-          {completedExercises.length} exercises · {totalSets} sets
-          {cardioCount > 0 ? ` · ${cardioCount} cardio` : ""}
+          <Message
+            text={"{{value0}} exercises · {{value1}} sets{{value2}}"}
+            values={{
+              value0: completedExercises.length,
+              value1: totalSets,
+              value2:
+                cardioCount > 0
+                  ? tr(" · {{value0}} cardio", { value0: cardioCount })
+                  : "",
+            }}
+          />
         </span>
         <span>
-          {new Date(log.completedAt).toLocaleTimeString("en-US", {
+          {new Date(log.completedAt).toLocaleTimeString(uiLocale(), {
             hour: "numeric",
             minute: "2-digit",
           })}
@@ -142,8 +158,10 @@ export function WorkoutCard({
   const isRestDay = scheduledWorkout === null
 
   const title = isToday
-    ? "Today's workout"
-    : `${dayOffsetLabel(dayOffset, timeZone)}'s workout`
+    ? tr("Today's workout")
+    : tr("{{value0}}'s workout", {
+        value0: dayOffsetLabel(dayOffset, timeZone),
+      })
 
   // Slide state for dual-workout carousel
   const [slide, setSlide] = useState(0)
@@ -162,7 +180,11 @@ export function WorkoutCard({
       >
         <div className="flex min-h-12 items-center justify-between gap-3 px-4 py-2.5">
           <CardTitle className="text-sm font-semibold">{title}</CardTitle>
-          <p className="text-[13px] text-muted-foreground">{recovery?.active?.deferTraining ? "Deferred for recovery" : "Rest day"}</p>
+          <p className="text-[13px] text-muted-foreground">
+            {recovery?.active?.deferTraining
+              ? tr("Deferred for recovery")
+              : tr("Rest day")}
+          </p>
         </div>
       </Card>
     )
@@ -183,7 +205,7 @@ export function WorkoutCard({
                 className="rounded-full px-2 py-0.5 text-[10px] font-bold tracking-widest uppercase"
                 style={{ backgroundColor: COMPLETE_BG, color: COMPLETE_COLOR }}
               >
-                Done
+                {tr("Done")}
               </span>
             )}
             {done && workoutLogs.length === 2 && (
@@ -191,7 +213,7 @@ export function WorkoutCard({
                 className="rounded-full px-2 py-0.5 text-[10px] font-bold tracking-widest uppercase"
                 style={{ backgroundColor: COMPLETE_BG, color: COMPLETE_COLOR }}
               >
-                2× Done
+                {tr("2× Done")}
               </span>
             )}
           </div>
@@ -200,7 +222,7 @@ export function WorkoutCard({
               <button
                 onClick={() => onDeleteSlot(workoutLogs.length === 2 ? 2 : 1)}
                 className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground/40 transition-colors active:bg-destructive/10 active:text-destructive"
-                aria-label="Delete workout"
+                aria-label={tr("Delete workout")}
               >
                 <Trash size={15} />
               </button>
@@ -209,7 +231,7 @@ export function WorkoutCard({
               <button
                 onClick={onToggleCollapse}
                 className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground/45 transition-colors active:bg-muted/40 active:text-foreground"
-                aria-label={collapsed ? "Expand" : "Collapse"}
+                aria-label={collapsed ? tr("Expand") : tr("Collapse")}
               >
                 <CaretDown
                   size={15}
@@ -269,7 +291,7 @@ export function WorkoutCard({
                       key={i}
                       onClick={() => setSlide(i)}
                       className="flex h-10 w-10 items-center justify-center rounded-full transition-colors active:bg-muted/45"
-                      aria-label={`Workout ${i + 1}`}
+                      aria-label={tr("Workout {{value0}}", { value0: i + 1 })}
                     >
                       <span
                         className={cn(
@@ -301,10 +323,12 @@ export function WorkoutCard({
                       )}
                     />
                     <p className="text-[16px] font-semibold tracking-tight">
-                      Rest day
+                      {tr("Rest day")}
                     </p>
                     <p className="max-w-[18rem] text-[12.5px] text-muted-foreground/55">
-                      No workout is scheduled for this day in your routine.
+                      {tr(
+                        "No workout is scheduled for this day in your routine."
+                      )}
                     </p>
                   </div>
                 ) : (
@@ -340,7 +364,7 @@ export function WorkoutCard({
                                 : "/workout/active"
                             )
                           }
-                          label="Start workout"
+                          label={tr("Start workout")}
                           variant="default"
                         />
                       </div>

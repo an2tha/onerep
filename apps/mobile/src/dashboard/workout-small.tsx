@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 import React, { useEffect, useRef, useState } from "react"
 import { Play } from "@phosphor-icons/react"
 import { Card } from "@repo/ui"
@@ -69,7 +70,7 @@ export function HoldToStartRing({ onComplete }: { onComplete: () => void }) {
       onPointerLeave={cancelHold}
       onPointerCancel={cancelHold}
       className="relative flex h-12 w-12 touch-none items-center justify-center rounded-full transition-transform select-none active:scale-[0.985]"
-      aria-label="Hold to start workout"
+      aria-label={tr("Hold to start workout")}
     >
       {/* ring */}
       <svg
@@ -134,12 +135,12 @@ export function WorkoutSmall({
     <Card className="dashboard-tile h-full">
       <div className="flex h-full flex-col justify-between px-3.5 py-3">
         <p className="text-[10px] font-semibold text-muted-foreground/50">
-          Workout
+          {tr("Workout")}
         </p>
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0">
             <p className="truncate text-[13px] leading-snug font-semibold tracking-tight">
-              {isRestDay ? "Rest day" : workoutName}
+              {isRestDay ? tr("Rest day") : workoutName}
             </p>
             <div className="mt-1 flex items-center gap-1">
               <div
@@ -156,7 +157,11 @@ export function WorkoutSmall({
                 }
               />
               <span className="text-[9px] text-muted-foreground/40">
-                {done ? "Done" : isRestDay ? "Rest" : "Hold to start"}
+                {done
+                  ? tr("Done")
+                  : isRestDay
+                    ? tr("Rest")
+                    : tr("Hold to start")}
               </span>
             </div>
           </div>
@@ -175,7 +180,7 @@ export function WorkoutSmall({
           }
           className="motion-tactile mt-1 h-9 w-full rounded-xl text-[12px] font-semibold text-muted-foreground/70 transition-colors active:bg-muted/25 active:text-foreground"
         >
-          Log a past workout
+          {tr("Log a past workout")}
         </button>
       </div>
     </Card>

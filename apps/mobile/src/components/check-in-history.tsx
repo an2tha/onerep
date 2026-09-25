@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 import { useState } from "react"
 import { PencilSimple, Trash } from "@phosphor-icons/react"
 import { formatProgressDate, formatProgressWeight } from "@repo/ui"
@@ -44,11 +45,11 @@ export function CheckInHistory({
     <section
       className="progress-tab-enter"
       style={{ animationDelay: "160ms" }}
-      aria-label="Recent check-ins"
+      aria-label={tr("Recent check-ins")}
     >
-      <h2 className="native-section-title mb-1">Recent check-ins</h2>
+      <h2 className="native-section-title mb-1">{tr("Recent check-ins")}</h2>
       <p className="mb-1 text-[13px] text-muted-foreground">
-        Tap one to correct it
+        {tr("Tap one to correct it")}
       </p>
       <div className="border-y border-border">
         {shown.map((measurement) => {
@@ -69,9 +70,11 @@ export function CheckInHistory({
                   </span>
                   <span className="block truncate text-[13px] text-muted-foreground">
                     {measurement.bodyFatPct != null
-                      ? `${measurement.bodyFatPct.toFixed(1)}% body fat`
-                      : "Weight check-in"}
-                    {measurement.source === "health" && " · Synced"}
+                      ? tr("{{value0}}% body fat", {
+                          value0: measurement.bodyFatPct.toFixed(1),
+                        })
+                      : tr("Weight check-in")}
+                    {measurement.source === "health" && tr(" · Synced")}
                   </span>
                 </span>
                 <span className="flex shrink-0 items-center gap-2">
@@ -88,7 +91,9 @@ export function CheckInHistory({
               <button
                 type="button"
                 onClick={() => onDelete(measurement.clientId, date)}
-                aria-label={`Delete check-in for ${formatProgressDate(date)}`}
+                aria-label={tr("Delete check-in for {{value0}}", {
+                  value0: formatProgressDate(date),
+                })}
                 className="motion-tactile -mr-1 flex size-11 shrink-0 items-center justify-center text-muted-foreground active:text-destructive"
               >
                 <Trash size={16} />
@@ -109,7 +114,9 @@ export function CheckInHistory({
           }}
           className="motion-tactile min-h-11 px-1 text-[13px] font-semibold text-muted-foreground"
         >
-          {expanded ? "Show fewer" : `Show all ${newestFirst.length}`}
+          {expanded
+            ? tr("Show fewer")
+            : tr("Show all {{value0}}", { value0: newestFirst.length })}
         </button>
       )}
     </section>

@@ -1,4 +1,7 @@
+import { tr } from "@repo/ui/i18n"
 import { X } from "@phosphor-icons/react"
+import { canOfferProUpgrade } from "@/lib/billing-policy"
+import { AiAllowanceNotice } from "@repo/ui/mobile"
 import type {
   AiAccessRequiredModalProps,
   BillingSubscriptionPanelProps,
@@ -28,9 +31,12 @@ export function AiAccessRequiredModal({
   proLimit,
   usedCount,
   error,
+  isNative,
   onClose,
 }: AiAccessRequiredModalProps) {
   if (!open) return null
+  if (!canOfferProUpgrade(Boolean(isNative)))
+    return <AiAllowanceNotice error={error} onClose={onClose} />
 
   const free = freeLimit ?? 10
   const pro = proLimit ?? 500
@@ -41,7 +47,7 @@ export function AiAccessRequiredModal({
       <button
         type="button"
         className="ai-hint-scrim"
-        aria-label="Close"
+        aria-label={tr("Close")}
         onClick={onClose}
       />
 
@@ -54,7 +60,7 @@ export function AiAccessRequiredModal({
         <button
           type="button"
           onClick={onClose}
-          aria-label="Close"
+          aria-label={tr("Close")}
           className="ai-hint-close"
         >
           <X size={15} weight="bold" />
@@ -62,26 +68,35 @@ export function AiAccessRequiredModal({
 
         <h2 id="ai-access-required-title" className="ai-hint-title">
           {spentAllowance
-            ? "That’s your free AI for this month"
-            : "AI features are not available right now"}
+            ? tr("That’s your free AI for this month")
+            : tr("AI features are not available right now")}
         </h2>
 
         <p className="ai-hint-body">
           {spentAllowance
-            ? `You’ve used all ${free} free AI requests. They come back on the 1st — Pro raises the limit to ${pro} a month.`
+            ? tr(
+                "You’ve used all {{value0}} free AI requests. They come back on the 1st — Pro raises the limit to {{value1}} a month.",
+                { value0: free, value1: pro }
+              )
             : error
-              ? `AI couldn’t be reached on this server: ${error}`
-              : "This build has no way to sell subscriptions, which is either a bug or a feature depending on who deployed it."}
+              ? tr("AI couldn’t be reached on this server: {{value0}}", {
+                  value0: error,
+                })
+              : tr(
+                  "This build has no way to sell subscriptions, which is either a bug or a feature depending on who deployed it."
+                )}
         </p>
         {error ? (
           <p className="ai-hint-note">
-            If your account already has Pro, this is usually a server-side
-            entitlement or AI-configuration issue, not a limit you have hit.
+            {tr(
+              "If your account already has Pro, this is usually a server-side entitlement or AI-configuration issue, not a limit you have hit."
+            )}
           </p>
         ) : (
           <p className="ai-hint-note">
-            If you run this server, set BILLING_COMP_ALL_USERS=true and every
-            account gets Pro. That is the whole checkout flow.
+            {tr(
+              "If you run this server, set BILLING_COMP_ALL_USERS=true and every account gets Pro. That is the whole checkout flow."
+            )}
           </p>
         )}
       </div>
@@ -100,17 +115,26 @@ export function BillingSubscriptionPanel({
       data-subscription-state={active ? "active" : "free"}
     >
       <div className="profile-pro-content">
+        {billing.isNative && (
+          <p className="profile-pro-description">
+            {tr("Subscription management isn’t available in this app.")}
+          </p>
+        )}
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <p className="profile-pro-title">OneRep Pro</p>
+            <p className="profile-pro-title">{tr("OneRep Pro")}</p>
             <p className="profile-pro-description">
               {active
-                ? "AI meal analysis, workout generation, and progress insights are unlocked."
-                : "This build doesn’t sell subscriptions. Pro is granted by whoever runs the server — ask them, not us."}
+                ? tr(
+                    "AI meal analysis, workout generation, and progress insights are unlocked."
+                  )
+                : tr(
+                    "This build doesn’t sell subscriptions. Pro is granted by whoever runs the server — ask them, not us."
+                  )}
             </p>
           </div>
           <span className="profile-pro-status">
-            {active ? "Active" : "Free"}
+            {active ? tr("Active") : tr("Free")}
           </span>
         </div>
       </div>

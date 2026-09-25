@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 import { useMemo, useState } from "react"
 import { useQuery } from "convex/react"
 import { api } from "../../../../../convex/_generated/api"
@@ -49,49 +50,49 @@ const CHARTS: Array<{
 }> = [
   {
     metric: "recovery",
-    title: "Recovery score",
+    title: tr("Recovery score"),
     kind: "bars",
     format: formatCount,
     tone: AREA_TONES.recovery,
   },
   {
     metric: "sleep",
-    title: "Sleep",
+    title: tr("Sleep"),
     kind: "bars",
     format: formatHours,
     tone: AREA_TONES.sleep,
   },
   {
     metric: "hrv",
-    title: "Heart rate variability",
+    title: tr("Heart rate variability"),
     kind: "line",
     format: (value) => `${formatCount(value)}ms`,
     tone: AREA_TONES.heart,
   },
   {
     metric: "restingHeartRate",
-    title: "Resting heart rate",
+    title: tr("Resting heart rate"),
     kind: "line",
     format: (value) => `${formatCount(value)}bpm`,
     tone: AREA_TONES.heart,
   },
   {
     metric: "exercise",
-    title: "Exercise minutes",
+    title: tr("Exercise minutes"),
     kind: "bars",
     format: formatHours,
     tone: AREA_TONES.activity,
   },
   {
     metric: "steps",
-    title: "Steps",
+    title: tr("Steps"),
     kind: "bars",
     format: formatCount,
     tone: AREA_TONES.activity,
   },
   {
     metric: "energy",
-    title: "Active calories",
+    title: tr("Active calories"),
     kind: "bars",
     // Unitless here on purpose: the unit label is a per-user preference, so
     // the render site appends it where the hook can be called.
@@ -100,7 +101,7 @@ const CHARTS: Array<{
   },
   {
     metric: "weight",
-    title: "Weight",
+    title: tr("Weight"),
     kind: "line",
     // Unitless here on purpose, same as energy: kg vs lb is a per-user
     // preference, so the render site converts and appends where the hook
@@ -110,7 +111,7 @@ const CHARTS: Array<{
   },
   {
     metric: "bodyFat",
-    title: "Body fat",
+    title: tr("Body fat"),
     kind: "line",
     format: (value) => `${value.toFixed(1)}%`,
     tone: AREA_TONES.activity,
@@ -118,9 +119,9 @@ const CHARTS: Array<{
 ]
 
 const RANGE_CAPTION: Record<RangeKey, string> = {
-  W: "the last seven days, one bar a day",
-  M: "the last thirty days, one bar a day",
-  Y: "the last year, averaged by week",
+  W: tr("the last seven days, one bar a day"),
+  M: tr("the last thirty days, one bar a day"),
+  Y: tr("the last year, averaged by week"),
 }
 
 /**
@@ -173,7 +174,10 @@ export default function HealthTrends() {
   }, [custom, today, range])
 
   return (
-    <HealthDetailShell title="Trends" subtitle="Against your own history">
+    <HealthDetailShell
+      title={tr("Trends")}
+      subtitle={tr("Against your own history")}
+    >
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-1 py-4">
         <p className="text-[13px] text-muted-foreground">
           {RANGE_CAPTION[range]}
@@ -245,19 +249,20 @@ function DatalessMetrics({ metrics }: { metrics: CustomMetricDefinition[] }) {
     .filter((key) => groups.has(key))
     .map((key) => ({
       key,
-      label: HEALTH_DIAL_BY_KEY.get(key)?.label ?? "Unfiled",
+      label: HEALTH_DIAL_BY_KEY.get(key)?.label ?? tr("Unfiled"),
       metrics: groups.get(key) as CustomMetricDefinition[],
     }))
 
   return (
     <section
       className="progress-tab-enter mt-1 border-t border-border py-5"
-      aria-label="Metrics with no readings"
+      aria-label={tr("Metrics with no readings")}
     >
-      <p className="app-section-title px-1">Nothing recorded</p>
+      <p className="app-section-title px-1">{tr("Nothing recorded")}</p>
       <p className="mt-1.5 max-w-[62ch] px-1 text-[13px] leading-[1.55] text-muted-foreground">
-        Tracked, but with no readings in this window. They stay off their dials
-        until there is something to draw.
+        {tr(
+          "Tracked, but with no readings in this window. They stay off their dials until there is something to draw."
+        )}
       </p>
       <div className="mt-5 grid gap-6 px-1 sm:grid-cols-2 sm:gap-x-12">
         {sections.map((section) => (
@@ -300,11 +305,14 @@ function DatalessMetrics({ metrics }: { metrics: CustomMetricDefinition[] }) {
 function fillHint(metric: CustomMetricDefinition) {
   if (metric.healthMetricKey) {
     const platform = platformMetric(metric.healthMetricKey)
-    const label = platform?.label ?? "the reading it is bound to"
-    return `Fills from ${healthProviderLabel()} once ${label.toLowerCase()} is shared.`
+    const label = platform?.label ?? tr("the reading it is bound to")
+    return tr("Fills from {{value0}} once {{value1}} is shared.", {
+      value0: healthProviderLabel(),
+      value1: label.toLowerCase(),
+    })
   }
-  if (metric.kind === "toggle") return "Fills when you mark a day done."
+  if (metric.kind === "toggle") return tr("Fills when you mark a day done.")
   return metric.unit
-    ? `Fills when you log a figure in ${metric.unit}.`
-    : "Fills when you log a figure."
+    ? tr("Fills when you log a figure in {{value0}}.", { value0: metric.unit })
+    : tr("Fills when you log a figure.")
 }

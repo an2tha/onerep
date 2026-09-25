@@ -1,5 +1,6 @@
 "use client"
 
+import { tr } from "@repo/ui/i18n"
 import * as React from "react"
 import { createPortal } from "react-dom"
 
@@ -88,7 +89,7 @@ export function spotlightOverlayPieces(rect: SpotlightRect) {
 export function SpotlightOverlay({
   rect,
   onDismiss,
-  dismissLabel = "Dismiss",
+  dismissLabel = tr("Dismiss"),
   className,
 }: {
   rect: SpotlightRect | null

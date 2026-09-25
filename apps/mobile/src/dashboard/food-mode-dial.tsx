@@ -1,18 +1,38 @@
+import { tr } from "@repo/ui/i18n"
 import { useId, useRef, useState } from "react"
 import { hapticTap } from "@/lib/haptics"
 
 const modes = ["snap", "repeat", "search"] as const
 type Mode = (typeof modes)[number]
-const labels = ["Snap", "Repeat", "Search"]
+const labels = [tr("Snap"), tr("Repeat"), tr("Search")]
 
-export function FoodModeDial({ value, onChange }: {
+export function FoodModeDial({
+  value,
+  onChange,
+}: {
   value: Mode
   onChange: (mode: Mode) => void
 }) {
-  return <AnalogModeDial value={value} onChange={onChange} modes={modes} labels={labels} ariaLabel="Food logging method" hint />
+  return (
+    <AnalogModeDial
+      value={value}
+      onChange={onChange}
+      modes={modes}
+      labels={labels}
+      ariaLabel={tr("Food logging method")}
+      hint
+    />
+  )
 }
 
-export function AnalogModeDial<T extends string>({ value, onChange, modes, labels, ariaLabel, hint = false }: {
+export function AnalogModeDial<T extends string>({
+  value,
+  onChange,
+  modes,
+  labels,
+  ariaLabel,
+  hint = false,
+}: {
   value: T
   onChange: (mode: T) => void
   modes: readonly T[]
@@ -23,7 +43,12 @@ export function AnalogModeDial<T extends string>({ value, onChange, modes, label
   const gradientId = useId()
   const index = modes.indexOf(value)
   const [dragAngle, setDragAngle] = useState<number | null>(null)
-  const drag = useRef<{ x: number; angle: number; index: number; moved: boolean } | null>(null)
+  const drag = useRef<{
+    x: number
+    angle: number
+    index: number
+    moved: boolean
+  } | null>(null)
   const angle = dragAngle ?? -index * 32
 
   function select(next: number) {
@@ -48,9 +73,16 @@ export function AnalogModeDial<T extends string>({ value, onChange, modes, label
         aria-valuenow={index}
         aria-valuetext={labels[index]}
         onKeyDown={(event) => {
-          const next = event.key === "ArrowRight" || event.key === "ArrowUp" ? index + 1
-            : event.key === "ArrowLeft" || event.key === "ArrowDown" ? index - 1
-            : event.key === "Home" ? 0 : event.key === "End" ? modes.length - 1 : null
+          const next =
+            event.key === "ArrowRight" || event.key === "ArrowUp"
+              ? index + 1
+              : event.key === "ArrowLeft" || event.key === "ArrowDown"
+                ? index - 1
+                : event.key === "Home"
+                  ? 0
+                  : event.key === "End"
+                    ? modes.length - 1
+                    : null
           if (next === null) return
           event.preventDefault()
           select(next)
@@ -58,13 +90,25 @@ export function AnalogModeDial<T extends string>({ value, onChange, modes, label
         onPointerDown={(event) => {
           if (event.button !== 0) return
           event.currentTarget.setPointerCapture(event.pointerId)
-          drag.current = { x: event.clientX, angle: -index * 32, index, moved: false }
+          drag.current = {
+            x: event.clientX,
+            angle: -index * 32,
+            index,
+            moved: false,
+          }
           setDragAngle(-index * 32)
         }}
         onPointerMove={(event) => {
           if (!drag.current) return
-          if (Math.abs(event.clientX - drag.current.x) > 4) drag.current.moved = true
-          const next = Math.max(-(modes.length - 1) * 32 - 5, Math.min(5, drag.current.angle + (event.clientX - drag.current.x) * 0.35))
+          if (Math.abs(event.clientX - drag.current.x) > 4)
+            drag.current.moved = true
+          const next = Math.max(
+            -(modes.length - 1) * 32 - 5,
+            Math.min(
+              5,
+              drag.current.angle + (event.clientX - drag.current.x) * 0.35
+            )
+          )
           setDragAngle(next)
           select(Math.round(-next / 32))
         }}
@@ -73,15 +117,23 @@ export function AnalogModeDial<T extends string>({ value, onChange, modes, label
             const bounds = event.currentTarget.getBoundingClientRect()
             const scale = Math.min(bounds.width / 360, bounds.height / 130)
             const x = (event.clientX - bounds.left - bounds.width / 2) / scale
-            const y = (event.clientY - bounds.top - (bounds.height - 130 * scale) / 2) / scale
-            const degrees = Math.atan2(x, 265 - y) * 180 / Math.PI
+            const y =
+              (event.clientY - bounds.top - (bounds.height - 130 * scale) / 2) /
+              scale
+            const degrees = (Math.atan2(x, 265 - y) * 180) / Math.PI
             select(Math.round((degrees - angle) / 32))
           }
           drag.current = null
           setDragAngle(null)
         }}
-        onPointerCancel={() => { drag.current = null; setDragAngle(null) }}
-        onLostPointerCapture={() => { drag.current = null; setDragAngle(null) }}
+        onPointerCancel={() => {
+          drag.current = null
+          setDragAngle(null)
+        }}
+        onLostPointerCapture={() => {
+          drag.current = null
+          setDragAngle(null)
+        }}
       >
         <svg viewBox="0 0 360 130" aria-hidden="true">
           <defs>
@@ -90,20 +142,61 @@ export function AnalogModeDial<T extends string>({ value, onChange, modes, label
               <stop offset="1" stopColor="currentColor" stopOpacity=".02" />
             </linearGradient>
           </defs>
-          <g style={{ transform: `rotate(${angle}deg)`, transformOrigin: "180px 265px", transition: dragAngle === null ? "transform 420ms cubic-bezier(.2,.9,.2,1.12)" : "none" }}>
-            <circle cx="180" cy="265" r="240" fill={`url(#${gradientId})`} stroke="currentColor" strokeOpacity=".2" />
+          <g
+            style={{
+              transform: `rotate(${angle}deg)`,
+              transformOrigin: "180px 265px",
+              transition:
+                dragAngle === null
+                  ? "transform 420ms cubic-bezier(.2,.9,.2,1.12)"
+                  : "none",
+            }}
+          >
+            <circle
+              cx="180"
+              cy="265"
+              r="240"
+              fill={`url(#${gradientId})`}
+              stroke="currentColor"
+              strokeOpacity=".2"
+            />
             {Array.from({ length: (modes.length + 1) * 16 + 1 }, (_, tick) => {
               const degrees = (tick - 16) * 2
               const major = tick % 16 === 0
-              return <path key={tick} d={`M180 30v${major ? 16 : tick % 4 === 0 ? 10 : 5}`} transform={`rotate(${degrees} 180 265)`} stroke="currentColor" strokeOpacity={major ? .85 : .28} strokeWidth={major ? 2 : 1} />
+              return (
+                <path
+                  key={tick}
+                  d={`M180 30v${major ? 16 : tick % 4 === 0 ? 10 : 5}`}
+                  transform={`rotate(${degrees} 180 265)`}
+                  stroke="currentColor"
+                  strokeOpacity={major ? 0.85 : 0.28}
+                  strokeWidth={major ? 2 : 1}
+                />
+              )
             })}
             {labels.map((label, i) => (
-              <text key={label} x="180" y="76" textAnchor="middle" transform={`rotate(${i * 32} 180 265)`} fill="currentColor" opacity={index === i ? 1 : .55} fontSize="17" fontWeight={index === i ? 650 : 450}>{label}</text>
+              <text
+                key={label}
+                x="180"
+                y="76"
+                textAnchor="middle"
+                transform={`rotate(${i * 32} 180 265)`}
+                fill="currentColor"
+                opacity={index === i ? 1 : 0.55}
+                fontSize="17"
+                fontWeight={index === i ? 650 : 450}
+              >
+                {label}
+              </text>
             ))}
           </g>
         </svg>
       </div>
-      {hint && <p className="food-mode-dial__hint">Slide to turn · tap to select</p>}
+      {hint && (
+        <p className="food-mode-dial__hint">
+          {tr("Slide to turn · tap to select")}
+        </p>
+      )}
     </div>
   )
 }

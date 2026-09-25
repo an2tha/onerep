@@ -21,4 +21,16 @@
     <string name="widget_snap_camera_label">Snap Camera</string>
     <string name="widget_snap_camera_caption">Log a meal</string>
     <string name="widget_snap_camera_description">Open the camera to snap and log a meal.</string>
+    <string name="widget_open_to_sync">Open OneRep to sync</string>
+    <string name="widget_updates_from_account">Widget data updates from your account.</string>
+    <string name="widget_start_workout">Start workout</string>
+    <string name="widget_log_meal">Log a meal</string>
+    <string name="widget_water_summary">Water %1$s</string>
+    <string name="widget_kcal_left">kcal left</string>
+    <string name="widget_calories_left">%1$d kcal left</string>
+    <string name="widget_calories_eaten">%1$d of %2$d eaten</string>
+    <string name="widget_protein">Protein</string>
+    <string name="widget_carbs">Carbs</string>
+    <string name="widget_fat">Fat</string>
+    <string name="navigation_open">Open navigation</string>
 </resources>

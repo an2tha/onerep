@@ -1,3 +1,4 @@
+import { Message, choice, tr, translateError, uiLocale } from "@repo/ui/i18n"
 import { AiSharingSettings } from "@/components/ai-sharing-consent"
 import React, { useCallback, useState, useEffect, useMemo, useRef } from "react"
 import { useNavigate, useSearchParams } from "react-router"
@@ -102,9 +103,7 @@ function timeValueToMinutes(value: string): number | null {
   return Number(match[1]) * 60 + Number(match[2])
 }
 
-import {
-  safeLocalStorageRemove,
-} from "@/lib/utils"
+import { safeLocalStorageRemove } from "@/lib/utils"
 import { useSmoothNavigate } from "@/lib/navigation"
 import {
   hapticTap,
@@ -678,14 +677,14 @@ export default function Settings({
     lastError: offlineQueueError,
   })
   const offlineSyncActionLabel = syncingOfflineQueue
-    ? "Syncing"
+    ? tr("Syncing")
     : !offlineOnline
-      ? "Offline"
+      ? tr("Offline")
       : offlineQueueError
-        ? "Retry"
+        ? tr("Retry")
         : offlineQueueTotal > 0
-          ? "Sync"
-          : "Synced"
+          ? tr("Sync")
+          : tr("Synced")
 
   useEffect(
     () =>
@@ -779,10 +778,7 @@ export default function Settings({
     if (preferences?.energyUnit) {
       setEnergyUnitState(preferences.energyUnit as EnergyUnitStored)
     }
-    if (
-      preferences?.waterUnit === "ml" ||
-      preferences?.waterUnit === "fl oz"
-    ) {
+    if (preferences?.waterUnit === "ml" || preferences?.waterUnit === "fl oz") {
       setWaterUnitState(preferences.waterUnit)
     }
     if (preferences?.foodSearchLanguage) {
@@ -844,7 +840,9 @@ export default function Settings({
     // just picked, not the one they are leaving.
     if (strength !== "off") hapticMedium()
     toast.success(
-      strength === "off" ? "Haptics off" : `Haptics set to ${strength}`
+      strength === "off"
+        ? tr("Haptics off")
+        : tr("Haptics set to {{value0}}", { value0: strength })
     )
   }
 
@@ -856,7 +854,11 @@ export default function Settings({
       await action()
       toast.success(success)
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Save failed")
+      toast.error(
+        translateError(
+          error instanceof Error ? error.message : tr("Save failed")
+        )
+      )
     } finally {
       setSaving(false)
     }
@@ -879,7 +881,7 @@ export default function Settings({
     try {
       await setWeightUnit({ unit })
     } catch {
-      toast.error("Could not save your weight unit")
+      toast.error(translateError(tr("Could not save your weight unit")))
     }
   }
 
@@ -902,7 +904,7 @@ export default function Settings({
       await setWeightUnit({ unit: weight })
       await setEnergyUnit({ unit: energy })
     } catch {
-      toast.error("Could not save your measurement system")
+      toast.error(translateError(tr("Could not save your measurement system")))
     }
   }
 
@@ -916,7 +918,7 @@ export default function Settings({
     try {
       await setEnergyUnit({ unit })
     } catch {
-      toast.error("Could not save your energy unit")
+      toast.error(translateError(tr("Could not save your energy unit")))
     }
   }
 
@@ -930,7 +932,7 @@ export default function Settings({
       await setWaterUnit({ unit })
     } catch {
       clearOptimisticWaterUnit(preferences?._id ?? null)
-      toast.error("Could not save your water unit")
+      toast.error(translateError(tr("Could not save your water unit")))
     }
   }
 
@@ -953,7 +955,11 @@ export default function Settings({
       includeWrite: true,
     }).catch(() => null)
     if (authorization && !authorization.granted) {
-      setHealthError(`${healthLabel} did not grant permission to write back.`)
+      setHealthError(
+        tr("{{value0}} did not grant permission to write back.", {
+          value0: healthLabel,
+        })
+      )
       return
     }
     await setHealthSync({ writeEnabled: true })
@@ -1022,7 +1028,7 @@ export default function Settings({
         shares: mealShares.map(({ meal, percent }) => ({ meal, percent })),
       })
       if (mealTargetsEnabled && Math.abs(mealSharesTotal - 100) > 0.5) {
-        toast.info("Meal split adjusted to total 100%")
+        toast.info(tr("Meal split adjusted to total 100%"))
       }
     }, "Nutrition logic saved")
   }
@@ -1066,10 +1072,13 @@ export default function Settings({
     }
     const stranded = getOfflineQueueSummary().total
     if (stranded > 0) {
-      const plural = stranded === 1 ? "change" : "changes"
+      const plural = stranded === 1 ? tr("change") : tr("changes")
       if (
         !window.confirm(
-          `${stranded} ${plural} haven't synced yet and will be lost if you log out now. Log out anyway?`
+          tr(
+            "{{value0}} {{value1}} haven't synced yet and will be lost if you log out now. Log out anyway?",
+            { value0: stranded, value1: plural }
+          )
         )
       ) {
         return
@@ -1085,7 +1094,11 @@ export default function Settings({
       trackUmami("user_signed_out")
       navigate("/login", { replace: true })
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Log out failed")
+      toast.error(
+        translateError(
+          error instanceof Error ? error.message : tr("Log out failed")
+        )
+      )
     } finally {
       setLoggingOut(false)
     }
@@ -1100,7 +1113,11 @@ export default function Settings({
       navigate("/onboarding", { replace: true })
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Could not reset onboarding"
+        translateError(
+          error instanceof Error
+            ? error.message
+            : tr("Could not reset onboarding")
+        )
       )
     } finally {
       setResettingOnboarding(false)
@@ -1110,7 +1127,7 @@ export default function Settings({
   function handleResetCoachOnboarding() {
     hapticTap()
     safeLocalStorageRemove(COACH_ONBOARDING_SEEN_KEY)
-    toast.success("Coach onboarding reset")
+    toast.success(tr("Coach onboarding reset"))
     navigate("/onboarding?replay=coach", { replace: true })
   }
 
@@ -1120,10 +1137,14 @@ export default function Settings({
     setRefreshingTooltips(true)
     try {
       await resetShownTooltips({})
-      toast.success("Shown tooltips refreshed")
+      toast.success(tr("Shown tooltips refreshed"))
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Could not refresh tooltips"
+        translateError(
+          error instanceof Error
+            ? error.message
+            : tr("Could not refresh tooltips")
+        )
       )
     } finally {
       setRefreshingTooltips(false)
@@ -1148,12 +1169,17 @@ export default function Settings({
       const { cleared } = await clearMomentHistory({})
       toast.success(
         cleared === 0
-          ? "Nothing to forget"
-          : `Forgot ${cleared} shown moment${cleared === 1 ? "" : "s"}`
+          ? tr("Nothing to forget")
+          : tr("Forgot {{value0}} shown moment{{value1}}", {
+              value0: cleared,
+              value1: cleared === 1 ? "" : "s",
+            })
       )
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Could not clear moments"
+        translateError(
+          error instanceof Error ? error.message : tr("Could not clear moments")
+        )
       )
     } finally {
       setClearingMoments(false)
@@ -1170,7 +1196,7 @@ export default function Settings({
       await tour.resetChapter(chapter.id)
       navigate(chapter.route, { motion: "switch" })
     } catch {
-      toast.error("Could not restart that walkthrough")
+      toast.error(translateError(tr("Could not restart that walkthrough")))
     }
   }
 
@@ -1178,10 +1204,10 @@ export default function Settings({
     hapticTap()
     try {
       await tour.resetChapter()
-      toast.success("Walkthrough reset")
+      toast.success(tr("Walkthrough reset"))
       navigate("/", { motion: "switch" })
     } catch {
-      toast.error("Could not reset the walkthrough")
+      toast.error(translateError(tr("Could not reset the walkthrough")))
     }
   }
 
@@ -1193,10 +1219,14 @@ export default function Settings({
     setSendingTestEmail(kind)
     try {
       await sendTestEmail({ kind })
-      toast.success("On its way — check your inbox")
+      toast.success(tr("On its way — check your inbox"))
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Could not send the email"
+        translateError(
+          error instanceof Error
+            ? error.message
+            : tr("Could not send the email")
+        )
       )
     } finally {
       setSendingTestEmail(null)
@@ -1212,23 +1242,29 @@ export default function Settings({
         await import("@capacitor/local-notifications")
       const permission = await LocalNotifications.requestPermissions()
       if (permission.display !== "granted") {
-        toast.error("Notification permission was not granted")
+        toast.error(
+          translateError(tr("Notification permission was not granted"))
+        )
         return
       }
       await LocalNotifications.schedule({
         notifications: [
           {
             id: 909_001,
-            title: "OneRep test notification",
-            body: "Notifications are working on this device.",
+            title: tr("OneRep test notification"),
+            body: tr("Notifications are working on this device."),
             schedule: { at: new Date(Date.now() + 2_000) },
           },
         ],
       })
-      toast.success("Test notification scheduled")
+      toast.success(tr("Test notification scheduled"))
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Could not test notifications"
+        translateError(
+          error instanceof Error
+            ? error.message
+            : tr("Could not test notifications")
+        )
       )
     } finally {
       setTestingNotification(false)
@@ -1254,8 +1290,11 @@ export default function Settings({
       setOfflineOnline(false)
       toast.message(
         summary.total > 0
-          ? `${summary.total} change${summary.total === 1 ? "" : "s"} saved on this device. They’ll sync when you reconnect.`
-          : "You’re offline. New changes stay saved on this device."
+          ? tr(
+              "{{value0}} change{{value1}} saved on this device. They’ll sync when you reconnect.",
+              { value0: summary.total, value1: summary.total === 1 ? "" : "s" }
+            )
+          : tr("You’re offline. New changes stay saved on this device.")
       )
       return
     }
@@ -1271,14 +1310,21 @@ export default function Settings({
       if (result.remaining === 0) {
         toast.success(
           result.flushed > 0
-            ? "Offline changes synced"
-            : "All changes are synced"
+            ? tr("Offline changes synced")
+            : tr("All changes are synced")
         )
       } else if (summary.lastError) {
-        toast.error("Some changes need attention. Tap Retry to try again.")
+        toast.error(
+          translateError(
+            tr("Some changes need attention. Tap Retry to try again.")
+          )
+        )
       } else {
         toast.message(
-          `${result.remaining} change${result.remaining === 1 ? "" : "s"} saved locally and waiting to sync.`
+          tr("{{value0}} change{{value1}} saved locally and waiting to sync.", {
+            value0: result.remaining,
+            value1: result.remaining === 1 ? "" : "s",
+          })
         )
       }
     } catch (error) {
@@ -1286,7 +1332,7 @@ export default function Settings({
       setOfflineQueueTotal(summary.total)
       setOfflineQueueError(offlineSyncErrorText(error))
       setOfflineOnline(isBrowserOnline())
-      toast.error(offlineSyncErrorText(error))
+      toast.error(translateError(offlineSyncErrorText(error)))
     } finally {
       setSyncingOfflineQueue(false)
     }
@@ -1305,12 +1351,16 @@ export default function Settings({
       await prompt.prompt()
       const choice = await prompt.userChoice
       if (choice.outcome === "accepted") {
-        toast.success("OneRep install started")
+        toast.success(tr("OneRep install started"))
       } else {
-        toast.message("Install dismissed")
+        toast.message(tr("Install dismissed"))
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Install failed")
+      toast.error(
+        translateError(
+          error instanceof Error ? error.message : tr("Install failed")
+        )
+      )
     }
   }
 
@@ -1319,7 +1369,7 @@ export default function Settings({
     clearOfflineQueue()
     setTheme("system")
     setOfflineQueueTotal(0)
-    toast.success("Data on this device cleared")
+    toast.success(tr("Data on this device cleared"))
   }
 
   async function handleExportData() {
@@ -1341,19 +1391,23 @@ export default function Settings({
       if (delivery !== "cancelled") {
         toast.success(
           delivery === "shared"
-            ? "Export shared with a verification code"
-            : "Export downloaded with a verification code"
+            ? tr("Export shared with a verification code")
+            : tr("Export downloaded with a verification code")
         )
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Export failed")
+      toast.error(
+        translateError(
+          error instanceof Error ? error.message : tr("Export failed")
+        )
+      )
     } finally {
       setExporting(false)
     }
   }
 
   async function handleDeleteAccount() {
-    if (deleteConfirmText !== "DELETE" || deleting) return
+    if (deleteConfirmText !== tr("DELETE") || deleting) return
     setDeleting(true)
     try {
       // Everything that needs this session happens before the account goes,
@@ -1388,7 +1442,9 @@ export default function Settings({
       navigate("/login", { replace: true })
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Account deletion failed"
+        translateError(
+          error instanceof Error ? error.message : tr("Account deletion failed")
+        )
       )
     } finally {
       setDeleting(false)
@@ -1443,14 +1499,14 @@ export default function Settings({
         <NavigationBar
           title={t(SETTINGS_VIEW_TITLE_KEYS[activeView])}
           subtitle={
-            activeView === "overview" ? "Your OneRep experience" : undefined
+            activeView === "overview" ? tr("Your OneRep experience") : undefined
           }
           large={activeView === "overview"}
           leading={
             activeView !== "overview" ? (
               <ToolbarButton
                 onClick={showOverview}
-                aria-label="Back to settings"
+                aria-label={tr("Back to settings")}
               >
                 <ArrowLeft size={20} weight="bold" />
               </ToolbarButton>
@@ -1474,15 +1530,15 @@ export default function Settings({
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[17px] font-semibold tracking-tight">
-                      {user?.name || "Your account"}
+                      {user?.name || tr("Your account")}
                     </span>
                     <span className="native-row-detail block truncate">
-                      {user?.email || "Account and subscription"}
+                      {user?.email || tr("Account and subscription")}
                     </span>
                   </span>
                   <span className="flex shrink-0 items-center gap-2">
                     <StatusPill
-                      label={billing.hasOneRepPro ? "Pro" : "Free"}
+                      label={billing.hasOneRepPro ? tr("Pro") : tr("Free")}
                       strong={billing.hasOneRepPro}
                     />
                     <CaretRight size={18} className="text-muted-foreground" />
@@ -1501,54 +1557,63 @@ export default function Settings({
                   before the entitlement query resolves, and a subscriber
                   should never watch a sales pitch flash past their own name.
                 */}
-                {billing.isConfigured && !billing.hasOneRepPro && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      hapticMedium()
-                      trackUmami("upgrade_entry_tapped", { place: "settings" })
-                      showAiPaywall()
-                    }}
-                    className="settings-upgrade-band"
-                    aria-label="Upgrade to OneRep Pro"
-                  >
-                    <span className="settings-upgrade-copy">
-                      <span className="settings-upgrade-title">
-                        Upgrade to OneRep Pro
-                      </span>
-                      <span className="settings-upgrade-detail">
-                        Coach, meal photos, generated workouts. The rest is
-                        free.
-                      </span>
-                    </span>
-                    <span className="settings-upgrade-trailing">
-                      {/* No price until there is a real one: "Monthly ›" reads
-                          as a price and is not one. */}
-                      {upgradePrice && (
-                        <span className="settings-upgrade-price">
-                          {upgradePrice}
+                {billing.canUpgrade &&
+                  billing.isConfigured &&
+                  !billing.hasOneRepPro && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        hapticMedium()
+                        trackUmami("upgrade_entry_tapped", {
+                          place: "settings",
+                        })
+                        showAiPaywall()
+                      }}
+                      className="settings-upgrade-band"
+                      aria-label={tr("Upgrade to OneRep Pro")}
+                    >
+                      <span className="settings-upgrade-copy">
+                        <span className="settings-upgrade-title">
+                          {tr("Upgrade to OneRep Pro")}
                         </span>
-                      )}
-                      <CaretRight size={16} weight="bold" aria-hidden="true" />
-                    </span>
-                  </button>
-                )}
+                        <span className="settings-upgrade-detail">
+                          {tr(
+                            "Coach, meal photos, generated workouts. The rest is free."
+                          )}
+                        </span>
+                      </span>
+                      <span className="settings-upgrade-trailing">
+                        {/* No price until there is a real one: "Monthly ›" reads
+                          as a price and is not one. */}
+                        {upgradePrice && (
+                          <span className="settings-upgrade-price">
+                            {upgradePrice}
+                          </span>
+                        )}
+                        <CaretRight
+                          size={16}
+                          weight="bold"
+                          aria-hidden="true"
+                        />
+                      </span>
+                    </button>
+                  )}
 
                 <SettingsSectionLabel
-                  title="Plan"
-                  detail="Targets, training, and daily guidance"
+                  title={tr("Plan")}
+                  detail={tr("Targets, training, and daily guidance")}
                 />
-                <GroupedList label="Plan settings">
+                <GroupedList label={tr("Plan settings")}>
                   <DisclosureRow
-                    title="Daily targets"
-                    detail="Calories, macros, and water"
-                    value={`${calories.toLocaleString()} kcal`}
+                    title={tr("Daily targets")}
+                    detail={tr("Calories, macros, and water")}
+                    value={`${calories.toLocaleString(uiLocale())} kcal`}
                     leading={<ForkKnife size={20} weight="regular" />}
                     onClick={() => showView("targets")}
                   />
                   <DisclosureRow
-                    title="Training & app"
-                    detail="Focus, units, language, and feedback"
+                    title={tr("Training & app")}
+                    detail={tr("Focus, units, language, and feedback")}
                     value={
                       workoutFocus[0].toUpperCase() + workoutFocus.slice(1)
                     }
@@ -1556,15 +1621,15 @@ export default function Settings({
                     onClick={() => showView("preferences")}
                   />
                   <DisclosureRow
-                    title="Nutrition strategy"
-                    detail="Macro cycling and workout adjustments"
+                    title={tr("Nutrition strategy")}
+                    detail={tr("Macro cycling and workout adjustments")}
                     value={macroCyclingEnabled ? "Cycling" : "Standard"}
                     leading={<SlidersHorizontal size={20} weight="regular" />}
                     onClick={() => showView("nutrition")}
                   />
                   <DisclosureRow
-                    title="Reminders"
-                    detail="Meals, water, workouts, and check-ins"
+                    title={tr("Reminders")}
+                    detail={tr("Meals, water, workouts, and check-ins")}
                     value={
                       activeReminderCount > 0
                         ? `${activeReminderCount} on`
@@ -1576,16 +1641,18 @@ export default function Settings({
                 </GroupedList>
 
                 <SettingsSectionLabel
-                  title="App"
-                  detail="Appearance, privacy, and account data"
+                  title={tr("App")}
+                  detail={tr("Appearance, privacy, and account data")}
                 />
-                <GroupedList label="App settings">
+                <GroupedList label={tr("App settings")}>
                   <DisclosureRow
-                    title="Appearance"
+                    title={tr("Appearance")}
                     detail={
                       theme === "system"
-                        ? "Follow this device"
-                        : `${theme === "dark" ? "Dark" : "Light"} theme`
+                        ? tr("Follow this device")
+                        : tr("{{value0}} theme", {
+                            value0: choice(theme === "dark" ? "Dark" : "Light"),
+                          })
                     }
                     value={theme[0].toUpperCase() + theme.slice(1)}
                     leading={
@@ -1598,7 +1665,7 @@ export default function Settings({
                     onClick={() => showView("appearance")}
                   />
                   <DisclosureRow
-                    title="Privacy & sync"
+                    title={tr("Privacy & sync")}
                     detail={offlineSyncStatus.body}
                     value={offlineSyncActionLabel}
                     leading={<ShieldCheck size={20} weight="regular" />}
@@ -1607,28 +1674,39 @@ export default function Settings({
                   {/* A health row on the web is dead UI — there is no store to read. */}
                   {isHealthSyncSupportedPlatform() && (
                     <DisclosureRow
-                      title="Health & wearables"
+                      title={tr("Health & wearables")}
                       detail={
                         healthSyncEnabled
-                          ? `Importing workouts from ${healthLabel}`
-                          : `Import workouts from ${healthLabel}`
+                          ? tr("Importing workouts from {{value0}}", {
+                              value0: healthLabel,
+                            })
+                          : tr("Import workouts from {{value0}}", {
+                              value0: healthLabel,
+                            })
                       }
                       leading={<Heartbeat size={20} weight="regular" />}
                       onClick={() => showView("health")}
                     />
                   )}
                   <DisclosureRow
-                    title="Data & account"
-                    detail="Export, reset, or delete your data"
+                    title={tr("Data & account")}
+                    detail={tr("Export, reset, or delete your data")}
                     leading={<Database size={20} weight="regular" />}
                     onClick={() => showView("data")}
                   />
                   <DisclosureRow
-                    title="API & MCP"
+                    title={tr("API & MCP")}
                     detail={
                       mcpTokenCount > 0
-                        ? `${mcpTokenCount} active ${mcpTokenCount === 1 ? "key" : "keys"}`
-                        : "Keys for your own scripts, Claude, or another MCP client"
+                        ? tr("{{value0}} active {{value1}}", {
+                            value0: mcpTokenCount,
+                            value1: choice(
+                              mcpTokenCount === 1 ? "key" : "keys"
+                            ),
+                          })
+                        : tr(
+                            "Keys for your own scripts, Claude, or another MCP client"
+                          )
                     }
                     value={
                       mcpTokenCount > 0 ? String(mcpTokenCount) : undefined
@@ -1637,38 +1715,38 @@ export default function Settings({
                     onClick={() => showView("agents")}
                   />
                   <DisclosureRow
-                    title="Server"
+                    title={tr("Server")}
                     detail={
                       serverOverride
-                        ? "Connected to your self-hosted server"
-                        : "OneRep Cloud, the default"
+                        ? tr("Connected to your self-hosted server")
+                        : tr("OneRep Cloud, the default")
                     }
                     value={serverOverride ? "Custom" : undefined}
                     leading={<HardDrives size={20} weight="regular" />}
                     onClick={() => showView("server")}
                   />
                   <DisclosureRow
-                    title="App walkthrough"
-                    detail="Replay the guided tour of each area"
+                    title={tr("App walkthrough")}
+                    detail={tr("Replay the guided tour of each area")}
                     leading={<Compass size={20} weight="regular" />}
                     onClick={() => showView("walkthrough")}
                   />
                   <DisclosureRow
-                    title="Feedback"
-                    detail="Report a bug, suggest an idea, or vote"
+                    title={tr("Feedback")}
+                    detail={tr("Report a bug, suggest an idea, or vote")}
                     leading={<ChatCircleDots size={20} weight="regular" />}
                     onClick={() => showView("feedback")}
                   />
                   <DisclosureRow
-                    title="About"
-                    detail="Version, updates, and what is installed"
+                    title={tr("About")}
+                    detail={tr("Version, updates, and what is installed")}
                     leading={<Info size={20} weight="regular" />}
                     onClick={() => showView("about")}
                   />
                   {SHOW_DEV_SETTINGS && (
                     <DisclosureRow
-                      title="Developer"
-                      detail="Internal testing controls"
+                      title={tr("Developer")}
+                      detail={tr("Internal testing controls")}
                       leading={<GearFine size={20} weight="regular" />}
                       onClick={() => showView("developer")}
                     />
@@ -1676,7 +1754,7 @@ export default function Settings({
                 </GroupedList>
 
                 <p className="native-row-detail px-[var(--app-page-x)] pt-7 text-center">
-                  OneRep keeps core tracking available without Pro.
+                  {tr("OneRep keeps core tracking available without Pro.")}
                 </p>
                 {/*
                   Bottom of the root list, under everything, where a footnote
@@ -1697,8 +1775,12 @@ export default function Settings({
             {activeView === "server" && (
               <>
                 <SettingsSectionIntro>
-                  OneRep can run against the hosted service or an install you
-                  run yourself. Currently connected to {currentServerLabel()}.
+                  <Message
+                    text={
+                      "OneRep can run against the hosted service or an install you run yourself. Currently connected to {{value0}}."
+                    }
+                    values={{ value0: currentServerLabel() }}
+                  />
                 </SettingsSectionIntro>
                 <div className="px-[var(--app-page-x)]">
                   <ServerPicker />
@@ -1709,31 +1791,34 @@ export default function Settings({
             {activeView === "appearance" && (
               <>
                 <SettingsSectionIntro>
-                  Choose a fixed theme or keep OneRep in step with this device.
+                  {tr(
+                    "Choose a fixed theme or keep OneRep in step with this device."
+                  )}
                 </SettingsSectionIntro>
-                <GroupedList label="Appearance options">
-                  <SettingsRow label="Theme">
+                <GroupedList label={tr("Appearance options")}>
+                  <SettingsRow label={tr("Theme")}>
                     <SegmentedControl
                       onInteract={hapticSelection}
-                      label="Theme"
+                      label={tr("Theme")}
                       value={theme}
                       onChange={(value) => handleThemeChange(value as AppTheme)}
                       options={[
-                        { value: "light", label: "Light" },
-                        { value: "dark", label: "Dark" },
-                        { value: "system", label: "System" },
+                        { value: "light", label: tr("Light") },
+                        { value: "dark", label: tr("Dark") },
+                        { value: "system", label: tr("System") },
                       ]}
                     />
                   </SettingsRow>
                 </GroupedList>
                 <p className="native-row-detail px-[var(--app-page-x)] pt-3">
-                  System updates automatically when your device appearance
-                  changes.
+                  {tr(
+                    "System updates automatically when your device appearance changes."
+                  )}
                 </p>
-                <GroupedList label="Flavours" className="mt-6">
+                <GroupedList label={tr("Flavours")} className="mt-6">
                   <ListRow
-                    title="Flavour"
-                    detail="Personalise the look and feel"
+                    title={tr("Flavour")}
+                    detail={tr("Personalise the look and feel")}
                     onClick={() => setFlavoursOpen(true)}
                     trailing={
                       <CaretRight
@@ -1750,13 +1835,14 @@ export default function Settings({
             {activeView === "account" && (
               <>
                 <SettingsSectionIntro>
-                  Your account, your subscription, and what the AI allowance has
-                  left in it.
+                  {tr(
+                    "Your account, your subscription, and what the AI allowance has left in it."
+                  )}
                 </SettingsSectionIntro>
-                <GroupedList label="Signed in account">
+                <GroupedList label={tr("Signed in account")}>
                   <ListRow
-                    title={user?.name || "OneRep user"}
-                    detail={user?.email || "Signed in"}
+                    title={user?.name || tr("OneRep user")}
+                    detail={user?.email || tr("Signed in")}
                     leading={<UserCircle size={22} weight="regular" />}
                     value={billing.hasOneRepPro ? "Pro" : "Free"}
                   />
@@ -1767,32 +1853,59 @@ export default function Settings({
                   I stop" — burying that under a progress bar and an API key
                   field answered a question nobody had come to ask.
                 */}
-                <SettingsSectionLabel title="Subscription" />
-                <GroupedList
-                  label="OneRep Pro subscription"
-                  className="profile-pro-group"
-                >
-                  <BillingSubscriptionPanel billing={billing} />
-                </GroupedList>
-                <SettingsSectionLabel title="AI usage" />
-                <GroupedList label="AI usage">
-                  <AiUsageProgress usage={aiUsage} />
+                {(billing.canUpgrade ||
+                  billing.hasOneRepPro ||
+                  billing.canRestore) && (
+                  <>
+                    <SettingsSectionLabel
+                      title={
+                        billing.isNative && !billing.hasOneRepPro
+                          ? tr("Purchases")
+                          : tr("Subscription")
+                      }
+                    />
+                    <GroupedList
+                      label={
+                        billing.isNative && !billing.hasOneRepPro
+                          ? tr("Purchases")
+                          : tr("OneRep Pro subscription")
+                      }
+                      className="profile-pro-group"
+                    >
+                      <BillingSubscriptionPanel billing={billing} />
+                    </GroupedList>
+                  </>
+                )}
+                <SettingsSectionLabel title={tr("AI usage")} />
+                <GroupedList label={tr("AI usage")}>
+                  <AiUsageProgress
+                    usage={aiUsage}
+                    showUpgrade={billing.canUpgrade}
+                  />
                 </GroupedList>
                 {byokSection !== "hidden" && (
                   <SettingsSectionLabel
-                    title="Your own AI key"
+                    title={tr("Your own AI key")}
                     detail={
                       byokSection === "open"
-                        ? "Add your OpenRouter API key and AI features run on it — no monthly cap, no Pro required. You pay OpenRouter directly for what you use."
-                        : "Your key is still serving your AI requests. Remove it and the included allowance takes over."
+                        ? tr(
+                            "Add your OpenRouter API key and AI features run on it — no monthly cap, no Pro required. You pay OpenRouter directly for what you use."
+                          )
+                        : tr(
+                            "Your key is still serving your AI requests. Remove it and the included allowance takes over."
+                          )
                     }
                   />
                 )}
                 {byokStatus?.configured ? (
-                  <GroupedList label="Your OpenRouter key">
+                  <GroupedList label={tr("Your OpenRouter key")}>
                     <ListRow
-                      title={`Key ending in ${byokStatus.last4}`}
-                      detail="AI requests use your key. Remove it to go back to the included allowance."
+                      title={tr("Key ending in {{value0}}", {
+                        value0: byokStatus.last4,
+                      })}
+                      detail={tr(
+                        "AI requests use your key. Remove it to go back to the included allowance."
+                      )}
                       value={byokBusy ? "Removing…" : "Remove"}
                       disabled={byokBusy}
                       onClick={() => {
@@ -1800,12 +1913,14 @@ export default function Settings({
                         void (async () => {
                           try {
                             await removeByokKey({})
-                            toast.success("Key removed")
+                            toast.success(tr("Key removed"))
                           } catch (error) {
                             toast.error(
-                              error instanceof Error
-                                ? error.message
-                                : "Couldn't remove the key"
+                              translateError(
+                                error instanceof Error
+                                  ? error.message
+                                  : tr("Couldn't remove the key")
+                              )
                             )
                           } finally {
                             setByokBusy(false)
@@ -1819,14 +1934,14 @@ export default function Settings({
                     <input
                       type="password"
                       autoComplete="off"
-                      placeholder="sk-or-…"
+                      placeholder={tr("sk-or-…")}
                       value={byokInput}
-                      aria-label="OpenRouter API key"
+                      aria-label={tr("OpenRouter API key")}
                       onChange={(event) => setByokInput(event.target.value)}
                       className="h-11 flex-1 rounded-xl border border-border bg-transparent px-3 outline-none"
                     />
                     <PrimaryButton
-                      aria-label="Save OpenRouter key"
+                      aria-label={tr("Save OpenRouter key")}
                       disabled={
                         byokBusy || !byokInput.trim().startsWith("sk-or-")
                       }
@@ -1836,28 +1951,34 @@ export default function Settings({
                           // Verified against OpenRouter server-side before it saves.
                           await saveByokKey({ key: byokInput.trim() })
                           setByokInput("")
-                          toast.success("Key saved — AI now runs on your key")
+                          toast.success(
+                            tr("Key saved — AI now runs on your key")
+                          )
                           trackUmami("byok_key_saved")
                         } catch (error) {
                           toast.error(
-                            error instanceof ConvexError
-                              ? String(error.data)
-                              : "This API key is invalid. Check it and try again."
+                            translateError(
+                              error instanceof ConvexError
+                                ? String(error.data)
+                                : tr(
+                                    "This API key is invalid. Check it and try again."
+                                  )
+                            )
                           )
                         } finally {
                           setByokBusy(false)
                         }
                       }}
                     >
-                      {byokBusy ? "Verifying…" : "Save"}
+                      {byokBusy ? tr("Verifying…") : tr("Save")}
                     </PrimaryButton>
                   </div>
                 ) : null}
-                <SettingsSectionLabel title="Session" />
-                <GroupedList label="Session actions">
+                <SettingsSectionLabel title={tr("Session")} />
+                <GroupedList label={tr("Session actions")}>
                   <ListRow
-                    title={loggingOut ? "Signing out…" : "Sign out"}
-                    detail="Remove this account from this device"
+                    title={loggingOut ? tr("Signing out…") : tr("Sign out")}
+                    detail={tr("Remove this account from this device")}
                     disabled={loggingOut}
                     busy={loggingOut}
                     onClick={() => void handleLogout()}
@@ -1870,10 +1991,15 @@ export default function Settings({
             {activeView === "targets" && (
               <>
                 <SettingsSectionIntro>
-                  These values drive Today, Nutrition, and progress coaching.
+                  {tr(
+                    "These values drive Today, Nutrition, and progress coaching."
+                  )}
                 </SettingsSectionIntro>
-                <GroupedList label="Daily nutrition targets">
-                  <SettingsRow label="Calories" detail="Daily energy budget">
+                <GroupedList label={tr("Daily nutrition targets")}>
+                  <SettingsRow
+                    label={tr("Calories")}
+                    detail={tr("Daily energy budget")}
+                  >
                     <NumberStepper
                       onInteract={hapticTap}
                       value={calories}
@@ -1882,10 +2008,10 @@ export default function Settings({
                       min={800}
                       max={5000}
                       step={50}
-                      label="Calories"
+                      label={tr("Calories")}
                     />
                   </SettingsRow>
-                  <SettingsRow label="Protein">
+                  <SettingsRow label={tr("Protein")}>
                     <NumberStepper
                       onInteract={hapticTap}
                       value={protein}
@@ -1894,10 +2020,10 @@ export default function Settings({
                       min={20}
                       max={400}
                       step={5}
-                      label="Protein"
+                      label={tr("Protein")}
                     />
                   </SettingsRow>
-                  <SettingsRow label="Carbohydrates">
+                  <SettingsRow label={tr("Carbohydrates")}>
                     <NumberStepper
                       onInteract={hapticTap}
                       value={carbs}
@@ -1906,10 +2032,10 @@ export default function Settings({
                       min={10}
                       max={500}
                       step={10}
-                      label="Carbohydrates"
+                      label={tr("Carbohydrates")}
                     />
                   </SettingsRow>
-                  <SettingsRow label="Fat">
+                  <SettingsRow label={tr("Fat")}>
                     <NumberStepper
                       onInteract={hapticTap}
                       value={fat}
@@ -1918,10 +2044,13 @@ export default function Settings({
                       min={10}
                       max={200}
                       step={5}
-                      label="Fat"
+                      label={tr("Fat")}
                     />
                   </SettingsRow>
-                  <SettingsRow label="Water" detail="Daily hydration target">
+                  <SettingsRow
+                    label={tr("Water")}
+                    detail={tr("Daily hydration target")}
+                  >
                     {/* The fluid-ounce ceiling is derived from the metric one:
                         170 fl oz is 5,027 ml, which round-trips past the
                         canonical 5,000 ml maximum the metric side enforces. */}
@@ -1947,64 +2076,72 @@ export default function Settings({
                           : 5000
                       }
                       step={waterUnit === "fl oz" ? 8 : 250}
-                      label="Water"
+                      label={tr("Water")}
                     />
                   </SettingsRow>
                 </GroupedList>
 
-                <SettingsSectionLabel title="Default log times" />
-                <GroupedList label="Default log times">
+                <SettingsSectionLabel title={tr("Default log times")} />
+                <GroupedList label={tr("Default log times")}>
                   {readAllMealCategories()
                     .map((cat) => cat.id)
                     .filter(Boolean)
                     .map((key) => {
-                    // A custom category with no stored time is "off" —
-                    // rendering it as enabled-with-empty-field would claim a
-                    // default exists while logging actually uses the clock.
-                    const value = mealTimes[key]
-                    const isOff = value === undefined || value === MEAL_TIME_OFF
-                    return (
-                      <SettingsRow
-                        key={key}
-                        label={mealLabel(key)}
-                        detail={
-                          isOff
-                            ? "Logs at the moment you tap"
-                            : `Tagging a food “${mealLabel(key)}” logs it at this time`
-                        }
-                      >
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="time"
-                            value={isOff ? "" : value}
-                            disabled={isOff}
-                            onChange={(event) => {
-                              if (!event.target.value) return
-                              setMealTimes((current) => ({
-                                ...current,
-                                [key]: event.target.value,
-                              }))
-                            }}
-                            aria-label={`${mealLabel(key)} default log time`}
-                            className="h-9 rounded-lg border border-border bg-transparent px-2 text-[14px] tabular-nums outline-none disabled:opacity-35"
-                          />
-                          <CompactSwitch
-                            onInteract={hapticSelection}
-                            checked={!isOff}
-                            onChange={(checked) => {
-                              setMealTimes((current) => ({
-                                ...current,
-                                [key]: checked
-                                  ? DEFAULT_MEAL_TIMES[key] ?? "12:00"
-                                  : MEAL_TIME_OFF,
-                              }))
-                            }}
-                            label={`${mealLabel(key)} uses a default time`}
-                          />
-                        </div>
-                      </SettingsRow>
-                    )
-                  })}
+                      // A custom category with no stored time is "off" —
+                      // rendering it as enabled-with-empty-field would claim a
+                      // default exists while logging actually uses the clock.
+                      const value = mealTimes[key]
+                      const isOff =
+                        value === undefined || value === MEAL_TIME_OFF
+                      return (
+                        <SettingsRow
+                          key={key}
+                          label={mealLabel(key)}
+                          detail={
+                            isOff
+                              ? tr("Logs at the moment you tap")
+                              : tr(
+                                  "Tagging a food “{{value0}}” logs it at this time",
+                                  { value0: mealLabel(key) }
+                                )
+                          }
+                        >
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="time"
+                              value={isOff ? "" : value}
+                              disabled={isOff}
+                              onChange={(event) => {
+                                if (!event.target.value) return
+                                setMealTimes((current) => ({
+                                  ...current,
+                                  [key]: event.target.value,
+                                }))
+                              }}
+                              aria-label={tr("{{value0}} default log time", {
+                                value0: mealLabel(key),
+                              })}
+                              className="h-9 rounded-lg border border-border bg-transparent px-2 text-[14px] tabular-nums outline-none disabled:opacity-35"
+                            />
+                            <CompactSwitch
+                              onInteract={hapticSelection}
+                              checked={!isOff}
+                              onChange={(checked) => {
+                                setMealTimes((current) => ({
+                                  ...current,
+                                  [key]: checked
+                                    ? (DEFAULT_MEAL_TIMES[key] ?? "12:00")
+                                    : MEAL_TIME_OFF,
+                                }))
+                              }}
+                              label={tr("{{value0}} uses a default time", {
+                                value0: mealLabel(key),
+                              })}
+                            />
+                          </div>
+                        </SettingsRow>
+                      )
+                    })}
                 </GroupedList>
                 <AppTooltip
                   id={APP_TOOLTIP_IDS.settingsTargets}
@@ -2013,7 +2150,7 @@ export default function Settings({
                   side="top"
                 >
                   <SectionSaveButton
-                    label="Save daily targets"
+                    label={tr("Save daily targets")}
                     saving={saving}
                     onClick={handleSaveTargets}
                   />
@@ -2024,111 +2161,122 @@ export default function Settings({
             {activeView === "preferences" && (
               <>
                 <SettingsSectionIntro>
-                  Set how OneRep presents training, measurements, and food
-                  search.
+                  {tr(
+                    "Set how OneRep presents training, measurements, and food search."
+                  )}
                 </SettingsSectionIntro>
                 {!setupView && (
                   <>
-                    <SettingsSectionLabel title="Training" />
-                    <GroupedList label="Training preferences">
-                      <SettingsRow label="Primary focus">
+                    <SettingsSectionLabel title={tr("Training")} />
+                    <GroupedList label={tr("Training preferences")}>
+                      <SettingsRow label={tr("Primary focus")}>
                         <SegmentedControl
                           onInteract={hapticSelection}
-                          label="Primary focus"
+                          label={tr("Primary focus")}
                           value={workoutFocus}
                           onChange={(value) =>
                             setWorkoutFocus(value as WorkoutFocus)
                           }
                           options={[
-                            { value: "strength", label: "Strength" },
-                            { value: "cardio", label: "Cardio" },
-                            { value: "mobility", label: "Mobility" },
+                            { value: "strength", label: tr("Strength") },
+                            { value: "cardio", label: tr("Cardio") },
+                            { value: "mobility", label: tr("Mobility") },
                           ]}
                         />
                       </SettingsRow>
                       <SettingsRow
-                        label="Measurement system"
-                        detail="Sets weight, energy, and workout distance together"
+                        label={tr("Measurement system")}
+                        detail={tr(
+                          "Sets weight, energy, and workout distance together"
+                        )}
                       >
                         <SegmentedControl
                           onInteract={hapticSelection}
-                          label="Measurement system"
+                          label={tr("Measurement system")}
                           value={measurementSystem}
                           onChange={(value) => {
-                            void chooseMeasurementSystem(value as MeasurementSystem)
+                            void chooseMeasurementSystem(
+                              value as MeasurementSystem
+                            )
                           }}
                           options={[
-                            { value: "metric", label: "Metric" },
-                            { value: "imperial", label: "Imperial" },
+                            { value: "metric", label: tr("Metric") },
+                            { value: "imperial", label: tr("Imperial") },
                           ]}
                         />
                       </SettingsRow>
-                      <SettingsRow label="Weight unit">
+                      <SettingsRow label={tr("Weight unit")}>
                         <SegmentedControl
                           onInteract={hapticSelection}
-                          label="Weight unit"
+                          label={tr("Weight unit")}
                           value={weightUnit}
                           onChange={(value) => {
                             void chooseWeightUnit(value as WeightUnit)
                           }}
                           options={[
-                            { value: "kg", label: "kg" },
-                            { value: "lbs", label: "lb" },
+                            { value: "kg", label: tr("kg") },
+                            { value: "lbs", label: tr("lb") },
                           ]}
                         />
                       </SettingsRow>
                       <SettingsRow
-                        label="Energy unit"
-                        detail="kcal and Cal are the same number; kJ converts"
+                        label={tr("Energy unit")}
+                        detail={tr(
+                          "kcal and Cal are the same number; kJ converts"
+                        )}
                       >
                         <SegmentedControl
                           onInteract={hapticSelection}
-                          label="Energy unit"
+                          label={tr("Energy unit")}
                           value={energyUnit}
                           onChange={(value) => {
                             void chooseEnergyUnit(value as EnergyUnitStored)
                           }}
                           options={[
-                            { value: "kcal", label: "kcal" },
+                            { value: "kcal", label: tr("kcal") },
                             // Lowercase because that is what a US label reader
                             // recognises, whatever the SI pedantry says.
-                            { value: "Cal", label: "cal" },
-                            { value: "kJ", label: "kJ" },
+                            { value: "Cal", label: tr("cal") },
+                            { value: "kJ", label: tr("kJ") },
                           ]}
                         />
                       </SettingsRow>
                       <SettingsRow
-                        label="Water unit"
-                        detail="Independent of the measurement system — pick what your bottle reads"
+                        label={tr("Water unit")}
+                        detail={tr(
+                          "Independent of the measurement system — pick what your bottle reads"
+                        )}
                       >
                         <SegmentedControl
                           onInteract={hapticSelection}
-                          label="Water unit"
+                          label={tr("Water unit")}
                           value={waterUnit}
                           onChange={(value) => {
                             void chooseWaterUnit(value as WaterUnit)
                           }}
                           options={[
-                            { value: "ml", label: "ml" },
-                            { value: "fl oz", label: "fl oz" },
+                            { value: "ml", label: tr("ml") },
+                            { value: "fl oz", label: tr("fl oz") },
                           ]}
                         />
                       </SettingsRow>
                     </GroupedList>
                   </>
                 )}
-                <SettingsSectionLabel title="App behavior" />
-                <GroupedList label="App behavior">
+                <SettingsSectionLabel title={tr("App behavior")} />
+                <GroupedList label={tr("App behavior")}>
                   {!setupView && (
                     <SettingsRow
-                      label="Simple dashboard"
-                      detail="Keep Today focused on actions and hide advanced panels"
+                      label={tr("Simple dashboard")}
+                      detail={tr(
+                        "Keep Today focused on actions and hide advanced panels"
+                      )}
                     >
                       <CompactSwitch
                         onInteract={hapticSelection}
                         checked={simpleDashboard}
                         onChange={setSimpleDashboard}
-                        label="Simple dashboard"
+                        label={tr("Simple dashboard")}
                       />
                     </SettingsRow>
                   )}
@@ -2146,54 +2294,54 @@ export default function Settings({
                         setUiLanguage(language)
                       }}
                       options={[
-                        { value: "en", label: "EN" },
-                        { value: "es", label: "ES" },
-                        { value: "fr", label: "FR" },
-                        { value: "de", label: "DE" },
-                        { value: "it", label: "IT" },
-                        { value: "pt", label: "PT" },
+                        { value: "en", label: tr("EN") },
+                        { value: "es", label: tr("ES") },
+                        { value: "fr", label: tr("FR") },
+                        { value: "de", label: tr("DE") },
+                        { value: "it", label: tr("IT") },
+                        { value: "pt", label: tr("PT") },
                       ]}
                     />
                   </SettingsRow>
-                  <SettingsRow label="Food search language">
+                  <SettingsRow label={tr("Food search language")}>
                     <SegmentedControl
                       onInteract={hapticSelection}
-                      label="Food search language"
+                      label={tr("Food search language")}
                       value={foodSearchLanguage}
                       onChange={(value) =>
                         setFoodSearchLanguageState(value as FoodSearchLanguage)
                       }
                       options={[
-                        { value: "en", label: "EN" },
-                        { value: "es", label: "ES" },
-                        { value: "fr", label: "FR" },
-                        { value: "de", label: "DE" },
-                        { value: "it", label: "IT" },
-                        { value: "pt", label: "PT" },
+                        { value: "en", label: tr("EN") },
+                        { value: "es", label: tr("ES") },
+                        { value: "fr", label: tr("FR") },
+                        { value: "de", label: tr("DE") },
+                        { value: "it", label: tr("IT") },
+                        { value: "pt", label: tr("PT") },
                       ]}
                     />
                   </SettingsRow>
                   <SettingsRow
-                    label="Haptic feedback"
-                    detail="How hard the phone buzzes back when you tap"
+                    label={tr("Haptic feedback")}
+                    detail={tr("How hard the phone buzzes back when you tap")}
                   >
                     <SegmentedControl
-                      label="Haptic feedback"
+                      label={tr("Haptic feedback")}
                       value={hapticLevel}
                       onChange={(value) =>
                         handleHapticsChange(value as HapticStrength)
                       }
                       options={[
-                        { value: "off", label: "Off" },
-                        { value: "light", label: "Light" },
-                        { value: "medium", label: "Medium" },
-                        { value: "full", label: "Full" },
+                        { value: "off", label: tr("Off") },
+                        { value: "light", label: tr("Light") },
+                        { value: "medium", label: tr("Medium") },
+                        { value: "full", label: tr("Full") },
                       ]}
                     />
                   </SettingsRow>
                   <SettingsRow
-                    label="Rest completion bell"
-                    detail="A smooth bell when rest ends"
+                    label={tr("Rest completion bell")}
+                    detail={tr("A smooth bell when rest ends")}
                   >
                     <CompactSwitch
                       onInteract={hapticSelection}
@@ -2202,12 +2350,12 @@ export default function Settings({
                         setRestBellOn(enabled)
                         setRestBellEnabled(enabled)
                       }}
-                      label="Rest completion bell"
+                      label={tr("Rest completion bell")}
                     />
                   </SettingsRow>
                   <SettingsRow
-                    label="Rest completion vibration"
-                    detail="A distinct vibration when rest ends"
+                    label={tr("Rest completion vibration")}
+                    detail={tr("A distinct vibration when rest ends")}
                   >
                     <CompactSwitch
                       onInteract={hapticSelection}
@@ -2216,12 +2364,12 @@ export default function Settings({
                         setRestVibrationOn(enabled)
                         setRestVibrationEnabled(enabled)
                       }}
-                      label="Rest completion vibration"
+                      label={tr("Rest completion vibration")}
                     />
                   </SettingsRow>
                   <SettingsRow
-                    label="Experimental features"
-                    detail="Try beta features before they ship"
+                    label={tr("Experimental features")}
+                    detail={tr("Try beta features before they ship")}
                   >
                     <CompactSwitch
                       onInteract={hapticSelection}
@@ -2230,12 +2378,12 @@ export default function Settings({
                         setExperimentalFeaturesState(enabled)
                         void setExperimentalFeatures({ enabled })
                       }}
-                      label="Experimental features"
+                      label={tr("Experimental features")}
                     />
                   </SettingsRow>
                 </GroupedList>
                 <SectionSaveButton
-                  label="Save preferences"
+                  label={tr("Save preferences")}
                   saving={saving}
                   onClick={handleSaveWorkout}
                 />
@@ -2245,17 +2393,20 @@ export default function Settings({
             {activeView === "nutrition" && (
               <>
                 <SettingsSectionIntro>
-                  Choose whether daily targets respond to your training
-                  schedule.
+                  {tr(
+                    "Choose whether daily targets respond to your training schedule."
+                  )}
                 </SettingsSectionIntro>
-                <GroupedList label="Nutrition strategy options">
+                <GroupedList label={tr("Nutrition strategy options")}>
                   {metricsHiddenBySafety && (
                     // Only shown to accounts the screening actually muted.
                     // Everyone else already sees their numbers, so a switch
                     // here would just be one more thing to wonder about.
                     <SettingsRow
-                      label="Show calorie numbers"
-                      detail="Onboarding answers hid calories and macros. Turn this on to see them again."
+                      label={tr("Show calorie numbers")}
+                      detail={tr(
+                        "Onboarding answers hid calories and macros. Turn this on to see them again."
+                      )}
                     >
                       <CompactSwitch
                         onInteract={hapticSelection}
@@ -2264,52 +2415,56 @@ export default function Settings({
                           setShowCalorieNumbersState(enabled)
                           void setShowCalorieNumbers({ enabled })
                         }}
-                        label="Show calorie numbers"
+                        label={tr("Show calorie numbers")}
                       />
                     </SettingsRow>
                   )}
                   <SettingsRow
-                    label="Macro cycling"
-                    detail="Use separate training and rest-day targets"
+                    label={tr("Macro cycling")}
+                    detail={tr("Use separate training and rest-day targets")}
                   >
                     <CompactSwitch
                       onInteract={hapticSelection}
                       checked={macroCyclingEnabled}
                       onChange={setMacroCyclingEnabled}
-                      label="Macro cycling"
+                      label={tr("Macro cycling")}
                     />
                   </SettingsRow>
                   <SettingsRow
-                    label="Workout adjustment"
-                    detail="Add estimated exercise calories to your budget"
+                    label={tr("Workout adjustment")}
+                    detail={tr(
+                      "Add estimated exercise calories to your budget"
+                    )}
                   >
                     <CompactSwitch
                       onInteract={hapticSelection}
                       checked={workoutAdjustmentEnabled}
                       onChange={setWorkoutAdjustmentEnabled}
-                      label="Workout adjustment"
+                      label={tr("Workout adjustment")}
                     />
                   </SettingsRow>
                   <SettingsRow
-                    label="Show net carbs"
-                    detail="Display carbs minus fiber. Entry forms still take total carbs."
+                    label={tr("Show net carbs")}
+                    detail={tr(
+                      "Display carbs minus fiber. Entry forms still take total carbs."
+                    )}
                   >
                     <CompactSwitch
                       onInteract={hapticSelection}
                       checked={netCarbsEnabled}
                       onChange={setNetCarbsEnabledState}
-                      label="Show net carbs"
+                      label={tr("Show net carbs")}
                     />
                   </SettingsRow>
                   <SettingsRow
-                    label="Calories by meal"
-                    detail="Budget your daily calories across each meal"
+                    label={tr("Calories by meal")}
+                    detail={tr("Budget your daily calories across each meal")}
                   >
                     <CompactSwitch
                       onInteract={hapticSelection}
                       checked={mealTargetsEnabled}
                       onChange={setMealTargetsEnabledState}
-                      label="Calories by meal"
+                      label={tr("Calories by meal")}
                     />
                   </SettingsRow>
                 </GroupedList>
@@ -2317,17 +2472,21 @@ export default function Settings({
                 {mealTargetsEnabled && (
                   <>
                     <SettingsSectionLabel
-                      title="Meal split"
-                      detail={`Shares of your ${Math.round(
-                        effectiveGoals?.effective.calories ?? 2000
-                      )} kcal budget`}
+                      title={tr("Meal split")}
+                      detail={tr("Shares of your {{value0}} kcal budget", {
+                        value0: Math.round(
+                          effectiveGoals?.effective.calories ?? 2000
+                        ),
+                      })}
                     />
-                    <GroupedList label="Meal calorie split">
+                    <GroupedList label={tr("Meal calorie split")}>
                       {mealShares.map((share) => (
                         <SettingsRow
                           key={share.meal}
                           label={mealLabel(share.meal)}
-                          detail={`${resolvedMealCalories.get(share.meal) ?? 0} kcal`}
+                          detail={tr("{{value0}} kcal", {
+                            value0: resolvedMealCalories.get(share.meal) ?? 0,
+                          })}
                         >
                           <NumberStepper
                             onInteract={hapticTap}
@@ -2345,16 +2504,25 @@ export default function Settings({
                             min={0}
                             max={100}
                             step={5}
-                            label={`${mealLabel(share.meal)} share`}
+                            label={tr("{{value0}} share", {
+                              value0: mealLabel(share.meal),
+                            })}
                           />
                         </SettingsRow>
                       ))}
                     </GroupedList>
                     <SettingsSectionIntro>
-                      Total: {Math.round(mealSharesTotal)}%
-                      {Math.abs(mealSharesTotal - 100) > 0.5
-                        ? ". Saving will rescale these to 100%."
-                        : ""}
+                      <Message
+                        text={"Total: {{value0}}%{{value1}}"}
+                        values={{
+                          value0: Math.round(mealSharesTotal),
+                          value1: choice(
+                            Math.abs(mealSharesTotal - 100) > 0.5
+                              ? ". Saving will rescale these to 100%."
+                              : ""
+                          ),
+                        }}
+                      />
                     </SettingsSectionIntro>
                     <button
                       type="button"
@@ -2368,9 +2536,9 @@ export default function Settings({
                         )
                       }}
                       className="native-toolbar-button mt-2 h-11 px-3"
-                      aria-label="Reset meal split to default"
+                      aria-label={tr("Reset meal split to default")}
                     >
-                      Reset to default split
+                      {tr("Reset to default split")}
                     </button>
                   </>
                 )}
@@ -2378,11 +2546,11 @@ export default function Settings({
                 {macroCyclingEnabled && (
                   <>
                     <SettingsSectionLabel
-                      title="Training day"
-                      detail="Higher-fuel target"
+                      title={tr("Training day")}
+                      detail={tr("Higher-fuel target")}
                     />
-                    <GroupedList label="Training day targets">
-                      <SettingsRow label="Calories">
+                    <GroupedList label={tr("Training day targets")}>
+                      <SettingsRow label={tr("Calories")}>
                         <NumberStepper
                           onInteract={hapticTap}
                           value={trainingDayTargets.calories}
@@ -2396,10 +2564,10 @@ export default function Settings({
                           min={800}
                           max={5000}
                           step={50}
-                          label="Training day calories"
+                          label={tr("Training day calories")}
                         />
                       </SettingsRow>
-                      <SettingsRow label="Protein">
+                      <SettingsRow label={tr("Protein")}>
                         <NumberStepper
                           onInteract={hapticTap}
                           value={trainingDayTargets.protein}
@@ -2413,16 +2581,16 @@ export default function Settings({
                           min={20}
                           max={400}
                           step={5}
-                          label="Training day protein"
+                          label={tr("Training day protein")}
                         />
                       </SettingsRow>
                     </GroupedList>
                     <SettingsSectionLabel
-                      title="Rest day"
-                      detail="Recovery target"
+                      title={tr("Rest day")}
+                      detail={tr("Recovery target")}
                     />
-                    <GroupedList label="Rest day targets">
-                      <SettingsRow label="Calories">
+                    <GroupedList label={tr("Rest day targets")}>
+                      <SettingsRow label={tr("Calories")}>
                         <NumberStepper
                           onInteract={hapticTap}
                           value={restDayTargets.calories}
@@ -2436,10 +2604,10 @@ export default function Settings({
                           min={800}
                           max={5000}
                           step={50}
-                          label="Rest day calories"
+                          label={tr("Rest day calories")}
                         />
                       </SettingsRow>
-                      <SettingsRow label="Protein">
+                      <SettingsRow label={tr("Protein")}>
                         <NumberStepper
                           onInteract={hapticTap}
                           value={restDayTargets.protein}
@@ -2453,14 +2621,14 @@ export default function Settings({
                           min={20}
                           max={400}
                           step={5}
-                          label="Rest day protein"
+                          label={tr("Rest day protein")}
                         />
                       </SettingsRow>
                     </GroupedList>
                   </>
                 )}
                 <SectionSaveButton
-                  label="Save nutrition strategy"
+                  label={tr("Save nutrition strategy")}
                   saving={saving}
                   onClick={handleSaveNutritionLogic}
                 />
@@ -2470,42 +2638,45 @@ export default function Settings({
             {activeView === "reminders" && (
               <>
                 <SettingsSectionIntro>
-                  Reminders use your local time and only run when notifications
-                  are allowed.
+                  {tr(
+                    "Reminders use your local time and only run when notifications are allowed."
+                  )}
                 </SettingsSectionIntro>
-                <GroupedList label="Reminder schedule">
+                <GroupedList label={tr("Reminder schedule")}>
                   <ReminderRow
-                    label="Water"
+                    label={tr("Water")}
                     reminder={pushReminders.water}
                     onChange={(patch) => updateReminder("water", patch)}
                   />
                   <ReminderRow
-                    label="Meal log"
+                    label={tr("Meal log")}
                     reminder={pushReminders.meal}
                     onChange={(patch) => updateReminder("meal", patch)}
                   />
                   <ReminderRow
-                    label="Workout"
+                    label={tr("Workout")}
                     reminder={pushReminders.workout}
                     onChange={(patch) => updateReminder("workout", patch)}
                   />
                   <ReminderRow
-                    label="Body check-in"
+                    label={tr("Body check-in")}
                     reminder={pushReminders.body}
                     onChange={(patch) => updateReminder("body", patch)}
                   />
                   <ReminderRow
-                    label="Supplements"
+                    label={tr("Supplements")}
                     reminder={pushReminders.supplement}
                     onChange={(patch) => updateReminder("supplement", patch)}
                   />
                 </GroupedList>
 
-                <SettingsSectionLabel title="Coach" />
-                <GroupedList label="When Coach reaches out">
+                <SettingsSectionLabel title={tr("Coach")} />
+                <GroupedList label={tr("When Coach reaches out")}>
                   <SettingsRow
-                    label="Let Coach reach out"
-                    detail="Your weekly review, and the occasional nudge when you go quiet. Never during your quiet hours."
+                    label={tr("Let Coach reach out")}
+                    detail={tr(
+                      "Your weekly review, and the occasional nudge when you go quiet. Never during your quiet hours."
+                    )}
                   >
                     <CompactSwitch
                       onInteract={hapticSelection}
@@ -2519,14 +2690,16 @@ export default function Settings({
                         // arrive. If iOS has not been asked yet, ask here.
                         if (next) promptForCoachPush()
                       }}
-                      label="Let Coach reach out"
+                      label={tr("Let Coach reach out")}
                     />
                   </SettingsRow>
                   {coachOutreach.enabled && (
                     <>
                       <SettingsRow
-                        label="Weekly review"
-                        detail="Sunday evening: what the week held, and what to change"
+                        label={tr("Weekly review")}
+                        detail={tr(
+                          "Sunday evening: what the week held, and what to change"
+                        )}
                       >
                         <CompactSwitch
                           onInteract={hapticSelection}
@@ -2539,12 +2712,14 @@ export default function Settings({
                             setCoachOutreachState(settings)
                             void setCoachOutreach(settings)
                           }}
-                          label="Weekly review"
+                          label={tr("Weekly review")}
                         />
                       </SettingsRow>
                       <SettingsRow
-                        label="Nudges"
-                        detail="At most three a week, and only when you have gone quiet"
+                        label={tr("Nudges")}
+                        detail={tr(
+                          "At most three a week, and only when you have gone quiet"
+                        )}
                       >
                         <CompactSwitch
                           onInteract={hapticSelection}
@@ -2554,17 +2729,17 @@ export default function Settings({
                             setCoachOutreachState(settings)
                             void setCoachOutreach(settings)
                           }}
-                          label="Nudges"
+                          label={tr("Nudges")}
                         />
                       </SettingsRow>
                       <SettingsRow
-                        label="Quiet hours"
-                        detail="Coach stays silent between these times"
+                        label={tr("Quiet hours")}
+                        detail={tr("Coach stays silent between these times")}
                       >
                         <div className="flex items-center gap-1.5">
                           <input
                             type="time"
-                            aria-label="Quiet hours start"
+                            aria-label={tr("Quiet hours start")}
                             value={minutesToTimeValue(
                               coachOutreach.quietHours.startMinutes
                             )}
@@ -2586,11 +2761,11 @@ export default function Settings({
                             className="h-9 rounded-lg bg-muted/55 px-2 text-[13px] font-semibold tabular-nums"
                           />
                           <span className="text-[12px] text-muted-foreground">
-                            to
+                            {tr("to")}
                           </span>
                           <input
                             type="time"
-                            aria-label="Quiet hours end"
+                            aria-label={tr("Quiet hours end")}
                             value={minutesToTimeValue(
                               coachOutreach.quietHours.endMinutes
                             )}
@@ -2619,11 +2794,13 @@ export default function Settings({
 
                 {supportsLiveWorkoutStatusSetting() && (
                   <>
-                    <SettingsSectionLabel title="During a workout" />
-                    <GroupedList label="Workout status">
+                    <SettingsSectionLabel title={tr("During a workout")} />
+                    <GroupedList label={tr("Workout status")}>
                       <SettingsRow
-                        label="Ongoing notification"
-                        detail="Show the current set and rest timer in the notification shade"
+                        label={tr("Ongoing notification")}
+                        detail={tr(
+                          "Show the current set and rest timer in the notification shade"
+                        )}
                       >
                         <CompactSwitch
                           onInteract={hapticSelection}
@@ -2631,7 +2808,7 @@ export default function Settings({
                           onChange={(next) => {
                             void setLiveWorkoutStatus({ enabled: next })
                           }}
-                          label="Ongoing notification"
+                          label={tr("Ongoing notification")}
                         />
                       </SettingsRow>
                     </GroupedList>
@@ -2639,7 +2816,7 @@ export default function Settings({
                 )}
 
                 <SectionSaveButton
-                  label="Save reminders"
+                  label={tr("Save reminders")}
                   saving={saving}
                   onClick={handleSaveNotifications}
                 />
@@ -2649,32 +2826,42 @@ export default function Settings({
             {activeView === "health" && (
               <>
                 <SettingsSectionIntro>
-                  OneRep can read completed workouts from {healthLabel}.
-                  Imported sessions only join your training log when you add
-                  them.
-                  {healthProvider() === "health_connect" && (
-                    <>
-                      {" "}
-                      Health Connect grants access from its own screen, not from
-                      Android&rsquo;s app info page, and it only lists OneRep
-                      once OneRep has asked — so turn on Import workouts below
-                      first.
-                    </>
-                  )}
+                  <Message
+                    text={
+                      "OneRep can read completed workouts from {{value0}}. Imported sessions only join your training log when you add them.{{value1}}"
+                    }
+                    values={{
+                      value0: healthLabel,
+                      value1: healthProvider() === "health_connect" && (
+                        <>
+                          <Message
+                            text={
+                              " Health Connect grants access from its own screen, not from Android&rsquo;s app info page, and it only lists OneRep once OneRep has asked — so turn on Import workouts below first."
+                            }
+                            values={{}}
+                          />
+                        </>
+                      ),
+                    }}
+                  />
                 </SettingsSectionIntro>
 
                 {healthProviderUnavailable && (
-                  <GroupedList label="Health Connect">
+                  <GroupedList label={tr("Health Connect")}>
                     <ListRow
                       title={
                         healthAvailability?.providerStatus === "update_required"
-                          ? "Update Health Connect"
-                          : "Install Health Connect"
+                          ? tr("Update Health Connect")
+                          : tr("Install Health Connect")
                       }
                       detail={
                         healthAvailability?.providerStatus === "update_required"
-                          ? "Your version of Health Connect is too old for OneRep to read from."
-                          : "Android needs the Health Connect app to share workouts between apps."
+                          ? tr(
+                              "Your version of Health Connect is too old for OneRep to read from."
+                            )
+                          : tr(
+                              "Android needs the Health Connect app to share workouts between apps."
+                            )
                       }
                       onClick={() => {
                         void openHealthProviderListing()
@@ -2684,19 +2871,23 @@ export default function Settings({
                 )}
 
                 {onboarding === null && !onSetupWearableConsentChange ? (
-                  <GroupedList label="Health sync">
+                  <GroupedList label={tr("Health sync")}>
                     <ListRow
-                      title="Finish onboarding first"
-                      detail="Health sync needs the consent step from your profile setup."
+                      title={tr("Finish onboarding first")}
+                      detail={tr(
+                        "Health sync needs the consent step from your profile setup."
+                      )}
                     />
                   </GroupedList>
                 ) : (
                   <>
-                    <SettingsSectionLabel title="Consent" />
-                    <GroupedList label="Health consent">
+                    <SettingsSectionLabel title={tr("Consent")} />
+                    <GroupedList label={tr("Health consent")}>
                       <SettingsRow
-                        label="Wearable data"
-                        detail="Allow OneRep to read health and wearable data"
+                        label={tr("Wearable data")}
+                        detail={tr(
+                          "Allow OneRep to read health and wearable data"
+                        )}
                       >
                         <CompactSwitch
                           onInteract={hapticSelection}
@@ -2715,10 +2906,12 @@ export default function Settings({
                                 }
                               })
                               .catch(() =>
-                                toast.error("Could not update consent")
+                                toast.error(
+                                  translateError(tr("Could not update consent"))
+                                )
                               )
                           }}
-                          label="Wearable data"
+                          label={tr("Wearable data")}
                         />
                       </SettingsRow>
                     </GroupedList>
@@ -2727,17 +2920,25 @@ export default function Settings({
                       title={healthLabel}
                       detail={
                         healthSync?.lastSyncedAt
-                          ? `Last synced ${new Date(healthSync.lastSyncedAt).toLocaleString()}`
-                          : "Not synced yet"
+                          ? tr("Last synced {{value0}}", {
+                              value0: new Date(
+                                healthSync.lastSyncedAt
+                              ).toLocaleString(uiLocale()),
+                            })
+                          : tr("Not synced yet")
                       }
                     />
-                    <GroupedList label={`${healthLabel} sync`}>
+                    <GroupedList
+                      label={tr("{{value0}} sync", { value0: healthLabel })}
+                    >
                       <SettingsRow
-                        label="Import workouts"
+                        label={tr("Import workouts")}
                         detail={
                           wearableConsent
-                            ? `Read completed workouts from ${healthLabel}`
-                            : "Turn on wearable consent first"
+                            ? tr("Read completed workouts from {{value0}}", {
+                                value0: healthLabel,
+                              })
+                            : tr("Turn on wearable consent first")
                         }
                       >
                         <CompactSwitch
@@ -2754,15 +2955,24 @@ export default function Settings({
                               .then((authorization) => {
                                 if (!authorization.available) {
                                   setHealthError(
-                                    `${healthLabel} is not available on this device.`
+                                    tr(
+                                      "{{value0}} is not available on this device.",
+                                      { value0: healthLabel }
+                                    )
                                   )
                                   return
                                 }
                                 if (!authorization.granted) {
                                   setHealthError(
-                                    healthProvider() === "health_connect"
-                                      ? "Permission was denied. You can grant it in the Health Connect app."
-                                      : "Permission was denied. Enable OneRep under Settings › Health › Data Access & Devices."
+                                    translateError(
+                                      healthProvider() === "health_connect"
+                                        ? tr(
+                                            "Permission was denied. You can grant it in the Health Connect app."
+                                          )
+                                        : tr(
+                                            "Permission was denied. Enable OneRep under Settings › Health › Data Access & Devices."
+                                          )
+                                    )
                                   )
                                   return
                                 }
@@ -2772,16 +2982,21 @@ export default function Settings({
                               })
                               .catch(() =>
                                 setHealthError(
-                                  `Could not reach ${healthLabel} on this device.`
+                                  tr(
+                                    "Could not reach {{value0}} on this device.",
+                                    { value0: healthLabel }
+                                  )
                                 )
                               )
                           }}
-                          label="Import workouts"
+                          label={tr("Import workouts")}
                         />
                       </SettingsRow>
                       <SettingsRow
-                        label="Sync on open"
-                        detail="Check for new workouts when you open the app"
+                        label={tr("Sync on open")}
+                        detail={tr(
+                          "Check for new workouts when you open the app"
+                        )}
                       >
                         <CompactSwitch
                           disabled={!healthSyncEnabled}
@@ -2790,12 +3005,15 @@ export default function Settings({
                           onChange={(next) => {
                             void setHealthSync({ autoSyncOnForeground: next })
                           }}
-                          label="Sync on open"
+                          label={tr("Sync on open")}
                         />
                       </SettingsRow>
                       <SettingsRow
-                        label="Save data back"
-                        detail={`Write finished sessions, weigh-ins and logged meals to ${healthLabel}`}
+                        label={tr("Save data back")}
+                        detail={tr(
+                          "Write finished sessions, weigh-ins and logged meals to {{value0}}",
+                          { value0: healthLabel }
+                        )}
                       >
                         <CompactSwitch
                           disabled={!healthSyncEnabled}
@@ -2806,15 +3024,17 @@ export default function Settings({
                             // record is not something to opt them into.
                             void enableHealthWriteBack(next)
                           }}
-                          label="Save data back"
+                          label={tr("Save data back")}
                         />
                       </SettingsRow>
                       {supportsHealthSettingsDeepLink() && (
                         // Health Connect owns revocation; there is no API to do
                         // it from here, so send the user to the app itself.
                         <ListRow
-                          title="Manage permissions"
-                          detail="Open OneRep's page in Health Connect to change or withdraw access"
+                          title={tr("Manage permissions")}
+                          detail={tr(
+                            "Open OneRep's page in Health Connect to change or withdraw access"
+                          )}
                           onClick={() => {
                             void openHealthSettings()
                           }}
@@ -2828,7 +3048,7 @@ export default function Settings({
                           <div className="h-full w-3/5 animate-pulse rounded-full bg-foreground" />
                         </div>
                         <p className="native-row-detail mt-2">
-                          {syncStatus.phase ?? "Syncing…"}
+                          {syncStatus.phase ?? tr("Syncing…")}
                         </p>
                       </div>
                     )}
@@ -2838,13 +3058,15 @@ export default function Settings({
                           disabled={healthBusy || syncStatus.running}
                         />
                         <p className="native-row-detail mt-2">
-                          Earlier builds filed each sync push as a separate record, so
-                          Health Connect can show stacked day totals. This re-writes the
-                          past week from your OneRep log.
+                          {tr(
+                            "Earlier builds filed each sync push as a separate record, so Health Connect can show stacked day totals. This re-writes the past week from your OneRep log."
+                          )}
                         </p>
                       </div>
                     )}
-                    {(healthError || healthSync?.lastSyncError || syncStatus.lastError) && (
+                    {(healthError ||
+                      healthSync?.lastSyncError ||
+                      syncStatus.lastError) && (
                       <p className="native-row-detail px-[var(--app-page-x)] text-destructive">
                         {healthError ??
                           friendlyHealthError(healthSync?.lastSyncError) ??
@@ -2856,7 +3078,9 @@ export default function Settings({
                     <div className="px-[var(--app-page-x)] pt-4">
                       <PrimaryButton
                         className="w-full"
-                        disabled={healthBusy || syncStatus.running || !healthSyncEnabled}
+                        disabled={
+                          healthBusy || syncStatus.running || !healthSyncEnabled
+                        }
                         onClick={async () => {
                           setHealthBusy(true)
                           beginHealthSync("Checking Health Connect…")
@@ -2866,15 +3090,20 @@ export default function Settings({
                             // a stale mount may have left, so the next sync starts
                             // with a clean error row.
                             updateHealthSyncStatus({ lastError: null })
-                          }                          try {
+                          }
+                          try {
                             const authorization =
                               await requestHealthAuthorization()
                             if (!authorization.granted) {
-                              setHealthError("Permission was denied.")
+                              setHealthError(
+                                translateError(tr("Permission was denied."))
+                              )
                               endHealthSync({ error: "Permission was denied." })
                               return
                             }
-                            setHealthSyncPhase("Reading workouts from Health Connect…")
+                            setHealthSyncPhase(
+                              "Reading workouts from Health Connect…"
+                            )
                             const workouts = await getRecentHealthWorkouts({
                               daysBack: HEALTH_SYNC_DAYS_BACK,
                               limit: HEALTH_SYNC_LIMIT,
@@ -2896,19 +3125,27 @@ export default function Settings({
                             })
                             toast.success(
                               result.imported > 0
-                                ? `Imported ${result.imported} workout${result.imported === 1 ? "" : "s"}`
-                                : "Already up to date"
+                                ? tr("Imported {{value0}} workout{{value1}}", {
+                                    value0: result.imported,
+                                    value1: result.imported === 1 ? "" : "s",
+                                  })
+                                : tr("Already up to date")
                             )
                             recordSyncActivity(
                               result.imported > 0
-                                ? `Imported ${result.imported} workout${result.imported === 1 ? "" : "s"}`
+                                ? tr("Imported {{value0}} workout{{value1}}", {
+                                    value0: result.imported,
+                                    value1: result.imported === 1 ? "" : "s",
+                                  })
                                 : "Workout check: already up to date",
                               result.imported > 0 ? result.imported : undefined
                             )
                             endHealthSync({ error: null })
                           } catch (error) {
                             const rawMessage =
-                              error instanceof Error ? error.message : "Sync failed"
+                              error instanceof Error
+                                ? error.message
+                                : tr("Sync failed")
                             setHealthError(
                               friendlyHealthError(rawMessage) ?? rawMessage
                             )
@@ -2918,7 +3155,7 @@ export default function Settings({
                           }
                         }}
                       >
-                        {healthBusy ? "Syncing…" : "Sync now"}
+                        {healthBusy ? tr("Syncing…") : tr("Sync now")}
                       </PrimaryButton>
                     </div>
 
@@ -2942,20 +3179,27 @@ export default function Settings({
                           disabled: !healthSyncEnabled,
                           disabledReason: healthSyncEnabled
                             ? undefined
-                            : `Turn on ${healthLabel} sync first`,
+                            : tr("Turn on {{value0}} sync first", {
+                                value0: healthLabel,
+                              }),
                         })),
                       }))}
                     />
 
                     <SettingsSectionLabel
-                      title="Recent imports"
-                      detail="Add a session to your training log, or hide it"
+                      title={tr("Recent imports")}
+                      detail={tr(
+                        "Add a session to your training log, or hide it"
+                      )}
                     />
-                    <GroupedList label="Imported workouts">
+                    <GroupedList label={tr("Imported workouts")}>
                       {pendingHealthWorkouts.length === 0 ? (
                         <ListRow
-                          title="Nothing imported yet"
-                          detail={`Completed ${healthLabel} workouts will appear here.`}
+                          title={tr("Nothing imported yet")}
+                          detail={tr(
+                            "Completed {{value0}} workouts will appear here.",
+                            { value0: healthLabel }
+                          )}
                         />
                       ) : (
                         pendingHealthWorkouts.map((workout) => (
@@ -2968,18 +3212,27 @@ export default function Settings({
                                 {workout.activityName}
                               </p>
                               <p className="native-row-detail mt-0.5">
-                                {workout.date} ·{" "}
-                                {Math.round(workout.durationSeconds / 60)} min
-                                {workout.sourceName
-                                  ? ` · ${workout.sourceName}`
-                                  : ""}
+                                <Message
+                                  text={"{{value0}} · {{value1}} min{{value2}}"}
+                                  values={{
+                                    value0: workout.date,
+                                    value1: Math.round(
+                                      workout.durationSeconds / 60
+                                    ),
+                                    value2: workout.sourceName
+                                      ? tr(" · {{value0}}", {
+                                          value0: workout.sourceName,
+                                        })
+                                      : "",
+                                  }}
+                                />
                               </p>
                             </div>
                             {workout.dayFull ? (
                               // Both slots that day are taken — offering Add
                               // would only produce a failed mutation.
                               <span className="native-row-detail shrink-0">
-                                Day full
+                                {tr("Day full")}
                               </span>
                             ) : workout.linkable ? (
                               <button
@@ -2988,23 +3241,27 @@ export default function Settings({
                                 onClick={() => {
                                   void linkHealthWorkout({ id: workout._id })
                                     .then(() =>
-                                      toast.success("Added to training log")
+                                      toast.success(tr("Added to training log"))
                                     )
                                     .catch((error) =>
                                       toast.error(
-                                        error instanceof Error
-                                          ? error.message
-                                          : "Could not add this workout"
+                                        translateError(
+                                          error instanceof Error
+                                            ? error.message
+                                            : tr("Could not add this workout")
+                                        )
                                       )
                                     )
                                 }}
                               >
-                                Add
+                                {tr("Add")}
                               </button>
                             ) : null}
                             <button
                               type="button"
-                              aria-label={`Hide ${workout.activityName}`}
+                              aria-label={tr("Hide {{value0}}", {
+                                value0: workout.activityName,
+                              })}
                               className="native-toolbar-button h-11 w-11 shrink-0 px-0"
                               onClick={() => {
                                 void dismissHealthWorkout({ id: workout._id })
@@ -3028,25 +3285,39 @@ export default function Settings({
                     {syncStatus.recent.length > 0 && (
                       <>
                         <SettingsSectionLabel
-                          title="Sync activity"
+                          title={tr("Sync activity")}
                           detail={
                             syncStatus.lastDurationMs != null
-                              ? `Last sync took ${(syncStatus.lastDurationMs / 1000).toFixed(1)}s`
+                              ? tr("Last sync took {{value0}}s", {
+                                  value0: (
+                                    syncStatus.lastDurationMs / 1000
+                                  ).toFixed(1),
+                                })
                               : undefined
                           }
                         />
-                        <GroupedList label="Recent sync activity">
+                        <GroupedList label={tr("Recent sync activity")}>
                           {syncStatus.recent.map((activity) => (
                             <ListRow
                               key={activity.at}
-                              leading={<Heartbeat size={18} weight="bold" aria-hidden className="text-muted-foreground" />}
+                              leading={
+                                <Heartbeat
+                                  size={18}
+                                  weight="bold"
+                                  aria-hidden
+                                  className="text-muted-foreground"
+                                />
+                              }
                               title={activity.label}
-                              detail={new Date(activity.at).toLocaleString([], {
-                                month: "short",
-                                day: "numeric",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
+                              detail={new Date(activity.at).toLocaleString(
+                                uiLocale(),
+                                {
+                                  month: "short",
+                                  day: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                }
+                              )}
                               value={
                                 activity.count != null ? (
                                   <span className="text-[14px] font-semibold text-muted-foreground tabular-nums">
@@ -3068,20 +3339,21 @@ export default function Settings({
               <>
                 <AiSharingSettings />
                 <SettingsSectionIntro>
-                  Control personalized recommendations and this device’s sync
-                  state.
+                  {tr(
+                    "Control personalized recommendations and this device’s sync state."
+                  )}
                 </SettingsSectionIntro>
-                <SettingsSectionLabel title="Privacy" />
-                <GroupedList label="Privacy controls">
+                <SettingsSectionLabel title={tr("Privacy")} />
+                <GroupedList label={tr("Privacy controls")}>
                   <SettingsRow
-                    label="Personalized insights"
-                    detail="Use your logs for tailored coaching"
+                    label={tr("Personalized insights")}
+                    detail={tr("Use your logs for tailored coaching")}
                   >
                     <CompactSwitch
                       onInteract={hapticSelection}
                       checked={personalizedInsightsEnabled}
                       onChange={setPersonalizedInsightsEnabled}
-                      label="Personalized insights"
+                      label={tr("Personalized insights")}
                     />
                   </SettingsRow>
                 </GroupedList>
@@ -3095,19 +3367,25 @@ export default function Settings({
                 {blockedAuthors.length > 0 && (
                   <>
                     <SettingsSectionLabel
-                      title="Blocked"
-                      detail="Community recipes from these people stay hidden"
+                      title={tr("Blocked")}
+                      detail={tr(
+                        "Community recipes from these people stay hidden"
+                      )}
                     />
-                    <GroupedList label="Blocked community authors">
+                    <GroupedList label={tr("Blocked community authors")}>
                       {blockedAuthors.map((author) => (
                         <ListRow
                           key={author.id}
                           title={author.name}
-                          detail="Their shared recipes are hidden from you"
+                          detail={tr(
+                            "Their shared recipes are hidden from you"
+                          )}
                           trailing={
                             <button
                               type="button"
-                              aria-label={`Unblock ${author.name}`}
+                              aria-label={tr("Unblock {{value0}}", {
+                                value0: author.name,
+                              })}
                               disabled={unblocking === author.id}
                               className="native-secondary-button h-10 px-4 text-[14px]"
                               onClick={async () => {
@@ -3116,12 +3394,14 @@ export default function Settings({
                                   await unblockCommunityAuthor({
                                     blockId: author.id,
                                   })
-                                  toast.success("Unblocked")
+                                  toast.success(tr("Unblocked"))
                                 } catch (error) {
                                   toast.error(
-                                    error instanceof Error
-                                      ? error.message
-                                      : "Could not unblock"
+                                    translateError(
+                                      error instanceof Error
+                                        ? error.message
+                                        : tr("Could not unblock")
+                                    )
                                   )
                                 } finally {
                                   setUnblocking(null)
@@ -3129,8 +3409,8 @@ export default function Settings({
                               }}
                             >
                               {unblocking === author.id
-                                ? "Unblocking..."
-                                : "Unblock"}
+                                ? tr("Unblocking...")
+                                : tr("Unblock")}
                             </button>
                           }
                         />
@@ -3140,22 +3420,24 @@ export default function Settings({
                 )}
 
                 <SettingsSectionLabel
-                  title="Sharing"
-                  detail="Give a coach or partner read-only access to your food diary"
+                  title={tr("Sharing")}
+                  detail={tr(
+                    "Give a coach or partner read-only access to your food diary"
+                  )}
                 />
                 <div className="flex items-center gap-2">
                   <input
                     type="email"
                     inputMode="email"
                     autoComplete="off"
-                    placeholder="coach@example.com"
+                    placeholder={tr("coach@example.com")}
                     value={inviteEmail}
-                    aria-label="Invite by email"
+                    aria-label={tr("Invite by email")}
                     onChange={(event) => setInviteEmail(event.target.value)}
                     className="h-11 flex-1 rounded-xl border border-border bg-transparent px-3 outline-none"
                   />
                   <PrimaryButton
-                    aria-label="Send diary invitation"
+                    aria-label={tr("Send diary invitation")}
                     disabled={inviting || !isValidInviteEmail(inviteEmail)}
                     onClick={async () => {
                       setInviting(true)
@@ -3167,27 +3449,31 @@ export default function Settings({
                         })
                         setInviteEmail("")
                         toast.success(
-                          "Invitation created — send them the link below"
+                          tr("Invitation created — send them the link below")
                         )
                       } catch (error) {
                         toast.error(
-                          error instanceof Error
-                            ? error.message
-                            : "Could not send this invitation"
+                          translateError(
+                            error instanceof Error
+                              ? error.message
+                              : tr("Could not send this invitation")
+                          )
                         )
                       } finally {
                         setInviting(false)
                       }
                     }}
                   >
-                    Invite
+                    {tr("Invite")}
                   </PrimaryButton>
                 </div>
-                <GroupedList label="People I share with">
+                <GroupedList label={tr("People I share with")}>
                   {outgoingShares.length === 0 ? (
                     <ListRow
-                      title="Not shared with anyone"
-                      detail="Invite someone above to give read-only access"
+                      title={tr("Not shared with anyone")}
+                      detail={tr(
+                        "Invite someone above to give read-only access"
+                      )}
                     />
                   ) : (
                     outgoingShares.map((share) => (
@@ -3201,8 +3487,8 @@ export default function Settings({
                           </p>
                           <p className="native-row-detail mt-0.5">
                             {share.status === "pending"
-                              ? "Waiting for them"
-                              : "Active"}{" "}
+                              ? tr("Waiting for them")
+                              : tr("Active")}{" "}
                             · {shareScopeLabel(share.scope)}
                           </p>
                         </div>
@@ -3215,11 +3501,17 @@ export default function Settings({
                                 share.inviteeEmail
                               )
                               if (result === "copied")
-                                toast.success("Invite link copied")
+                                toast.success(tr("Invite link copied"))
                               if (result === "failed")
-                                toast.error("Could not share the invite link")
+                                toast.error(
+                                  translateError(
+                                    tr("Could not share the invite link")
+                                  )
+                                )
                             }}
-                            aria-label={`Send invite link to ${share.inviteeEmail}`}
+                            aria-label={tr("Send invite link to {{value0}}", {
+                              value0: share.inviteeEmail,
+                            })}
                             className="native-toolbar-button h-11 w-11 px-0 text-muted-foreground"
                           >
                             <PaperPlaneTilt size={17} weight="bold" />
@@ -3233,34 +3525,38 @@ export default function Settings({
                                 id: (share.id ??
                                   share._id) as Id<"diaryShares">,
                               })
-                              toast.success("Access revoked")
+                              toast.success(tr("Access revoked"))
                             } catch {
-                              toast.error("Could not revoke access")
+                              toast.error(
+                                translateError(tr("Could not revoke access"))
+                              )
                             }
                           }}
-                          aria-label={`Revoke access for ${share.inviteeEmail}`}
+                          aria-label={tr("Revoke access for {{value0}}", {
+                            value0: share.inviteeEmail,
+                          })}
                           className="native-toolbar-button h-11 px-3 text-destructive"
                         >
-                          Revoke
+                          {tr("Revoke")}
                         </button>
                       </div>
                     ))
                   )}
                 </GroupedList>
                 <ListRow
-                  title="Shared diaries"
-                  detail="Diaries other people shared with you"
+                  title={tr("Shared diaries")}
+                  detail={tr("Diaries other people shared with you")}
                   onClick={() => navigate("/shared")}
                   trailing={
                     <CaretRight size={18} className="text-muted-foreground" />
                   }
                 />
 
-                <SettingsSectionLabel title="Legal" />
-                <GroupedList label="Legal documents">
+                <SettingsSectionLabel title={tr("Legal")} />
+                <GroupedList label={tr("Legal documents")}>
                   <ListRow
-                    title="Privacy Policy"
-                    detail="How OneRep uses and protects your information"
+                    title={tr("Privacy Policy")}
+                    detail={tr("How OneRep uses and protects your information")}
                     onClick={() =>
                       window.open(
                         "https://onerep.life/privacy",
@@ -3273,8 +3569,8 @@ export default function Settings({
                     }
                   />
                   <ListRow
-                    title="Terms and Conditions"
-                    detail="Rules for using OneRep and Coach"
+                    title={tr("Terms and Conditions")}
+                    detail={tr("Rules for using OneRep and Coach")}
                     onClick={() =>
                       window.open(
                         "https://onerep.life/terms",
@@ -3287,17 +3583,17 @@ export default function Settings({
                     }
                   />
                 </GroupedList>
-                <SettingsSectionLabel title="This device" />
-                <GroupedList label="Device and sync settings">
+                <SettingsSectionLabel title={tr("This device")} />
+                <GroupedList label={tr("Device and sync settings")}>
                   <ListRow
-                    title="Install OneRep"
+                    title={tr("Install OneRep")}
                     detail={pwaCopy.description}
                     value={pwaCopy.statusLabel}
                     disabled={pwaCopy.disabled}
                     onClick={() => void handleInstallApp()}
                   />
                   <ListRow
-                    title="Data sync"
+                    title={tr("Data sync")}
                     detail={offlineSyncStatus.body}
                     disabled={syncingOfflineQueue}
                     busy={syncingOfflineQueue}
@@ -3312,7 +3608,7 @@ export default function Settings({
                   />
                 </GroupedList>
                 <SectionSaveButton
-                  label="Save privacy settings"
+                  label={tr("Save privacy settings")}
                   saving={saving}
                   onClick={handleSavePrivacy}
                 />
@@ -3322,14 +3618,19 @@ export default function Settings({
             {activeView === "data" && (
               <>
                 <SettingsSectionIntro>
-                  Export or reset your information. Destructive actions are kept
-                  separate below.
+                  {tr(
+                    "Export or reset your information. Destructive actions are kept separate below."
+                  )}
                 </SettingsSectionIntro>
-                <SettingsSectionLabel title="Your data" />
-                <GroupedList label="Data tools">
+                <SettingsSectionLabel title={tr("Your data")} />
+                <GroupedList label={tr("Data tools")}>
                   <ListRow
-                    title={exporting ? "Preparing export…" : "Export my data"}
-                    detail="Download a complete copy of your data you can verify"
+                    title={
+                      exporting ? tr("Preparing export…") : tr("Export my data")
+                    }
+                    detail={tr(
+                      "Download a complete copy of your data you can verify"
+                    )}
                     disabled={exporting}
                     busy={exporting}
                     onClick={() => void handleExportData()}
@@ -3340,12 +3641,14 @@ export default function Settings({
                   <ListRow
                     title={
                       resettingOnboarding
-                        ? "Resetting health profile…"
+                        ? tr("Resetting health profile…")
                         : onboarding
-                          ? "Recalculate health profile"
-                          : "Set up health profile"
+                          ? tr("Recalculate health profile")
+                          : tr("Set up health profile")
                     }
-                    detail="Review the inputs used for your recommendations"
+                    detail={tr(
+                      "Review the inputs used for your recommendations"
+                    )}
                     disabled={resettingOnboarding}
                     busy={resettingOnboarding}
                     onClick={() =>
@@ -3358,15 +3661,17 @@ export default function Settings({
                     }
                   />
                   <ListRow
-                    title="Clear data on this device"
-                    detail="Remove offline changes and device-only preferences"
+                    title={tr("Clear data on this device")}
+                    detail={tr(
+                      "Remove offline changes and device-only preferences"
+                    )}
                     onClick={handleClearLocalData}
                   />
                 </GroupedList>
 
                 <SettingsSectionLabel
-                  title="Permanent actions"
-                  detail="These changes cannot be undone"
+                  title={tr("Permanent actions")}
+                  detail={tr("These changes cannot be undone")}
                   danger
                 />
                 <section
@@ -3377,15 +3682,18 @@ export default function Settings({
                     id="delete-account-heading"
                     className="native-section-title text-destructive"
                   >
-                    Delete account
+                    {tr("Delete account")}
                   </h2>
                   <p className="native-row-detail mt-1 max-w-xl">
-                    Permanently removes your logs, settings, any changes still
-                    waiting to be saved, and OneRep account data.
+                    {tr(
+                      "Permanently removes your logs, settings, any changes still waiting to be saved, and OneRep account data."
+                    )}
                   </p>
                   <label className="native-field mt-4">
                     <span className="native-field-label">
-                      Type DELETE to confirm
+                      {tr("Type {{value0}} to confirm", {
+                        value0: tr("DELETE"),
+                      })}
                     </span>
                     <input
                       value={deleteConfirmText}
@@ -3395,19 +3703,19 @@ export default function Settings({
                       autoCapitalize="characters"
                       autoComplete="off"
                       className="native-input"
-                      placeholder="DELETE"
+                      placeholder={tr("DELETE")}
                     />
                   </label>
                   <button
                     type="button"
                     onClick={() => void handleDeleteAccount()}
-                    disabled={deleteConfirmText !== "DELETE" || deleting}
+                    disabled={deleteConfirmText !== tr("DELETE") || deleting}
                     aria-busy={deleting}
                     className="text-destructive-foreground mt-4 min-h-11 w-full rounded-[0.7rem] bg-destructive px-4 text-[15px] font-semibold disabled:opacity-35"
                   >
                     {deleting
-                      ? "Deleting account…"
-                      : "Permanently delete account"}
+                      ? tr("Deleting account…")
+                      : tr("Permanently delete account")}
                   </button>
                 </section>
               </>
@@ -3416,9 +3724,9 @@ export default function Settings({
             {activeView === "agents" && (
               <>
                 <SettingsSectionIntro>
-                  Give a script, or an AI assistant, a key to your log — over
-                  the REST API or the Model Context Protocol. Read-only unless
-                  you say otherwise, revocable, and nothing it can delete.
+                  {tr(
+                    "Give a script, or an AI assistant, a key to your log — over the REST API or the Model Context Protocol. Read-only unless you say otherwise, revocable, and nothing it can delete."
+                  )}
                 </SettingsSectionIntro>
                 <ApiKeysSection
                   apiBaseUrl={apiBaseUrl}
@@ -3430,10 +3738,11 @@ export default function Settings({
             {activeView === "walkthrough" && (
               <>
                 <SettingsSectionIntro>
-                  A short guided tour runs the first time you open each area.
-                  Replay any of them here.
+                  {tr(
+                    "A short guided tour runs the first time you open each area. Replay any of them here."
+                  )}
                 </SettingsSectionIntro>
-                <GroupedList label="Walkthrough chapters">
+                <GroupedList label={tr("Walkthrough chapters")}>
                   {WALKTHROUGH_CHAPTERS.map((chapter) => (
                     <ListRow
                       key={chapter.id}
@@ -3454,7 +3763,7 @@ export default function Settings({
                     onClick={() => void handleReplayEverything()}
                     className="native-secondary-button min-h-12 w-full rounded-[0.8rem]"
                   >
-                    Replay everything
+                    {tr("Replay everything")}
                   </button>
                 </div>
               </>
@@ -3463,8 +3772,9 @@ export default function Settings({
             {activeView === "about" && (
               <>
                 <SettingsSectionIntro>
-                  OneRep updates itself in the background. This is what is
-                  running right now.
+                  {tr(
+                    "OneRep updates itself in the background. This is what is running right now."
+                  )}
                 </SettingsSectionIntro>
                 <AboutApp />
               </>
@@ -3473,44 +3783,57 @@ export default function Settings({
             {activeView === "developer" && SHOW_DEV_SETTINGS && (
               <>
                 <SettingsSectionIntro>
-                  Internal controls for testing product education and account
-                  state.
+                  {tr(
+                    "Internal controls for testing product education and account state."
+                  )}
                 </SettingsSectionIntro>
-                <GroupedList label="Developer controls">
+                <GroupedList label={tr("Developer controls")}>
                   <ListRow
-                    title="Reset Coach onboarding"
-                    detail="Replay the animated Coach capabilities introduction"
+                    title={tr("Reset Coach onboarding")}
+                    detail={tr(
+                      "Replay the animated Coach capabilities introduction"
+                    )}
                     onClick={handleResetCoachOnboarding}
                   />
                   <ListRow
                     title={
                       refreshingTooltips
-                        ? "Refreshing…"
-                        : "Refresh shown tooltips"
+                        ? tr("Refreshing…")
+                        : tr("Refresh shown tooltips")
                     }
-                    detail="Clear completed tooltip state for this account"
+                    detail={tr(
+                      "Clear completed tooltip state for this account"
+                    )}
                     disabled={refreshingTooltips}
                     onClick={() => void handleRefreshShownTooltips()}
                   />
                   <ListRow
                     title={
-                      testingNotification ? "Scheduling…" : "Test notification"
+                      testingNotification
+                        ? tr("Scheduling…")
+                        : tr("Test notification")
                     }
-                    detail="Send a local notification in two seconds"
+                    detail={tr("Send a local notification in two seconds")}
                     disabled={testingNotification}
                     onClick={() => void handleTestNotification()}
                   />
+                  {billing.canUpgrade && (
+                    <ListRow
+                      title={tr("Show paywall")}
+                      detail={tr(
+                        "Preview the Pro paywall without spending an AI request"
+                      )}
+                      onClick={() => {
+                        hapticSelection()
+                        showAiPaywall()
+                      }}
+                    />
+                  )}
                   <ListRow
-                    title="Show paywall"
-                    detail="Preview the Pro paywall without spending an AI request"
-                    onClick={() => {
-                      hapticSelection()
-                      showAiPaywall()
-                    }}
-                  />
-                  <ListRow
-                    title="Show the welcome nudge"
-                    detail="Forget today's dismissal and open the dashboard"
+                    title={tr("Show the welcome nudge")}
+                    detail={tr(
+                      "Forget today's dismissal and open the dashboard"
+                    )}
                     onClick={() => {
                       hapticSelection()
                       resetWelcomeNudge()
@@ -3520,59 +3843,67 @@ export default function Settings({
                 </GroupedList>
 
                 <SettingsSectionIntro>
-                  Every email the product sends, delivered to your own address
-                  with harmless links, so the templates can be judged where they
-                  live: an inbox.
+                  {tr(
+                    "Every email the product sends, delivered to your own address with harmless links, so the templates can be judged where they live: an inbox."
+                  )}
                 </SettingsSectionIntro>
-                <GroupedList label="Test emails">
+                <GroupedList label={tr("Test emails")}>
                   <ListRow
-                    title="Send the verification email"
-                    detail="The confirm-your-email template"
+                    title={tr("Send the verification email")}
+                    detail={tr("The confirm-your-email template")}
                     disabled={sendingTestEmail !== null}
                     onClick={() => void handleSendTestEmail("verification")}
                   />
                   <ListRow
-                    title="Send the password-reset email"
-                    detail="The choose-a-new-password template"
+                    title={tr("Send the password-reset email")}
+                    detail={tr("The choose-a-new-password template")}
                     disabled={sendingTestEmail !== null}
                     onClick={() => void handleSendTestEmail("password-reset")}
                   />
                   <ListRow
-                    title="Send the diary-invite email"
-                    detail="What an invitee receives when you share your diary"
+                    title={tr("Send the diary-invite email")}
+                    detail={tr(
+                      "What an invitee receives when you share your diary"
+                    )}
                     disabled={sendingTestEmail !== null}
                     onClick={() => void handleSendTestEmail("diary-invite")}
                   />
                 </GroupedList>
 
                 <SettingsSectionIntro>
-                  Full-screen moments, opened by hand. They read your real
-                  history and record nothing, so a preview never uses up the
-                  real one.
+                  {tr(
+                    "Full-screen moments, opened by hand. They read your real history and record nothing, so a preview never uses up the real one."
+                  )}
                 </SettingsSectionIntro>
-                <GroupedList label="Full-screen moments">
+                <GroupedList label={tr("Full-screen moments")}>
                   <ListRow
-                    title="Show the missed-log nudge"
-                    detail="The check-in for a day that went unlogged"
+                    title={tr("Show the missed-log nudge")}
+                    detail={tr("The check-in for a day that went unlogged")}
                     onClick={() => handlePreviewMoment(MOMENT_IDS.missedLog)}
                   />
                   <ListRow
-                    title="Show the training-lapse nudge"
-                    detail="The check-in for a stretch of days off"
+                    title={tr("Show the training-lapse nudge")}
+                    detail={tr("The check-in for a stretch of days off")}
                     onClick={() =>
                       handlePreviewMoment(MOMENT_IDS.trainingLapse)
                     }
                   />
                   <ListRow
-                    title="Show the weekly report"
-                    detail="The week that most recently closed, whatever is in it"
+                    title={tr("Show the weekly report")}
+                    detail={tr(
+                      "The week that most recently closed, whatever is in it"
+                    )}
                     onClick={() => handlePreviewMoment(MOMENT_IDS.weeklyReport)}
                   />
                   <ListRow
                     title={
-                      clearingMoments ? "Forgetting…" : "Forget shown moments"
+                      clearingMoments
+                        ? tr("Forgetting…")
+                        : tr("Forget shown moments")
                     }
-                    detail="Clear the record so the real triggers can fire again"
+                    detail={tr(
+                      "Clear the record so the real triggers can fire again"
+                    )}
                     disabled={clearingMoments}
                     onClick={() => void handleClearMomentHistory()}
                   />
@@ -3616,12 +3947,17 @@ function ReminderRow({
       <div className="min-w-[8rem] flex-1">
         <span className="native-row-title block">{label}</span>
         <span className="native-row-detail mt-0.5 block">
-          {reminder.enabled ? formatReminderLabel(reminder) : "Off"}
+          {reminder.enabled ? formatReminderLabel(reminder) : tr("Off")}
         </span>
       </div>
       <div className="flex items-center gap-2">
         <label className="flex items-center">
-          <span className="sr-only">{label} reminder time</span>
+          <span className="sr-only">
+            <Message
+              text={"{{value0}} reminder time"}
+              values={{ value0: label }}
+            />
+          </span>
           <input
             type="time"
             value={timeValue}
@@ -3636,7 +3972,7 @@ function ReminderRow({
           onInteract={hapticSelection}
           checked={reminder.enabled}
           onChange={(enabled) => onChange({ enabled })}
-          label={`${label} reminder`}
+          label={tr("{{value0}} reminder", { value0: label })}
         />
       </div>
     </div>

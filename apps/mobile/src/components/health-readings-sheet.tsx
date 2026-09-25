@@ -1,3 +1,4 @@
+import { Message, tr, translateError, uiLocale } from "@repo/ui/i18n"
 import { useEffect, useMemo, useState } from "react"
 import { useWeightUnit } from "@/lib/use-weight-unit"
 import { useEnergyUnit, type EnergyUnit } from "@/lib/use-energy-unit"
@@ -66,7 +67,7 @@ function fields(weightUnit: "kg" | "lbs", energyUnit: EnergyUnit): Field[] {
     {
       key: "sleepMinutes",
       kind: "daily",
-      label: "Sleep",
+      label: tr("Sleep"),
       unit: "h",
       decimals: 2,
       toDisplay: (stored) => stored / MINUTES_PER_HOUR,
@@ -75,7 +76,7 @@ function fields(weightUnit: "kg" | "lbs", energyUnit: EnergyUnit): Field[] {
     {
       key: "steps",
       kind: "daily",
-      label: "Steps",
+      label: tr("Steps"),
       unit: "steps",
       decimals: 0,
       toDisplay: identity,
@@ -84,7 +85,7 @@ function fields(weightUnit: "kg" | "lbs", energyUnit: EnergyUnit): Field[] {
     {
       key: "restingHeartRateBpm",
       kind: "daily",
-      label: "Resting heart rate",
+      label: tr("Resting heart rate"),
       unit: "bpm",
       decimals: 0,
       toDisplay: identity,
@@ -93,7 +94,7 @@ function fields(weightUnit: "kg" | "lbs", energyUnit: EnergyUnit): Field[] {
     {
       key: "hrvMs",
       kind: "daily",
-      label: "Heart rate variability",
+      label: tr("Heart rate variability"),
       unit: "ms",
       decimals: 0,
       toDisplay: identity,
@@ -102,7 +103,7 @@ function fields(weightUnit: "kg" | "lbs", energyUnit: EnergyUnit): Field[] {
     {
       key: "activeEnergyKcal",
       kind: "daily",
-      label: "Active energy",
+      label: tr("Active energy"),
       unit: "kcal", // Editable reading stored in kcal; label must match.
       decimals: 0,
       toDisplay: identity,
@@ -111,7 +112,7 @@ function fields(weightUnit: "kg" | "lbs", energyUnit: EnergyUnit): Field[] {
     {
       key: "weightKg",
       kind: "body",
-      label: "Weight",
+      label: tr("Weight"),
       unit: weightUnit,
       decimals: 1,
       toDisplay: (stored) =>
@@ -121,7 +122,7 @@ function fields(weightUnit: "kg" | "lbs", energyUnit: EnergyUnit): Field[] {
     {
       key: "bodyFatPct",
       kind: "body",
-      label: "Body fat",
+      label: tr("Body fat"),
       unit: "%",
       decimals: 1,
       toDisplay: identity,
@@ -156,9 +157,9 @@ type BodyRow = {
 }
 
 function formatDay(date: string, today: string) {
-  if (date === today) return "Today"
-  if (date === shiftDate(today, -1)) return "Yesterday"
-  return new Date(`${date}T12:00:00Z`).toLocaleDateString(undefined, {
+  if (date === today) return tr("Today")
+  if (date === shiftDate(today, -1)) return tr("Yesterday")
+  return new Date(`${date}T12:00:00Z`).toLocaleDateString(uiLocale(), {
     weekday: "long",
     day: "numeric",
     month: "short",
@@ -224,7 +225,7 @@ export function HealthReadingsSheet({
   // onto Wednesday, which is the one mistake this sheet must never make.
   useEffect(() => {
     setDrafts({})
-    setError("")
+    setError(translateError(""))
   }, [date])
 
   function storedValue(field: Field) {
@@ -285,7 +286,7 @@ export function HealthReadingsSheet({
   }
 
   async function save() {
-    setError("")
+    setError(translateError(""))
     setSaving(true)
     try {
       for (const field of rows) {
@@ -305,16 +306,36 @@ export function HealthReadingsSheet({
         }
         const typed = Number(trimmed.replace(",", "."))
         if (!Number.isFinite(typed)) {
-          setError(`${field.label} needs a number.`)
+          setError(
+            translateError(
+              tr("{{value0}} needs a number.", { value0: field.label })
+            )
+          )
           return
         }
         const value = saneHealthMetric(field.key, field.toStored(typed))
         if (value === undefined) {
           const bounds = healthMetric(field.key)
           setError(
-            bounds
-              ? `${field.label} has to be between ${formatNumber(field.toDisplay(bounds.min), field.decimals)} and ${formatNumber(field.toDisplay(bounds.max), field.decimals)}${field.unit === "%" ? "" : ` ${field.unit}`}.`
-              : `${field.label} is out of range.`
+            translateError(
+              bounds
+                ? tr(
+                    "{{value0}} has to be between {{value1}} and {{value2}}{{value3}}.",
+                    {
+                      value0: field.label,
+                      value1: formatNumber(
+                        field.toDisplay(bounds.min),
+                        field.decimals
+                      ),
+                      value2: formatNumber(
+                        field.toDisplay(bounds.max),
+                        field.decimals
+                      ),
+                      value3: field.unit === "%" ? "" : ` ${field.unit}`,
+                    }
+                  )
+                : tr("{{value0}} is out of range.", { value0: field.label })
+            )
           )
           return
         }
@@ -333,7 +354,11 @@ export function HealthReadingsSheet({
       onClose()
     } catch (cause) {
       setError(
-        cause instanceof Error ? cause.message : "That did not save. Try again."
+        translateError(
+          cause instanceof Error
+            ? cause.message
+            : tr("That did not save. Try again.")
+        )
       )
     } finally {
       setSaving(false)
@@ -341,7 +366,7 @@ export function HealthReadingsSheet({
   }
 
   async function revert(field: Field) {
-    setError("")
+    setError(translateError(""))
     setSaving(true)
     try {
       await commit(field, null)
@@ -353,9 +378,11 @@ export function HealthReadingsSheet({
       hapticSelection()
     } catch (cause) {
       setError(
-        cause instanceof Error
-          ? cause.message
-          : "That did not clear. Try again."
+        translateError(
+          cause instanceof Error
+            ? cause.message
+            : tr("That did not clear. Try again.")
+        )
       )
     } finally {
       setSaving(false)
@@ -364,7 +391,7 @@ export function HealthReadingsSheet({
 
   return (
     <MobileSheet
-      ariaLabel="Correct a reading"
+      ariaLabel={tr("Correct a reading")}
       onClose={onClose}
       overlayClassName="bg-black/45"
       panelClassName="sheet-panel mx-auto flex max-h-[88vh] w-full max-w-md flex-col rounded-t-2xl border-t border-border bg-card"
@@ -372,16 +399,20 @@ export function HealthReadingsSheet({
       <div className="flex items-start justify-between gap-4 px-5 pt-4">
         <div>
           <h2 className="text-[20px] font-bold tracking-tight">
-            Correct a reading
+            {tr("Correct a reading")}
           </h2>
           <p className="mt-1 text-[12px] leading-5 text-muted-foreground">
-            Whatever you type here is what every score on this page uses. Empty
-            a field to hand the day back to {storeName}.
+            <Message
+              text={
+                "Whatever you type here is what every score on this page uses. Empty a field to hand the day back to {{value0}}."
+              }
+              values={{ value0: storeName }}
+            />
           </p>
         </div>
         <ToolbarButton
           onClick={onClose}
-          aria-label="Close"
+          aria-label={tr("Close")}
           className="-mt-1 -mr-2 px-0"
         >
           <X size={14} weight="bold" />
@@ -404,7 +435,7 @@ export function HealthReadingsSheet({
               hapticSelection()
               setDate(shiftDate(date, -1))
             }}
-            aria-label="Previous day"
+            aria-label={tr("Previous day")}
             className="motion-tactile inline-flex size-9 shrink-0 items-center justify-center rounded-full disabled:opacity-35"
           >
             <CaretLeft size={15} weight="bold" />
@@ -418,7 +449,7 @@ export function HealthReadingsSheet({
               hapticSelection()
               setPickingDate((open) => !open)
             }}
-            aria-label="Pick a day"
+            aria-label={tr("Pick a day")}
             aria-expanded={pickingDate}
             className={`motion-tactile inline-flex size-9 shrink-0 items-center justify-center rounded-full ${
               pickingDate ? "bg-foreground/10 text-foreground" : ""
@@ -433,7 +464,7 @@ export function HealthReadingsSheet({
               hapticSelection()
               setDate(shiftDate(date, 1))
             }}
-            aria-label="Next day"
+            aria-label={tr("Next day")}
             className="motion-tactile inline-flex size-9 shrink-0 items-center justify-center rounded-full disabled:opacity-35"
           >
             <CaretRight size={15} weight="bold" />
@@ -458,7 +489,10 @@ export function HealthReadingsSheet({
               }}
             />
             <p className="mt-1 text-center text-[12px] text-muted-foreground">
-              You can correct the last {EDITABLE_DAYS} days.
+              <Message
+                text={"You can correct the last {{value0}} days."}
+                values={{ value0: EDITABLE_DAYS }}
+              />
             </p>
           </div>
         )}
@@ -482,10 +516,10 @@ export function HealthReadingsSheet({
                 </label>
                 <p className="mt-0.5 text-[12px] leading-4 text-muted-foreground">
                   {overridden
-                    ? "you typed this"
+                    ? tr("you typed this")
                     : stored == null
-                      ? "nothing recorded"
-                      : `read from ${storeName}`}
+                      ? tr("nothing recorded")
+                      : tr("read from {{value0}}", { value0: storeName })}
                 </p>
               </div>
               {overridden && (
@@ -495,7 +529,7 @@ export function HealthReadingsSheet({
                   disabled={saving}
                   className="motion-tactile shrink-0 text-[12px] font-semibold text-muted-foreground underline underline-offset-4"
                 >
-                  Use synced
+                  {tr("Use synced")}
                 </button>
               )}
               <div className="flex shrink-0 items-baseline gap-1">
@@ -510,7 +544,7 @@ export function HealthReadingsSheet({
                   value={shownValue(field)}
                   onFocus={(event) => event.currentTarget.select()}
                   onChange={(event) => {
-                    setError("")
+                    setError(translateError(""))
                     setDrafts((current) => ({
                       ...current,
                       [field.key]: event.target.value,
@@ -531,20 +565,25 @@ export function HealthReadingsSheet({
           <div className="mt-4 border-t border-border pt-3">
             <div className="flex items-center justify-between gap-3">
               <p className="text-[14px] font-semibold">
-                Also update {storeName}
+                <Message
+                  text={"Also update {{value0}}"}
+                  values={{ value0: storeName }}
+                />
               </p>
               <CompactSwitch
                 checked={alsoStore}
                 onChange={setAlsoStore}
                 onInteract={hapticSelection}
-                label={`Also update ${storeName}`}
+                label={tr("Also update {{value0}}", { value0: storeName })}
               />
             </div>
             <p className="mt-1 text-[12px] leading-5 text-muted-foreground">
-              OneRep uses your figure either way; this only changes what other
-              apps see. Neither Apple nor Health Connect lets one app amend
-              another's sample, so yours is added next to the original and{" "}
-              {storeName} will show both.
+              <Message
+                text={
+                  "OneRep uses your figure either way; this only changes what other apps see. Neither Apple nor Health Connect lets one app amend another's sample, so yours is added next to the original and {{value0}} will show both."
+                }
+                values={{ value0: storeName }}
+              />
             </p>
           </div>
         )}
@@ -563,7 +602,7 @@ export function HealthReadingsSheet({
           disabled={!dirty || saving}
           className="mt-4 w-full"
         >
-          {saving ? "Saving…" : "Save"}
+          {saving ? tr("Saving…") : tr("Save")}
         </PrimaryButton>
       </div>
     </MobileSheet>

@@ -1,3 +1,4 @@
+import { Message, tr, translateError, uiLocale } from "@repo/ui/i18n"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import {
@@ -48,7 +49,7 @@ const MIN_CUSTOM_HOURS = 1
 const MAX_CUSTOM_HOURS = 48
 
 function clockTime(timestamp: number): string {
-  return new Date(timestamp).toLocaleTimeString(undefined, {
+  return new Date(timestamp).toLocaleTimeString(uiLocale(), {
     hour: "numeric",
     minute: "2-digit",
   })
@@ -56,7 +57,7 @@ function clockTime(timestamp: number): string {
 
 function historyDate(dateKey: string): string {
   const [year, month, day] = dateKey.split("-").map(Number)
-  return new Date(year, month - 1, day).toLocaleDateString(undefined, {
+  return new Date(year, month - 1, day).toLocaleDateString(uiLocale(), {
     weekday: "short",
     month: "short",
     day: "numeric",
@@ -162,15 +163,15 @@ export default function Fasting({
       // so the toast goes out plain rather than with a button that only errors.
       const id = typeof started === "string" ? started : null
       toast.success(
-        "Fast started",
+        tr("Fast started"),
         id
           ? {
               action: {
-                label: "Undo",
+                label: tr("Undo"),
                 onClick: () => {
                   void removeFast({ id: id as Id<"fastingSessions"> }).catch(
                     () => {
-                      toast.error("Couldn't undo that")
+                      toast.error(translateError(tr("Couldn't undo that")))
                     }
                   )
                 },
@@ -206,7 +207,7 @@ export default function Fasting({
       } else {
         hapticSelection()
       }
-      toast.success(completed ? "Fast complete" : "Fast ended")
+      toast.success(completed ? tr("Fast complete") : tr("Fast ended"))
     } catch (error) {
       reportOfflineMutationError(error, "Could not end this fast")
     } finally {
@@ -219,11 +220,11 @@ export default function Fasting({
     if (!id) return
     const parsed = Date.parse(startDraft)
     if (!Number.isFinite(parsed)) {
-      toast.error("Enter a valid start time")
+      toast.error(translateError(tr("Enter a valid start time")))
       return
     }
     if (parsed > Date.now()) {
-      toast.error("A fast cannot start in the future")
+      toast.error(translateError(tr("A fast cannot start in the future")))
       return
     }
     try {
@@ -234,17 +235,17 @@ export default function Fasting({
       })
       setEditingStart(false)
       toast.success(
-        "Start time updated",
+        tr("Start time updated"),
         typeof previous === "number"
           ? {
               action: {
-                label: "Undo",
+                label: tr("Undo"),
                 onClick: () => {
                   void updateFast({
                     id: id as Id<"fastingSessions">,
                     startedAt: previous,
                   }).catch(() => {
-                    toast.error("Couldn't undo that")
+                    toast.error(translateError(tr("Couldn't undo that")))
                   })
                 },
               },
@@ -261,7 +262,7 @@ export default function Fasting({
     if (!id) return
     try {
       await removeFast({ id: id as Id<"fastingSessions"> })
-      toast.success("Fast deleted")
+      toast.success(tr("Fast deleted"))
     } catch (error) {
       reportOfflineMutationError(error, "Could not delete this fast")
     }
@@ -304,10 +305,12 @@ export default function Fasting({
     >
       {embedded ? (
         <div className="flex items-center justify-between gap-3 px-[var(--app-page-x)] pt-1 pb-2">
-          <h2 className="text-[19px] font-bold tracking-tight">Fasting</h2>
+          <h2 className="text-[19px] font-bold tracking-tight">
+            {tr("Fasting")}
+          </h2>
           <ToolbarButton
             onClick={() => onClose?.()}
-            aria-label="Close fasting"
+            aria-label={tr("Close fasting")}
             className="-mr-2 px-0 text-muted-foreground"
           >
             <X size={19} weight="bold" />
@@ -315,12 +318,12 @@ export default function Fasting({
         </div>
       ) : (
         <NavigationBar
-          title="Fasting"
-          subtitle="Track an intermittent fast"
+          title={tr("Fasting")}
+          subtitle={tr("Track an intermittent fast")}
           leading={
             <ToolbarButton
               onClick={() => navigate(-1)}
-              aria-label="Back to nutrition"
+              aria-label={tr("Back to nutrition")}
               className="-ml-2 px-0 text-muted-foreground"
             >
               <ArrowLeft size={19} weight="bold" />
@@ -335,23 +338,36 @@ export default function Fasting({
             <SummaryBlock
               tone="food"
               className={cn(targetPop && "motion-success-pop")}
-              title={runningProtocol ? `${runningProtocol} fast` : "Fasting"}
+              title={
+                runningProtocol
+                  ? tr("{{value0}} fast", { value0: runningProtocol })
+                  : tr("Fasting")
+              }
               value={
                 <span
                   className="tabular-nums"
                   role="timer"
                   aria-live="polite"
-                  aria-label={`Fasting for ${formatFastDuration(elapsed)}`}
+                  aria-label={tr("Fasting for {{value0}}", {
+                    value0: formatFastDuration(elapsed),
+                  })}
                 >
                   {formatFastDuration(elapsed)}
                 </span>
               }
               detail={
                 progress >= 1
-                  ? `Target reached · started ${clockTime(runningStartedAt)}`
-                  : `${formatFastDuration(remaining)} to go${
-                      etaAt ? ` · ends around ${clockTime(etaAt)}` : ""
-                    }`
+                  ? tr("Target reached · started {{value0}}", {
+                      value0: clockTime(runningStartedAt),
+                    })
+                  : tr("{{value0}} to go{{value1}}", {
+                      value0: formatFastDuration(remaining),
+                      value1: etaAt
+                        ? tr(" · ends around {{value0}}", {
+                            value0: clockTime(etaAt),
+                          })
+                        : "",
+                    })
               }
             />
 
@@ -374,10 +390,10 @@ export default function Fasting({
               <PrimaryButton
                 onClick={handleStop}
                 disabled={busy}
-                aria-label="End fast"
+                aria-label={tr("End fast")}
                 className="flex-1"
               >
-                End fast
+                {tr("End fast")}
               </PrimaryButton>
               <ToolbarButton
                 onClick={() => {
@@ -389,7 +405,7 @@ export default function Fasting({
                   setStartDraft(local.toISOString().slice(0, 16))
                   setEditingStart(true)
                 }}
-                aria-label="Edit fast start time"
+                aria-label={tr("Edit fast start time")}
               >
                 <PencilSimple size={18} weight="bold" />
               </ToolbarButton>
@@ -397,16 +413,18 @@ export default function Fasting({
           </>
         ) : (
           <>
-            <SectionHeader title="Start a fast" />
+            <SectionHeader title={tr("Start a fast")} />
             <TourAnchor anchor="fasting-presets" className="block">
-              <GroupedList label="Fasting presets">
+              <GroupedList label={tr("Fasting presets")}>
                 {FASTING_PRESETS.map((preset) => (
                   <button
                     key={preset.id}
                     type="button"
                     disabled={busy || loading}
                     onClick={() => handleStart(preset.targetMinutes, preset.id)}
-                    aria-label={`Start ${preset.label} fast`}
+                    aria-label={tr("Start {{value0}} fast", {
+                      value0: preset.label,
+                    })}
                     className="flex min-h-14 w-full items-center justify-between gap-3 px-1 py-2.5 text-left active:opacity-70 disabled:opacity-50"
                   >
                     <div className="min-w-0">
@@ -425,7 +443,7 @@ export default function Fasting({
               </GroupedList>
             </TourAnchor>
 
-            <SectionHeader title="Custom length" />
+            <SectionHeader title={tr("Custom length")} />
             <div className="flex items-center gap-2">
               <input
                 type="number"
@@ -433,7 +451,7 @@ export default function Fasting({
                 min={MIN_CUSTOM_HOURS}
                 max={MAX_CUSTOM_HOURS}
                 value={customHours}
-                aria-label="Custom fast length in hours"
+                aria-label={tr("Custom fast length in hours")}
                 onChange={(event) => {
                   const value = Number(event.target.value)
                   if (Number.isFinite(value)) {
@@ -447,14 +465,14 @@ export default function Fasting({
                 }}
                 className="h-11 w-24 rounded-xl border border-border bg-transparent px-3 text-center tabular-nums outline-none"
               />
-              <span className="native-row-detail">hours</span>
+              <span className="native-row-detail">{tr("hours")}</span>
               <PrimaryButton
                 onClick={() => handleStart(customHours * 60, "custom")}
                 disabled={busy || loading}
-                aria-label="Start custom fast"
+                aria-label={tr("Start custom fast")}
                 className="ml-auto"
               >
-                Start
+                {tr("Start")}
               </PrimaryButton>
             </div>
 
@@ -466,10 +484,13 @@ export default function Fasting({
                   onClick={() =>
                     handleStart(customHours * 60, "custom", lastMealAt)
                   }
-                  aria-label="Start fast from last meal"
+                  aria-label={tr("Start fast from last meal")}
                   className="native-toolbar-button mt-3 h-11 w-full justify-center px-3 disabled:opacity-50"
                 >
-                  Start from last meal ({clockTime(lastMealAt)})
+                  <Message
+                    text={"Start from last meal ({{value0}})"}
+                    values={{ value0: clockTime(lastMealAt) }}
+                  />
                 </button>
               </TourAnchor>
             )}
@@ -483,14 +504,17 @@ export default function Fasting({
             setRecordOpen((open) => !open)
           }}
           aria-expanded={recordOpen}
-          aria-label="Your fasting record"
+          aria-label={tr("Your fasting record")}
           className="mt-6 flex min-h-12 w-full items-center justify-between gap-3 border-t border-border pt-4 text-left"
         >
-          <span className="native-section-title">Your fasting</span>
+          <span className="native-section-title">{tr("Your fasting")}</span>
           <span className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
             {stats.totalCompleted === 0
-              ? "No fasts yet"
-              : `${stats.currentStreakDays}d streak · ${stats.averageHours}h avg`}
+              ? tr("No fasts yet")
+              : tr("{{value0}}d streak · {{value1}}h avg", {
+                  value0: stats.currentStreakDays,
+                  value1: stats.averageHours,
+                })}
             <CaretDown
               size={14}
               weight="bold"
@@ -505,27 +529,38 @@ export default function Fasting({
               <EmptyState
                 icon={Timer}
                 tone="food"
-                title="No completed fasts yet"
-                detail="Finish a fast and your streak, average and longest will show up here."
+                title={tr("No completed fasts yet")}
+                detail={tr(
+                  "Finish a fast and your streak, average and longest will show up here."
+                )}
               />
             ) : (
               <dl
                 className="grid grid-cols-2 gap-x-4 gap-y-1 tabular-nums"
-                aria-label="Fasting statistics"
+                aria-label={tr("Fasting statistics")}
               >
                 {(
                   [
                     [
-                      "Current streak",
-                      `${stats.currentStreakDays} day${
-                        stats.currentStreakDays === 1 ? "" : "s"
-                      }`,
+                      tr("Current streak"),
+                      tr("{{value0}} day{{value1}}", {
+                        value0: stats.currentStreakDays,
+                        value1: stats.currentStreakDays === 1 ? "" : "s",
+                      }),
                     ],
-                    ["Longest streak", `${stats.longestStreakDays} days`],
-                    ["Average", `${stats.averageHours} h`],
-                    ["Longest fast", `${stats.longestHours} h`],
-                    ["Completed", `${stats.totalCompleted}`],
-                    ["Hit target", `${Math.round(stats.goalHitRate * 100)}%`],
+                    [
+                      tr("Longest streak"),
+                      tr("{{value0}} days", {
+                        value0: stats.longestStreakDays,
+                      }),
+                    ],
+                    [tr("Average"), `${stats.averageHours} h`],
+                    [tr("Longest fast"), `${stats.longestHours} h`],
+                    [tr("Completed"), `${stats.totalCompleted}`],
+                    [
+                      tr("Hit target"),
+                      `${Math.round(stats.goalHitRate * 100)}%`,
+                    ],
                   ] as const
                 ).map(([label, value]) => (
                   <div key={label} className="flex justify-between gap-3">
@@ -536,16 +571,16 @@ export default function Fasting({
               </dl>
             )}
 
-            <SectionHeader title="History" />
+            <SectionHeader title={tr("History")} />
             {history.length === 0 ? (
               <EmptyState
                 icon={Timer}
                 tone="food"
-                title="Nothing logged yet"
-                detail="Fasts you start and end will appear here."
+                title={tr("Nothing logged yet")}
+                detail={tr("Fasts you start and end will appear here.")}
               />
             ) : (
-              <GroupedList label="Fasting history">
+              <GroupedList label={tr("Fasting history")}>
                 {history.map((session) => {
                   const id = session.id ?? session._id ?? session.startDate
                   const durationSeconds = session.endedAt
@@ -559,18 +594,20 @@ export default function Fasting({
                       <div className="min-w-0 flex-1">
                         <p className="native-row-title tabular-nums">
                           {durationSeconds === null
-                            ? "In progress"
+                            ? tr("In progress")
                             : formatFastDuration(durationSeconds)}
                         </p>
                         <p className="native-row-detail mt-0.5">
                           {historyDate(session.startDate)} · {session.protocol}
-                          {session.endedEarly ? " · ended early" : ""}
+                          {session.endedEarly ? tr(" · ended early") : ""}
                         </p>
                       </div>
                       <button
                         type="button"
                         onClick={() => handleDelete(session)}
-                        aria-label={`Delete fast from ${historyDate(session.startDate)}`}
+                        aria-label={tr("Delete fast from {{value0}}", {
+                          value0: historyDate(session.startDate),
+                        })}
                         className="native-toolbar-button h-11 w-11 px-0 text-destructive"
                       >
                         <Trash size={17} weight="bold" />
@@ -587,22 +624,22 @@ export default function Fasting({
       {editingStart && (
         <MobileSheet onClose={() => setEditingStart(false)}>
           <div className="flex flex-col gap-3 p-4">
-            <h2 className="native-section-title">Edit start time</h2>
+            <h2 className="native-section-title">{tr("Edit start time")}</h2>
             <label className="native-field">
-              <span className="native-field-label">Started at</span>
+              <span className="native-field-label">{tr("Started at")}</span>
               <input
                 type="datetime-local"
                 value={startDraft}
-                aria-label="Fast start time"
+                aria-label={tr("Fast start time")}
                 onChange={(event) => setStartDraft(event.target.value)}
                 className="h-11 w-full rounded-xl border border-border bg-transparent px-3 outline-none"
               />
             </label>
             <PrimaryButton
               onClick={handleSaveStart}
-              aria-label="Save fast start time"
+              aria-label={tr("Save fast start time")}
             >
-              Save
+              {tr("Save")}
             </PrimaryButton>
           </div>
         </MobileSheet>
@@ -619,7 +656,7 @@ export default function Fasting({
             <button
               type="button"
               className="absolute top-[calc(var(--app-safe-top)+1rem)] right-4 z-20 grid size-11 place-items-center rounded-full bg-white/10 text-white"
-              aria-label="Dismiss fasting celebration"
+              aria-label={tr("Dismiss fasting celebration")}
               onClick={() => setFastCelebration(false)}
             >
               <X size={20} weight="bold" />
@@ -644,7 +681,7 @@ export default function Fasting({
                 aria-hidden
               />
               <p className="water-goal-complete-text max-w-[18rem] text-[clamp(1.25rem,4vw,2.25rem)] font-semibold tracking-tight text-white">
-                Fast complete
+                {tr("Fast complete")}
               </p>
             </div>
           </div>,

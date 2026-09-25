@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_quick_actions_label">Azioni OneRep</string>
+    <string name="widget_quick_actions_description">Inizia un allenamento o registra un pasto.</string>
+    <string name="widget_nutrition_label">Panoramica nutrizione</string>
+    <string name="widget_nutrition_description">Calorie e macro in tempo reale da OneRep.</string>
+    <string name="widget_schedule_label">Allenamento di oggi</string>
+    <string name="widget_schedule_description">Esercizi e serie di allenamento programmati per oggi.</string>
+    <string name="widget_combined_label">Dettaglio nutrizione</string>
+    <string name="widget_combined_description">Cibi registrati, calorie rimaste e composizione dei macronutrienti.</string>
+    <string name="health_permissions_rationale">OneRep legge gli allenamenti cardio completati, la frequenza cardiaca, la distanza e l\'energia attiva, così la tua cronologia di allenamento è completa. Con il tuo permesso, può anche inviare le sessioni OneRep completate a Health Connect.</string>
+    <string name="widget_snap_camera_label">Fotocamera Scatta</string>
+    <string name="widget_snap_camera_caption">Registra un pasto</string>
+    <string name="widget_snap_camera_description">Apri la fotocamera per scattare e registrare un pasto.</string>
+    <string name="widget_open_to_sync">Apri OneRep per sincronizzare</string>
+    <string name="widget_updates_from_account">I dati del widget si aggiornano dal tuo account.</string>
+    <string name="widget_start_workout">Inizia allenamento</string>
+    <string name="widget_log_meal">Registra un pasto</string>
+    <string name="widget_water_summary">Acqua %1$s</string>
+    <string name="widget_kcal_left">kcal rimanenti</string>
+    <string name="widget_calories_left">%1$d kcal rimaste</string>
+    <string name="widget_calories_eaten">%1$d di %2$d mangiato</string>
+    <string name="widget_protein">Proteine</string>
+    <string name="widget_carbs">Carbo</string>
+    <string name="widget_fat">Grassi</string>
+    <string name="navigation_open">Apri la navigazione</string>
+</resources>

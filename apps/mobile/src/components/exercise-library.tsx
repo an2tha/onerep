@@ -1,3 +1,4 @@
+import { Message, tr } from "@repo/ui/i18n"
 /**
  * The exercise library, as it lives inside the Progress page's tab strip.
  *
@@ -229,7 +230,7 @@ export function ExerciseLibrary() {
     muscle !== ANY_VALUE || equipment !== ANY_VALUE || category !== ANY_VALUE
 
   return (
-    <section aria-label="Exercise library">
+    <section aria-label={tr("Exercise library")}>
       <div className="relative">
         <MagnifyingGlass
           size={15}
@@ -238,33 +239,33 @@ export function ExerciseLibrary() {
         <input
           type="search"
           name="exercise-library-query"
-          aria-label="Search exercises"
+          aria-label={tr("Search exercises")}
           value={search}
           onChange={(event) => setSearch(event.target.value)}
-          placeholder="Search exercises…"
+          placeholder={tr("Search exercises…")}
           className="h-11 w-full rounded-lg border border-border/60 bg-background pr-4 pl-10 text-[15px] outline-none placeholder:text-muted-foreground focus:border-foreground/50 focus:ring-2 focus:ring-foreground/10"
         />
       </div>
 
       <div
         role="group"
-        aria-label="Filter exercises"
+        aria-label={tr("Filter exercises")}
         className="mt-3 flex gap-1.5 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden"
       >
         <FilterPill
-          label="Any muscle"
+          label={tr("Any muscle")}
           value={muscle}
           options={muscleOptions}
           onChange={setMuscle}
         />
         <FilterPill
-          label="Any equipment"
+          label={tr("Any equipment")}
           value={equipment}
           options={equipmentOptions}
           onChange={setEquipment}
         />
         <FilterPill
-          label="Any type"
+          label={tr("Any type")}
           value={category}
           options={Object.entries(EXERCISE_CATEGORY_LABELS).map(
             ([value, label]) => ({ value, label })
@@ -282,16 +283,21 @@ export function ExerciseLibrary() {
             }}
             className="flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg px-3 text-[14px] font-medium text-muted-foreground transition-colors active:text-foreground"
           >
-            <X size={11} weight="bold" />
-            Clear
+            <Message
+              text={"{{value0}}Clear"}
+              values={{ value0: <X size={11} weight="bold" /> }}
+            />
           </button>
         )}
       </div>
 
       <p className="mt-2 text-[13px] text-muted-foreground">
         {loading
-          ? "Loading the catalog…"
-          : `${filtered.length} of ${exercises.length} movements`}
+          ? tr("Loading the catalog…")
+          : tr("{{value0}} of {{value1}} movements", {
+              value0: filtered.length,
+              value1: exercises.length,
+            })}
       </p>
 
       {/*
@@ -318,9 +324,11 @@ export function ExerciseLibrary() {
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center gap-2 py-20 text-center">
           <MagnifyingGlass size={26} className="text-muted-foreground/40" />
-          <p className="text-[15px] font-semibold">Nothing matches that</p>
+          <p className="text-[15px] font-semibold">
+            {tr("Nothing matches that")}
+          </p>
           <p className="max-w-xs text-[14px] text-muted-foreground">
-            Loosen a filter, or spell it the way the dataset does.
+            {tr("Loosen a filter, or spell it the way the dataset does.")}
           </p>
         </div>
       ) : (
@@ -349,7 +357,7 @@ export function ExerciseLibrary() {
                       </div>
                       {exercise.custom ? (
                         <span className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-[11px] font-semibold text-muted-foreground">
-                          Yours
+                          {tr("Yours")}
                         </span>
                       ) : exercise.level ? (
                         <span className="shrink-0 text-[12px] text-muted-foreground/70">

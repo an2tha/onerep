@@ -1,7 +1,15 @@
+import { Message, choice, tr, translateError } from "@repo/ui/i18n"
 import { useEffect, useId, useState } from "react"
 import { ConvexError } from "convex/values"
 import { useAction, useMutation, useQuery } from "convex/react"
-import { ArrowRight, CaretDown, Check, Leaf, Sparkle, X } from "@phosphor-icons/react"
+import {
+  ArrowRight,
+  CaretDown,
+  Check,
+  Leaf,
+  Sparkle,
+  X,
+} from "@phosphor-icons/react"
 import { api } from "../../../../convex/_generated/api"
 import {
   PROGRAMME_NAMES,
@@ -54,7 +62,7 @@ export function NutritionProgramme({
   if (programme === undefined)
     return placement === "secondary" ? null : (
       <div className="programme-loading" role="status">
-        Loading your programme…
+        {tr("Loading your programme…")}
       </div>
     )
   const day = programme ? programmeDay(programme, date) : null
@@ -67,16 +75,18 @@ export function NutritionProgramme({
         {placement === "primary" && (
           <h2>
             {programme?.requiresCare && day?.active
-              ? "Programme guidance paused"
+              ? tr("Programme guidance paused")
               : programme && day && day.day >= programme.weeks * 7
-                ? "Programme complete"
-                : "Nutrition, with a plan"}
+                ? tr("Programme complete")
+                : tr("Nutrition, with a plan")}
           </h2>
         )}
         <p>
           {programme?.requiresCare && day?.active
-            ? "Your updated profile needs an individual nutrition plan. Programme targets and workout suggestions are paused."
-            : "A few weeks of guidance. Built around how you train."}
+            ? tr(
+                "Your updated profile needs an individual nutrition plan. Programme targets and workout suggestions are paused."
+              )
+            : tr("A few weeks of guidance. Built around how you train.")}
         </p>
       </div>
       <button
@@ -88,8 +98,8 @@ export function NutritionProgramme({
         }
       >
         {programme?.requiresCare && day?.active
-          ? "End programme"
-          : "Choose a programme"}{" "}
+          ? tr("End programme")
+          : tr("Choose a programme")}{" "}
         <ArrowRight aria-hidden="true" />
       </button>
     </div>
@@ -98,7 +108,7 @@ export function NutritionProgramme({
     <>
       <section
         className={`nutrition-programme ${active ? "is-active" : ""} ${placement === "secondary" ? "programme-secondary-slot" : ""}`}
-        aria-label="Nutrition programme"
+        aria-label={tr("Nutrition programme")}
       >
         {active ? (
           <>
@@ -106,8 +116,12 @@ export function NutritionProgramme({
               <div>
                 <h2>{PROGRAMME_NAMES[programme.goal]}</h2>
                 <p>
-                  Following your programme · Week {day.week} of{" "}
-                  {programme.weeks}
+                  <Message
+                    text={
+                      "Following your programme · Week {{value0}} of {{value1}}"
+                    }
+                    values={{ value0: day.week, value1: programme.weeks }}
+                  />
                 </p>
               </div>
               <Leaf size={28} aria-hidden="true" />
@@ -115,32 +129,48 @@ export function NutritionProgramme({
             <div className="programme-phase">
               <strong>{day.phase}</strong>
               <span>
-                {Math.max(0, programme.weeks * 7 - day.day - 1)} days remaining
+                <Message
+                  text={"{{value0}} days remaining"}
+                  values={{
+                    value0: Math.max(0, programme.weeks * 7 - day.day - 1),
+                  }}
+                />
               </span>
             </div>
             <progress
-              aria-label="Programme progress"
+              aria-label={tr("Programme progress")}
               max={1}
               value={day.progress}
             />
             <p className="programme-focus">
               {day.phase === "Settle in"
-                ? "Find your rhythm. Start with your baseline intake."
+                ? tr("Find your rhythm. Start with your baseline intake.")
                 : day.phase === "Stabilise"
-                  ? "Hold your targets and build a routine you can carry forward."
+                  ? tr(
+                      "Hold your targets and build a routine you can carry forward."
+                    )
                   : programme.goal === "step_down"
-                    ? "A gradual reduction, with training and recovery in view."
+                    ? tr(
+                        "A gradual reduction, with training and recovery in view."
+                      )
                     : programme.goal === "step_up"
-                      ? "Build your intake gradually to support your training."
-                      : "Consistent nourishment. Room to focus on your training."}
+                      ? tr(
+                          "Build your intake gradually to support your training."
+                        )
+                      : tr(
+                          "Consistent nourishment. Room to focus on your training."
+                        )}
             </p>
             <div className="programme-stats">
               <span>
-                <strong>{day.targets.calories}</strong> kcal today
+                <Message
+                  text={"{{value0}} kcal today"}
+                  values={{ value0: <strong>{day.targets.calories}</strong> }}
+                />
               </span>
               <span>
-                <strong>{programme.fastingHours || "No"}</strong>{" "}
-                {programme.fastingHours ? "hour fast" : "fasting"}
+                <strong>{programme.fastingHours || tr("No")}</strong>{" "}
+                {programme.fastingHours ? tr("hour fast") : tr("fasting")}
               </span>
             </div>
             <button
@@ -149,8 +179,14 @@ export function NutritionProgramme({
               aria-controls="programme-details"
               onClick={() => setExpanded(!expanded)}
             >
-              Your programme in detail
-              <CaretDown className={expanded ? "rotate-180" : ""} />
+              <Message
+                text={"Your programme in detail{{value0}}"}
+                values={{
+                  value0: (
+                    <CaretDown className={expanded ? "rotate-180" : ""} />
+                  ),
+                }}
+              />
             </button>
             <div
               id="programme-details"
@@ -161,31 +197,48 @@ export function NutritionProgramme({
               <div>
                 <div className="programme-details-content">
                   <p>
-                    Today's nutrition targets follow this phase. Your usual
-                    targets return when the programme ends.
+                    {tr(
+                      "Today's nutrition targets follow this phase. Your usual targets return when the programme ends."
+                    )}
                   </p>
                   <dl>
                     <div>
-                      <dt>Daily baseline</dt>
-                      <dd>{programme.baselineCalories} kcal</dd>
-                    </div>
-                    <div>
-                      <dt>Total progression</dt>
+                      <dt>{tr("Daily baseline")}</dt>
                       <dd>
-                        {programme.goal === "maintain"
-                          ? "Stable intake"
-                          : `${programme.goal === "step_down" ? "−" : "+"}${programme.changePercent}%`}
+                        <Message
+                          text={"{{value0}} kcal"}
+                          values={{ value0: programme.baselineCalories }}
+                        />
                       </dd>
                     </div>
                     <div>
-                      <dt>Protein / fat</dt>
+                      <dt>{tr("Total progression")}</dt>
                       <dd>
-                        {day.targets.protein} g / {day.targets.fat} g
+                        {programme.goal === "maintain"
+                          ? tr("Stable intake")
+                          : tr("{{value0}}{{value1}}%", {
+                              value0: choice(
+                                programme.goal === "step_down" ? "−" : "+"
+                              ),
+                              value1: programme.changePercent,
+                            })}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>{tr("Protein / fat")}</dt>
+                      <dd>
+                        <Message
+                          text={"{{value0}} g / {{value1}} g"}
+                          values={{
+                            value0: day.targets.protein,
+                            value1: day.targets.fat,
+                          }}
+                        />
                       </dd>
                     </div>
                     {programme.fastingHours > 0 && (
                       <div>
-                        <dt>Eating window starts</dt>
+                        <dt>{tr("Eating window starts")}</dt>
                         <dd>
                           {programme.eatingStart} · {programme.timezone}
                         </dd>
@@ -206,30 +259,66 @@ export function NutritionProgramme({
                           aria-current={i + 1 === day.week ? "step" : undefined}
                         >
                           <span>
-                            Week {i + 1} · {phase.phase}
+                            <Message
+                              text={"Week {{value0}} · {{value1}}"}
+                              values={{ value0: i + 1, value1: phase.phase }}
+                            />
                           </span>
-                          <strong>{phase.targets.calories} kcal</strong>
+                          <strong>
+                            <Message
+                              text={"{{value0}} kcal"}
+                              values={{ value0: phase.targets.calories }}
+                            />
+                          </strong>
                         </li>
                       )
                     })}
                   </ol>
-                  <section className="programme-recipes" aria-labelledby="programme-recipes-title">
+                  <section
+                    className="programme-recipes"
+                    aria-labelledby="programme-recipes-title"
+                  >
                     <div className="programme-recipes-heading">
                       <div>
-                        <h3 id="programme-recipes-title">Recipes for this phase</h3>
-                        <p>From your library and the OneRep community, matched to today’s targets.</p>
+                        <h3 id="programme-recipes-title">
+                          {tr("Recipes for this phase")}
+                        </h3>
+                        <p>
+                          {tr(
+                            "From your library and the OneRep community, matched to today’s targets."
+                          )}
+                        </p>
                       </div>
                     </div>
                     {recommendations === undefined ? (
-                      <p role="status">Finding a few good fits…</p>
+                      <p role="status">{tr("Finding a few good fits…")}</p>
                     ) : recommendations.length > 0 ? (
                       <ul className="programme-recipe-list">
                         {recommendations.map((recipe) => (
                           <li key={recipe.id}>
-                            <button onClick={() => navigate(`/foods/recipe/${recipe.id}`)}>
+                            <button
+                              onClick={() =>
+                                navigate(`/foods/recipe/${recipe.id}`)
+                              }
+                            >
                               <span>
                                 <strong>{recipe.name}</strong>
-                                <small>{recipe.calories} kcal · {recipe.protein} g protein{recipe.minutes ? ` · ${recipe.minutes} min` : ""}</small>
+                                <small>
+                                  <Message
+                                    text={
+                                      "{{value0}} kcal · {{value1}} g protein{{value2}}"
+                                    }
+                                    values={{
+                                      value0: recipe.calories,
+                                      value1: recipe.protein,
+                                      value2: recipe.minutes
+                                        ? tr(" · {{value0}} min", {
+                                            value0: recipe.minutes,
+                                          })
+                                        : "",
+                                    }}
+                                  />
+                                </small>
                               </span>
                               <ArrowRight aria-hidden="true" />
                             </button>
@@ -237,7 +326,11 @@ export function NutritionProgramme({
                         ))}
                       </ul>
                     ) : (
-                      <p>No library recipes fit this phase yet. Generate one below.</p>
+                      <p>
+                        {tr(
+                          "No library recipes fit this phase yet. Generate one below."
+                        )}
+                      </p>
                     )}
                     <button
                       className="programme-ai-recipe"
@@ -247,31 +340,42 @@ export function NutritionProgramme({
                         setRecipeBusy(true)
                         try {
                           const result = await generateRecipe({ date })
-                          toast.success(`${result.name} added to your recipes.`)
+                          toast.success(
+                            tr("{{value0}} added to your recipes.", {
+                              value0: result.name,
+                            })
+                          )
                           navigate(`/foods/recipe/${result.recipeId}`)
                         } catch (error) {
-                          toast.error(error instanceof Error ? error.message : "Couldn’t generate a recipe.")
+                          toast.error(
+                            translateError(
+                              error instanceof Error
+                                ? error.message
+                                : tr("Couldn’t generate a recipe.")
+                            )
+                          )
                         } finally {
                           setRecipeBusy(false)
                         }
                       }}
                     >
                       <Sparkle aria-hidden="true" />
-                      {recipeBusy ? "Creating your recipe…" : "Generate a recipe with AI"}
-                      <span>Uses 1 AI request</span>
+                      {recipeBusy
+                        ? tr("Creating your recipe…")
+                        : tr("Generate a recipe with AI")}
+                      <span>{tr("Uses 1 AI request")}</span>
                     </button>
                   </section>
                   <p>
-                    Workout strain is checked against your phase and fasting
-                    window. If a session is too demanding, adjust it from the
-                    workout screen. Strain is a planning estimate, not medical
-                    clearance.
+                    {tr(
+                      "Workout strain is checked against your phase and fasting window. If a session is too demanding, adjust it from the workout screen. Strain is a planning estimate, not medical clearance."
+                    )}
                   </p>
                   <button
                     className="programme-secondary"
                     onClick={() => setEnding(true)}
                   >
-                    End programme
+                    {tr("End programme")}
                   </button>
                 </div>
               </div>
@@ -285,10 +389,16 @@ export function NutritionProgramme({
               aria-controls={invitationId}
               onClick={() => setInvitationOpen(!invitationOpen)}
             >
-              Nutrition programmes{" "}
-              <CaretDown
-                className={invitationOpen ? "rotate-180" : ""}
-                aria-hidden="true"
+              <Message
+                text={"Nutrition programmes {{value0}}"}
+                values={{
+                  value0: (
+                    <CaretDown
+                      className={invitationOpen ? "rotate-180" : ""}
+                      aria-hidden="true"
+                    />
+                  ),
+                }}
               />
             </button>
             <div
@@ -305,7 +415,7 @@ export function NutritionProgramme({
             {!day?.active && (
               <button
                 className="programme-dismiss"
-                aria-label="Dismiss programme invitation"
+                aria-label={tr("Dismiss programme invitation")}
                 onClick={() => {
                   safeLocalStorageSet(
                     "nutrition-programme-invitation-dismissed",
@@ -331,14 +441,15 @@ export function NutritionProgramme({
       )}
       {ending && programme && (
         <MobileSheet
-          ariaLabel="End programme"
+          ariaLabel={tr("End programme")}
           onClose={() => !busy && setEnding(false)}
         >
           <div className="programme-setup">
-            <h2>End this programme?</h2>
+            <h2>{tr("End this programme?")}</h2>
             <p>
-              Your usual nutrition targets will return today. Your food logs and
-              workouts stay saved.
+              {tr(
+                "Your usual nutrition targets will return today. Your food logs and workouts stay saved."
+              )}
             </p>
             <button
               className="programme-primary"
@@ -350,23 +461,25 @@ export function NutritionProgramme({
                   setEnding(false)
                 } catch (e) {
                   toast.error(
-                    e instanceof Error
-                      ? e.message
-                      : "Couldn't end the programme."
+                    translateError(
+                      e instanceof Error
+                        ? e.message
+                        : tr("Couldn't end the programme.")
+                    )
                   )
                 } finally {
                   setBusy(false)
                 }
               }}
             >
-              {busy ? "Ending…" : "End programme"}
+              {busy ? tr("Ending…") : tr("End programme")}
             </button>
             <button
               className="programme-secondary"
               disabled={busy}
               onClick={() => setEnding(false)}
             >
-              Keep following
+              {tr("Keep following")}
             </button>
           </div>
         </MobileSheet>
@@ -433,27 +546,27 @@ function ProgrammeSetup({
   if (!eligibility?.eligible)
     return (
       <MobileSheet
-        ariaLabel="Programme eligibility"
+        ariaLabel={tr("Programme eligibility")}
         onClose={onClose}
         panelClassName="programme-glass-sheet"
       >
         <div className="programme-setup">
           <h2>
             {eligibility
-              ? "Review your nutrition profile"
-              : "Checking your profile…"}
+              ? tr("Review your nutrition profile")
+              : tr("Checking your profile…")}
           </h2>
           <p role="status">
             {eligibility?.reason ??
-              "Checking your saved nutrition preferences before setup."}
+              tr("Checking your saved nutrition preferences before setup.")}
           </p>
           <div className="programme-actions">
             <button className="programme-secondary" onClick={onClose}>
-              Close
+              {tr("Close")}
             </button>
             {eligibility && (
               <a className="programme-primary" href="/settings">
-                Review profile settings
+                {tr("Review profile settings")}
               </a>
             )}
           </div>
@@ -462,7 +575,7 @@ function ProgrammeSetup({
     )
   return (
     <MobileSheet
-      ariaLabel="Start a nutrition programme"
+      ariaLabel={tr("Start a nutrition programme")}
       onClose={() => !busy && onClose()}
       panelClassName="programme-glass-sheet"
     >
@@ -470,7 +583,7 @@ function ProgrammeSetup({
         className="programme-setup"
         onSubmit={async (e) => {
           e.preventDefault()
-          setError("")
+          setError(translateError(""))
           if (step < 2) {
             setStep(step + 1)
             return
@@ -480,12 +593,14 @@ function ProgrammeSetup({
             const { startDate: _, ...args } = candidate
             await start({ ...args, screeningConfirmed: confirmed })
             onClose()
-            toast.success("Your programme starts today")
+            toast.success(tr("Your programme starts today"))
           } catch (e) {
             setError(
-              e instanceof ConvexError && typeof e.data === "string"
-                ? e.data
-                : "Couldn't start. Please try again."
+              translateError(
+                e instanceof ConvexError && typeof e.data === "string"
+                  ? e.data
+                  : tr("Couldn't start. Please try again.")
+              )
             )
           } finally {
             setBusy(false)
@@ -493,10 +608,15 @@ function ProgrammeSetup({
         }}
       >
         <div className="programme-setup-top">
-          <span>Programme setup · {step + 1} of 3</span>
+          <span>
+            <Message
+              text={"Programme setup · {{value0}} of 3"}
+              values={{ value0: step + 1 }}
+            />
+          </span>
           <button
             type="button"
-            aria-label="Close programme setup"
+            aria-label={tr("Close programme setup")}
             disabled={busy}
             onClick={onClose}
           >
@@ -505,16 +625,22 @@ function ProgrammeSetup({
         </div>
         <h2 id="programme-setup-title" tabIndex={-1}>
           {
-            ["Find your rhythm", "Make it fit your day", "Your next few weeks"][
-              step
-            ]
+            [
+              tr("Find your rhythm"),
+              tr("Make it fit your day"),
+              tr("Your next few weeks"),
+            ][step]
           }
         </h2>
         {step === 0 && (
           <>
-            <p>Choose a direction. We’ll guide the progression week by week.</p>
+            <p>
+              {tr(
+                "Choose a direction. We’ll guide the progression week by week."
+              )}
+            </p>
             <fieldset className="programme-choices">
-              <legend>Programme goal</legend>
+              <legend>{tr("Programme goal")}</legend>
               {(
                 Object.entries(PROGRAMME_NAMES) as [ProgrammeGoal, string][]
               ).map(([key, name]) => (
@@ -528,10 +654,10 @@ function ProgrammeSetup({
                     <strong>{name}</strong>
                     <small>
                       {key === "maintain"
-                        ? "Hold your intake. Build consistency."
+                        ? tr("Hold your intake. Build consistency.")
                         : key === "step_down"
-                          ? "Lower calories in gradual weekly steps."
-                          : "Increase calories to support your training."}
+                          ? tr("Lower calories in gradual weekly steps.")
+                          : tr("Increase calories to support your training.")}
                     </small>
                   </span>
                   {goal === key && <Check aria-hidden="true" />}
@@ -539,90 +665,148 @@ function ProgrammeSetup({
               ))}
             </fieldset>
             <label>
-              Duration
-              <select
-                value={weeks}
-                onChange={(e) => setWeeks(Number(e.target.value))}
-              >
-                {[4, 6, 8, 12].map((n) => (
-                  <option key={n} value={n}>
-                    {n} weeks
-                  </option>
-                ))}
-              </select>
+              <Message
+                text={"Duration{{value0}}"}
+                values={{
+                  value0: (
+                    <select
+                      value={weeks}
+                      onChange={(e) => setWeeks(Number(e.target.value))}
+                    >
+                      {[4, 6, 8, 12].map((n) => (
+                        <option key={n} value={n}>
+                          <Message
+                            text={"{{value0}} weeks"}
+                            values={{ value0: n }}
+                          />
+                        </option>
+                      ))}
+                    </select>
+                  ),
+                }}
+              />
             </label>
             <p>
-              Clinical renutrition needs an individual care plan and isn’t
-              available as a self-serve programme.
+              {tr(
+                "Clinical renutrition needs an individual care plan and isn’t available as a self-serve programme."
+              )}
             </p>
           </>
         )}
         {step === 1 && (
           <>
             <p>
-              Start from your current intake. The first week holds steady before
-              any changes.
+              {tr(
+                "Start from your current intake. The first week holds steady before any changes."
+              )}
             </p>
             <label>
-              Baseline calories · kcal/day
-              <input
-                type="number"
-                min={1600}
-                max={5000}
-                required
-                value={calories}
-                onChange={(e) => setCalories(Number(e.target.value))}
+              <Message
+                text={"Baseline calories · kcal/day{{value0}}"}
+                values={{
+                  value0: (
+                    <input
+                      type="number"
+                      min={1600}
+                      max={5000}
+                      required
+                      value={calories}
+                      onChange={(e) => setCalories(Number(e.target.value))}
+                    />
+                  ),
+                }}
               />
             </label>
             {goal !== "maintain" && (
               <label>
-                Total {goal === "step_down" ? "decrease" : "increase"}
-                <select
-                  value={change}
-                  onChange={(e) => setChange(Number(e.target.value))}
-                >
-                  {[5, 10, 15].map((n) => (
-                    <option key={n} value={n}>
-                      {n}% over the programme
-                    </option>
-                  ))}
-                </select>
+                <Message
+                  text={"Total {{value0}}{{value1}}"}
+                  values={{
+                    value0: choice(
+                      goal === "step_down" ? "decrease" : "increase"
+                    ),
+                    value1: (
+                      <select
+                        value={change}
+                        onChange={(e) => setChange(Number(e.target.value))}
+                      >
+                        {[5, 10, 15].map((n) => (
+                          <option key={n} value={n}>
+                            <Message
+                              text={"{{value0}}% over the programme"}
+                              values={{ value0: n }}
+                            />
+                          </option>
+                        ))}
+                      </select>
+                    ),
+                  }}
+                />
               </label>
             )}
             <label>
-              Daily fasting window
-              <select
-                value={fast}
-                onChange={(e) => setFast(Number(e.target.value))}
-              >
-                <option value={0}>No fasting schedule</option>
-                {[12, 14, 16].map((n) => (
-                  <option key={n} value={n}>
-                    {n} hours fasting · {24 - n} hours eating
-                  </option>
-                ))}
-              </select>
+              <Message
+                text={"Daily fasting window{{value0}}"}
+                values={{
+                  value0: (
+                    <select
+                      value={fast}
+                      onChange={(e) => setFast(Number(e.target.value))}
+                    >
+                      <option value={0}>{tr("No fasting schedule")}</option>
+                      {[12, 14, 16].map((n) => (
+                        <option key={n} value={n}>
+                          <Message
+                            text={
+                              "{{value0}} hours fasting · {{value1}} hours eating"
+                            }
+                            values={{ value0: n, value1: 24 - n }}
+                          />
+                        </option>
+                      ))}
+                    </select>
+                  ),
+                }}
+              />
             </label>
             {fast > 0 && (
               <>
                 <label>
-                  Start eating at
-                  <input
-                    type="time"
-                    required
-                    value={eatingStart}
-                    onChange={(e) => setEatingStart(e.target.value)}
+                  <Message
+                    text={"Start eating at{{value0}}"}
+                    values={{
+                      value0: (
+                        <input
+                          type="time"
+                          required
+                          value={eatingStart}
+                          onChange={(e) => setEatingStart(e.target.value)}
+                        />
+                      ),
+                    }}
                   />
                 </label>
                 <div className="programme-window">
                   <span>
-                    Eating {eatingStart}–{eatingEnd}
+                    <Message
+                      text={"Eating {{value0}}–{{value1}}"}
+                      values={{ value0: eatingStart, value1: eatingEnd }}
+                    />
                   </span>
-                  <span>{fast}h fasting</span>
+                  <span>
+                    <Message
+                      text={"{{value0}}h fasting"}
+                      values={{ value0: fast }}
+                    />
+                  </span>
                 </div>
                 <p>
-                  Schedule uses {timezone}. Actual fasts are logged separately
-                  in your fasting tracker.
+                  <Message
+                    text={
+                      "Schedule uses {{value0}}. Actual fasts are logged separately in your fasting tracker."
+                    }
+                    values={{ value0: timezone }}
+                  />
                 </p>
               </>
             )}
@@ -631,31 +815,54 @@ function ProgrammeSetup({
         {step === 2 && (
           <>
             <p>
-              {PROGRAMME_NAMES[goal]} · {weeks} weeks, starting today.
+              <Message
+                text={"{{value0}} · {{value1}} weeks, starting today."}
+                values={{ value0: PROGRAMME_NAMES[goal], value1: weeks }}
+              />
             </p>
             <ol className="programme-review">
               <li>
-                <strong>Week 1 · Settle in</strong>
-                <span>{calories} kcal/day</span>
-              </li>
-              <li>
-                <strong>Weeks 2–{weeks - 1} · Progress</strong>
+                <strong>{tr("Week 1 · Settle in")}</strong>
                 <span>
-                  {goal === "maintain"
-                    ? "Keep a consistent intake"
-                    : `Gradually move to ${endCalories} kcal/day`}
+                  <Message
+                    text={"{{value0}} kcal/day"}
+                    values={{ value0: calories }}
+                  />
                 </span>
               </li>
               <li>
-                <strong>Week {weeks} · Stabilise</strong>
+                <strong>
+                  <Message
+                    text={"Weeks 2–{{value0}} · Progress"}
+                    values={{ value0: weeks - 1 }}
+                  />
+                </strong>
                 <span>
-                  Hold your final target, then return to your usual goals.
+                  {goal === "maintain"
+                    ? tr("Keep a consistent intake")
+                    : tr("Gradually move to {{value0}} kcal/day", {
+                        value0: endCalories,
+                      })}
+                </span>
+              </li>
+              <li>
+                <strong>
+                  <Message
+                    text={"Week {{value0}} · Stabilise"}
+                    values={{ value0: weeks }}
+                  />
+                </strong>
+                <span>
+                  {tr(
+                    "Hold your final target, then return to your usual goals."
+                  )}
                 </span>
               </li>
             </ol>
             <p>
-              Your workouts get a phase-aware strain check and a quick
-              adjustment when needed.
+              {tr(
+                "Your workouts get a phase-aware strain check and a quick adjustment when needed."
+              )}
             </p>
             <label className="programme-consent">
               <input
@@ -665,10 +872,9 @@ function ProgrammeSetup({
                 required
               />
               <span>
-                I’m 18 or older, and I’m not pregnant or breastfeeding,
-                recovering from undernutrition or an eating disorder, or
-                managing a condition or medication that needs a supervised
-                nutrition plan.
+                {tr(
+                  "I’m 18 or older, and I’m not pregnant or breastfeeding, recovering from undernutrition or an eating disorder, or managing a condition or medication that needs a supervised nutrition plan."
+                )}
               </span>
             </label>
           </>
@@ -686,7 +892,7 @@ function ProgrammeSetup({
               disabled={busy}
               onClick={() => setStep(step - 1)}
             >
-              Back
+              {tr("Back")}
             </button>
           )}
           <button
@@ -694,10 +900,10 @@ function ProgrammeSetup({
             disabled={busy || (step === 2 && !confirmed)}
           >
             {busy
-              ? "Starting…"
+              ? tr("Starting…")
               : step === 2
-                ? "Start my programme"
-                : "Continue"}
+                ? tr("Start my programme")
+                : tr("Continue")}
             <ArrowRight aria-hidden="true" />
           </button>
         </div>

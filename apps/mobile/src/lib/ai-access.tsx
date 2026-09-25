@@ -1,3 +1,4 @@
+import { tr, translateError } from "@repo/ui/i18n"
 import { AiSharingConsentSheet } from "@/components/ai-sharing-consent"
 import { hasAiSharingConsent } from "../../../../convex/lib/aiSharing"
 import { useCallback, useState } from "react"
@@ -69,7 +70,7 @@ export function useAiFeatureGate() {
       }
       if (hasPro || hasByok) return true
       if (isLoading) {
-        toast.message("Checking your access…")
+        toast.message(tr("Checking your access…"))
         return false
       }
       if (freeRequestsLeft >= cost) return true
@@ -127,7 +128,7 @@ export function useAiFeatureGate() {
         }
         onClose={() => setModalOpen(false)}
         onOpenPaywall={() => {
-          if (paywallBusy) return
+          if (paywallBusy || !billing.canUpgrade) return
           setPaywallBusy(true)
           void (async () => {
             try {
@@ -139,15 +140,18 @@ export function useAiFeatureGate() {
                 celebrateSubscription()
                 setModalOpen(false)
               } else {
-                toast.message("Subscription is pending. Refreshing access...")
+                toast.message(
+                  tr("Subscription is pending. Refreshing access...")
+                )
                 void billing.refresh()
               }
             } catch (error) {
               const message =
                 error instanceof Error && error.message
                   ? error.message
-                  : "We couldn’t start your subscription. Try again."
-              if (message !== "Purchase canceled") toast.error(message)
+                  : tr("We couldn’t start your subscription. Try again.")
+              if (message !== "Purchase canceled")
+                toast.error(translateError(message))
             } finally {
               setPaywallBusy(false)
             }
@@ -204,15 +208,20 @@ function usageDeniedReason(
   if (!usage) return null
   if (usage.isPro === true) {
     if (usage.serverAiConfigured === false) {
-      return "AI isn't configured on this server yet."
+      return tr("AI isn't configured on this server yet.")
     }
     if (usage.byok !== true && usage.unlimited !== true) {
-      return `Your account has Pro, but AI still isn't available on this server (you've used ${usage.count ?? 0} of ${usage.limit ?? 0} this month).`
+      return tr(
+        "Your account has Pro, but AI still isn't available on this server (you've used {{value0}} of {{value1}} this month).",
+        { value0: usage.count ?? 0, value1: usage.limit ?? 0 }
+      )
     }
-    return "AI is configured, but the monthly usage couldn't be read."
+    return tr("AI is configured, but the monthly usage couldn't be read.")
   }
   if (usage.remaining !== undefined && usage.remaining <= 0) {
-    return `You've used all ${usage.limit ?? 10} free AI requests this month.`
+    return tr("You've used all {{value0}} free AI requests this month.", {
+      value0: usage.limit ?? 10,
+    })
   }
   return null
 }

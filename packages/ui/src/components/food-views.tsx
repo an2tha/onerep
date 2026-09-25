@@ -1,3 +1,4 @@
+import { Message, tr, uiLocale } from "@repo/ui/i18n"
 import { useEffect, useState } from "react"
 
 import { MACRO_COLORS } from "../lib/design-tokens"
@@ -6,17 +7,17 @@ import { energyDisplay, useEnergyUnitLabel } from "../lib/energy-unit"
 const MACROS = [
   {
     key: "protein",
-    label: "Protein",
+    label: tr("Protein"),
     color: MACRO_COLORS.protein,
     kcalPerG: 4,
   },
-  { key: "carbs", label: "Carbs", color: MACRO_COLORS.carbs, kcalPerG: 4 },
-  { key: "fat", label: "Fat", color: MACRO_COLORS.fat, kcalPerG: 9 },
+  { key: "carbs", label: tr("Carbs"), color: MACRO_COLORS.carbs, kcalPerG: 4 },
+  { key: "fat", label: tr("Fat"), color: MACRO_COLORS.fat, kcalPerG: 9 },
 ] as const
 
 function formatNutrient(value: number, maximumFractionDigits = 1) {
   const safe = Number.isFinite(value) ? value : 0
-  return new Intl.NumberFormat("en-US", {
+  return new Intl.NumberFormat(uiLocale(), {
     maximumFractionDigits: Math.abs(safe) >= 100 ? 0 : maximumFractionDigits,
   }).format(safe)
 }
@@ -46,10 +47,16 @@ export function FoodMacroStack({
             {macro.label}
           </span>
           <strong className="mt-2 block text-[18px] leading-none tabular-nums">
-            {formatNutrient(values[index])} g
+            <Message
+              text={"{{value0}} g"}
+              values={{ value0: formatNutrient(values[index]) }}
+            />
           </strong>
           <span className="mt-1 block text-[10px] text-muted-foreground tabular-nums">
-            {Math.round((calories[index] / total) * 100)}% of energy
+            <Message
+              text={"{{value0}}% of energy"}
+              values={{ value0: Math.round((calories[index] / total) * 100) }}
+            />
           </span>
         </div>
       ))}
@@ -132,7 +139,7 @@ export function FoodProductHeader({
           <button
             type="button"
             onClick={() => setExpanded(true)}
-            aria-label={`View photo of ${name}`}
+            aria-label={tr("View photo of {{value0}}", { value0: name })}
             className="group relative size-16 shrink-0 overflow-hidden rounded-2xl border border-border/60 bg-muted transition-transform active:scale-[0.97]"
           >
             <img
@@ -214,7 +221,7 @@ function FoodImageLightbox({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label={`Photo of ${name}`}
+      aria-label={tr("Photo of {{value0}}", { value0: name })}
       onClick={onClose}
       // Above the sheet it is opened from, which sits at z-[100].
       className="fixed inset-0 z-[110] flex items-center justify-center bg-black/88 p-6 backdrop-blur-sm"
@@ -235,7 +242,7 @@ function FoodImageLightbox({
       <button
         type="button"
         onClick={onClose}
-        aria-label="Close photo"
+        aria-label={tr("Close photo")}
         className="absolute right-4 grid size-9 place-items-center rounded-full bg-white/12 text-white/90 backdrop-blur-md transition-colors active:bg-white/20"
         style={{ top: "max(1rem, env(safe-area-inset-top, 1rem))" }}
       >
@@ -279,33 +286,37 @@ export function FoodAttribution({
 
   return (
     <p className={`text-center text-[11px] text-muted-foreground ${className}`}>
-      Food data from{" "}
-      {sources.map((source, index) => (
-        <span key={source.id}>
-          {index > 0 && (index === sources.length - 1 ? " and " : ", ")}
-          <a
-            href={source.url}
-            target="_blank"
-            rel="noreferrer"
-            className="underline underline-offset-2"
-          >
-            {source.name}
-          </a>
-          {source.license && (
-            <>
-              {" "}
+      <Message
+        text={"Food data from {{value0}}"}
+        values={{
+          value0: sources.map((source, index) => (
+            <span key={source.id}>
+              {index > 0 && (index === sources.length - 1 ? " and " : ", ")}
               <a
-                href={source.license.url}
+                href={source.url}
                 target="_blank"
                 rel="noreferrer"
-                className="underline underline-offset-2 opacity-70"
+                className="underline underline-offset-2"
               >
-                ({source.license.name})
+                {source.name}
               </a>
-            </>
-          )}
-        </span>
-      ))}
+              {source.license && (
+                <>
+                  {" "}
+                  <a
+                    href={source.license.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="underline underline-offset-2 opacity-70"
+                  >
+                    ({source.license.name})
+                  </a>
+                </>
+              )}
+            </span>
+          )),
+        }}
+      />
     </p>
   )
 }

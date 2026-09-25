@@ -1,3 +1,4 @@
+import { Message, tr } from "@repo/ui/i18n"
 /**
  * Full-screen exercise search: recents, popular picks, category filters, and
  * the custom-exercise editor. Also serves as the swap picker — the caller
@@ -168,7 +169,7 @@ export function AddExerciseSheet({
   return (
     <div
       className={cn(
-        "fixed inset-0 z-40 flex justify-center bg-black/20 p-3 backdrop-blur-sm md:p-0 md:bg-black/40",
+        "fixed inset-0 z-40 flex justify-center bg-black/20 p-3 backdrop-blur-sm md:bg-black/40 md:p-0",
         closing ? "sheet-backdrop-exit" : "sheet-backdrop-enter"
       )}
       style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top, 0px))" }}
@@ -181,14 +182,14 @@ export function AddExerciseSheet({
         )}
         role="dialog"
         aria-modal="true"
-        aria-label="Add exercises"
+        aria-label={tr("Add exercises")}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-3 px-4 pt-3 pb-2">
           <button
             type="button"
             onClick={requestClose}
-            aria-label="Close exercise search"
+            aria-label={tr("Close exercise search")}
             className="flex h-10 w-10 shrink-0 appearance-none items-center justify-center rounded-full border border-foreground/10 bg-foreground/5 text-muted-foreground transition-colors active:bg-foreground/10 active:text-foreground"
           >
             <X size={16} weight="bold" />
@@ -206,12 +207,12 @@ export function AddExerciseSheet({
               ref={inputRef}
               type="search"
               name="exercise-search-query"
-              aria-label="Search exercises"
+              aria-label={tr("Search exercises")}
               aria-busy={searchState === "loading"}
               autoFocus
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search exercises…"
+              placeholder={tr("Search exercises…")}
               className="h-11 w-full appearance-none rounded-xl border border-foreground/12 bg-foreground/6 pr-4 pl-10 text-[15px] shadow-[inset_0_1px_0_rgb(255_255_255/0.08)] outline-none placeholder:text-muted-foreground focus:border-foreground/30 focus:ring-2 focus:ring-foreground/10"
             />
             {query && (
@@ -221,7 +222,7 @@ export function AddExerciseSheet({
                   setQuery("")
                   setActiveCategory(null)
                 }}
-                aria-label="Clear exercise search"
+                aria-label={tr("Clear exercise search")}
                 className="absolute top-1/2 right-0 flex h-11 w-11 -translate-y-1/2 appearance-none items-center justify-center border-0 bg-transparent text-muted-foreground active:text-foreground"
               >
                 <X size={13} weight="bold" />
@@ -241,13 +242,19 @@ export function AddExerciseSheet({
             <div className="flex flex-col items-center gap-2 py-16">
               <div className="h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground/25 border-t-muted-foreground/70" />
               <p className="text-[13px] font-medium text-muted-foreground/65">
-                Finding exercises
+                {tr("Finding exercises")}
               </p>
             </div>
           ) : filtered.length > 0 ? (
             <>
               <p className="mt-4 mb-2 px-1 text-[13px] font-semibold text-muted-foreground">
-                {filtered.length} result{filtered.length === 1 ? "" : "s"}
+                <Message
+                  text={"{{value0}} result{{value1}}"}
+                  values={{
+                    value0: filtered.length,
+                    value1: filtered.length === 1 ? "" : "s",
+                  }}
+                />
               </p>
               <div className="divide-y divide-border/60 border-y border-border/60">
                 {filtered.map((ex) => {
@@ -280,8 +287,8 @@ export function AddExerciseSheet({
               <div className="px-2 py-2 text-center">
                 <p className="text-[14px] text-muted-foreground">
                   {query.trim()
-                    ? "Type one more letter to search."
-                    : "Search a movement or browse below."}
+                    ? tr("Type one more letter to search.")
+                    : tr("Search a movement or browse below.")}
                 </p>
               </div>
               <div className="rounded-2xl border border-foreground/10 bg-foreground/5 p-3 shadow-[inset_0_1px_0_rgb(255_255_255/0.06)]">
@@ -304,7 +311,14 @@ export function AddExerciseSheet({
                   className="shrink-0 text-muted-foreground"
                 />
                 <p className="text-[13px] font-medium text-muted-foreground/70">
-                  No matches{query.trim() ? ` for “${query.trim()}”` : ""}.
+                  <Message
+                    text={"No matches{{value0}}."}
+                    values={{
+                      value0: query.trim()
+                        ? tr(" for “{{value0}}”", { value0: query.trim() })
+                        : "",
+                    }}
+                  />
                 </p>
               </div>
               <CreateExerciseButton
@@ -322,14 +336,14 @@ export function AddExerciseSheet({
               <div className="app-empty justify-center">
                 <Warning size={18} className="shrink-0 text-destructive/70" />
                 <p className="text-[13px] font-medium text-muted-foreground/70">
-                  Exercise search is unavailable.
+                  {tr("Exercise search is unavailable.")}
                 </p>
                 <button
                   type="button"
                   onClick={retrySearch}
                   className="mt-1 min-h-9 rounded-[10px] bg-foreground px-4 text-[13px] font-semibold text-background active:opacity-85"
                 >
-                  Retry
+                  {tr("Retry")}
                 </button>
               </div>
               <ExerciseSuggestionGroups
@@ -363,10 +377,10 @@ const EXERCISE_CATEGORY_FILTERS: Array<{
   category: ExerciseCategory
   label: string
 }> = [
-  { category: "strength", label: "Strength" },
-  { category: "cardio", label: "Cardio" },
-  { category: "mobility", label: "Mobility" },
-  { category: "core", label: "Core" },
+  { category: "strength", label: tr("Strength") },
+  { category: "cardio", label: tr("Cardio") },
+  { category: "mobility", label: tr("Mobility") },
+  { category: "core", label: tr("Core") },
 ]
 
 function ExerciseCategoryFilters({
@@ -379,7 +393,7 @@ function ExerciseCategoryFilters({
   return (
     <div
       className="mx-4 mb-2 flex gap-1 overflow-x-auto rounded-xl border border-foreground/10 bg-foreground/5 p-1.5 shadow-[inset_0_1px_0_rgb(255_255_255/0.06)] [&::-webkit-scrollbar]:hidden"
-      aria-label="Filter exercises by type"
+      aria-label={tr("Filter exercises by type")}
       role="group"
     >
       <button
@@ -393,7 +407,7 @@ function ExerciseCategoryFilters({
             : "text-muted-foreground active:bg-muted/60 active:text-foreground"
         )}
       >
-        All
+        {tr("All")}
       </button>
       {EXERCISE_CATEGORY_FILTERS.map(({ category, label }) => {
         const active = activeCategory === category
@@ -436,7 +450,9 @@ function ExerciseSearchResult({
         disabled={added}
         onClick={onAdd}
         aria-label={
-          added ? `${exercise.name}, already added` : `Add ${exercise.name}`
+          added
+            ? tr("{{value0}}, already added", { value0: exercise.name })
+            : tr("Add {{value0}}", { value0: exercise.name })
         }
         className="flex min-w-0 flex-1 appearance-none items-center gap-3 border-0 bg-transparent! bg-none! px-3 py-3 text-left shadow-none! transition-colors active:bg-muted/55! disabled:cursor-default"
       >
@@ -447,7 +463,7 @@ function ExerciseSearchResult({
             </p>
             {exercise.custom && (
               <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[11px] leading-none font-semibold text-muted-foreground">
-                Yours
+                {tr("Yours")}
               </span>
             )}
           </div>
@@ -473,7 +489,7 @@ function ExerciseSearchResult({
         <button
           type="button"
           onClick={onEdit}
-          aria-label={`Edit ${exercise.name}`}
+          aria-label={tr("Edit {{value0}}", { value0: exercise.name })}
           className="flex h-11 w-11 shrink-0 appearance-none items-center justify-center border-0 bg-transparent text-muted-foreground transition-colors active:bg-muted/55 active:text-foreground"
         >
           <PencilSimple size={15} weight="bold" />

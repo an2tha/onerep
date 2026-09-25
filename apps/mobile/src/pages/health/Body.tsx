@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 import { useQuery } from "convex/react"
 import { api } from "../../../../../convex/_generated/api"
 import { currentDateKey } from "@/lib/food-log"
@@ -67,15 +68,15 @@ export default function HealthBody() {
 
   return (
     <HealthDetailShell
-      title="Body"
-      subtitle="Weight and composition over time"
+      title={tr("Body")}
+      subtitle={tr("Weight and composition over time")}
       charts={
         <>
           <MetricTrend
             hideWhenEmpty
             today={today}
             metric="weight"
-            title="Weight"
+            title={tr("Weight")}
             format={formatWeight}
             kind="line"
             tone={AREA_TONES.recovery}
@@ -84,7 +85,7 @@ export default function HealthBody() {
             hideWhenEmpty
             today={today}
             metric="bodyFat"
-            title="Body fat"
+            title={tr("Body fat")}
             format={formatPercent}
             kind="line"
             tone={AREA_TONES.activity}
@@ -96,23 +97,27 @@ export default function HealthBody() {
           items={[
             {
               term: "Where these come from",
-              detail:
-                "Check-ins you type in Progress, and readings your scale writes to Apple Health or Health Connect if you have that switched on. A number you entered yourself always wins over a synced one for the same day.",
+              detail: tr(
+                "Check-ins you type in Progress, and readings your scale writes to Apple Health or Health Connect if you have that switched on. A number you entered yourself always wins over a synced one for the same day."
+              ),
             },
             {
               term: "Why the line has gaps",
-              detail:
-                "A day nobody weighed in is drawn as a break rather than a drop to zero. Weekly weigh-ins make an honest sparse line; daily ones make a noisy dense one, and both are fine.",
+              detail: tr(
+                "A day nobody weighed in is drawn as a break rather than a drop to zero. Weekly weigh-ins make an honest sparse line; daily ones make a noisy dense one, and both are fine."
+              ),
             },
             {
               term: "Reading the change",
-              detail:
-                "Measured against your first reading here, not yesterday's. Day-to-day movement on a bathroom scale is mostly water and gut content — a fortnight is the shortest window that means anything.",
+              detail: tr(
+                "Measured against your first reading here, not yesterday's. Day-to-day movement on a bathroom scale is mostly water and gut content — a fortnight is the shortest window that means anything."
+              ),
             },
             {
               term: "Body fat percentages",
-              detail:
-                "Smart scales estimate this from electrical impedance and are more useful for direction than for the absolute figure. Treat a move from 22 to 20 as real and the 20 itself as approximate.",
+              detail: tr(
+                "Smart scales estimate this from electrical impedance and are more useful for direction than for the absolute figure. Treat a move from 22 to 20 as real and the 20 itself as approximate."
+              ),
             },
           ]}
         />
@@ -124,33 +129,43 @@ export default function HealthBody() {
           data-route-loading="true"
         />
       ) : weighed.length === 0 ? (
-        <NoReadings detail="Log a check-in in Progress, or switch on health sync to pull your scale readings in." />
+        <NoReadings
+          detail={tr(
+            "Log a check-in in Progress, or switch on health sync to pull your scale readings in."
+          )}
+        />
       ) : (
         <StatGrid>
           <StatCell
-            label="Latest"
+            label={tr("Latest")}
             value={formatWeight(latest?.weightKg as number)}
             caption={
-              latest?.source === "health" ? "from your scale" : "you logged it"
+              latest?.source === "health"
+                ? tr("from your scale")
+                : tr("you logged it")
             }
           />
           <StatCell
-            label="Since you started"
+            label={tr("Since you started")}
             value={
               change == null
                 ? "—"
                 : `${change > 0 ? "+" : "−"}${formatWeight(Math.abs(change))}`
             }
-            caption={`over ${weighed.length} check-ins`}
+            caption={tr("over {{value0}} check-ins", {
+              value0: weighed.length,
+            })}
           />
           {latestFat && (
             <StatCell
-              label="Body fat"
+              label={tr("Body fat")}
               value={formatPercent(latestFat.bodyFatPct as number)}
               caption={
                 latestFat.leanBodyMassKg
-                  ? `${formatWeight(latestFat.leanBodyMassKg)} lean`
-                  : "latest reading"
+                  ? tr("{{value0}} lean", {
+                      value0: formatWeight(latestFat.leanBodyMassKg),
+                    })
+                  : tr("latest reading")
               }
             />
           )}
@@ -161,7 +176,9 @@ export default function HealthBody() {
 
       <TrackSomethingNew
         tab="body"
-        detail="Measurements or habits the check-in form has no field for."
+        detail={tr(
+          "Measurements or habits the check-in form has no field for."
+        )}
       />
 
       <button
@@ -169,7 +186,7 @@ export default function HealthBody() {
         onClick={() => navigate("/progress", { motion: "switch" })}
         className="motion-tactile mt-4 min-h-11 px-1 text-[13px] font-semibold"
       >
-        Log or correct a check-in
+        {tr("Log or correct a check-in")}
       </button>
     </HealthDetailShell>
   )

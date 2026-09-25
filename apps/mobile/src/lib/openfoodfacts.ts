@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 import { convexClient } from "@/lib/convex"
 import { api } from "../../../../convex/_generated/api"
 import { parseFoodPortionLabel } from "@/lib/food-log"
@@ -254,8 +255,9 @@ function servingLabel(product: OpenFoodFactsProduct): string {
   const named = firstString(product.serving_size)?.trim() ?? ""
   const grams = parseServingGrams(product)
   if (named && !servingTextIsBareWeight(named)) return named
-  if (grams && grams !== 100) return `1 serving (${+grams.toFixed(1)} g)`
-  return named || "100 g"
+  if (grams && grams !== 100)
+    return tr("1 serving ({{value0}} g)", { value0: +grams.toFixed(1) })
+  return named || tr("100 g")
 }
 
 function normalizeProduct(raw: unknown): OpenFoodFactsProduct | null {

@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 import { Capacitor } from "@capacitor/core"
 import { LocalNotifications } from "@capacitor/local-notifications"
 
@@ -50,8 +51,8 @@ async function createChannels() {
   try {
     await LocalNotifications.createChannel({
       id: NOTIFICATION_CHANNELS.rest,
-      name: "Rest timers",
-      description: "Tells you when a rest period between sets is over.",
+      name: tr("Rest timers"),
+      description: tr("Tells you when a rest period between sets is over."),
       // HIGH, not MAX: a heads-up banner is right, hijacking the screen is not.
       importance: 4,
       visibility: 1,
@@ -63,9 +64,10 @@ async function createChannels() {
 
     await LocalNotifications.createChannel({
       id: NOTIFICATION_CHANNELS.reminders,
-      name: "Daily reminders",
-      description:
-        "Hydration, meals, training, check-ins, and supplement reminders.",
+      name: tr("Daily reminders"),
+      description: tr(
+        "Hydration, meals, training, check-ins, and supplement reminders."
+      ),
       importance: 3,
       visibility: 1,
       vibration: true,
@@ -73,9 +75,10 @@ async function createChannels() {
 
     await LocalNotifications.createChannel({
       id: NOTIFICATION_CHANNELS.workoutStatus,
-      name: "Workout status",
-      description:
-        "The ongoing notification showing your current set and rest timer.",
+      name: tr("Workout status"),
+      description: tr(
+        "The ongoing notification showing your current set and rest timer."
+      ),
       // LOW: this notification is persistent for the length of a workout. It
       // must never buzz — the rest channel already owns the alerting.
       importance: 2,
@@ -85,9 +88,10 @@ async function createChannels() {
 
     await LocalNotifications.createChannel({
       id: NOTIFICATION_CHANNELS.coach,
-      name: "Coach",
-      description:
-        "Your weekly review, and the occasional nudge when you go quiet.",
+      name: tr("Coach"),
+      description: tr(
+        "Your weekly review, and the occasional nudge when you go quiet."
+      ),
       // DEFAULT: it is worth a glance, never worth interrupting a meeting for.
       importance: 3,
       visibility: 1,

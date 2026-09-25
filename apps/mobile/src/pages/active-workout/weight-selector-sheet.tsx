@@ -1,3 +1,4 @@
+import { Message, tr } from "@repo/ui/i18n"
 /**
  * The weight entry sheet for a set: bar type, plates per side, or a plain
  * total. Lives in its own module because NewPreset reuses it verbatim.
@@ -316,7 +317,7 @@ export function WeightSelectorSheet({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Weight selector"
+        aria-label={tr("Weight selector")}
         className={cn(
           "mobile-modal-surface flex max-h-[92dvh] w-full max-w-sm flex-col overflow-hidden rounded-t-3xl bg-card shadow-[0_-12px_60px_rgba(0,0,0,0.24)] md:max-h-[calc(100dvh-3rem)] md:max-w-md md:rounded-[28px] md:shadow-2xl [&_button]:focus-visible:outline-2 [&_button]:focus-visible:outline-offset-2 [&_button]:focus-visible:outline-foreground [&_summary]:focus-visible:outline-2 [&_summary]:focus-visible:outline-foreground",
           isClosing
@@ -330,18 +331,20 @@ export function WeightSelectorSheet({
         </div>
         <div className="flex shrink-0 items-center justify-between px-5 py-3 md:pt-5">
           <div>
-            <p className="text-[15px] font-semibold tracking-tight">Weight</p>
+            <p className="text-[15px] font-semibold tracking-tight">
+              {tr("Weight")}
+            </p>
             <p className="text-[13px] text-muted-foreground">
               {lastWeightLabel
-                ? `Last set ${lastWeightLabel}`
+                ? tr("Last set {{value0}}", { value0: lastWeightLabel })
                 : hasBar
-                  ? `${activeBarLabel} + plates`
-                  : `Total load in ${unit}`}
+                  ? tr("{{value0}} + plates", { value0: activeBarLabel })
+                  : tr("Total load in {{value0}}", { value0: unit })}
             </p>
           </div>
           <button
             onClick={dismiss}
-            aria-label="Close weight selector"
+            aria-label={tr("Close weight selector")}
             className="flex h-10 w-10 items-center justify-center rounded-full bg-muted/50 text-muted-foreground transition-colors active:bg-muted active:text-foreground"
           >
             <X size={13} weight="bold" />
@@ -353,12 +356,20 @@ export function WeightSelectorSheet({
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-[13px] font-semibold text-muted-foreground">
-                  Total weight
+                  {tr("Total weight")}
                 </p>
                 <p className="mt-1 text-[13px] font-semibold text-foreground/75">
                   {hasBar
-                    ? `${barDisplayValue} ${unit} bar + ${plateDisplayValue || "0"} ${unit}/side`
-                    : `Direct entry in ${unit}`}
+                    ? tr(
+                        "{{value0}} {{value1}} bar + {{value2}} {{value3}}/side",
+                        {
+                          value0: barDisplayValue,
+                          value1: unit,
+                          value2: plateDisplayValue || "0",
+                          value3: unit,
+                        }
+                      )
+                    : tr("Direct entry in {{value0}}", { value0: unit })}
                 </p>
               </div>
             </div>
@@ -367,7 +378,7 @@ export function WeightSelectorSheet({
                 type="button"
                 onClick={() => applyDelta(-(unit === "kg" ? 2.5 : 5))}
                 className="flex h-12 items-center justify-center rounded-[20px] bg-muted/55 text-muted-foreground transition-all active:bg-muted"
-                aria-label="Decrease weight"
+                aria-label={tr("Decrease weight")}
               >
                 <Minus size={16} weight="bold" />
               </button>
@@ -379,7 +390,9 @@ export function WeightSelectorSheet({
                   onChange={(event) => setWeightDisplay(event.target.value)}
                   placeholder="0"
                   className="h-[58px] w-full [appearance:textfield] rounded-[22px] border border-border/55 bg-card px-4 pr-14 text-center text-[28px] leading-none font-semibold tracking-tight tabular-nums transition-all outline-none placeholder:text-muted-foreground focus:border-foreground/30 focus:ring-2 focus:ring-foreground/10 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                  aria-label={`Total weight in ${unit}`}
+                  aria-label={tr("Total weight in {{value0}}", {
+                    value0: unit,
+                  })}
                 />
                 <span className="pointer-events-none absolute top-1/2 right-4 -translate-y-1/2 text-[13px] font-semibold text-muted-foreground">
                   {unit}
@@ -389,7 +402,7 @@ export function WeightSelectorSheet({
                 type="button"
                 onClick={() => applyDelta(unit === "kg" ? 2.5 : 5)}
                 className="flex h-12 items-center justify-center rounded-[20px] bg-muted/55 text-muted-foreground transition-all active:bg-muted"
-                aria-label="Increase weight"
+                aria-label={tr("Increase weight")}
               >
                 <Plus size={16} weight="bold" />
               </button>
@@ -412,19 +425,23 @@ export function WeightSelectorSheet({
             className="border-t border-border/50 py-2"
             summary={
               <>
-                <span className="font-semibold">Bar</span>
+                <span className="font-semibold">{tr("Bar")}</span>
                 <span className="ml-auto text-muted-foreground">
                   {hasBar
-                    ? `${activeBarLabel} · ${barDisplayValue} ${unit}`
-                    : "None"}
+                    ? tr("{{value0}} · {{value1}} {{value2}}", {
+                        value0: activeBarLabel,
+                        value1: barDisplayValue,
+                        value2: unit,
+                      })
+                    : tr("None")}
                 </span>
               </>
             }
           >
             <div
-              className="grid grid-cols-2 gap-2 pb-3 pt-1"
+              className="grid grid-cols-2 gap-2 pt-1 pb-3"
               role="group"
-              aria-label="Bar type"
+              aria-label={tr("Bar type")}
             >
               <button
                 type="button"
@@ -439,7 +456,7 @@ export function WeightSelectorSheet({
                     : "bg-muted/50 text-foreground hover:bg-muted"
                 )}
               >
-                No bar
+                {tr("No bar")}
               </button>
               {BAR_PROFILES.map((profile) => (
                 <button
@@ -476,18 +493,27 @@ export function WeightSelectorSheet({
                     : "bg-muted/50 text-foreground hover:bg-muted"
                 )}
               >
-                Custom
+                {tr("Custom")}
               </button>
             </div>
             {selectedBarType === "custom" && (
               <label className="mb-3 flex min-h-12 items-center gap-3 text-[13px] text-muted-foreground">
-                Bar weight ({unit})
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  value={barInput}
-                  onChange={(event) => setCustomBarDisplay(event.target.value)}
-                  className="h-11 min-w-0 flex-1 rounded-xl border border-border bg-background px-3 text-base font-semibold text-foreground tabular-nums"
+                <Message
+                  text={"Bar weight ({{value0}}){{value1}}"}
+                  values={{
+                    value0: unit,
+                    value1: (
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        value={barInput}
+                        onChange={(event) =>
+                          setCustomBarDisplay(event.target.value)
+                        }
+                        className="h-11 min-w-0 flex-1 rounded-xl border border-border bg-background px-3 text-base font-semibold text-foreground tabular-nums"
+                      />
+                    ),
+                  }}
                 />
               </label>
             )}
@@ -497,7 +523,7 @@ export function WeightSelectorSheet({
             className="border-t border-border/50 py-2"
             summary={
               <>
-                <span className="font-semibold">Plates per side</span>
+                <span className="font-semibold">{tr("Plates per side")}</span>
                 <span className="ml-auto text-muted-foreground tabular-nums">
                   {plateDisplayValue || "0"} {unit}
                 </span>
@@ -509,7 +535,7 @@ export function WeightSelectorSheet({
                 type="button"
                 onClick={() => applyPlateDelta(-(unit === "kg" ? 1.25 : 2.5))}
                 className="flex h-11 items-center justify-center rounded-[18px] bg-muted/55 text-muted-foreground transition-all active:bg-muted"
-                aria-label="Decrease plates per side"
+                aria-label={tr("Decrease plates per side")}
               >
                 <Minus size={15} weight="bold" />
               </button>
@@ -523,7 +549,9 @@ export function WeightSelectorSheet({
                   }
                   placeholder="0"
                   className="h-12 w-full [appearance:textfield] rounded-[20px] border border-border/55 bg-card px-4 pr-14 text-center text-[22px] leading-none font-semibold tracking-tight tabular-nums transition-all outline-none placeholder:text-muted-foreground focus:border-foreground/30 focus:ring-2 focus:ring-foreground/10 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                  aria-label={`Plates per side in ${unit}`}
+                  aria-label={tr("Plates per side in {{value0}}", {
+                    value0: unit,
+                  })}
                 />
                 <span className="pointer-events-none absolute top-1/2 right-4 -translate-y-1/2 text-[13px] font-semibold text-muted-foreground">
                   {unit}
@@ -533,7 +561,7 @@ export function WeightSelectorSheet({
                 type="button"
                 onClick={() => applyPlateDelta(unit === "kg" ? 1.25 : 2.5)}
                 className="flex h-11 items-center justify-center rounded-[18px] bg-muted/55 text-muted-foreground transition-all active:bg-muted"
-                aria-label="Increase plates per side"
+                aria-label={tr("Increase plates per side")}
               >
                 <Plus size={15} weight="bold" />
               </button>
@@ -541,7 +569,9 @@ export function WeightSelectorSheet({
             <SlidingSection
               className="mt-3"
               summary={
-                <span className="text-muted-foreground">Plate shortcuts</span>
+                <span className="text-muted-foreground">
+                  {tr("Plate shortcuts")}
+                </span>
               }
             >
               <div className="mt-3 grid grid-cols-3 gap-1.5">
@@ -573,7 +603,7 @@ export function WeightSelectorSheet({
         </div>
 
         <div
-          className="shrink-0 border-t border-border/40 bg-card px-5 pt-3 "
+          className="shrink-0 border-t border-border/40 bg-card px-5 pt-3"
           style={{
             paddingBottom: "max(1rem, env(safe-area-inset-bottom, 1rem))",
           }}
@@ -583,7 +613,7 @@ export function WeightSelectorSheet({
             onClick={dismiss}
             className="h-12 w-full rounded-[20px] bg-foreground text-[14px] font-semibold tracking-tight text-background transition-opacity active:opacity-85"
           >
-            Done
+            {tr("Done")}
           </button>
         </div>
       </div>

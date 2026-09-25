@@ -1,3 +1,4 @@
+import { Message, choice, tr, uiLocale } from "@repo/ui/i18n"
 import {
   ArrowsClockwise,
   CheckCircle,
@@ -45,13 +46,13 @@ export function SettingsLoadingState() {
   return (
     <div
       role="status"
-      aria-label="Loading settings"
+      aria-label={tr("Loading settings")}
       className="flex min-h-[45svh] flex-col items-center justify-center px-6 text-center"
     >
       <div className="h-5 w-5 animate-spin rounded-full border-2 border-muted-foreground/20 border-t-muted-foreground/70" />
-      <p className="native-section-title mt-4">Loading settings</p>
+      <p className="native-section-title mt-4">{tr("Loading settings")}</p>
       <p className="native-row-detail mt-1 max-w-[18rem]">
-        Syncing your preferences, goals, and account controls.
+        {tr("Syncing your preferences, goals, and account controls.")}
       </p>
     </div>
   )
@@ -119,15 +120,21 @@ export type AiUsageView = {
 
 function formatUsageMonth(month: string) {
   const date = new Date(`${month}-01T12:00:00Z`)
-  if (Number.isNaN(date.getTime())) return "This month"
-  return date.toLocaleDateString("en-US", {
+  if (Number.isNaN(date.getTime())) return tr("This month")
+  return date.toLocaleDateString(uiLocale(), {
     month: "short",
     year: "numeric",
     timeZone: "UTC",
   })
 }
 
-export function AiUsageProgress({ usage }: { usage?: AiUsageView | null }) {
+export function AiUsageProgress({
+  usage,
+  showUpgrade = true,
+}: {
+  usage?: AiUsageView | null
+  showUpgrade?: boolean
+}) {
   const limit = usage?.limit ?? 10
   const count = usage?.count ?? 0
   // On a user's own key there is no allowance to run down, so the meter
@@ -138,16 +145,21 @@ export function AiUsageProgress({ usage }: { usage?: AiUsageView | null }) {
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="native-row-title">
-              Monthly coach questions · Your key
+              {tr("Monthly coach questions · Your key")}
             </p>
             <p className="native-row-detail mt-0.5">
-              {formatUsageMonth(usage.month)} · no monthly cap
+              <Message
+                text={"{{value0}} · no monthly cap"}
+                values={{ value0: formatUsageMonth(usage.month) }}
+              />
             </p>
           </div>
           <p className="native-row-value shrink-0">{count}</p>
         </div>
         <p className="native-row-detail mt-2">
-          AI runs on your OpenRouter key, billed by OpenRouter at their rates.
+          {tr(
+            "AI runs on your OpenRouter key, billed by OpenRouter at their rates."
+          )}
         </p>
       </div>
     )
@@ -162,11 +174,20 @@ export function AiUsageProgress({ usage }: { usage?: AiUsageView | null }) {
       <div className="mb-2 flex items-start justify-between gap-3">
         <div>
           <p className="native-row-title">
-            Monthly coach questions{usage?.isPro ? " · Pro" : " · Free"}
+            <Message
+              text={"Monthly coach questions{{value0}}"}
+              values={{ value0: choice(usage?.isPro ? " · Pro" : " · Free") }}
+            />
           </p>
           <p className="native-row-detail mt-0.5">
-            {formatUsageMonth(usage?.month ?? "")} · {remaining} question
-            {remaining === 1 ? "" : "s"} left
+            <Message
+              text={"{{value0}} · {{value1}} question{{value2}} left"}
+              values={{
+                value0: formatUsageMonth(usage?.month ?? ""),
+                value1: remaining,
+                value2: remaining === 1 ? "" : "s",
+              }}
+            />
           </p>
         </div>
         <p className="native-row-value shrink-0">
@@ -176,7 +197,7 @@ export function AiUsageProgress({ usage }: { usage?: AiUsageView | null }) {
       <div
         className="h-2 overflow-hidden rounded-full bg-muted"
         role="progressbar"
-        aria-label="Monthly AI usage"
+        aria-label={tr("Monthly AI usage")}
         aria-valuemin={0}
         aria-valuemax={limit}
         aria-valuenow={count}
@@ -192,10 +213,19 @@ export function AiUsageProgress({ usage }: { usage?: AiUsageView | null }) {
         />
       </div>
       <p className="native-row-detail mt-2">
-        Shared across AI metrics, workout generation, and food photo analysis.
-        {usage && !usage.isPro && usage.proLimit
-          ? ` OneRep Pro raises this to ${usage.proLimit} a month.`
-          : ""}
+        <Message
+          text={
+            "Shared across AI metrics, workout generation, and food photo analysis.{{value0}}"
+          }
+          values={{
+            value0:
+              showUpgrade && usage && !usage.isPro && usage.proLimit
+                ? tr(" OneRep Pro raises this to {{value0}} a month.", {
+                    value0: usage.proLimit,
+                  })
+                : "",
+          }}
+        />
       </p>
     </div>
   )

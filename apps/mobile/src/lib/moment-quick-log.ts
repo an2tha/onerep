@@ -1,3 +1,4 @@
+import { tr, uiLocale } from "@repo/ui/i18n"
 /**
  * Turning a session the user has already done into one they can log in a tap.
  *
@@ -118,28 +119,34 @@ export function normalizeLoggedExercises(raw: unknown[]): QuickLogExercise[] {
 
 function titleFor(exercises: QuickLogExercise[]) {
   const names = exercises.map((exercise) => exercise.name)
-  if (names.length === 0) return "Empty session"
+  if (names.length === 0) return tr("Empty session")
   if (names.length <= 2) return names.join(" & ")
-  return `${names[0]} & ${names.length - 1} more`
+  return tr("{{value0}} & {{value1}} more", {
+    value0: names[0],
+    value1: names.length - 1,
+  })
 }
 
 function whenLabel(sourceDate: string, todayKey: string) {
   const ago = daysBetween(sourceDate, todayKey)
-  if (ago <= 0) return "today"
-  if (ago === 1) return "yesterday"
+  if (ago <= 0) return tr("today")
+  if (ago === 1) return tr("yesterday")
   if (ago < 7) {
-    return new Date(`${sourceDate}T12:00:00`).toLocaleDateString(undefined, {
+    return new Date(`${sourceDate}T12:00:00`).toLocaleDateString(uiLocale(), {
       weekday: "long",
     })
   }
-  return new Date(`${sourceDate}T12:00:00`).toLocaleDateString(undefined, {
+  return new Date(`${sourceDate}T12:00:00`).toLocaleDateString(uiLocale(), {
     month: "short",
     day: "numeric",
   })
 }
 
 function plural(count: number, one: string, many: string) {
-  return `${count} ${count === 1 ? one : many}`
+  return tr("{{value0}} {{value1}}", {
+    value0: count,
+    value1: tr(count === 1 ? one : many),
+  })
 }
 
 /**

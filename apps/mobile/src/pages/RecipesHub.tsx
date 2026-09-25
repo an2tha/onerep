@@ -1,3 +1,4 @@
+import { Message, choice, tr, translateError } from "@repo/ui/i18n"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useLocation } from "react-router"
 import { useMutation, useQuery } from "convex/react"
@@ -65,36 +66,36 @@ const IMAGE = {
 } as const
 
 const ORIGIN_BY_RECIPE: Record<string, string> = {
-  "chicken-bowl": "United States",
-  "lentil-skillet": "Greece",
-  "berry-oats": "Switzerland",
-  "salmon-greens": "France",
-  "turkey-wrap": "United States",
-  "tofu-rice": "Japan",
-  "egg-toast": "United Kingdom",
-  "pesto-pasta": "Italy",
-  "yogurt-bowl": "Germany",
-  "tuna-bean": "Italy",
-  "chickpea-curry": "India",
-  "protein-pancakes": "United States",
-  "steak-couscous": "Morocco",
-  "miso-noodles": "Japan",
-  "cottage-bowl": "Poland",
-  "shrimp-tacos": "Mexico",
-  "quinoa-roast": "Peru",
-  "chicken-soup": "Greece",
-  "chia-pudding": "Mexico",
-  "beef-rice": "South Korea",
-  "hummus-box": "Lebanon",
-  "protein-smoothie": "United States",
-  "crispy-chickpeas": "Spain",
-  "chocolate-yogurt": "France",
-  "apple-oat": "United Kingdom",
-  "falafel-bowl": "Egypt",
-  "cod-tray": "Spain",
-  "chicken-pasta": "Italy",
-  "edamame-toast": "Japan",
-  "date-bites": "Morocco",
+  "chicken-bowl": tr("United States"),
+  "lentil-skillet": tr("Greece"),
+  "berry-oats": tr("Switzerland"),
+  "salmon-greens": tr("France"),
+  "turkey-wrap": tr("United States"),
+  "tofu-rice": tr("Japan"),
+  "egg-toast": tr("United Kingdom"),
+  "pesto-pasta": tr("Italy"),
+  "yogurt-bowl": tr("Germany"),
+  "tuna-bean": tr("Italy"),
+  "chickpea-curry": tr("India"),
+  "protein-pancakes": tr("United States"),
+  "steak-couscous": tr("Morocco"),
+  "miso-noodles": tr("Japan"),
+  "cottage-bowl": tr("Poland"),
+  "shrimp-tacos": tr("Mexico"),
+  "quinoa-roast": tr("Peru"),
+  "chicken-soup": tr("Greece"),
+  "chia-pudding": tr("Mexico"),
+  "beef-rice": tr("South Korea"),
+  "hummus-box": tr("Lebanon"),
+  "protein-smoothie": tr("United States"),
+  "crispy-chickpeas": tr("Spain"),
+  "chocolate-yogurt": tr("France"),
+  "apple-oat": tr("United Kingdom"),
+  "falafel-bowl": tr("Egypt"),
+  "cod-tray": tr("Spain"),
+  "chicken-pasta": tr("Italy"),
+  "edamame-toast": tr("Japan"),
+  "date-bites": tr("Morocco"),
 }
 
 const STARTER_RECIPE_BASE = [
@@ -531,103 +532,208 @@ function quantityFor(name: string) {
 
 function detailedMethod(recipe: Omit<StarterRecipe, "steps" | "notes">) {
   const ingredients = recipe.ingredients
-  const first = ingredients[0]
-  const rest = ingredients.slice(1).join(", ")
+  const first = tr(ingredients[0])
+  const rest = ingredients
+    .slice(1)
+    .map((name) => tr(name))
+    .join(", ")
   if (/smoothie/i.test(recipe.name)) {
     return [
-      `Measure the ${ingredients.join(", ")}. Use frozen fruit for a thicker smoothie.`,
-      "Add the liquid ingredients to a blender first, followed by the remaining ingredients.",
-      "Blend on high for 45–60 seconds. Stop once to scrape down the sides if needed.",
-      "Add cold water a tablespoon at a time to adjust the texture, then serve immediately.",
+      tr("Measure the {{value0}}. Use frozen fruit for a thicker smoothie.", {
+        value0: ingredients.map((name) => tr(name)).join(", "),
+      }),
+      tr(
+        "Add the liquid ingredients to a blender first, followed by the remaining ingredients."
+      ),
+      tr(
+        "Blend on high for 45–60 seconds. Stop once to scrape down the sides if needed."
+      ),
+      tr(
+        "Add cold water a tablespoon at a time to adjust the texture, then serve immediately."
+      ),
     ]
   }
   if (/overnight|chia pudding/i.test(recipe.name)) {
     return [
-      `Measure the ${ingredients.join(", ")} into a jar or lidded container.`,
-      "Stir thoroughly for 30 seconds, rest for 5 minutes, then stir again to break up any clumps.",
-      "Cover and refrigerate for at least 4 hours, ideally overnight.",
-      "Stir before serving and loosen with a splash of milk if the mixture is too thick.",
+      tr("Measure the {{value0}} into a jar or lidded container.", {
+        value0: ingredients.map((name) => tr(name)).join(", "),
+      }),
+      tr(
+        "Stir thoroughly for 30 seconds, rest for 5 minutes, then stir again to break up any clumps."
+      ),
+      tr("Cover and refrigerate for at least 4 hours, ideally overnight."),
+      tr(
+        "Stir before serving and loosen with a splash of milk if the mixture is too thick."
+      ),
     ]
   }
   if (recipe.tags.includes("no cook") || recipe.tags.includes("no bake")) {
     return [
-      `Measure the ${ingredients.join(", ")} and prepare a bowl or airtight container.`,
-      `Cut any fruit or vegetables into bite-size pieces. Combine the ${first} with ${rest} and fold gently until evenly mixed.`,
-      "Taste and adjust with a small pinch of salt or your preferred sweetener, depending on the dish.",
+      tr("Measure the {{value0}} and prepare a bowl or airtight container.", {
+        value0: ingredients.map((name) => tr(name)).join(", "),
+      }),
+      tr(
+        "Cut any fruit or vegetables into bite-size pieces. Combine the {{value0}} with {{value1}} and fold gently until evenly mixed.",
+        { value0: first, value1: rest }
+      ),
+      tr(
+        "Taste and adjust with a small pinch of salt or your preferred sweetener, depending on the dish."
+      ),
       recipe.category === "Breakfast"
-        ? "Cover and chill for at least 20 minutes, or overnight for a softer texture."
-        : "Serve immediately, or refrigerate in a sealed container until needed.",
+        ? tr(
+            "Cover and chill for at least 20 minutes, or overnight for a softer texture."
+          )
+        : tr(
+            "Serve immediately, or refrigerate in a sealed container until needed."
+          ),
     ]
   }
   if (/pancake/i.test(recipe.name)) {
     return [
-      "Blend the banana, eggs, oats, and protein powder into a thick, pourable batter. Rest for 5 minutes.",
-      "Warm a non-stick pan over medium-low heat and lightly grease it.",
-      "Cook small pancakes for 2–3 minutes, until bubbles form, then flip and cook for another minute.",
-      "Serve warm with yogurt or fruit. Add a splash of milk if the batter thickens too much.",
+      tr(
+        "Blend the banana, eggs, oats, and protein powder into a thick, pourable batter. Rest for 5 minutes."
+      ),
+      tr("Warm a non-stick pan over medium-low heat and lightly grease it."),
+      tr(
+        "Cook small pancakes for 2–3 minutes, until bubbles form, then flip and cook for another minute."
+      ),
+      tr(
+        "Serve warm with yogurt or fruit. Add a splash of milk if the batter thickens too much."
+      ),
     ]
   }
   if (/pasta|noodle/i.test(recipe.name)) {
     const starch =
       ingredients.find((item) => /pasta|noodle/i.test(item)) ?? first
-    const additions = ingredients.filter((item) => item !== starch).join(", ")
+    const additions = ingredients
+      .filter((item) => item !== starch)
+      .map((name) => tr(name))
+      .join(", ")
     return [
-      `Bring a pot of salted water to a boil. Prepare the ${additions} while the water heats.`,
-      `Cook the ${starch} until just tender, reserving 120 ml of cooking water before draining.`,
-      `Cook the remaining ingredients in a wide pan over medium heat, then add the drained ${starch}.`,
-      "Toss with a splash of reserved water until glossy and cohesive. Taste, season, and serve hot.",
+      tr(
+        "Bring a pot of salted water to a boil. Prepare the {{value0}} while the water heats.",
+        { value0: additions }
+      ),
+      tr(
+        "Cook the {{value0}} until just tender, reserving 120 ml of cooking water before draining.",
+        { value0: tr(starch) }
+      ),
+      tr(
+        "Cook the remaining ingredients in a wide pan over medium heat, then add the drained {{value0}}.",
+        { value0: tr(starch) }
+      ),
+      tr(
+        "Toss with a splash of reserved water until glossy and cohesive. Taste, season, and serve hot."
+      ),
     ]
   }
   if (/wrap|taco|toast/i.test(recipe.name)) {
     return [
-      `Prepare the ${ingredients.join(", ")}. Slice vegetables thinly and season the ${first}.`,
-      `Cook or warm the ${first} as needed until safely cooked through and lightly browned.`,
-      "Warm the bread or tortillas briefly in a dry pan, then layer on the prepared ingredients.",
-      "Finish with a squeeze of citrus or your preferred sauce, fold or slice, and serve immediately.",
+      tr(
+        "Prepare the {{value0}}. Slice vegetables thinly and season the {{value1}}.",
+        {
+          value0: ingredients.map((name) => tr(name)).join(", "),
+          value1: first,
+        }
+      ),
+      tr(
+        "Cook or warm the {{value0}} as needed until safely cooked through and lightly browned.",
+        { value0: first }
+      ),
+      tr(
+        "Warm the bread or tortillas briefly in a dry pan, then layer on the prepared ingredients."
+      ),
+      tr(
+        "Finish with a squeeze of citrus or your preferred sauce, fold or slice, and serve immediately."
+      ),
     ]
   }
   if (/salad|bowl|box|plate/i.test(recipe.name)) {
     return [
-      `Prepare the ${ingredients.join(", ")}. Cook any grains according to their packet directions and let them steam-dry for 5 minutes.`,
-      `Season and cook the ${first} as needed. Chop raw vegetables into even bite-size pieces.`,
-      "Whisk a simple dressing with 1 teaspoon oil, a squeeze of lemon or vinegar, salt, and pepper.",
-      "Arrange everything in a bowl or container, spoon over the dressing, and serve or chill promptly.",
+      tr(
+        "Prepare the {{value0}}. Cook any grains according to their packet directions and let them steam-dry for 5 minutes.",
+        { value0: ingredients.map((name) => tr(name)).join(", ") }
+      ),
+      tr(
+        "Season and cook the {{value0}} as needed. Chop raw vegetables into even bite-size pieces.",
+        { value0: first }
+      ),
+      tr(
+        "Whisk a simple dressing with 1 teaspoon oil, a squeeze of lemon or vinegar, salt, and pepper."
+      ),
+      tr(
+        "Arrange everything in a bowl or container, spoon over the dressing, and serve or chill promptly."
+      ),
     ]
   }
   if (/soup|curry/i.test(recipe.name)) {
     return [
-      `Chop the ${rest}. Pat the ${first} dry and season lightly with salt and pepper.`,
-      `Heat a deep pan over medium heat. Cook the ${first} for 4–6 minutes, stirring occasionally.`,
-      `Add ${rest} with 250 ml water or stock. Simmer gently for 15–20 minutes until everything is tender.`,
-      "Taste, adjust seasoning, and rest off the heat for 3 minutes before serving.",
+      tr(
+        "Chop the {{value0}}. Pat the {{value1}} dry and season lightly with salt and pepper.",
+        { value0: rest, value1: first }
+      ),
+      tr(
+        "Heat a deep pan over medium heat. Cook the {{value0}} for 4–6 minutes, stirring occasionally.",
+        { value0: first }
+      ),
+      tr(
+        "Add {{value0}} with 250 ml water or stock. Simmer gently for 15–20 minutes until everything is tender.",
+        { value0: rest }
+      ),
+      tr(
+        "Taste, adjust seasoning, and rest off the heat for 3 minutes before serving."
+      ),
     ]
   }
   if (/tray|roast|crumble|crispy/i.test(recipe.name)) {
     return [
-      "Heat the oven to 200°C / 390°F. Line a tray and prepare all ingredients.",
-      `Spread ${ingredients.join(", ")} across the tray, keeping pieces in a single layer. Season and lightly coat with oil.`,
-      "Roast for 20–30 minutes, turning once halfway through, until browned and cooked through.",
-      "Rest for 3 minutes, finish with fresh herbs or lemon if available, and serve warm.",
+      tr(
+        "Heat the oven to 200°C / 390°F. Line a tray and prepare all ingredients."
+      ),
+      tr(
+        "Spread {{value0}} across the tray, keeping pieces in a single layer. Season and lightly coat with oil.",
+        { value0: ingredients.map((name) => tr(name)).join(", ") }
+      ),
+      tr(
+        "Roast for 20–30 minutes, turning once halfway through, until browned and cooked through."
+      ),
+      tr(
+        "Rest for 3 minutes, finish with fresh herbs or lemon if available, and serve warm."
+      ),
     ]
   }
   return [
-    `Measure and prepare the ${ingredients.join(", ")}. Cut everything into even, bite-size pieces.`,
-    `Heat a wide pan over medium-high heat. Cook the ${first} until browned and cooked through, then set aside if necessary.`,
-    `Add ${rest} in order of cooking time. Stir frequently and cook until tender but not mushy.`,
-    `Return everything to the pan, toss for 1–2 minutes, taste for seasoning, and serve immediately.`,
+    tr(
+      "Measure and prepare the {{value0}}. Cut everything into even, bite-size pieces.",
+      { value0: ingredients.map((name) => tr(name)).join(", ") }
+    ),
+    tr(
+      "Heat a wide pan over medium-high heat. Cook the {{value0}} until browned and cooked through, then set aside if necessary.",
+      { value0: first }
+    ),
+    tr(
+      "Add {{value0}} in order of cooking time. Stir frequently and cook until tender but not mushy.",
+      { value0: rest }
+    ),
+    tr(
+      "Return everything to the pan, toss for 1–2 minutes, taste for seasoning, and serve immediately."
+    ),
   ]
 }
 
 export const STARTER_RECIPES: StarterRecipe[] = STARTER_RECIPE_BASE.map(
   (recipe) => ({
     ...recipe,
+    name: tr(recipe.name),
+    description: tr(recipe.description),
     ingredients: recipe.ingredients.map(
-      (name) => `${quantityFor(name)} ${name}`
+      (name) => `${quantityFor(name)} ${tr(name)}`
     ),
     steps: detailedMethod(recipe),
-    notes:
-      "Makes one generous serving. Cool leftovers promptly and refrigerate in a sealed container for up to two days.",
-    origin: ORIGIN_BY_RECIPE[recipe.id] ?? "International",
+    notes: tr(
+      "Makes one generous serving. Cool leftovers promptly and refrigerate in a sealed container for up to two days."
+    ),
+    origin: ORIGIN_BY_RECIPE[recipe.id] ?? tr("International"),
   })
 )
 
@@ -643,6 +749,8 @@ const CATEGORIES = [
 const FAVORITES_KEY = "onerep.recipe-hub.favorites.v1"
 
 function starterSavePayload(recipe: StarterRecipe) {
+  const canonical =
+    STARTER_RECIPE_BASE.find((item) => item.id === recipe.id) ?? recipe
   const ingredientCount = recipe.ingredients.length
   const calorieShare = recipe.calories / ingredientCount
   const proteinShare = recipe.protein / ingredientCount
@@ -650,7 +758,7 @@ function starterSavePayload(recipe: StarterRecipe) {
   const noCook =
     recipe.tags.includes("no cook") ||
     recipe.tags.includes("no bake") ||
-    /smoothie|overnight|chia pudding|yogurt bowl/i.test(recipe.name)
+    /smoothie|overnight|chia pudding|yogurt bowl/i.test(canonical.name)
   const carbsShare = (remainingCalories * 0.65) / 4 / ingredientCount
   const fatShare = (remainingCalories * 0.35) / 9 / ingredientCount
   return {
@@ -669,13 +777,14 @@ function starterSavePayload(recipe: StarterRecipe) {
     tags: recipe.tags,
     steps: recipe.steps,
     photoUploadIds: [],
-    ingredients: recipe.ingredients.map((label, index) => {
+    ingredients: canonical.ingredients.map((ingredient, index) => {
+      const label = `${quantityFor(ingredient)} ${ingredient}`
       const parsedAmount = Number(label.match(/[\d.]+/)?.[0] ?? 100)
       const grams = /\bg\b/i.test(label) ? parsedAmount : 100
       const name = label.replace(/^[\d.]+\s*(?:g|tbsp|serving)?\s*/i, "")
       return {
         id: `${recipe.id}-${index}`,
-        name,
+        name: tr(name),
         grams,
         displayAmount: grams,
         displayUnit: "g",
@@ -878,10 +987,14 @@ export default function RecipesHub() {
     heartSavesInFlightRef.current.add(recipe.id)
     try {
       await saveRecipe(starterSavePayload(recipe))
-      toast.success(`${recipe.name} added to my recipes`)
+      toast.success(
+        tr("{{value0}} added to my recipes", { value0: recipe.name })
+      )
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Could not save recipe"
+        translateError(
+          error instanceof Error ? error.message : tr("Could not save recipe")
+        )
       )
     } finally {
       heartSavesInFlightRef.current.delete(recipe.id)
@@ -914,12 +1027,14 @@ export default function RecipesHub() {
     try {
       const recipeId = await saveRecipe(starterSavePayload(recipe))
       hapticTap()
-      toast.success(`${recipe.name} saved`)
+      toast.success(tr("{{value0}} saved", { value0: recipe.name }))
       setSelected(null)
       navigate(`/foods/recipe/${recipeId}`, { motion: "forward" })
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Could not save recipe"
+        translateError(
+          error instanceof Error ? error.message : tr("Could not save recipe")
+        )
       )
     } finally {
       setSavingId(null)
@@ -937,11 +1052,15 @@ export default function RecipesHub() {
         anonymous: shareAnonymously,
       })
       hapticTap()
-      toast.success(`${shareTarget.name} shared with the community`)
+      toast.success(
+        tr("{{value0}} shared with the community", { value0: shareTarget.name })
+      )
       setShareTarget(null)
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Could not share recipe"
+        translateError(
+          error instanceof Error ? error.message : tr("Could not share recipe")
+        )
       )
     } finally {
       setSharing(false)
@@ -950,7 +1069,13 @@ export default function RecipesHub() {
 
   async function unpublishRecipe(recipe: Recipe) {
     if (!recipe._id || sharing) return false
-    if (!window.confirm(`Remove ${recipe.name} from the OneRep community?`))
+    if (
+      !window.confirm(
+        tr("Remove {{value0}} from the OneRep community?", {
+          value0: recipe.name,
+        })
+      )
+    )
       return false
     setSharing(true)
     try {
@@ -958,11 +1083,15 @@ export default function RecipesHub() {
         id: recipe._id as Id<"recipes">,
         shared: false,
       })
-      toast.success("Recipe is private again")
+      toast.success(tr("Recipe is private again"))
       return true
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Could not update sharing"
+        translateError(
+          error instanceof Error
+            ? error.message
+            : tr("Could not update sharing")
+        )
       )
       return false
     } finally {
@@ -976,10 +1105,12 @@ export default function RecipesHub() {
     try {
       await reportCommunityRecipe({ recipeId: recipe._id as Id<"recipes"> })
       hapticTap()
-      toast.success("Report received")
+      toast.success(tr("Report received"))
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Could not report recipe"
+        translateError(
+          error instanceof Error ? error.message : tr("Could not report recipe")
+        )
       )
     } finally {
       setReporting(false)
@@ -1001,10 +1132,14 @@ export default function RecipesHub() {
       await blockCommunityAuthor({ recipeId: recipe._id as Id<"recipes"> })
       hapticTap()
       setSelectedCommunity(null)
-      toast.success("Blocked. You won't see their recipes again.")
+      toast.success(tr("Blocked. You won't see their recipes again."))
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Could not block that author"
+        translateError(
+          error instanceof Error
+            ? error.message
+            : tr("Could not block that author")
+        )
       )
     } finally {
       setBlocking(false)
@@ -1047,23 +1182,31 @@ export default function RecipesHub() {
         recipeId: recipe._id as Id<"recipes">,
       }).catch(() => false)
       hapticTap()
-      toast.success(`${recipe.name} logged to ${meal}`, {
-        action: {
-          label: "Undo",
-          onClick: () => {
-            announceOrbActivity("delete")
-            void removeFoodEntry({ date, entryId }).catch(() => {
-              toast.error("Couldn't undo that")
-            })
+      toast.success(
+        tr("{{value0}} logged to {{value1}}", {
+          value0: recipe.name,
+          value1: meal,
+        }),
+        {
+          action: {
+            label: tr("Undo"),
+            onClick: () => {
+              announceOrbActivity("delete")
+              void removeFoodEntry({ date, entryId }).catch(() => {
+                toast.error(translateError(tr("Couldn't undo that")))
+              })
+            },
           },
-        },
-      })
+        }
+      )
       setLoggingCommunity(null)
       setSelectedCommunity(null)
       if (shouldPrompt) setRatingRecipe(recipe)
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Could not log recipe"
+        translateError(
+          error instanceof Error ? error.message : tr("Could not log recipe")
+        )
       )
     } finally {
       setLoggingMeal(null)
@@ -1079,11 +1222,13 @@ export default function RecipesHub() {
         rating,
       })
       hapticTap()
-      toast.success("Thanks for rating this recipe")
+      toast.success(tr("Thanks for rating this recipe"))
       setRatingRecipe(null)
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Could not save rating"
+        translateError(
+          error instanceof Error ? error.message : tr("Could not save rating")
+        )
       )
     } finally {
       setSubmittingRating(false)
@@ -1094,11 +1239,11 @@ export default function RecipesHub() {
     <div className="desktop-canvas min-h-svh bg-background text-foreground lg:pr-8 lg:pl-72">
       <main className="mx-auto min-h-svh w-full max-w-6xl pb-[calc(var(--app-safe-bottom-lg)+2rem)]">
         <NavigationBar
-          title="Recipes"
+          title={tr("Recipes")}
           leading={
             <ToolbarButton
               onClick={() => navigate("/nutrition", { motion: "back" })}
-              aria-label="Back to nutrition"
+              aria-label={tr("Back to nutrition")}
             >
               <ArrowLeft size={20} weight="bold" />
             </ToolbarButton>
@@ -1108,7 +1253,7 @@ export default function RecipesHub() {
               onClick={() =>
                 navigate("/foods/recipe/new", { motion: "forward" })
               }
-              aria-label="Create recipe"
+              aria-label={tr("Create recipe")}
             >
               <Plus size={20} weight="bold" />
             </ToolbarButton>
@@ -1119,14 +1264,15 @@ export default function RecipesHub() {
           <section className="recipes-hero motion-page overflow-hidden rounded-[1.75rem] bg-[linear-gradient(135deg,#17152e_0%,#31275d_55%,#8c583c_140%)] px-5 py-6 text-white md:px-8 md:py-8">
             <div className="max-w-xl">
               <p className="text-[11px] font-semibold tracking-[0.12em] text-white/55 uppercase">
-                Your kitchen
+                {tr("Your kitchen")}
               </p>
               <h1 className="mt-2 text-[2rem] leading-[1.05] font-semibold tracking-[-0.04em] md:text-[2.65rem]">
-                Find something worth cooking.
+                {tr("Find something worth cooking.")}
               </h1>
               <p className="mt-3 max-w-md text-[14px] leading-6 text-white/65">
-                Thirty practical starting points, plus every recipe you save
-                with Coach or build yourself.
+                {tr(
+                  "Thirty practical starting points, plus every recipe you save with Coach or build yourself."
+                )}
               </p>
             </div>
             <div className="relative mt-6">
@@ -1137,15 +1283,15 @@ export default function RecipesHub() {
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search dishes, ingredients, or tags"
-                aria-label="Search recipes"
+                placeholder={tr("Search dishes, ingredients, or tags")}
+                aria-label={tr("Search recipes")}
                 className="min-h-13 w-full rounded-2xl border border-white/10 bg-white/10 pr-11 pl-11 text-[14px] text-white backdrop-blur transition-[background-color,border-color,transform] outline-none placeholder:text-white/45 focus:scale-[1.005] focus:border-white/30 focus:bg-white/[0.14]"
               />
               {query && (
                 <button
                   type="button"
                   onClick={() => setQuery("")}
-                  aria-label="Clear recipe search"
+                  aria-label={tr("Clear recipe search")}
                   className="absolute top-1/2 right-2 grid size-10 -translate-y-1/2 place-items-center text-white/55"
                 >
                   <X size={15} />
@@ -1160,7 +1306,7 @@ export default function RecipesHub() {
           >
             <div
               className="flex gap-2 overflow-x-auto [&::-webkit-scrollbar]:hidden"
-              aria-label="Recipe source"
+              aria-label={tr("Recipe source")}
             >
               {(
                 [
@@ -1186,16 +1332,16 @@ export default function RecipesHub() {
             </div>
             <label className="relative flex min-h-10 items-center gap-2 rounded-full border border-border bg-card px-3 text-[12px] text-muted-foreground">
               <GlobeHemisphereWest size={15} />
-              <span className="sr-only">Country of origin</span>
+              <span className="sr-only">{tr("Country of origin")}</span>
               <select
                 value={country}
                 onChange={(event) => setCountry(event.target.value)}
                 className="appearance-none bg-transparent pr-4 font-semibold text-foreground outline-none"
-                aria-label="Filter by country of origin"
+                aria-label={tr("Filter by country of origin")}
               >
                 {countries.map((item) => (
                   <option key={item} value={item}>
-                    {item}
+                    {item === "All countries" ? tr("All countries") : item}
                   </option>
                 ))}
               </select>
@@ -1215,10 +1361,10 @@ export default function RecipesHub() {
                       id="saved-recipes-title"
                       className="text-[20px] font-semibold tracking-[-0.02em]"
                     >
-                      My recipes
+                      {tr("My recipes")}
                     </h2>
                     <p className="mt-0.5 text-[13px] text-muted-foreground">
-                      Saved by you and Chef Coach
+                      {tr("Saved by you and Chef Coach")}
                     </p>
                   </div>
                   <span className="text-[12px] text-muted-foreground">
@@ -1271,9 +1417,20 @@ export default function RecipesHub() {
                             {recipe.name}
                           </p>
                           <p className="mt-1 text-[12px] text-muted-foreground">
-                            {energyDisplay(nutrition.calories, energyUnit)}{" "}
-                            {energyUnit} · {nutrition.protein}g protein ·{" "}
-                            {recipe.ingredients.length} ingredients
+                            <Message
+                              text={
+                                "{{value0}} {{value1}} · {{value2}}g protein · {{value3}} ingredients"
+                              }
+                              values={{
+                                value0: energyDisplay(
+                                  nutrition.calories,
+                                  energyUnit
+                                ),
+                                value1: energyUnit,
+                                value2: nutrition.protein,
+                                value3: recipe.ingredients.length,
+                              }}
+                            />
                           </p>
                         </div>
                         <button
@@ -1288,8 +1445,12 @@ export default function RecipesHub() {
                           className="motion-tactile absolute right-3 bottom-3 grid size-10 place-items-center rounded-full bg-muted text-muted-foreground transition-[transform,background-color] active:scale-90 active:bg-muted/70"
                           aria-label={
                             recipe.isCommunityShared
-                              ? `Stop sharing ${recipe.name}`
-                              : `Share ${recipe.name} with the community`
+                              ? tr("Stop sharing {{value0}}", {
+                                  value0: recipe.name,
+                                })
+                              : tr("Share {{value0}} with the community", {
+                                  value0: recipe.name,
+                                })
                           }
                         >
                           {recipe.isCommunityShared ? (
@@ -1321,10 +1482,16 @@ export default function RecipesHub() {
                     id="discover-recipes-title"
                     className="text-[20px] font-semibold tracking-[-0.02em]"
                   >
-                    Discover
+                    {tr("Discover")}
                   </h2>
                   <p className="mt-0.5 text-[13px] text-muted-foreground">
-                    {filtered.length} recipe{filtered.length === 1 ? "" : "s"}
+                    <Message
+                      text={"{{value0}} recipe{{value1}}"}
+                      values={{
+                        value0: filtered.length,
+                        value1: filtered.length === 1 ? "" : "s",
+                      }}
+                    />
                   </p>
                 </div>
                 <SlidersHorizontal
@@ -1334,7 +1501,7 @@ export default function RecipesHub() {
               </div>
               <div
                 className="mt-4 flex gap-2 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden"
-                aria-label="Recipe categories"
+                aria-label={tr("Recipe categories")}
               >
                 {CATEGORIES.map((item) => (
                   <button
@@ -1346,7 +1513,7 @@ export default function RecipesHub() {
                     }}
                     className={`min-h-10 shrink-0 rounded-full px-4 text-[13px] font-semibold transition-colors ${category === item ? "bg-foreground text-background" : "border border-border bg-card text-muted-foreground"}`}
                   >
-                    {item}
+                    {tr(item)}
                   </button>
                 ))}
               </div>
@@ -1357,7 +1524,9 @@ export default function RecipesHub() {
                     size={25}
                     className="mx-auto text-muted-foreground"
                   />
-                  <p className="mt-3 font-semibold">No matching recipes</p>
+                  <p className="mt-3 font-semibold">
+                    {tr("No matching recipes")}
+                  </p>
                   <button
                     type="button"
                     onClick={() => {
@@ -1366,7 +1535,7 @@ export default function RecipesHub() {
                     }}
                     className="mt-2 text-[13px] font-semibold text-muted-foreground"
                   >
-                    Clear filters
+                    {tr("Clear filters")}
                   </button>
                 </div>
               ) : (
@@ -1394,11 +1563,15 @@ export default function RecipesHub() {
                           className="recipes-card-image h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.045]"
                         />
                         <span className="absolute top-3 left-3 rounded-full bg-black/45 px-2.5 py-1 text-[13px] font-semibold text-white backdrop-blur">
-                          {recipe.category}
+                          {tr(recipe.category)}
                         </span>
                         <span className="absolute top-3 right-3 inline-flex items-center gap-1 rounded-full bg-white/90 px-2.5 py-1 text-[13px] font-semibold text-black shadow-sm backdrop-blur">
-                          <SealCheck size={11} weight="fill" /> Created by
-                          OneRep
+                          <Message
+                            text={"{{value0}} Created by OneRep"}
+                            values={{
+                              value0: <SealCheck size={11} weight="fill" />,
+                            }}
+                          />
                         </span>
                       </button>
                       <div className="p-4">
@@ -1421,7 +1594,18 @@ export default function RecipesHub() {
                               hapticSelection()
                               toggleFavorite(recipe)
                             }}
-                            aria-label={`${favorites.has(recipe.id) ? "Remove" : "Add"} ${recipe.name} ${favorites.has(recipe.id) ? "from" : "to"} favorites`}
+                            aria-label={tr(
+                              "{{value0}} {{value1}} {{value2}} favorites",
+                              {
+                                value0: choice(
+                                  favorites.has(recipe.id) ? "Remove" : "Add"
+                                ),
+                                value1: recipe.name,
+                                value2: choice(
+                                  favorites.has(recipe.id) ? "from" : "to"
+                                ),
+                              }
+                            )}
                             className="motion-tactile grid size-10 shrink-0 place-items-center rounded-full bg-muted/55 transition-transform active:scale-90"
                           >
                             <Heart
@@ -1444,7 +1628,9 @@ export default function RecipesHub() {
                                 `/nutrition/groceries?recipe=${recipe.id}`
                               )
                             }}
-                            aria-label={`Add ${recipe.name} to grocery list`}
+                            aria-label={tr("Add {{value0}} to grocery list", {
+                              value0: recipe.name,
+                            })}
                             className="motion-tactile grid size-10 shrink-0 place-items-center rounded-full bg-muted/55 transition-transform active:scale-90"
                           >
                             <ShoppingCart
@@ -1455,14 +1641,24 @@ export default function RecipesHub() {
                         </div>
                         <div className="mt-4 flex items-center gap-3 border-t border-border/65 pt-3 text-[11px] text-muted-foreground">
                           <span className="flex items-center gap-1">
-                            <Clock size={13} />
-                            {recipe.time} min
+                            <Message
+                              text={"{{value0}}{{value1}} min"}
+                              values={{
+                                value0: <Clock size={13} />,
+                                value1: recipe.time,
+                              }}
+                            />
                           </span>
                           <span>
                             {energyDisplay(recipe.calories, energyUnit)}{" "}
                             {energyUnit}
                           </span>
-                          <span>{recipe.protein}g protein</span>
+                          <span>
+                            <Message
+                              text={"{{value0}}g protein"}
+                              values={{ value0: recipe.protein }}
+                            />
+                          </span>
                           <span className="ml-auto truncate">
                             {recipe.origin}
                           </span>
@@ -1487,10 +1683,10 @@ export default function RecipesHub() {
                     id="community-recipes-title"
                     className="text-[20px] font-semibold tracking-[-0.02em]"
                   >
-                    From the community
+                    {tr("From the community")}
                   </h2>
                   <p className="mt-0.5 text-[13px] text-muted-foreground">
-                    Recipes members chose to share
+                    {tr("Recipes members chose to share")}
                   </p>
                 </div>
                 <span className="text-[12px] text-muted-foreground">
@@ -1504,10 +1700,10 @@ export default function RecipesHub() {
                     className="mx-auto text-muted-foreground"
                   />
                   <p className="mt-2 text-[14px] font-semibold">
-                    No shared recipes match these filters
+                    {tr("No shared recipes match these filters")}
                   </p>
                   <p className="mt-1 text-[12px] text-muted-foreground">
-                    Share one of your recipes to help start the table.
+                    {tr("Share one of your recipes to help start the table.")}
                   </p>
                 </div>
               ) : (
@@ -1550,8 +1746,14 @@ export default function RecipesHub() {
                           <div className="p-4">
                             <div className="flex items-center justify-between gap-3 text-[13px] font-medium text-muted-foreground">
                               <span>
-                                By{" "}
-                                {recipe.communityAuthorName ?? "OneRep member"}
+                                <Message
+                                  text={"By {{value0}}"}
+                                  values={{
+                                    value0:
+                                      recipe.communityAuthorName ??
+                                      tr("OneRep member"),
+                                  }}
+                                />
                               </span>
                               {recipe.originCountry && (
                                 <span className="flex items-center gap-1">
@@ -1569,9 +1771,20 @@ export default function RecipesHub() {
                               </p>
                             )}
                             <p className="mt-3 text-[11px] text-muted-foreground">
-                              {energyDisplay(nutrition.calories, energyUnit)}{" "}
-                              {energyUnit} · {nutrition.protein}g protein ·{" "}
-                              {recipe.ingredients.length} ingredients
+                              <Message
+                                text={
+                                  "{{value0}} {{value1}} · {{value2}}g protein · {{value3}} ingredients"
+                                }
+                                values={{
+                                  value0: energyDisplay(
+                                    nutrition.calories,
+                                    energyUnit
+                                  ),
+                                  value1: energyUnit,
+                                  value2: nutrition.protein,
+                                  value3: recipe.ingredients.length,
+                                }}
+                              />
                             </p>
                             <div className="mt-3 flex items-center gap-1.5 text-[11px] text-muted-foreground">
                               <Star
@@ -1584,11 +1797,17 @@ export default function RecipesHub() {
                                 }
                               />
                               {recipe.ratingCount
-                                ? `${((recipe.ratingTotal ?? 0) / recipe.ratingCount).toFixed(1)} (${recipe.ratingCount})`
-                                : "Not rated yet"}
+                                ? tr("{{value0}} ({{value1}})", {
+                                    value0: (
+                                      (recipe.ratingTotal ?? 0) /
+                                      recipe.ratingCount
+                                    ).toFixed(1),
+                                    value1: recipe.ratingCount,
+                                  })
+                                : tr("Not rated yet")}
                             </div>
                             <p className="mt-4 border-t border-border pt-3 text-[12px] font-semibold">
-                              View recipe
+                              {tr("View recipe")}
                             </p>
                           </div>
                         </button>
@@ -1605,45 +1824,48 @@ export default function RecipesHub() {
       {shareTarget && (
         <MobileSheet
           onClose={() => setShareTarget(null)}
-          ariaLabel="Share recipe"
+          ariaLabel={tr("Share recipe")}
           overlayClassName="bg-black/50"
           panelClassName="w-full max-w-md rounded-t-[2rem] bg-background p-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] md:rounded-[2rem] md:p-6"
         >
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-[11px] font-semibold tracking-[0.1em] text-muted-foreground uppercase">
-                OneRep community
+                {tr("OneRep community")}
               </p>
               <h2
                 id="share-recipe-title"
                 className="mt-1 text-[22px] font-semibold"
               >
-                Share {shareTarget.name}
+                <Message
+                  text={"Share {{value0}}"}
+                  values={{ value0: shareTarget.name }}
+                />
               </h2>
             </div>
             <button
               type="button"
               onClick={() => setShareTarget(null)}
-              aria-label="Close sharing dialog"
+              aria-label={tr("Close sharing dialog")}
               className="grid size-10 place-items-center rounded-full bg-muted"
             >
               <X size={15} />
             </button>
           </div>
           <p className="mt-3 text-[13px] leading-5 text-muted-foreground">
-            Its recipe details, nutrition estimates, photos, your display
-            name, and country of origin will be visible to signed-in OneRep
-            members. You can unshare it at any time.
+            {tr(
+              "Its recipe details, nutrition estimates, photos, your display name, and country of origin will be visible to signed-in OneRep members. You can unshare it at any time."
+            )}
           </p>
           <label className="mt-5 block">
             <span className="text-[12px] font-semibold">
-              Country of origin
+              {tr("Country of origin")}
             </span>
             <input
               value={shareCountry}
               onChange={(event) => setShareCountry(event.target.value)}
-              placeholder="e.g. Italy"
-              aria-label="Recipe country of origin"
+              placeholder={tr("e.g. Italy")}
+              aria-label={tr("Recipe country of origin")}
               className="mt-2 min-h-12 w-full rounded-2xl border border-border bg-muted/25 px-4 text-[14px] outline-none focus:border-foreground/35"
             />
           </label>
@@ -1656,10 +1878,10 @@ export default function RecipesHub() {
             />
             <span>
               <span className="block text-[13px] font-semibold">
-                Share anonymously
+                {tr("Share anonymously")}
               </span>
               <span className="mt-0.5 block text-[11px] leading-4 text-muted-foreground">
-                Your display name will be replaced with “Anonymous”.
+                {tr("Your display name will be replaced with “Anonymous”.")}
               </span>
             </span>
           </label>
@@ -1671,7 +1893,7 @@ export default function RecipesHub() {
             className="mt-5 flex min-h-13 w-full items-center justify-center gap-2 rounded-2xl bg-foreground px-4 text-[14px] font-semibold text-background disabled:opacity-40"
           >
             <ShareNetwork size={17} />
-            {sharing ? "Sharing…" : "Share with community"}
+            {sharing ? tr("Sharing…") : tr("Share with community")}
           </button>
         </MobileSheet>
       )}
@@ -1686,7 +1908,7 @@ export default function RecipesHub() {
           return (
             <MobileSheet
               onClose={() => setSelectedCommunity(null)}
-              ariaLabel="Community recipe"
+              ariaLabel={tr("Community recipe")}
               panelClassName="max-h-[90svh] w-full max-w-xl overflow-y-auto rounded-t-[2rem] bg-background md:rounded-[2rem]"
             >
               <div className="relative h-56">
@@ -1704,159 +1926,187 @@ export default function RecipesHub() {
                 <button
                   type="button"
                   onClick={() => setSelectedCommunity(null)}
-                  aria-label="Close community recipe"
+                  aria-label={tr("Close community recipe")}
                   className="absolute top-4 right-4 grid size-10 place-items-center rounded-full bg-black/50 text-white backdrop-blur"
                 >
                   <X size={16} />
                 </button>
               </div>
               <div className="p-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] md:p-7">
-                  <div className="flex items-center justify-between gap-3 text-[11px] font-medium text-muted-foreground">
-                    <span>
-                      By {recipe.communityAuthorName ?? "OneRep member"}
+                <div className="flex items-center justify-between gap-3 text-[11px] font-medium text-muted-foreground">
+                  <span>
+                    <Message
+                      text={"By {{value0}}"}
+                      values={{
+                        value0:
+                          recipe.communityAuthorName ?? tr("OneRep member"),
+                      }}
+                    />
+                  </span>
+                  {recipe.originCountry && (
+                    <span className="flex items-center gap-1">
+                      <GlobeHemisphereWest size={13} />
+                      {recipe.originCountry}
                     </span>
-                    {recipe.originCountry && (
-                      <span className="flex items-center gap-1">
-                        <GlobeHemisphereWest size={13} />
-                        {recipe.originCountry}
-                      </span>
-                    )}
-                  </div>
-                  <h2
-                    id="community-recipe-title"
-                    className="mt-2 text-[1.8rem] leading-tight font-semibold tracking-[-0.035em]"
-                  >
-                    {recipe.name}
-                  </h2>
-                  {recipe.description && (
-                    <p className="mt-3 text-[14px] leading-6 text-muted-foreground">
-                      {recipe.description}
-                    </p>
                   )}
-                  <div className="mt-5 grid grid-cols-3 divide-x divide-border rounded-2xl border border-border py-3 text-center">
-                    <div>
-                      <p className="text-[15px] font-semibold">
-                        {(recipe.prepMinutes ?? 0) + (recipe.cookMinutes ?? 0)}m
-                      </p>
-                      <p className="text-[13px] text-muted-foreground">
-                        Total time
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-[15px] font-semibold">
-                        {nutrition.calories}
-                      </p>
-                      <p className="text-[13px] text-muted-foreground">
-                        Calories
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-[15px] font-semibold">
-                        {nutrition.protein}g
-                      </p>
-                      <p className="text-[13px] text-muted-foreground">
-                        Protein
-                      </p>
-                    </div>
+                </div>
+                <h2
+                  id="community-recipe-title"
+                  className="mt-2 text-[1.8rem] leading-tight font-semibold tracking-[-0.035em]"
+                >
+                  {recipe.name}
+                </h2>
+                {recipe.description && (
+                  <p className="mt-3 text-[14px] leading-6 text-muted-foreground">
+                    {recipe.description}
+                  </p>
+                )}
+                <div className="mt-5 grid grid-cols-3 divide-x divide-border rounded-2xl border border-border py-3 text-center">
+                  <div>
+                    <p className="text-[15px] font-semibold">
+                      <Message
+                        text={"{{value0}}m"}
+                        values={{
+                          value0:
+                            (recipe.prepMinutes ?? 0) +
+                            (recipe.cookMinutes ?? 0),
+                        }}
+                      />
+                    </p>
+                    <p className="text-[13px] text-muted-foreground">
+                      {tr("Total time")}
+                    </p>
                   </div>
-                  <div className="mt-6">
-                    <h3 className="text-[13px] font-semibold">Ingredients</h3>
-                    <ul className="mt-2 divide-y divide-border/60 border-y border-border/60">
-                      {recipe.ingredients.map((item) => (
+                  <div>
+                    <p className="text-[15px] font-semibold">
+                      {nutrition.calories}
+                    </p>
+                    <p className="text-[13px] text-muted-foreground">
+                      {tr("Calories")}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[15px] font-semibold">
+                      <Message
+                        text={"{{value0}}g"}
+                        values={{ value0: nutrition.protein }}
+                      />
+                    </p>
+                    <p className="text-[13px] text-muted-foreground">
+                      {tr("Protein")}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-6">
+                  <h3 className="text-[13px] font-semibold">
+                    {tr("Ingredients")}
+                  </h3>
+                  <ul className="mt-2 divide-y divide-border/60 border-y border-border/60">
+                    {recipe.ingredients.map((item) => (
+                      <li
+                        key={item.id}
+                        className="py-2.5 text-[13px] text-foreground/75"
+                      >
+                        <Message
+                          text={"{{value0}}g {{value1}}"}
+                          values={{
+                            value0: Math.round(item.grams),
+                            value1: item.name,
+                          }}
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                {recipe.steps?.length ? (
+                  <div className="mt-7">
+                    <h3 className="text-[13px] font-semibold">
+                      {tr("Instructions")}
+                    </h3>
+                    <ol className="mt-3 space-y-4">
+                      {recipe.steps.map((step, index) => (
                         <li
-                          key={item.id}
-                          className="py-2.5 text-[13px] text-foreground/75"
+                          key={`${step}-${index}`}
+                          className="flex gap-3 text-[13px] leading-5 text-foreground/75"
                         >
-                          {Math.round(item.grams)}g {item.name}
+                          <span className="grid size-6 shrink-0 place-items-center rounded-full bg-foreground text-[11px] font-semibold text-background">
+                            {index + 1}
+                          </span>
+                          <span>{step}</span>
                         </li>
                       ))}
-                    </ul>
+                    </ol>
                   </div>
-                  {recipe.steps?.length ? (
-                    <div className="mt-7">
-                      <h3 className="text-[13px] font-semibold">
-                        Instructions
-                      </h3>
-                      <ol className="mt-3 space-y-4">
-                        {recipe.steps.map((step, index) => (
-                          <li
-                            key={`${step}-${index}`}
-                            className="flex gap-3 text-[13px] leading-5 text-foreground/75"
-                          >
-                            <span className="grid size-6 shrink-0 place-items-center rounded-full bg-foreground text-[11px] font-semibold text-background">
-                              {index + 1}
-                            </span>
-                            <span>{step}</span>
-                          </li>
-                        ))}
-                      </ol>
-                    </div>
-                  ) : null}
-                  {recipe.notes && (
-                    <div className="mt-6 rounded-2xl bg-muted/55 p-4">
-                      <p className="text-[11px] font-semibold text-muted-foreground">
-                        Notes
-                      </p>
-                      <p className="mt-1 text-[12px] leading-5 text-foreground/70">
-                        {recipe.notes}
-                      </p>
-                    </div>
-                  )}
-                  {!recipe.isOwnedByViewer && (
+                ) : null}
+                {recipe.notes && (
+                  <div className="mt-6 rounded-2xl bg-muted/55 p-4">
+                    <p className="text-[11px] font-semibold text-muted-foreground">
+                      {tr("Notes")}
+                    </p>
+                    <p className="mt-1 text-[12px] leading-5 text-foreground/70">
+                      {recipe.notes}
+                    </p>
+                  </div>
+                )}
+                {!recipe.isOwnedByViewer && (
+                  <button
+                    type="button"
+                    onClick={() => setLoggingCommunity(recipe)}
+                    className="mt-7 flex min-h-13 w-full items-center justify-center gap-2 rounded-2xl bg-foreground text-[14px] font-semibold text-background"
+                  >
+                    <Message
+                      text={"{{value0}}Log recipe"}
+                      values={{ value0: <ForkKnife size={17} /> }}
+                    />
+                  </button>
+                )}
+                {recipe.isOwnedByViewer ? (
+                  <button
+                    type="button"
+                    disabled={sharing}
+                    onClick={() => {
+                      void unpublishRecipe(recipe).then((removed) => {
+                        if (removed) setSelectedCommunity(null)
+                      })
+                    }}
+                    className="mt-7 flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-destructive/25 text-[13px] font-semibold text-destructive"
+                  >
+                    <Message
+                      text={"{{value0}}Take down from public search"}
+                      values={{ value0: <X size={15} /> }}
+                    />
+                  </button>
+                ) : (
+                  <div className="mt-7 grid gap-2">
                     <button
                       type="button"
-                      onClick={() => setLoggingCommunity(recipe)}
-                      className="mt-7 flex min-h-13 w-full items-center justify-center gap-2 rounded-2xl bg-foreground text-[14px] font-semibold text-background"
+                      disabled={reporting}
+                      aria-busy={reporting}
+                      onClick={() => void reportRecipe(recipe)}
+                      className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-border text-[13px] font-semibold text-muted-foreground"
                     >
-                      <ForkKnife size={17} />
-                      Log recipe
+                      <Flag size={15} />
+                      {reporting ? tr("Reporting…") : tr("Report recipe")}
                     </button>
-                  )}
-                  {recipe.isOwnedByViewer ? (
-                    <button
-                      type="button"
-                      disabled={sharing}
-                      onClick={() => {
-                        void unpublishRecipe(recipe).then((removed) => {
-                          if (removed) setSelectedCommunity(null)
-                        })
-                      }}
-                      className="mt-7 flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-destructive/25 text-[13px] font-semibold text-destructive"
-                    >
-                      <X size={15} />
-                      Take down from public search
-                    </button>
-                  ) : (
-                    <div className="mt-7 grid gap-2">
-                      <button
-                        type="button"
-                        disabled={reporting}
-                        aria-busy={reporting}
-                        onClick={() => void reportRecipe(recipe)}
-                        className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-border text-[13px] font-semibold text-muted-foreground"
-                      >
-                        <Flag size={15} />
-                        {reporting ? "Reporting…" : "Report recipe"}
-                      </button>
-                      {/*
+                    {/*
                         Reporting and blocking are not the same favour. One
                         asks us to look at a recipe; this one is the reader
                         deciding, on their own, that they are done with a
                         person. Both have to be here.
                       */}
-                      <button
-                        type="button"
-                        disabled={blocking}
-                        aria-busy={blocking}
-                        onClick={() => void blockAuthor(recipe)}
-                        className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-border text-[13px] font-semibold text-muted-foreground"
-                      >
-                        <Prohibit size={15} />
-                        {blocking ? "Blocking…" : "Block this author"}
-                      </button>
-                    </div>
-                  )}
-                </div>
+                    <button
+                      type="button"
+                      disabled={blocking}
+                      aria-busy={blocking}
+                      onClick={() => void blockAuthor(recipe)}
+                      className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-border text-[13px] font-semibold text-muted-foreground"
+                    >
+                      <Prohibit size={15} />
+                      {blocking ? tr("Blocking…") : tr("Block this author")}
+                    </button>
+                  </div>
+                )}
+              </div>
             </MobileSheet>
           )
         })()}
@@ -1864,27 +2114,30 @@ export default function RecipesHub() {
       {loggingCommunity && (
         <MobileSheet
           onClose={() => setLoggingCommunity(null)}
-          ariaLabel="Log recipe to a meal"
+          ariaLabel={tr("Log recipe to a meal")}
           closeOnBackdrop={!loggingMeal}
           panelClassName="w-full max-w-sm rounded-t-[2rem] bg-background p-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] md:rounded-[2rem]"
         >
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-[11px] font-semibold tracking-[0.1em] text-muted-foreground uppercase">
-                Add to today
+                {tr("Add to today")}
               </p>
               <h2
                 id="log-community-recipe-title"
                 className="mt-1 text-[22px] font-semibold"
               >
-                Log {loggingCommunity.name}
+                <Message
+                  text={"Log {{value0}}"}
+                  values={{ value0: loggingCommunity.name }}
+                />
               </h2>
             </div>
             <button
               type="button"
               onClick={() => setLoggingCommunity(null)}
               disabled={Boolean(loggingMeal)}
-              aria-label="Close meal selection"
+              aria-label={tr("Close meal selection")}
               className="grid size-10 place-items-center rounded-full bg-muted disabled:opacity-40"
             >
               <X size={15} />
@@ -1900,7 +2153,7 @@ export default function RecipesHub() {
                 onClick={() => void logCommunityRecipe(loggingCommunity, meal)}
                 className="min-h-12 rounded-2xl border border-border bg-card px-3 text-[13px] font-semibold disabled:opacity-45"
               >
-                {loggingMeal === meal ? "Logging…" : meal}
+                {loggingMeal === meal ? tr("Logging…") : tr(meal)}
               </button>
             ))}
           </div>
@@ -1910,7 +2163,7 @@ export default function RecipesHub() {
       {ratingRecipe && (
         <MobileSheet
           onClose={() => setRatingRecipe(null)}
-          ariaLabel="Rate this recipe"
+          ariaLabel={tr("Rate this recipe")}
           closeOnBackdrop={!submittingRating}
           panelClassName="w-full max-w-sm rounded-t-[2rem] bg-background p-6 pb-[max(1.75rem,env(safe-area-inset-bottom))] text-center md:rounded-[2rem]"
         >
@@ -1918,14 +2171,17 @@ export default function RecipesHub() {
             <Star size={24} weight="fill" />
           </div>
           <h2 id="rate-recipe-title" className="mt-4 text-[22px] font-semibold">
-            How was {ratingRecipe.name}?
+            <Message
+              text={"How was {{value0}}?"}
+              values={{ value0: ratingRecipe.name }}
+            />
           </h2>
           <p className="mt-2 text-[13px] leading-5 text-muted-foreground">
-            Your rating helps everyone find recipes worth making.
+            {tr("Your rating helps everyone find recipes worth making.")}
           </p>
           <div
             className="mt-5 flex justify-center gap-1"
-            aria-label="Rate from 1 to 5 stars"
+            aria-label={tr("Rate from 1 to 5 stars")}
           >
             {[1, 2, 3, 4, 5].map((rating) => (
               <button
@@ -1933,7 +2189,10 @@ export default function RecipesHub() {
                 type="button"
                 disabled={submittingRating}
                 onClick={() => void submitRating(rating)}
-                aria-label={`${rating} star${rating === 1 ? "" : "s"}`}
+                aria-label={tr("{{value0}} star{{value1}}", {
+                  value0: rating,
+                  value1: rating === 1 ? "" : "s",
+                })}
                 className="grid size-12 place-items-center rounded-full text-amber-500 transition-transform active:scale-90 disabled:opacity-40"
               >
                 <Star size={29} weight="regular" />
@@ -1946,7 +2205,7 @@ export default function RecipesHub() {
             onClick={() => setRatingRecipe(null)}
             className="mt-3 min-h-11 px-5 text-[13px] font-semibold text-muted-foreground disabled:opacity-40"
           >
-            Not now
+            {tr("Not now")}
           </button>
         </MobileSheet>
       )}
@@ -1954,7 +2213,7 @@ export default function RecipesHub() {
       {selected && (
         <MobileSheet
           onClose={() => setSelected(null)}
-          ariaLabel="Recipe preview"
+          ariaLabel={tr("Recipe preview")}
           panelClassName="max-h-[90svh] w-full max-w-xl overflow-y-auto rounded-t-[2rem] bg-background md:rounded-[2rem]"
         >
           <div className="relative h-56">
@@ -1966,101 +2225,118 @@ export default function RecipesHub() {
             <button
               type="button"
               onClick={() => setSelected(null)}
-              aria-label="Close recipe preview"
+              aria-label={tr("Close recipe preview")}
               className="absolute top-4 right-4 grid size-10 place-items-center rounded-full bg-black/50 text-white backdrop-blur"
             >
               <X size={16} />
             </button>
           </div>
           <div className="p-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] md:p-7">
-              <p className="text-[11px] font-semibold tracking-[0.1em] text-muted-foreground uppercase">
-                {selected.category} · {selected.difficulty}
-              </p>
-              <h2
-                id="recipe-preview-title"
-                className="mt-2 text-[1.8rem] leading-tight font-semibold tracking-[-0.035em]"
-              >
-                {selected.name}
-              </h2>
-              <p className="mt-3 text-[14px] leading-6 text-muted-foreground">
-                {selected.description}
-              </p>
-              <div className="mt-5 grid grid-cols-3 divide-x divide-border rounded-2xl border border-border py-3 text-center">
-                <div>
-                  <p className="text-[15px] font-semibold">{selected.time}m</p>
-                  <p className="text-[13px] text-muted-foreground">
-                    Total time
-                  </p>
-                </div>
-                <div>
-                  <p className="text-[15px] font-semibold">
-                    {selected.calories}
-                  </p>
-                  <p className="text-[13px] text-muted-foreground">Calories</p>
-                </div>
-                <div>
-                  <p className="text-[15px] font-semibold">
-                    {selected.protein}g
-                  </p>
-                  <p className="text-[13px] text-muted-foreground">Protein</p>
-                </div>
-              </div>
-              <div className="mt-6">
-                <h3 className="text-[13px] font-semibold">Ingredients</h3>
-                <ul className="mt-2 divide-y divide-border/60 border-y border-border/60">
-                  {selected.ingredients.map((ingredient) => (
-                    <li
-                      key={ingredient}
-                      className="py-2.5 text-[13px] text-foreground/75"
-                    >
-                      {ingredient}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div className="mt-7">
-                <h3 className="text-[13px] font-semibold">Instructions</h3>
-                <ol className="mt-3 space-y-4">
-                  {selected.steps.map((step, index) => (
-                    <li
-                      key={step}
-                      className="flex gap-3 text-[13px] leading-5 text-foreground/75"
-                    >
-                      <span className="grid size-6 shrink-0 place-items-center rounded-full bg-foreground text-[11px] font-semibold text-background">
-                        {index + 1}
-                      </span>
-                      <span>{step}</span>
-                    </li>
-                  ))}
-                </ol>
-              </div>
-              <div className="mt-6 rounded-2xl bg-muted/55 p-4">
-                <p className="text-[11px] font-semibold text-muted-foreground">
-                  Serving & storage
+            <p className="text-[11px] font-semibold tracking-[0.1em] text-muted-foreground uppercase">
+              {tr(selected.category)} · {tr(selected.difficulty)}
+            </p>
+            <h2
+              id="recipe-preview-title"
+              className="mt-2 text-[1.8rem] leading-tight font-semibold tracking-[-0.035em]"
+            >
+              {selected.name}
+            </h2>
+            <p className="mt-3 text-[14px] leading-6 text-muted-foreground">
+              {selected.description}
+            </p>
+            <div className="mt-5 grid grid-cols-3 divide-x divide-border rounded-2xl border border-border py-3 text-center">
+              <div>
+                <p className="text-[15px] font-semibold">
+                  <Message
+                    text={"{{value0}}m"}
+                    values={{ value0: selected.time }}
+                  />
                 </p>
-                <p className="mt-1 text-[12px] leading-5 text-foreground/70">
-                  {selected.notes}
+                <p className="text-[13px] text-muted-foreground">
+                  {tr("Total time")}
                 </p>
               </div>
-              <button
-                type="button"
-                disabled={Boolean(savingId)}
-                aria-busy={savingId === selected.id}
-                onClick={() => void saveStarter(selected)}
-                className="mt-7 flex min-h-13 w-full items-center justify-center gap-2 rounded-2xl bg-foreground px-4 text-[14px] font-semibold text-background"
-              >
-                <Check size={18} weight="bold" />
-                {savingId === selected.id ? "Saving…" : "Save to my recipes"}
-                <ArrowRight size={15} />
-              </button>
-              <button
-                type="button"
-                disabled={Boolean(savingId)}
-                onClick={() => askCoach(selected)}
-                className="mt-2 flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-border px-4 text-[13px] font-semibold text-foreground/75"
-              >
-                <ChefHat size={17} /> Customize with Chef Coach
-              </button>
+              <div>
+                <p className="text-[15px] font-semibold">{selected.calories}</p>
+                <p className="text-[13px] text-muted-foreground">
+                  {tr("Calories")}
+                </p>
+              </div>
+              <div>
+                <p className="text-[15px] font-semibold">
+                  <Message
+                    text={"{{value0}}g"}
+                    values={{ value0: selected.protein }}
+                  />
+                </p>
+                <p className="text-[13px] text-muted-foreground">
+                  {tr("Protein")}
+                </p>
+              </div>
+            </div>
+            <div className="mt-6">
+              <h3 className="text-[13px] font-semibold">{tr("Ingredients")}</h3>
+              <ul className="mt-2 divide-y divide-border/60 border-y border-border/60">
+                {selected.ingredients.map((ingredient) => (
+                  <li
+                    key={ingredient}
+                    className="py-2.5 text-[13px] text-foreground/75"
+                  >
+                    {ingredient}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="mt-7">
+              <h3 className="text-[13px] font-semibold">
+                {tr("Instructions")}
+              </h3>
+              <ol className="mt-3 space-y-4">
+                {selected.steps.map((step, index) => (
+                  <li
+                    key={step}
+                    className="flex gap-3 text-[13px] leading-5 text-foreground/75"
+                  >
+                    <span className="grid size-6 shrink-0 place-items-center rounded-full bg-foreground text-[11px] font-semibold text-background">
+                      {index + 1}
+                    </span>
+                    <span>{step}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+            <div className="mt-6 rounded-2xl bg-muted/55 p-4">
+              <p className="text-[11px] font-semibold text-muted-foreground">
+                {tr("Serving & storage")}
+              </p>
+              <p className="mt-1 text-[12px] leading-5 text-foreground/70">
+                {selected.notes}
+              </p>
+            </div>
+            <button
+              type="button"
+              disabled={Boolean(savingId)}
+              aria-busy={savingId === selected.id}
+              onClick={() => void saveStarter(selected)}
+              className="mt-7 flex min-h-13 w-full items-center justify-center gap-2 rounded-2xl bg-foreground px-4 text-[14px] font-semibold text-background"
+            >
+              <Check size={18} weight="bold" />
+              {savingId === selected.id
+                ? tr("Saving…")
+                : tr("Save to my recipes")}
+              <ArrowRight size={15} />
+            </button>
+            <button
+              type="button"
+              disabled={Boolean(savingId)}
+              onClick={() => askCoach(selected)}
+              className="mt-2 flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-border px-4 text-[13px] font-semibold text-foreground/75"
+            >
+              <Message
+                text={"{{value0}} Customize with Chef Coach"}
+                values={{ value0: <ChefHat size={17} /> }}
+              />
+            </button>
           </div>
         </MobileSheet>
       )}

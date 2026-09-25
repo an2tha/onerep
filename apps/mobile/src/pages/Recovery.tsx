@@ -1,3 +1,4 @@
+import { Message, choice, tr, translateError } from "@repo/ui/i18n"
 import { toast } from "@repo/ui"
 import { useState } from "react"
 import { useMutation } from "convex/react"
@@ -35,7 +36,7 @@ function OptionsForm({
 }) {
   return (
     <fieldset className="recovery-options">
-      <legend>Make the plan yours</legend>
+      <legend>{tr("Make the plan yours")}</legend>
       {(
         [
           [
@@ -69,8 +70,8 @@ function OptionsForm({
       ))}
       <label className="recovery-frequency">
         <span>
-          <strong>Recovery check-ins</strong>
-          <small>A gentle prompt when you open your plan.</small>
+          <strong>{tr("Recovery check-ins")}</strong>
+          <small>{tr("A gentle prompt when you open your plan.")}</small>
         </span>
         <select
           value={value.checkInFrequency}
@@ -81,9 +82,9 @@ function OptionsForm({
             })
           }
         >
-          <option value="daily">Daily</option>
-          <option value="every_other_day">Every other day</option>
-          <option value="off">Only when I choose</option>
+          <option value="daily">{tr("Daily")}</option>
+          <option value="every_other_day">{tr("Every other day")}</option>
+          <option value="off">{tr("Only when I choose")}</option>
         </select>
       </label>
     </fieldset>
@@ -93,19 +94,23 @@ function SafetyNote({ urgent = false }: { urgent?: boolean }) {
   return (
     <aside className="recovery-safety" role={urgent ? "alert" : undefined}>
       <strong>
-        {urgent ? "Get medical help now" : "When to get more support"}
+        {urgent ? tr("Get medical help now") : tr("When to get more support")}
       </strong>
       <p>
         {urgent
-          ? "Trouble breathing, chest pain, confusion or severe dehydration need urgent medical attention. Contact your local emergency service. A recovery plan cannot assess or treat these symptoms."
-          : "Get medical advice if symptoms worsen, persist, or you are at higher risk of serious illness. Trouble breathing, chest pain, confusion or severe dehydration need urgent medical help."}
+          ? tr(
+              "Trouble breathing, chest pain, confusion or severe dehydration need urgent medical attention. Contact your local emergency service. A recovery plan cannot assess or treat these symptoms."
+            )
+          : tr(
+              "Get medical advice if symptoms worsen, persist, or you are at higher risk of serious illness. Trouble breathing, chest pain, confusion or severe dehydration need urgent medical help."
+            )}
       </p>
       <a
         href="https://www.cdc.gov/respiratory-viruses/about/index.html"
         target="_blank"
         rel="noreferrer"
       >
-        Read the warning signs
+        {tr("Read the warning signs")}
       </a>
     </aside>
   )
@@ -119,15 +124,15 @@ export default function Recovery() {
         <button
           type="button"
           className="app-icon-button"
-          aria-label="Back to today"
+          aria-label={tr("Back to today")}
           onClick={() => navigate("/")}
         >
           <CaretLeft size={20} />
         </button>
-        <h1>Recovery</h1>
+        <h1>{tr("Recovery")}</h1>
       </header>
       {data === undefined ? (
-        <p role="status">Loading your recovery plan…</p>
+        <p role="status">{tr("Loading your recovery plan…")}</p>
       ) : data.active ? (
         <ActiveRecovery
           key={data.active._id}
@@ -154,14 +159,16 @@ function Setup() {
   const [error, setError] = useState("")
   async function activate() {
     setBusy(true)
-    setError("")
+    setError(translateError(""))
     try {
       await start({ startedOn, symptoms, energy, manageable, ...options })
     } catch (error) {
       setError(
-        error instanceof Error
-          ? error.message
-          : "Could not start recovery. Please try again."
+        translateError(
+          error instanceof Error
+            ? error.message
+            : tr("Could not start recovery. Please try again.")
+        )
       )
     } finally {
       setBusy(false)
@@ -172,13 +179,17 @@ function Setup() {
       <NudgeIllustration scene="rest" className="recovery-hero-art" />
       <h2>
         {step === "details"
-          ? "A little room to recover"
-          : "Here’s what will change"}
+          ? tr("A little room to recover")
+          : tr("Here’s what will change")}
       </h2>
       <p className="recovery-intro">
         {step === "details"
-          ? "Your goals still matter. Today’s plan can change. Share only what helps us make it comfortable."
-          : "Review your choices before starting. Your long-term goals, routine and logged results stay intact."}
+          ? tr(
+              "Your goals still matter. Today’s plan can change. Share only what helps us make it comfortable."
+            )
+          : tr(
+              "Review your choices before starting. Your long-term goals, routine and logged results stay intact."
+            )}
       </p>
       <form
         onSubmit={(e) => {
@@ -192,58 +203,97 @@ function Setup() {
           {step === "details" ? (
             <>
               <label className="recovery-field">
-                When did you start feeling unwell?
-                <input
-                  type="date"
-                  value={startedOn}
-                  max={today}
-                  required
-                  onChange={(e) => setStartedOn(e.target.value)}
+                <Message
+                  text={"When did you start feeling unwell?{{value0}}"}
+                  values={{
+                    value0: (
+                      <input
+                        type="date"
+                        value={startedOn}
+                        max={today}
+                        required
+                        onChange={(e) => setStartedOn(e.target.value)}
+                      />
+                    ),
+                  }}
                 />
               </label>
               <label className="recovery-field">
-                What’s bothering you? <span>Optional</span>
-                <textarea
-                  maxLength={600}
-                  value={symptoms}
-                  onChange={(e) => setSymptoms(e.target.value)}
-                  placeholder="A sore throat, tiredness, an upset stomach…"
+                <Message
+                  text={"What’s bothering you? {{value0}}{{value1}}"}
+                  values={{
+                    value0: <span>{tr("Optional")}</span>,
+                    value1: (
+                      <textarea
+                        maxLength={600}
+                        value={symptoms}
+                        onChange={(e) => setSymptoms(e.target.value)}
+                        placeholder={tr(
+                          "A sore throat, tiredness, an upset stomach…"
+                        )}
+                      />
+                    ),
+                  }}
                 />
               </label>
               <label className="recovery-field">
-                Energy today
-                <select
-                  value={energy}
-                  onChange={(e) => setEnergy(e.target.value as typeof energy)}
-                >
-                  <option value="low">Low — I need rest</option>
-                  <option value="okay">Some energy</option>
-                  <option value="good">Mostly myself</option>
-                </select>
-              </label>
-              <label className="recovery-field">
-                What feels manageable? <span>Optional</span>
-                <textarea
-                  maxLength={600}
-                  value={manageable}
-                  onChange={(e) => setManageable(e.target.value)}
-                  placeholder="Easy meals, fewer reminders, help planning…"
+                <Message
+                  text={"Energy today{{value0}}"}
+                  values={{
+                    value0: (
+                      <select
+                        value={energy}
+                        onChange={(e) =>
+                          setEnergy(e.target.value as typeof energy)
+                        }
+                      >
+                        <option value="low">{tr("Low — I need rest")}</option>
+                        <option value="okay">{tr("Some energy")}</option>
+                        <option value="good">{tr("Mostly myself")}</option>
+                      </select>
+                    ),
+                  }}
                 />
               </label>
               <label className="recovery-field">
-                Any trouble breathing, chest pain, confusion or severe
-                dehydration?
-                <select
-                  required
-                  value={safety}
-                  onChange={(e) => setSafety(e.target.value)}
-                >
-                  <option value="" disabled>
-                    Choose an answer
-                  </option>
-                  <option value="no">No</option>
-                  <option value="yes">Yes, or I’m unsure</option>
-                </select>
+                <Message
+                  text={"What feels manageable? {{value0}}{{value1}}"}
+                  values={{
+                    value0: <span>{tr("Optional")}</span>,
+                    value1: (
+                      <textarea
+                        maxLength={600}
+                        value={manageable}
+                        onChange={(e) => setManageable(e.target.value)}
+                        placeholder={tr(
+                          "Easy meals, fewer reminders, help planning…"
+                        )}
+                      />
+                    ),
+                  }}
+                />
+              </label>
+              <label className="recovery-field">
+                <Message
+                  text={
+                    "Any trouble breathing, chest pain, confusion or severe dehydration?{{value0}}"
+                  }
+                  values={{
+                    value0: (
+                      <select
+                        required
+                        value={safety}
+                        onChange={(e) => setSafety(e.target.value)}
+                      >
+                        <option value="" disabled>
+                          {tr("Choose an answer")}
+                        </option>
+                        <option value="no">{tr("No")}</option>
+                        <option value="yes">{tr("Yes, or I’m unsure")}</option>
+                      </select>
+                    ),
+                  }}
+                />
               </label>
               {safety === "yes" ? (
                 <SafetyNote urgent />
@@ -253,7 +303,7 @@ function Setup() {
                   type="submit"
                   disabled={safety !== "no"}
                 >
-                  Review my plan
+                  {tr("Review my plan")}
                 </button>
               )}
             </>
@@ -261,18 +311,19 @@ function Setup() {
             <>
               <OptionsForm value={options} onChange={setOptions} />
               <p className="recovery-footnote">
-                Start in resting mode. Nothing expires automatically, and you
-                can change any choice.
+                {tr(
+                  "Start in resting mode. Nothing expires automatically, and you can change any choice."
+                )}
               </p>
               <button className="recovery-primary" type="submit">
-                {busy ? "Starting…" : "Start recovery mode"}
+                {busy ? tr("Starting…") : tr("Start recovery mode")}
               </button>
               <button
                 type="button"
                 className="recovery-secondary"
                 onClick={() => setStep("details")}
               >
-                Back to my check-in
+                {tr("Back to my check-in")}
               </button>
             </>
           )}
@@ -322,7 +373,7 @@ function ActiveRecovery({
     elapsed >= (episode.checkInFrequency === "daily" ? 1 : 2)
   async function run(action: () => Promise<unknown>, success: string) {
     setBusy(true)
-    setError("")
+    setError(translateError(""))
     setMessage("")
     try {
       await action()
@@ -330,9 +381,11 @@ function ActiveRecovery({
       setMessage(success)
     } catch (error) {
       setError(
-        error instanceof Error
-          ? error.message
-          : "Could not save. Please try again."
+        translateError(
+          error instanceof Error
+            ? error.message
+            : tr("Could not save. Please try again.")
+        )
       )
     } finally {
       setBusy(false)
@@ -362,20 +415,25 @@ function ActiveRecovery({
       />
       <h2>
         {view === "finish"
-          ? "Ready to finish recovery?"
+          ? tr("Ready to finish recovery?")
           : view === "return"
-            ? "A gentle return"
+            ? tr("A gentle return")
             : view === "checkin"
-              ? "How are you feeling?"
+              ? tr("How are you feeling?")
               : view === "settings"
-                ? "Make this easier"
+                ? tr("Make this easier")
                 : resting
-                  ? "Today, keep it simple"
-                  : "Ease back at your pace"}
+                  ? tr("Today, keep it simple")
+                  : tr("Ease back at your pace")}
       </h2>
       <p className="recovery-intro">
-        {resting ? "Resting" : "Easing back"} · Since {episode.startedOn}. There
-        is no deadline.
+        <Message
+          text={"{{value0}} · Since {{value1}}. There is no deadline."}
+          values={{
+            value0: choice(resting ? "Resting" : "Easing back"),
+            value1: episode.startedOn,
+          }}
+        />
       </p>
       {message && <p role="status">{message}</p>}
       {error && (
@@ -390,28 +448,33 @@ function ActiveRecovery({
               <article>
                 <h3>
                   {resting
-                    ? "Make space for rest"
-                    : "Start with what feels easy"}
+                    ? tr("Make space for rest")
+                    : tr("Start with what feels easy")}
                 </h3>
                 <p>
                   {resting
-                    ? "Give yourself permission to rest. Training is not today’s obligation."
-                    : "Review a shorter, easier session with Coach. Stop if symptoms return or worsen; resting is always available."}
+                    ? tr(
+                        "Give yourself permission to rest. Training is not today’s obligation."
+                      )
+                    : tr(
+                        "Review a shorter, easier session with Coach. Stop if symptoms return or worsen; resting is always available."
+                      )}
                 </p>
               </article>
               <article>
-                <h3>Food and fluids, comfortably</h3>
+                <h3>{tr("Food and fluids, comfortably")}</h3>
                 <p>
-                  Choose food you can tolerate and drink regularly. Logging is a
-                  tool you can use when it helps.
+                  {tr(
+                    "Choose food you can tolerate and drink regularly. Logging is a tool you can use when it helps."
+                  )}
                 </p>
                 <button type="button" onClick={() => navigate("/nutrition")}>
-                  Open food & water
+                  {tr("Open food & water")}
                 </button>
               </article>
               {episode.manageable && (
                 <article>
-                  <h3>Your priorities</h3>
+                  <h3>{tr("Your priorities")}</h3>
                   <p>{episode.manageable}</p>
                 </article>
               )}
@@ -426,7 +489,7 @@ function ActiveRecovery({
                 setView("checkin")
               }}
             >
-              {due ? "A gentle check-in" : "Check in when you want"}
+              {due ? tr("A gentle check-in") : tr("Check in when you want")}
             </button>
             <div className="recovery-actions">
               <button
@@ -436,7 +499,7 @@ function ActiveRecovery({
                   setView("settings")
                 }}
               >
-                This feels like too much
+                {tr("This feels like too much")}
               </button>
               <button
                 type="button"
@@ -445,7 +508,7 @@ function ActiveRecovery({
                   setView("settings")
                 }}
               >
-                Adjust my plan
+                {tr("Adjust my plan")}
               </button>
               <button
                 type="button"
@@ -459,7 +522,7 @@ function ActiveRecovery({
                   })
                 }
               >
-                Talk it through with Coach
+                {tr("Talk it through with Coach")}
               </button>
             </div>
             <button
@@ -469,50 +532,65 @@ function ActiveRecovery({
                 resting ? setView("return") : void changePhase("resting")
               }
             >
-              {resting ? "Explore easing back" : "I need to rest again"}
+              {resting ? tr("Explore easing back") : tr("I need to rest again")}
             </button>
             <button
               type="button"
               className="recovery-secondary"
               onClick={() => setView("finish")}
             >
-              Finish recovery mode
+              {tr("Finish recovery mode")}
             </button>
             {episode.lastTrend === "worse" && (
               <p className="recovery-safety">
-                You reported feeling worse. Seek medical advice before
-                increasing activity.
+                {tr(
+                  "You reported feeling worse. Seek medical advice before increasing activity."
+                )}
               </p>
             )}
             <SafetyNote />
             {checkIns.length > 0 && (
               <section className="recovery-history">
-                <h3>Your recent check-ins</h3>
+                <h3>{tr("Your recent check-ins")}</h3>
                 {checkIns.slice(0, 7).map((entry) => (
                   <p key={entry._id}>
                     {entry.date}
                     <span>
-                      {entry.trend === "same"
-                        ? "About the same"
-                        : entry.trend === "better"
-                          ? "Feeling better"
-                          : "Feeling worse"}{" "}
-                      · {entry.energy} energy
+                      <Message
+                        text={"{{value0}} · {{value1}} energy"}
+                        values={{
+                          value0: choice(
+                            entry.trend === "same"
+                              ? "About the same"
+                              : entry.trend === "better"
+                                ? "Feeling better"
+                                : "Feeling worse"
+                          ),
+                          value1: entry.energy,
+                        }}
+                      />
                     </span>
                   </p>
                 ))}
               </section>
             )}
             <p className="recovery-footnote">
-              Practical support, without promises about recovery speed or muscle
-              loss.{" "}
-              <a
-                href="https://www.nhs.uk/conditions/common-cold/"
-                target="_blank"
-                rel="noreferrer"
-              >
-                Self-care guidance
-              </a>
+              <Message
+                text={
+                  "Practical support, without promises about recovery speed or muscle loss. {{value0}}"
+                }
+                values={{
+                  value0: (
+                    <a
+                      href="https://www.nhs.uk/conditions/common-cold/"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {tr("Self-care guidance")}
+                    </a>
+                  ),
+                }}
+              />
             </p>
           </>
         )}
@@ -534,7 +612,7 @@ function ActiveRecovery({
                 )
               }
             >
-              Save adjustments
+              {tr("Save adjustments")}
             </button>
           </>
         )}
@@ -557,77 +635,108 @@ function ActiveRecovery({
             }}
           >
             <label className="recovery-field">
-              Compared with your last check-in
-              <select
-                value={trend}
-                onChange={(e) => setTrend(e.target.value as typeof trend)}
-              >
-                <option value="better">Better</option>
-                <option value="same">About the same</option>
-                <option value="worse">Worse</option>
-              </select>
-            </label>
-            <label className="recovery-field">
-              Energy
-              <select
-                value={energy}
-                onChange={(e) => setEnergy(e.target.value as typeof energy)}
-              >
-                <option value="low">Low — I need rest</option>
-                <option value="okay">Some energy</option>
-                <option value="good">Mostly myself</option>
-              </select>
-            </label>
-            <label className="recovery-field">
-              Symptoms or changes
-              <textarea
-                maxLength={600}
-                value={symptoms}
-                onChange={(e) => setSymptoms(e.target.value)}
+              <Message
+                text={"Compared with your last check-in{{value0}}"}
+                values={{
+                  value0: (
+                    <select
+                      value={trend}
+                      onChange={(e) => setTrend(e.target.value as typeof trend)}
+                    >
+                      <option value="better">{tr("Better")}</option>
+                      <option value="same">{tr("About the same")}</option>
+                      <option value="worse">{tr("Worse")}</option>
+                    </select>
+                  ),
+                }}
               />
             </label>
             <label className="recovery-field">
-              What feels manageable now?
-              <textarea
-                maxLength={600}
-                value={manageable}
-                onChange={(e) => setManageable(e.target.value)}
+              <Message
+                text={"Energy{{value0}}"}
+                values={{
+                  value0: (
+                    <select
+                      value={energy}
+                      onChange={(e) =>
+                        setEnergy(e.target.value as typeof energy)
+                      }
+                    >
+                      <option value="low">{tr("Low — I need rest")}</option>
+                      <option value="okay">{tr("Some energy")}</option>
+                      <option value="good">{tr("Mostly myself")}</option>
+                    </select>
+                  ),
+                }}
+              />
+            </label>
+            <label className="recovery-field">
+              <Message
+                text={"Symptoms or changes{{value0}}"}
+                values={{
+                  value0: (
+                    <textarea
+                      maxLength={600}
+                      value={symptoms}
+                      onChange={(e) => setSymptoms(e.target.value)}
+                    />
+                  ),
+                }}
+              />
+            </label>
+            <label className="recovery-field">
+              <Message
+                text={"What feels manageable now?{{value0}}"}
+                values={{
+                  value0: (
+                    <textarea
+                      maxLength={600}
+                      value={manageable}
+                      onChange={(e) => setManageable(e.target.value)}
+                    />
+                  ),
+                }}
               />
             </label>
             {trend === "worse" && <SafetyNote />}
             <button className="recovery-primary" type="submit">
-              Save check-in
+              {tr("Save check-in")}
             </button>
           </form>
         )}
         {view === "return" && (
           <>
             <p>
-              Improvement is a reason to reassess, not automatic clearance to
-              train. If you still have fever, chest symptoms or feel generally
-              unwell, keep resting and seek medical advice as needed.
+              {tr(
+                "Improvement is a reason to reassess, not automatic clearance to train. If you still have fever, chest symptoms or feel generally unwell, keep resting and seek medical advice as needed."
+              )}
             </p>
             <ol className="recovery-return">
-              <li>Choose a short, easy activity only when you feel ready.</li>
               <li>
-                Review the first workout with Coach before starting. Avoid
-                maximal efforts and catch-up sessions.
+                {tr("Choose a short, easy activity only when you feel ready.")}
               </li>
               <li>
-                Reassess how you feel during and afterward. Return to resting if
-                symptoms worsen.
+                {tr(
+                  "Review the first workout with Coach before starting. Avoid maximal efforts and catch-up sessions."
+                )}
+              </li>
+              <li>
+                {tr(
+                  "Reassess how you feel during and afterward. Return to resting if symptoms worsen."
+                )}
               </li>
             </ol>
             <p>
-              Reminders and deferred training keep your current settings until
-              you change them.
+              {tr(
+                "Reminders and deferred training keep your current settings until you change them."
+              )}
             </p>
             <button
               type="button"
               className="recovery-primary"
               onClick={() => void changePhase("easing_back")}
             >
-              Use the easing-back plan
+              {tr("Use the easing-back plan")}
             </button>
             <button
               type="button"
@@ -642,18 +751,20 @@ function ActiveRecovery({
                 })
               }
             >
-              Review my first session with Coach
+              {tr("Review my first session with Coach")}
             </button>
           </>
         )}
         {view === "finish" && (
           <>
             <p>
-              Your normal dashboard and saved reminder preferences will return.
-              Your routine resumes with upcoming sessions; recovery days remain
-              in your history and create no catch-up backlog.
+              {tr(
+                "Your normal dashboard and saved reminder preferences will return. Your routine resumes with upcoming sessions; recovery days remain in your history and create no catch-up backlog."
+              )}
             </p>
-            <p>You can start Recovery mode again whenever you need it.</p>
+            <p>
+              {tr("You can start Recovery mode again whenever you need it.")}
+            </p>
             <button
               type="button"
               className="recovery-primary"
@@ -661,13 +772,13 @@ function ActiveRecovery({
                 void run(async () => {
                   await finish({ episodeId: episode._id, endedOn: today })
                   toast.success(
-                    "Recovery finished. Your usual plan is restored."
+                    tr("Recovery finished. Your usual plan is restored.")
                   )
                   navigate("/")
                 }, "Recovery finished.")
               }
             >
-              Finish and restore my usual plan
+              {tr("Finish and restore my usual plan")}
             </button>
           </>
         )}
@@ -677,7 +788,7 @@ function ActiveRecovery({
             className="recovery-secondary"
             onClick={() => setView("plan")}
           >
-            Keep my current plan
+            {tr("Keep my current plan")}
           </button>
         )}
       </fieldset>

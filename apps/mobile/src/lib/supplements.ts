@@ -1,3 +1,4 @@
+import { tr, uiLocale } from "@repo/ui/i18n"
 import type {
   FoodDetail,
   FoodResult,
@@ -79,8 +80,8 @@ export const SUPPLEMENT_DEFINITIONS: Record<
 > = {
   creatine: {
     kind: "creatine",
-    label: "Creatine",
-    shortLabel: "Creatine",
+    label: tr("Creatine"),
+    shortLabel: tr("Creatine"),
     defaultAmount: 5,
     unit: "g",
     color: SUPPLEMENT_TONES.creatine.color,
@@ -88,8 +89,8 @@ export const SUPPLEMENT_DEFINITIONS: Record<
   },
   protein: {
     kind: "protein",
-    label: "Protein",
-    shortLabel: "Protein",
+    label: tr("Protein"),
+    shortLabel: tr("Protein"),
     defaultAmount: 25,
     unit: "g",
     color: SUPPLEMENT_TONES.protein.color,
@@ -97,8 +98,8 @@ export const SUPPLEMENT_DEFINITIONS: Record<
   },
   vitamins: {
     kind: "vitamins",
-    label: "Vitamins",
-    shortLabel: "Vits",
+    label: tr("Vitamins"),
+    shortLabel: tr("Vits"),
     defaultAmount: 1,
     unit: "serving",
     color: SUPPLEMENT_TONES.vitamins.color,
@@ -106,8 +107,8 @@ export const SUPPLEMENT_DEFINITIONS: Record<
   },
   caffeine: {
     kind: "caffeine",
-    label: "Caffeine",
-    shortLabel: "Caffeine",
+    label: tr("Caffeine"),
+    shortLabel: tr("Caffeine"),
     defaultAmount: 100,
     unit: "mg",
     color: SUPPLEMENT_TONES.caffeine.color,
@@ -130,106 +131,106 @@ export const SUPPLEMENT_CATEGORIES: {
 }[] = [
   {
     id: "protein",
-    label: "Protein",
-    shortLabel: "Protein",
+    label: tr("Protein"),
+    shortLabel: tr("Protein"),
     color: MACRO_COLORS.protein,
     bg: tint(MACRO_COLORS.protein, 13),
     defaultForm: "powder",
-    defaultServingLabel: "1 scoop",
+    defaultServingLabel: tr("1 scoop"),
   },
   {
     id: "creatine",
-    label: "Creatine",
-    shortLabel: "Creatine",
+    label: tr("Creatine"),
+    shortLabel: tr("Creatine"),
     color: SUPPLEMENT_TONES.creatine.color,
     bg: SUPPLEMENT_TONES.creatine.bg,
     defaultForm: "powder",
-    defaultServingLabel: "5 g",
+    defaultServingLabel: tr("5 g"),
   },
   {
     id: "multivitamin",
-    label: "Multivitamin",
-    shortLabel: "Multi",
+    label: tr("Multivitamin"),
+    shortLabel: tr("Multi"),
     color: ONE_REP_PALETTE.violet,
     bg: tint(ONE_REP_PALETTE.violet, 13),
     defaultForm: "tablet",
-    defaultServingLabel: "1 tablet",
+    defaultServingLabel: tr("1 tablet"),
   },
   {
     id: "vitamin_mineral",
-    label: "Vitamin/mineral",
-    shortLabel: "Vitamin",
+    label: tr("Vitamin/mineral"),
+    shortLabel: tr("Vitamin"),
     color: MICRO_COLORS.vitaminD,
     bg: tint(MICRO_COLORS.vitaminD, 13),
     defaultForm: "capsule",
-    defaultServingLabel: "1 capsule",
+    defaultServingLabel: tr("1 capsule"),
   },
   {
     id: "electrolyte",
-    label: "Electrolyte",
-    shortLabel: "Electrolyte",
+    label: tr("Electrolyte"),
+    shortLabel: tr("Electrolyte"),
     color: MICRO_COLORS.sodium,
     bg: tint(MICRO_COLORS.sodium, 13),
     defaultForm: "powder",
-    defaultServingLabel: "1 scoop",
+    defaultServingLabel: tr("1 scoop"),
   },
   {
     id: "caffeine_pre_workout",
-    label: "Caffeine/pre-workout",
-    shortLabel: "Pre-workout",
+    label: tr("Caffeine/pre-workout"),
+    shortLabel: tr("Pre-workout"),
     color: SUPPLEMENT_TONES.caffeine.color,
     bg: SUPPLEMENT_TONES.caffeine.bg,
     defaultForm: "powder",
-    defaultServingLabel: "1 scoop",
+    defaultServingLabel: tr("1 scoop"),
   },
   {
     id: "omega_3",
-    label: "Omega-3",
-    shortLabel: "Omega-3",
+    label: tr("Omega-3"),
+    shortLabel: tr("Omega-3"),
     color: ONE_REP_PALETTE.plate,
     bg: tint(ONE_REP_PALETTE.plate, 13),
     defaultForm: "softgel",
-    defaultServingLabel: "2 softgels",
+    defaultServingLabel: tr("2 softgels"),
   },
   {
     id: "fiber",
-    label: "Fiber",
-    shortLabel: "Fiber",
+    label: tr("Fiber"),
+    shortLabel: tr("Fiber"),
     color: MICRO_COLORS.fiber,
     bg: tint(MICRO_COLORS.fiber, 13),
     defaultForm: "powder",
-    defaultServingLabel: "1 scoop",
+    defaultServingLabel: tr("1 scoop"),
   },
   {
     id: "other",
-    label: "Other",
-    shortLabel: "Other",
+    label: tr("Other"),
+    shortLabel: tr("Other"),
     color: APP_ACCENT_COLORS.neutral,
     bg: tint(APP_ACCENT_COLORS.neutral, 12),
     defaultForm: "other",
-    defaultServingLabel: "1 serving",
+    defaultServingLabel: tr("1 serving"),
   },
 ]
 
 export const SUPPLEMENT_FORMS: { id: SupplementForm; label: string }[] = [
-  { id: "capsule", label: "Capsule" },
-  { id: "tablet", label: "Tablet" },
-  { id: "powder", label: "Powder" },
-  { id: "liquid", label: "Liquid" },
-  { id: "gummy", label: "Gummy" },
-  { id: "softgel", label: "Softgel" },
-  { id: "other", label: "Other" },
+  { id: "capsule", label: tr("Capsule") },
+  { id: "tablet", label: tr("Tablet") },
+  { id: "powder", label: tr("Powder") },
+  { id: "liquid", label: tr("Liquid") },
+  { id: "gummy", label: tr("Gummy") },
+  { id: "softgel", label: tr("Softgel") },
+  { id: "other", label: tr("Other") },
 ]
 
 export const SUPPLEMENT_SCHEDULES: {
   id: SupplementScheduleType
   label: string
 }[] = [
-  { id: "none", label: "No schedule" },
-  { id: "daily", label: "Daily" },
-  { id: "weekdays", label: "Selected days" },
-  { id: "training_days", label: "Training days" },
-  { id: "rest_days", label: "Rest days" },
+  { id: "none", label: tr("No schedule") },
+  { id: "daily", label: tr("Daily") },
+  { id: "weekdays", label: tr("Selected days") },
+  { id: "training_days", label: tr("Training days") },
+  { id: "rest_days", label: tr("Rest days") },
 ]
 
 export const SUPPLEMENT_SPECIFIC_NUTRIENT_KEYS = [
@@ -270,96 +271,104 @@ export const SUPPLEMENT_NUTRIENT_DETAILS: Record<
     supplementCautionAt?: number
   }
 > = {
-  calories: { label: "Calories", unit: "kcal", color: APP_ACCENT_COLORS.food },
-  protein: { label: "Protein", unit: "g", color: MACRO_COLORS.protein },
-  carbs: { label: "Carbs", unit: "g", color: MACRO_COLORS.carbs },
-  fat: { label: "Fat", unit: "g", color: MACRO_COLORS.fat },
-  fiber: { label: "Fiber", unit: "g", color: MICRO_COLORS.fiber },
-  sugar: { label: "Total sugar", unit: "g", color: MICRO_COLORS.sugar },
+  calories: {
+    label: tr("Calories"),
+    unit: "kcal",
+    color: APP_ACCENT_COLORS.food,
+  },
+  protein: { label: tr("Protein"), unit: "g", color: MACRO_COLORS.protein },
+  carbs: { label: tr("Carbs"), unit: "g", color: MACRO_COLORS.carbs },
+  fat: { label: tr("Fat"), unit: "g", color: MACRO_COLORS.fat },
+  fiber: { label: tr("Fiber"), unit: "g", color: MICRO_COLORS.fiber },
+  sugar: { label: tr("Total sugar"), unit: "g", color: MICRO_COLORS.sugar },
   saturatedFat: {
-    label: "Saturated fat",
+    label: tr("Saturated fat"),
     unit: "g",
     color: MICRO_COLORS.saturatedFat,
   },
-  transFat: { label: "Trans fat", unit: "g", color: MICRO_COLORS.transFat },
+  transFat: { label: tr("Trans fat"), unit: "g", color: MICRO_COLORS.transFat },
   cholesterol: {
-    label: "Cholesterol",
+    label: tr("Cholesterol"),
     unit: "mg",
     color: MICRO_COLORS.cholesterol,
   },
   sodium: {
-    label: "Sodium",
+    label: tr("Sodium"),
     unit: "mg",
     color: MICRO_COLORS.sodium,
     supplementCautionAt: 1000,
   },
   potassium: {
-    label: "Potassium",
+    label: tr("Potassium"),
     unit: "mg",
     color: MICRO_COLORS.potassium,
   },
   calcium: {
-    label: "Calcium",
+    label: tr("Calcium"),
     unit: "mg",
     color: MICRO_COLORS.calcium,
     supplementCautionAt: 1000,
   },
   iron: {
-    label: "Iron",
+    label: tr("Iron"),
     unit: "mg",
     color: MICRO_COLORS.iron,
     supplementCautionAt: 18,
   },
   magnesium: {
-    label: "Magnesium",
+    label: tr("Magnesium"),
     unit: "mg",
     color: MICRO_COLORS.magnesium,
     supplementCautionAt: 350,
   },
   phosphorus: {
-    label: "Phosphorus",
+    label: tr("Phosphorus"),
     unit: "mg",
     color: MICRO_COLORS.phosphorus,
   },
   zinc: {
-    label: "Zinc",
+    label: tr("Zinc"),
     unit: "mg",
     color: MICRO_COLORS.zinc,
     supplementCautionAt: 25,
   },
-  vitaminC: { label: "Vitamin C", unit: "mg", color: MICRO_COLORS.vitaminC },
+  vitaminC: {
+    label: tr("Vitamin C"),
+    unit: "mg",
+    color: MICRO_COLORS.vitaminC,
+  },
   vitaminA: {
-    label: "Vitamin A",
+    label: tr("Vitamin A"),
     unit: "mcg",
     color: MICRO_COLORS.vitaminA,
     supplementCautionAt: 1500,
   },
   vitaminD: {
-    label: "Vitamin D",
+    label: tr("Vitamin D"),
     unit: "mcg",
     color: MICRO_COLORS.vitaminD,
     supplementCautionAt: 75,
   },
   vitaminB12: {
-    label: "Vitamin B12",
+    label: tr("Vitamin B12"),
     unit: "mcg",
     color: MICRO_COLORS.vitaminB12,
   },
   caffeine: {
-    label: "Caffeine",
+    label: tr("Caffeine"),
     unit: "mg",
     color: MICRO_COLORS.caffeine,
     supplementCautionAt: 300,
   },
-  alcohol: { label: "Alcohol", unit: "g", color: MICRO_COLORS.alcohol },
+  alcohol: { label: tr("Alcohol"), unit: "g", color: MICRO_COLORS.alcohol },
   creatine: {
-    label: "Creatine",
+    label: tr("Creatine"),
     unit: "g",
     color: SUPPLEMENT_TONES.creatine.color,
   },
-  omega3: { label: "Omega-3", unit: "mg", color: ONE_REP_PALETTE.plate },
-  epa: { label: "EPA", unit: "mg", color: ONE_REP_PALETTE.patina },
-  dha: { label: "DHA", unit: "mg", color: ONE_REP_PALETTE.violet },
+  omega3: { label: tr("Omega-3"), unit: "mg", color: ONE_REP_PALETTE.plate },
+  epa: { label: tr("EPA"), unit: "mg", color: ONE_REP_PALETTE.patina },
+  dha: { label: tr("DHA"), unit: "mg", color: ONE_REP_PALETTE.violet },
 }
 
 const OPEN_FOOD_FACTS_TO_SUPPLEMENT: Partial<
@@ -574,7 +583,10 @@ export function formatSupplementAmount(amount: number, unit: SupplementUnit) {
     : safe.toFixed(1).replace(/\.0$/, "")
 
   if (unit === "serving") {
-    return `${rounded} serving${safe === 1 ? "" : "s"}`
+    return tr("{{value0}} serving{{value1}}", {
+      value0: rounded,
+      value1: safe === 1 ? "" : "s",
+    })
   }
 
   return `${rounded} ${unit}`
@@ -582,7 +594,8 @@ export function formatSupplementAmount(amount: number, unit: SupplementUnit) {
 
 export function formatNutrientValue(value: number) {
   if (!Number.isFinite(value)) return "0"
-  if (Math.abs(value) >= 100) return Math.round(value).toLocaleString("en-US")
+  if (Math.abs(value) >= 100)
+    return Math.round(value).toLocaleString(uiLocale())
   if (Math.abs(value) >= 10) return value.toFixed(1).replace(/\.0$/, "")
   if (Math.abs(value) >= 1) return value.toFixed(1).replace(/\.0$/, "")
   return value.toFixed(2).replace(/0$/, "")
@@ -877,7 +890,7 @@ export function supplementDraftFromFoodDetail(
   const servingGrams = detail.servingGrams ?? 100
   const text = `${detail.name} ${detail.brand ?? ""} ${detail.servingLabel}`
   const category = inferCategoryFromText(text)
-  const servingLabel = detail.servingLabel || detail.serving || "1 serving"
+  const servingLabel = detail.servingLabel || detail.serving || tr("1 serving")
   const nutrients: SupplementNutrients = {}
 
   for (const key of SUPPLEMENT_NUTRIENT_KEYS) {

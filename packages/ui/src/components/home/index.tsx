@@ -1,3 +1,4 @@
+import { Message, tr, uiLocale } from "@repo/ui/i18n"
 import {
   useEffect,
   useRef,
@@ -87,7 +88,7 @@ function pct(current: number, target: number) {
 }
 
 function fmt(n: number) {
-  return new Intl.NumberFormat("en-US").format(Math.round(n))
+  return new Intl.NumberFormat(uiLocale()).format(Math.round(n))
 }
 
 export function TodayHeader({
@@ -185,7 +186,11 @@ export function DashboardHero({
         <header className="dashboard-hero-header flex items-start justify-between gap-3 px-[var(--app-page-x)] md:px-8">
           <div className="min-w-0">
             <h1 className="app-title max-w-[18ch] md:max-w-none">
-              {title ?? `${salutation}, ${firstName}.`}
+              {title ??
+                tr("{{value0}}, {{value1}}.", {
+                  value0: salutation,
+                  value1: firstName,
+                })}
             </h1>
             <p className="mt-1 truncate text-[13px] text-muted-foreground">
               {subtitle ?? dateLabel}
@@ -225,7 +230,7 @@ export function DashboardQuickActions({
 }) {
   return (
     <nav
-      aria-label="Quick actions"
+      aria-label={tr("Quick actions")}
       className="mx-[var(--app-page-x)] mt-4 flex gap-2 overflow-x-auto pb-1 md:mx-8"
     >
       {actions.map((action) => (
@@ -261,7 +266,7 @@ export function NextStepCard({
   return (
     <section className="mx-[var(--app-page-x)] mt-4 rounded-2xl bg-foreground p-4 text-background md:mx-8">
       <p className="text-[11px] font-bold tracking-[0.12em] uppercase opacity-60">
-        Next step
+        {tr("Next step")}
       </p>
       <h2 className="mt-1 text-[20px] font-bold tracking-tight">{title}</h2>
       <p className="mt-1 text-[13px] leading-relaxed opacity-70">{detail}</p>
@@ -289,7 +294,10 @@ export function TodayChecklist({ items }: { items: TodayChecklistItem[] }) {
   const remaining = items.filter((item) => !item.completed)
   return (
     <section className="mx-[var(--app-page-x)] mt-5 md:mx-8">
-      <SectionHeader title="Still to do today" className="px-0 pt-0 pb-2" />
+      <SectionHeader
+        title={tr("Still to do today")}
+        className="px-0 pt-0 pb-2"
+      />
       <GroupedList className="mt-2">
         {(remaining.length > 0 ? remaining : items.slice(0, 1)).map(
           (item, index) => (
@@ -313,11 +321,11 @@ export function TodayChecklist({ items }: { items: TodayChecklistItem[] }) {
               />
               <span className="min-w-0 flex-1">
                 <span className="native-row-title block">
-                  {item.completed ? "You're all caught up" : item.label}
+                  {item.completed ? tr("You're all caught up") : item.label}
                 </span>
                 <span className="native-row-detail block">
                   {item.completed
-                    ? "Nothing important is waiting"
+                    ? tr("Nothing important is waiting")
                     : item.detail}
                 </span>
               </span>
@@ -345,16 +353,24 @@ export function WorkoutWeekStrip({
     <button
       type="button"
       onClick={onClick}
-      aria-label={`Training this week: ${workoutCount} completed workout${workoutCount === 1 ? "" : "s"}. Open training history.`}
+      aria-label={tr(
+        "Training this week: {{value0}} completed workout{{value1}}. Open training history.",
+        { value0: workoutCount, value1: workoutCount === 1 ? "" : "s" }
+      )}
       className="mx-[var(--app-page-x)] mt-5 block w-[calc(100%-2*var(--app-page-x))] border-y border-border py-4 text-left active:bg-muted md:mx-8 md:w-[calc(100%-4rem)]"
     >
       <span className="flex items-center justify-between gap-4">
         <span>
-          <span className="native-section-title block">Training this week</span>
+          <span className="native-section-title block">
+            {tr("Training this week")}
+          </span>
           <span className="native-row-detail mt-0.5 block">
             {workoutCount > 0
-              ? `${workoutCount} completed session${workoutCount === 1 ? "" : "s"}`
-              : "No sessions completed yet"}
+              ? tr("{{value0}} completed session{{value1}}", {
+                  value0: workoutCount,
+                  value1: workoutCount === 1 ? "" : "s",
+                })
+              : tr("No sessions completed yet")}
           </span>
         </span>
         <ArrowRight size={19} className="shrink-0 text-muted-foreground" />
@@ -416,7 +432,7 @@ export function CoachGoalCards({
 
   return (
     <section className="mx-[var(--app-page-x)] mt-5 md:mx-8 md:mt-6">
-      <p className="native-section-title mb-2">Coach goals</p>
+      <p className="native-section-title mb-2">{tr("Coach goals")}</p>
       <div className={cn("grid gap-3", goals.length > 1 && "md:grid-cols-2")}>
         {goals.map((goal) => {
           const completed = goal.tasks.filter((task) => task.completed).length
@@ -430,10 +446,13 @@ export function CoachGoalCards({
           )
           const timing =
             goal.status === "completed"
-              ? "Complete"
+              ? tr("Complete")
               : remaining === 0
-                ? "Ends today"
-                : `${remaining} day${remaining === 1 ? "" : "s"} left`
+                ? tr("Ends today")
+                : tr("{{value0}} day{{value1}} left", {
+                    value0: remaining,
+                    value1: remaining === 1 ? "" : "s",
+                  })
 
           return (
             <article
@@ -452,7 +471,9 @@ export function CoachGoalCards({
                     <button
                       type="button"
                       onClick={() => onRequestUnpin(goal._id)}
-                      aria-label={`Unpin ${goal.title} from Today`}
+                      aria-label={tr("Unpin {{value0}} from Today", {
+                        value0: goal.title,
+                      })}
                       className="motion-tactile flex size-10 shrink-0 items-center justify-center rounded-full border border-white/12 bg-white/[0.06] text-white/65 active:bg-white/12"
                     >
                       <PushPin size={15} weight="fill" />
@@ -466,7 +487,13 @@ export function CoachGoalCards({
                   <div className="mt-4 flex items-end justify-between gap-3">
                     <div>
                       <p className="text-[12px] font-semibold text-white/88">
-                        {completed} of {goal.tasks.length} done
+                        <Message
+                          text={"{{value0}} of {{value1}} done"}
+                          values={{
+                            value0: completed,
+                            value1: goal.tasks.length,
+                          }}
+                        />
                       </p>
                       <p className="mt-0.5 text-[11px] text-white/45">
                         {timing}
@@ -613,7 +640,7 @@ function CalorieRing({
             onPhoto ? "text-white/75" : "text-muted-foreground"
           )}
         >
-          {energyUnit} {overTarget ? "over" : "left"}
+          {energyUnit} {overTarget ? tr("over") : tr("left")}
         </span>
       </div>
     </div>
@@ -697,7 +724,7 @@ export function DailyLedgerHero({
                       >
                         {" "}
                         / {fmt(macro.target)}
-                        {macro.unit ?? "g"}
+                        {macro.unit ?? tr("g")}
                       </span>
                     </span>
                   </div>
@@ -731,8 +758,13 @@ export function DailyLedgerHero({
                 : "border-border/50 text-muted-foreground"
             )}
           >
-            Includes {fmt(energyDisplay(supplementCalories, energyUnit))}{" "}
-            {energyUnit} from supplements
+            <Message
+              text={"Includes {{value0}} {{value1}} from supplements"}
+              values={{
+                value0: fmt(energyDisplay(supplementCalories, energyUnit)),
+                value1: energyUnit,
+              }}
+            />
           </p>
         )}
       </section>
@@ -821,9 +853,12 @@ export function WeeklyPlanCard({
                   {day.day}
                 </span>
                 <span className="native-row-detail min-w-0 flex-1 truncate">
-                  {day.workoutLabel ?? "Rest"}
+                  {day.workoutLabel ?? tr("Rest")}
                   {mealCount > 0 &&
-                    ` · ${mealCount} meal${mealCount === 1 ? "" : "s"}`}
+                    tr(" · {{value0}} meal{{value1}}", {
+                      value0: mealCount,
+                      value1: mealCount === 1 ? "" : "s",
+                    })}
                   {totals &&
                     ` · ${energyDisplay(totals.calories, energyUnit)} ${energyUnit}`}
                 </span>
@@ -851,7 +886,7 @@ export function WeeklyPlanCard({
                   >
                     <Barbell size={15} className="shrink-0" />
                     <span className="native-row-title truncate">
-                      {day.workoutLabel ?? "Training"}
+                      {day.workoutLabel ?? tr("Training")}
                     </span>
                     <ArrowRight
                       size={14}
@@ -860,7 +895,7 @@ export function WeeklyPlanCard({
                   </button>
                 ) : (
                   <span className="native-row-title min-w-0 flex-1 truncate">
-                    {day.workoutLabel ?? "Rest day"}
+                    {day.workoutLabel ?? tr("Rest day")}
                   </span>
                 )}
               </div>
@@ -891,14 +926,19 @@ export function WeeklyPlanCard({
                           {energyDisplay(meal.calories, energyUnit)}{" "}
                           {energyUnit}
                           {meal.protein != null &&
-                            ` · ${meal.protein} g protein`}
+                            tr(" · {{value0}} g protein", {
+                              value0: meal.protein,
+                            })}
                         </span>
                       )}
                     </li>
                   ))}
                   {day.meals.length > 3 && (
                     <li className="native-row-detail">
-                      +{day.meals.length - 3} more
+                      <Message
+                        text={"+{{value0}} more"}
+                        values={{ value0: day.meals.length - 3 }}
+                      />
                     </li>
                   )}
                 </ul>
@@ -907,8 +947,9 @@ export function WeeklyPlanCard({
               {totals && (
                 <p className="native-row-detail mt-2 ml-12 tabular-nums">
                   {energyDisplay(totals.calories, energyUnit)} {energyUnit}
-                  {totals.protein > 0 && ` · ${totals.protein} g protein`}
-                  {totals.partial && " so far"}
+                  {totals.protein > 0 &&
+                    tr(" · {{value0}} g protein", { value0: totals.protein })}
+                  {totals.partial && tr(" so far")}
                 </p>
               )}
 
@@ -928,7 +969,7 @@ export function WeeklyPlanCard({
           onClick={onAskCoach}
           className="min-h-11 text-[13px] font-semibold"
         >
-          Adjust with Coach
+          {tr("Adjust with Coach")}
         </button>
         {assumptions.length > 0 && (
           <button
@@ -937,7 +978,7 @@ export function WeeklyPlanCard({
             aria-expanded={assumptionsOpen}
             className="ml-auto min-h-11 text-[13px] text-muted-foreground"
           >
-            {assumptionsOpen ? "Hide notes" : "Why this plan"}
+            {assumptionsOpen ? tr("Hide notes") : tr("Why this plan")}
           </button>
         )}
       </div>
@@ -996,7 +1037,7 @@ export function TrainingWeekCard({
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="app-section-title">
-            {showConsistency ? "Consistency" : "Training this week"}
+            {showConsistency ? tr("Consistency") : tr("Training this week")}
           </p>
           {showConsistency && consistency ? (
             <p className="mt-1 text-[15px] tabular-nums">
@@ -1004,7 +1045,10 @@ export function TrainingWeekCard({
                 {consistency.fullCount}
               </span>{" "}
               <span className="font-medium text-muted-foreground">
-                of last {consistency.windowSize} days
+                <Message
+                  text={"of last {{value0}} days"}
+                  values={{ value0: consistency.windowSize }}
+                />
               </span>
             </p>
           ) : (
@@ -1013,9 +1057,19 @@ export function TrainingWeekCard({
                 {sessions}
               </span>{" "}
               <span className="font-medium text-muted-foreground">
-                session{sessions === 1 ? "" : "s"} · {sets} set
-                {sets === 1 ? "" : "s"}
-                {records > 0 && ` · ${records} PR${records === 1 ? "" : "s"}`}
+                <Message
+                  text={
+                    "session{{value0}} · {{value1}} set{{value2}}{{value3}}"
+                  }
+                  values={{
+                    value0: sessions === 1 ? "" : "s",
+                    value1: sets,
+                    value2: sets === 1 ? "" : "s",
+                    value3:
+                      records > 0 &&
+                      ` · ${records} PR${records === 1 ? "" : "s"}`,
+                  }}
+                />
               </span>
             </p>
           )}
@@ -1028,8 +1082,8 @@ export function TrainingWeekCard({
               aria-expanded={showConsistency}
               aria-label={
                 showConsistency
-                  ? "Show this week only"
-                  : "Show the last 28 days"
+                  ? tr("Show this week only")
+                  : tr("Show the last 28 days")
               }
               className="native-toolbar-button px-0 text-muted-foreground"
             >
@@ -1044,7 +1098,7 @@ export function TrainingWeekCard({
             <button
               type="button"
               onClick={onOpen}
-              aria-label="Open training history"
+              aria-label={tr("Open training history")}
               className="native-toolbar-button px-0 text-muted-foreground"
             >
               <ArrowRight size={18} />
@@ -1138,12 +1192,24 @@ export function TrainingWeekCard({
             </div>
             <div className="mt-4 flex items-center gap-4">
               <span className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
-                <span className="h-2.5 w-2.5 rounded-[3px] bg-foreground/55" />
-                Full day
+                <Message
+                  text={"{{value0}}Full day"}
+                  values={{
+                    value0: (
+                      <span className="h-2.5 w-2.5 rounded-[3px] bg-foreground/55" />
+                    ),
+                  }}
+                />
               </span>
               <span className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
-                <span className="h-2.5 w-2.5 rounded-[3px] bg-foreground/25" />
-                Partial
+                <Message
+                  text={"{{value0}}Partial"}
+                  values={{
+                    value0: (
+                      <span className="h-2.5 w-2.5 rounded-[3px] bg-foreground/25" />
+                    ),
+                  }}
+                />
               </span>
             </div>
           </div>
@@ -1169,7 +1235,7 @@ function ledgerTime(value?: string) {
   if (!value) return "—"
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return "—"
-  return date.toLocaleTimeString("en-US", {
+  return date.toLocaleTimeString(uiLocale(), {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
@@ -1219,7 +1285,7 @@ export function TodayTimeline({
   }, [events])
   return (
     <section className="mx-[var(--app-page-x)] mt-5 md:mx-8 md:mt-6 md:max-w-5xl short-phone:mt-4">
-      <SectionHeader title="Recent" className="px-0 pt-0 pb-2" />
+      <SectionHeader title={tr("Recent")} className="px-0 pt-0 pb-2" />
 
       <GroupedList className="mt-3">
         {events.length > 0 ? (
@@ -1248,8 +1314,8 @@ export function TodayTimeline({
                       )}
                       aria-label={
                         event.kind === "food"
-                          ? "Open food selector"
-                          : "Add 250 ml water"
+                          ? tr("Open food selector")
+                          : tr("Add 250 ml water")
                       }
                     >
                       <TimelineIcon kind={event.kind} />
@@ -1283,7 +1349,9 @@ export function TodayTimeline({
                       type="button"
                       onClick={() => onEditEvent(event)}
                       className="native-toolbar-button h-10 px-2 text-muted-foreground"
-                      aria-label={`Edit ${event.title}`}
+                      aria-label={tr("Edit {{value0}}", {
+                        value0: event.title,
+                      })}
                     >
                       <PencilSimple size={15} />
                     </button>
@@ -1310,7 +1378,10 @@ export function TodayTimeline({
             return (
               <SlideToDeleteRow
                 key={event.id}
-                deleteLabel={event.deleteLabel ?? `Delete ${event.title}`}
+                deleteLabel={
+                  event.deleteLabel ??
+                  tr("Delete {{value0}}", { value0: event.title })
+                }
                 onDelete={() => onDeleteEvent(event)}
                 className={cn(
                   "motion-item",
@@ -1326,7 +1397,7 @@ export function TodayTimeline({
           <div className="flex min-h-14 items-center justify-between gap-3 px-4 py-2">
             <span className="flex min-w-0 items-center gap-3">
               <Fire size={18} className="shrink-0 text-muted-foreground" />
-              <p className="native-row-title">Nothing logged yet</p>
+              <p className="native-row-title">{tr("Nothing logged yet")}</p>
             </span>
             {onLogWater && (
               <button
@@ -1334,12 +1405,18 @@ export function TodayTimeline({
                 onClick={onLogWater}
                 className="group flex min-h-11 shrink-0 items-center gap-1.5 text-[12px] font-semibold text-muted-foreground transition-colors active:text-foreground"
               >
-                <PintGlass
-                  size={15}
-                  weight="bold"
-                  className="text-[var(--accent-water)] transition-transform group-active:scale-90"
+                <Message
+                  text={"{{value0}}Add 250 ml"}
+                  values={{
+                    value0: (
+                      <PintGlass
+                        size={15}
+                        weight="bold"
+                        className="text-[var(--accent-water)] transition-transform group-active:scale-90"
+                      />
+                    ),
+                  }}
                 />
-                Add 250 ml
               </button>
             )}
           </div>
@@ -1351,7 +1428,7 @@ export function TodayTimeline({
           onClick={() => setShowAll((value) => !value)}
           className="mt-2 min-h-11 w-full text-center text-[13px] font-semibold text-muted-foreground"
         >
-          {showAll ? "Show recent only" : "View all activity"}
+          {showAll ? tr("Show recent only") : tr("View all activity")}
         </button>
       )}
     </section>

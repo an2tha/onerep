@@ -1,3 +1,4 @@
+import { tr, uiLocale } from "@repo/ui/i18n"
 import {
   FOOD_MICRONUTRIENT_KEYS,
   mealLabel,
@@ -15,10 +16,10 @@ export const NUTRITION_REPORT_RANGES: {
   label: string
   days: number
 }[] = [
-  { id: "7d", label: "7 days", days: 7 },
-  { id: "14d", label: "14 days", days: 14 },
-  { id: "30d", label: "30 days", days: 30 },
-  { id: "90d", label: "90 days", days: 90 },
+  { id: "7d", label: tr("7 days"), days: 7 },
+  { id: "14d", label: tr("14 days"), days: 14 },
+  { id: "30d", label: tr("30 days"), days: 30 },
+  { id: "90d", label: tr("90 days"), days: 90 },
 ]
 
 export type NutritionReportGoals = {
@@ -358,7 +359,7 @@ function topFoods(entries: FoodLogEntry[]) {
 export function formatReportDate(dateKey: string) {
   const parsed = new Date(`${dateKey}T00:00:00`)
   if (Number.isNaN(parsed.getTime())) return dateKey
-  return parsed.toLocaleDateString(undefined, {
+  return parsed.toLocaleDateString(uiLocale(), {
     weekday: "short",
     month: "short",
     day: "numeric",

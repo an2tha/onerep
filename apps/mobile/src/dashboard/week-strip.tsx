@@ -1,3 +1,4 @@
+import { Message, tr, uiLocale } from "@repo/ui/i18n"
 /**
  * The week bar under the day wheel — interactive, not a chart.
  *
@@ -65,8 +66,8 @@ export function MobileDateSelector({
   const inputRef = useRef<HTMLInputElement>(null)
   const label =
     selectedKey === todayKey
-      ? "Today"
-      : new Date(`${selectedKey}T12:00:00`).toLocaleDateString("en-US", {
+      ? tr("Today")
+      : new Date(`${selectedKey}T12:00:00`).toLocaleDateString(uiLocale(), {
           weekday: "short",
           month: "short",
           day: "numeric",
@@ -93,10 +94,12 @@ export function MobileDateSelector({
     <span className="relative flex size-11 items-center justify-center">
       <button
         type="button"
-        aria-label={`Choose dashboard date. ${label} selected`}
-        title={`Choose date — ${label}`}
+        aria-label={tr("Choose dashboard date. {{value0}} selected", {
+          value0: label,
+        })}
+        title={tr("Choose date — {{value0}}", { value0: label })}
         onClick={openPicker}
-        className="motion-tactile flex size-11 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:bg-muted/70"
+        className="motion-tactile flex size-11 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none active:bg-muted/70"
       >
         <CalendarBlank size={22} weight="regular" aria-hidden="true" />
       </button>
@@ -106,7 +109,7 @@ export function MobileDateSelector({
         value={selectedKey}
         max={todayKey}
         tabIndex={-1}
-        aria-label="Dashboard date"
+        aria-label={tr("Dashboard date")}
         onChange={(event) => {
           const next = event.currentTarget.value
           if (next && next <= todayKey) onSelectDay(next)
@@ -152,10 +155,7 @@ export function WeekStrip({
     }
     slideAnimation.current?.cancel()
     slideAnimation.current = node.animate(
-      [
-        { transform: fromTransform },
-        { transform: "translate3d(0, 0, 0)" },
-      ],
+      [{ transform: fromTransform }, { transform: "translate3d(0, 0, 0)" }],
       {
         duration: 1200,
         easing: "cubic-bezier(0.16, 1, 0.3, 1)",
@@ -180,7 +180,7 @@ export function WeekStrip({
       const key = toDateKey(date)
       return {
         dateKey: key,
-        label: date.toLocaleDateString("en-US", { weekday: "narrow" }),
+        label: date.toLocaleDateString(uiLocale(), { weekday: "narrow" }),
         workout: workoutDates.has(key),
         food: foodDates.has(key),
         isToday: key === todayKey,
@@ -190,12 +190,12 @@ export function WeekStrip({
   }, [todayKey, weeksAgo, workoutDates, foodDates])
 
   const weekLabel = useMemo(() => {
-    if (weeksAgo === 0) return "This week"
+    if (weeksAgo === 0) return tr("This week")
     const first = days[0]
     const last = days[6]
     const sameMonth = first.dateKey.slice(0, 7) === last.dateKey.slice(0, 7)
     const fmt = (key: string, withMonth: boolean) =>
-      new Date(`${key}T12:00:00`).toLocaleDateString("en-US", {
+      new Date(`${key}T12:00:00`).toLocaleDateString(uiLocale(), {
         month: withMonth ? "short" : undefined,
         day: "numeric",
       })
@@ -210,7 +210,7 @@ export function WeekStrip({
       <div className="flex items-center gap-2">
         <button
           type="button"
-          aria-label="Previous week"
+          aria-label={tr("Previous week")}
           disabled={weeksAgo >= MAX_WEEKS_BACK}
           onClick={() => setWeeksAgo((value) => value + 1)}
           className="motion-tactile flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30"
@@ -225,7 +225,7 @@ export function WeekStrip({
         </span>
         <button
           type="button"
-          aria-label="Next week"
+          aria-label={tr("Next week")}
           disabled={weeksAgo === 0}
           onClick={() => setWeeksAgo((value) => Math.max(0, value - 1))}
           className="motion-tactile flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30"
@@ -245,9 +245,9 @@ export function WeekStrip({
               type="button"
               disabled={day.isFuture}
               aria-current={selected ? "date" : undefined}
-              aria-label={`${
-                day.isToday ? "Today" : day.dateKey
-              } — open this day`}
+              aria-label={tr("{{value0}} — open this day", {
+                value0: day.isToday ? "Today" : day.dateKey,
+              })}
               onClick={() => onSelectDay(day.dateKey)}
               className={`flex min-h-11 min-w-0 flex-1 flex-col items-center gap-1.5 ${
                 day.isFuture ? "opacity-35" : ""
@@ -278,13 +278,13 @@ export function WeekStrip({
                   on={day.workout}
                   inverted={selected}
                   icon={<Barbell size={9} weight="bold" />}
-                  label="workout"
+                  label={tr("workout")}
                 />
                 <DayDot
                   on={day.food}
                   inverted={selected}
                   icon={<ForkKnife size={9} weight="bold" />}
-                  label="food logged"
+                  label={tr("food logged")}
                 />
               </span>
             </button>
@@ -304,8 +304,10 @@ export function WeekStrip({
             onClick={() => onSelectDay(todayKey)}
             className="motion-tactile motion-content-in flex items-center gap-1 rounded-full border border-border bg-card px-2.5 py-1 text-[11px] font-semibold text-muted-foreground transition-colors active:text-foreground"
           >
-            Back to today
-            <CaretRight size={10} weight="bold" />
+            <Message
+              text={"Back to today{{value0}}"}
+              values={{ value0: <CaretRight size={10} weight="bold" /> }}
+            />
           </button>
         )}
       </div>

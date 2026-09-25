@@ -1,3 +1,4 @@
+import { Message, tr } from "@repo/ui/i18n"
 import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { hapticSelection } from "@/lib/haptics"
 
@@ -85,11 +86,19 @@ export function ProgressRings({
           className="relative shrink-0"
           style={{ width: outer, height: outer }}
           role="img"
-          aria-label={`${headline} ${detail}. ${tracks
-            .map(
-              (track) => `${track.name}: ${track.days} of ${track.total} days`
-            )
-            .join(", ")}.`}
+          aria-label={tr("{{value0}} {{value1}}. {{value2}}.", {
+            value0: headline,
+            value1: detail,
+            value2: tracks
+              .map((track) =>
+                tr("{{value0}}: {{value1}} of {{value2}} days", {
+                  value0: track.name,
+                  value1: track.days,
+                  value2: track.total,
+                })
+              )
+              .join(", "),
+          })}
         >
           {/* One pane, in the hole at the middle, rather than one per ring:
             the field carries through the centre and the rings sit on it. */}
@@ -190,7 +199,10 @@ export function ProgressRings({
                 <span className="text-[13px] font-semibold">{track.name}</span>
               </span>
               <span className="text-[13px] text-muted-foreground tabular-nums">
-                {track.days} of {track.total} days
+                <Message
+                  text={"{{value0}} of {{value1}} days"}
+                  values={{ value0: track.days, value1: track.total }}
+                />
               </span>
             </button>
           ))}

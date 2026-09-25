@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 import type {
   ChapterProgressRecord,
   TourChapter,
@@ -121,10 +122,10 @@ export function walkthroughStatusLabel(
   ctx: TourContext
 ): string {
   const stepCount = resolveChapterSteps(chapter, ctx).length
-  if (stepCount === 0) return "Not available"
-  if (!record) return "Not started"
-  if (record.status === "completed") return "Completed"
-  if (record.status === "skipped") return "Skipped"
+  if (stepCount === 0) return tr("Not available")
+  if (!record) return tr("Not started")
+  if (record.status === "completed") return tr("Completed")
+  if (record.status === "skipped") return tr("Skipped")
 
   const shown = Math.min(record.stepIndex + 1, stepCount)
   return `${shown} of ${stepCount}`

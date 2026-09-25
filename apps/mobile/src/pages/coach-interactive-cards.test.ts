@@ -1,5 +1,5 @@
+import { readLocalizedSource as readFileSync } from "../../tests/helpers/localized-source"
 import { describe, expect, test } from "bun:test"
-import { readFileSync } from "node:fs"
 
 const coachSource = [
   readFileSync(new URL("./Coach.tsx", import.meta.url), "utf8"),
@@ -40,8 +40,6 @@ describe("Coach generative interactive cards", () => {
     expect(generatedPrompts).toContain(
       "For quick meal logging, prefer one MealLog component"
     )
-    expect(generatedPrompts).toContain(
-      "Generate interfaces with OpenUI Lang"
-    )
+    expect(generatedPrompts).toContain("Generate interfaces with OpenUI Lang")
   })
 })

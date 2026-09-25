@@ -1,3 +1,4 @@
+import { Message, tr, uiLocale } from "@repo/ui/i18n"
 import type * as React from "react"
 import { useMemo, useState } from "react"
 import {
@@ -31,15 +32,15 @@ function chipLabels(dateKey: string) {
   // Parsed as local noon so a UTC offset can't roll the weekday over a day.
   const at = new Date(`${dateKey}T12:00:00`)
   return {
-    weekday: at.toLocaleDateString(undefined, { weekday: "short" }),
+    weekday: at.toLocaleDateString(uiLocale(), { weekday: "short" }),
     day: String(at.getDate()),
   }
 }
 
 export function fullDateLabel(dateKey: string, todayKey: string) {
-  if (dateKey === todayKey) return "Today"
-  if (dateKey === offsetDateKey(todayKey, -1)) return "Yesterday"
-  return new Date(`${dateKey}T12:00:00`).toLocaleDateString(undefined, {
+  if (dateKey === todayKey) return tr("Today")
+  if (dateKey === offsetDateKey(todayKey, -1)) return tr("Yesterday")
+  return new Date(`${dateKey}T12:00:00`).toLocaleDateString(uiLocale(), {
     weekday: "long",
     month: "long",
     day: "numeric",
@@ -138,7 +139,7 @@ export function LogPastWorkoutSheet({
   return (
     <MobileSheet
       onClose={onClose}
-      ariaLabel="Log a past workout"
+      ariaLabel={tr("Log a past workout")}
       overlayClassName="bg-black/50 backdrop-blur-[8px]"
       panelClassName="sheet-panel mx-auto w-full max-w-sm overflow-hidden rounded-t-[24px] bg-card shadow-[0_-12px_60px_rgba(0,0,0,0.22)]"
       panelStyle={{
@@ -151,7 +152,7 @@ export function LogPastWorkoutSheet({
           {step === "preset" && (
             <button
               type="button"
-              aria-label="Back"
+              aria-label={tr("Back")}
               onClick={() => {
                 hapticSelection()
                 setStep("choose")
@@ -162,11 +163,11 @@ export function LogPastWorkoutSheet({
             </button>
           )}
           <h2 className="min-w-0 flex-1 text-[20px] font-semibold tracking-tight">
-            {step === "choose" ? "Log a past workout" : "Pick a preset"}
+            {step === "choose" ? tr("Log a past workout") : tr("Pick a preset")}
           </h2>
           <button
             type="button"
-            aria-label="Close"
+            aria-label={tr("Close")}
             onClick={onClose}
             className="-mr-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted/60 text-muted-foreground transition-colors active:bg-muted"
           >
@@ -199,10 +200,10 @@ export function LogPastWorkoutSheet({
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-[14px] font-semibold">
-                    Describe it
+                    {tr("Describe it")}
                   </span>
                   <span className="mt-0.5 block text-[13px] leading-snug text-muted-foreground">
-                    Say what you did and your coach fills in the sets.
+                    {tr("Say what you did and your coach fills in the sets.")}
                   </span>
                 </span>
                 <CaretRight
@@ -225,12 +226,12 @@ export function LogPastWorkoutSheet({
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-[14px] font-semibold">
-                    Use a preset
+                    {tr("Use a preset")}
                   </span>
                   <span className="mt-0.5 block text-[13px] leading-snug text-muted-foreground">
                     {presets.length === 0
-                      ? "You haven't saved a preset yet."
-                      : "Start from a saved plan and fill in the numbers."}
+                      ? tr("You haven't saved a preset yet.")
+                      : tr("Start from a saved plan and fill in the numbers.")}
                   </span>
                 </span>
                 <CaretRight
@@ -264,7 +265,13 @@ export function LogPastWorkoutSheet({
                     {preset.name}
                   </span>
                   <span className="block text-[13px] text-muted-foreground">
-                    {preset.steps.length} exercises · {preset.duration}
+                    <Message
+                      text={"{{value0}} exercises · {{value1}}"}
+                      values={{
+                        value0: preset.steps.length,
+                        value1: preset.duration,
+                      }}
+                    />
                   </span>
                 </span>
               </button>

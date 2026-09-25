@@ -1,3 +1,4 @@
+import { Message, choice, tr, translateError } from "@repo/ui/i18n"
 import { App as CapacitorApp } from "@capacitor/app"
 import {
   hasNativeEndurance,
@@ -125,21 +126,21 @@ const MAX_ROUTE_POINTS = 4_000
 const MAX_HEART_RATE_SAMPLES = 900
 
 const SPORT_META = {
-  hike: { label: "Hike", metric: "Avg pace" },
-  walk: { label: "Walk", metric: "Avg pace" },
-  trail_run: { label: "Trail run", metric: "Avg pace" },
-  row: { label: "Row", metric: "Avg pace" },
+  hike: { label: tr("Hike"), metric: tr("Avg pace") },
+  walk: { label: tr("Walk"), metric: tr("Avg pace") },
+  trail_run: { label: tr("Trail run"), metric: tr("Avg pace") },
+  row: { label: tr("Row"), metric: tr("Avg pace") },
   run: {
-    label: "Run",
-    metric: "Avg pace",
+    label: tr("Run"),
+    metric: tr("Avg pace"),
   },
   ride: {
-    label: "Ride",
-    metric: "Avg speed",
+    label: tr("Ride"),
+    metric: tr("Avg speed"),
   },
   swim: {
-    label: "Swim",
-    metric: "Avg pace",
+    label: tr("Swim"),
+    metric: tr("Avg pace"),
   },
 } as const
 
@@ -242,7 +243,8 @@ function formatSpeed(
 
 function defaultTitle(sport: Sport) {
   const hour = new Date().getHours()
-  const time = hour < 12 ? "Morning" : hour < 18 ? "Afternoon" : "Evening"
+  const time =
+    hour < 12 ? tr("Morning") : hour < 18 ? tr("Afternoon") : tr("Evening")
   return `${time} ${SPORT_META[sport].label.toLowerCase()}`
 }
 
@@ -379,9 +381,13 @@ export default function ActiveEnduranceWorkout() {
     const reportError = (error: unknown) => {
       if (!disposed)
         setNativeError(
-          error instanceof Error
-            ? error.message
-            : "Native route recording failed. Retry to recover your route."
+          translateError(
+            error instanceof Error
+              ? error.message
+              : tr(
+                  "Native route recording failed. Retry to recover your route."
+                )
+          )
         )
     }
     setNativeReady(false)
@@ -776,9 +782,11 @@ export default function ActiveEnduranceWorkout() {
         await nativeRef.current.control("pause")
       } catch (error) {
         setNativeError(
-          error instanceof Error
-            ? error.message
-            : "Couldn't pause native tracking."
+          translateError(
+            error instanceof Error
+              ? error.message
+              : tr("Couldn't pause native tracking.")
+          )
         )
         return false
       } finally {
@@ -809,9 +817,11 @@ export default function ActiveEnduranceWorkout() {
         await nativeRef.current.control("resume")
       } catch (error) {
         setNativeError(
-          error instanceof Error
-            ? error.message
-            : "Couldn't resume native tracking."
+          translateError(
+            error instanceof Error
+              ? error.message
+              : tr("Couldn't resume native tracking.")
+          )
         )
         return
       } finally {
@@ -849,7 +859,9 @@ export default function ActiveEnduranceWorkout() {
         },
       ],
     }))
-    toast.success(`Lap ${session.laps.length + 1} marked.`)
+    toast.success(
+      tr("Lap {{value0}} marked.", { value0: session.laps.length + 1 })
+    )
   }
 
   async function finish() {
@@ -922,10 +934,14 @@ export default function ActiveEnduranceWorkout() {
       endedRef.current = true
       safeLocalStorageRemove(ACTIVE_ENDURANCE_KEY)
       hapticSelection()
-      toast.success(`${meta.label} saved.`)
+      toast.success(tr("{{value0}} saved.", { value0: meta.label }))
       navigate("/endurance", { replace: true })
     } catch {
-      toast.error("Couldn't save this workout. Your recording is still safe.")
+      toast.error(
+        translateError(
+          tr("Couldn't save this workout. Your recording is still safe.")
+        )
+      )
       setSaving(false)
     }
   }
@@ -938,9 +954,11 @@ export default function ActiveEnduranceWorkout() {
         await resetNativeEndurance(nativeRecorder)
       } catch (error) {
         setNativeError(
-          error instanceof Error
-            ? error.message
-            : "Couldn't stop recording. Retry before discarding."
+          translateError(
+            error instanceof Error
+              ? error.message
+              : tr("Couldn't stop recording. Retry before discarding.")
+          )
         )
         return
       } finally {
@@ -972,17 +990,20 @@ export default function ActiveEnduranceWorkout() {
         ) : (
           <div className="flex h-full flex-col items-center justify-center px-8 text-center">
             <p className="text-xl font-bold">
-              Indoor {meta.label.toLowerCase()}
+              <Message
+                text={"Indoor {{value0}}"}
+                values={{ value0: meta.label.toLowerCase() }}
+              />
             </p>
             <p className="mt-2 text-sm text-muted-foreground">
-              Timing and laps are active. GPS is off.
+              {tr("Timing and laps are active. GPS is off.")}
             </p>
           </div>
         )}
         <button
           type="button"
           onClick={() => setLeaveOpen(true)}
-          aria-label="Leave active workout"
+          aria-label={tr("Leave active workout")}
           className="motion-tactile endurance-glass absolute top-[max(1rem,env(safe-area-inset-top))] left-4 flex size-11 items-center justify-center rounded-full text-foreground"
         >
           <ArrowLeft size={19} weight="bold" />
@@ -994,20 +1015,34 @@ export default function ActiveEnduranceWorkout() {
           <div className="mb-4 rounded-xl border border-border bg-background p-4 text-sm">
             {session.plannedTrail && (
               <p className="mb-2 font-semibold">
-                Following {session.plannedTrail.name} · purple dashed route
+                <Message
+                  text={"Following {{value0}} · purple dashed route"}
+                  values={{ value0: session.plannedTrail.name }}
+                />
               </p>
             )}
             {trailOffset != null && trailOffset > 50 && (
               <p role="status" className="mb-2 font-semibold">
-                About {Math.round(trailOffset)} m from the planned trail. Check
-                the map to rejoin it.
+                <Message
+                  text={
+                    "About {{value0}} m from the planned trail. Check the map to rejoin it."
+                  }
+                  values={{ value0: Math.round(trailOffset) }}
+                />
               </p>
             )}
 
             <p className="text-muted-foreground">
               {gpsAccuracy == null
-                ? "Waiting for a precise location…"
-                : `GPS accuracy ±${Math.round(gpsAccuracy)} m${gpsAccuracy > 50 ? " · Waiting for a better signal before recording points" : ""}`}
+                ? tr("Waiting for a precise location…")
+                : tr("GPS accuracy ±{{value0}} m{{value1}}", {
+                    value0: Math.round(gpsAccuracy),
+                    value1: choice(
+                      gpsAccuracy > 50
+                        ? " · Waiting for a better signal before recording points"
+                        : ""
+                    ),
+                  })}
             </p>
           </div>
         )}
@@ -1017,16 +1052,22 @@ export default function ActiveEnduranceWorkout() {
             <p className="font-semibold">
               {usesNativeGps
                 ? nativeReady
-                  ? "Native background GPS"
-                  : "Preparing native GPS…"
-                : "Foreground GPS"}
+                  ? tr("Native background GPS")
+                  : tr("Preparing native GPS…")
+                : tr("Foreground GPS")}
             </p>
             <p className="mt-1 text-muted-foreground">
               {usesNativeGps
-                ? "Your route is recorded on this device with the screen locked or another app open. Pause or finish to stop location tracking."
+                ? tr(
+                    "Your route is recorded on this device with the screen locked or another app open. Pause or finish to stop location tracking."
+                  )
                 : isNativeEnduranceShell()
-                  ? "Update the native app for background tracking. This version pauses outdoor workouts when the app is hidden."
-                  : "Keep this page visible while recording. Outdoor workouts pause automatically when you switch away."}
+                  ? tr(
+                      "Update the native app for background tracking. This version pauses outdoor workouts when the app is hidden."
+                    )
+                  : tr(
+                      "Keep this page visible while recording. Outdoor workouts pause automatically when you switch away."
+                    )}
             </p>
             {nativeError && (
               <p role="alert" className="mt-2">
@@ -1039,7 +1080,7 @@ export default function ActiveEnduranceWorkout() {
                 onClick={() => setGpsAttempt((attempt) => attempt + 1)}
                 className="mt-3 min-h-11 rounded-lg border border-border px-4 font-semibold"
               >
-                Retry native tracking
+                {tr("Retry native tracking")}
               </button>
             )}
           </div>
@@ -1049,8 +1090,9 @@ export default function ActiveEnduranceWorkout() {
             role="alert"
             className="mb-4 rounded-xl border border-border p-4 text-sm"
           >
-            Device backup is unavailable. Keep this screen open and finish the
-            workout to save it to your account.
+            {tr(
+              "Device backup is unavailable. Keep this screen open and finish the workout to save it to your account."
+            )}
           </p>
         )}
         <header className="flex items-center justify-between gap-4">
@@ -1060,7 +1102,10 @@ export default function ActiveEnduranceWorkout() {
             </h1>
             {session.laps.length > 0 && (
               <p className="mt-0.5 text-[11px] font-semibold text-muted-foreground">
-                Lap {session.laps.length + 1}
+                <Message
+                  text={"Lap {{value0}}"}
+                  values={{ value0: session.laps.length + 1 }}
+                />
               </p>
             )}
           </div>
@@ -1085,8 +1130,12 @@ export default function ActiveEnduranceWorkout() {
               />
               <p className="min-w-0 flex-1">
                 {gpsState === "denied"
-                  ? "Allow location access in your browser settings, then try again. Timing continues."
-                  : "GPS cannot get a position right now. Check your connection and try again."}
+                  ? tr(
+                      "Allow location access in your browser settings, then try again. Timing continues."
+                    )
+                  : tr(
+                      "GPS cannot get a position right now. Check your connection and try again."
+                    )}
               </p>
               <button
                 type="button"
@@ -1096,25 +1145,32 @@ export default function ActiveEnduranceWorkout() {
                 }}
                 className="motion-tactile shrink-0 rounded-[10px] border border-border px-3 py-2 font-bold text-foreground"
               >
-                Try again
+                {tr("Try again")}
               </button>
             </div>
           )}
 
-        <section className="mt-8 lg:mt-12" aria-label="Live workout statistics">
+        <section
+          className="mt-8 lg:mt-12"
+          aria-label={tr("Live workout statistics")}
+        >
           <p
             className="text-[clamp(4rem,8vw,6rem)] leading-[0.82] font-bold tracking-[-0.04em] tabular-nums"
-            aria-label={`Elapsed time ${formatElapsed(elapsed)}`}
+            aria-label={tr("Elapsed time {{value0}}", {
+              value0: formatElapsed(elapsed),
+            })}
           >
             {formatElapsed(elapsed)}
           </p>
           <p className="mt-3 text-[12px] font-semibold text-muted-foreground">
-            Moving time
+            {tr("Moving time")}
           </p>
 
           <div className="mt-8">
             <p className="text-[12px] font-semibold text-muted-foreground">
-              {session.environment === "indoor" ? "Current lap" : "Distance"}
+              {session.environment === "indoor"
+                ? tr("Current lap")
+                : tr("Distance")}
             </p>
             <p className="mt-1 text-[clamp(3rem,6vw,5rem)] leading-none font-bold tracking-[-0.04em] tabular-nums">
               {session.environment === "indoor"
@@ -1126,7 +1182,7 @@ export default function ActiveEnduranceWorkout() {
           {session.environment === "indoor" ? (
             <div className="mt-8 border-t border-border py-4">
               <p className="text-[12px] font-semibold text-muted-foreground">
-                Lap time
+                {tr("Lap time")}
               </p>
               <p className="mt-1 text-[20px] font-bold tracking-tight tabular-nums">
                 {formatElapsed(currentLapElapsed)}
@@ -1144,7 +1200,7 @@ export default function ActiveEnduranceWorkout() {
               </div>
               <div className="border-l border-border py-4 pl-5">
                 <p className="text-[12px] font-semibold text-muted-foreground">
-                  Elevation
+                  {tr("Elevation")}
                 </p>
                 <p className="mt-1 text-[20px] font-bold tracking-tight tabular-nums">
                   {formatElevationForSystem(
@@ -1161,16 +1217,18 @@ export default function ActiveEnduranceWorkout() {
               type="button"
               onClick={() => setHeartRateOpen(true)}
               className="motion-tactile flex min-h-[68px] items-center gap-3 py-3 pr-4 text-left"
-              aria-label="Open heart rate graph"
+              aria-label={tr("Open heart rate graph")}
             >
               <Heart size={18} weight="fill" className="text-red-500" />
               <span className="min-w-0 flex-1">
                 <span className="block text-[11px] font-semibold text-muted-foreground">
-                  Heart rate
+                  {tr("Heart rate")}
                 </span>
                 <span className="mt-0.5 block text-[18px] font-bold tabular-nums">
                   {session.currentHeartRateBpm
-                    ? `${session.currentHeartRateBpm} bpm`
+                    ? tr("{{value0}} bpm", {
+                        value0: session.currentHeartRateBpm,
+                      })
                     : "—"}
                 </span>
               </span>
@@ -1180,11 +1238,11 @@ export default function ActiveEnduranceWorkout() {
               <Fire size={18} weight="fill" className="text-orange-500" />
               <div>
                 <p className="text-[11px] font-semibold text-muted-foreground">
-                  Active calories
+                  {tr("Active calories")}
                 </p>
                 <p className="mt-0.5 text-[18px] font-bold tabular-nums">
                   {session.activeCalories !== undefined
-                    ? `${session.activeCalories} kcal`
+                    ? tr("{{value0}} kcal", { value0: session.activeCalories })
                     : "—"}
                 </p>
               </div>
@@ -1192,12 +1250,14 @@ export default function ActiveEnduranceWorkout() {
           </div>
           <p className="mt-2 text-[11px] text-muted-foreground">
             {watchState === "connected"
-              ? "Apple Watch live"
+              ? tr("Apple Watch live")
               : watchState === "waiting"
-                ? "Open OneRep on Apple Watch for live heart rate and calories."
+                ? tr(
+                    "Open OneRep on Apple Watch for live heart rate and calories."
+                  )
                 : watchState === "checking"
-                  ? "Checking Apple Watch…"
-                  : "No live heart-rate sensor connected."}
+                  ? tr("Checking Apple Watch…")
+                  : tr("No live heart-rate sensor connected.")}
           </p>
         </section>
 
@@ -1207,8 +1267,10 @@ export default function ActiveEnduranceWorkout() {
             onClick={addLap}
             className="motion-tactile flex min-h-12 items-center justify-center gap-2 rounded-[12px] border border-border text-[13px] font-bold"
           >
-            <Flag size={17} weight="bold" />
-            Lap
+            <Message
+              text={"{{value0}}Lap"}
+              values={{ value0: <Flag size={17} weight="bold" /> }}
+            />
           </button>
 
           <button
@@ -1216,8 +1278,8 @@ export default function ActiveEnduranceWorkout() {
             onClick={session.status === "recording" ? pause : resume}
             aria-label={
               session.status === "recording"
-                ? "Pause workout"
-                : "Resume workout"
+                ? tr("Pause workout")
+                : tr("Resume workout")
             }
             className="motion-tactile flex size-[78px] items-center justify-center rounded-full bg-foreground text-background outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4"
           >
@@ -1238,20 +1300,22 @@ export default function ActiveEnduranceWorkout() {
             onClick={() => setFinishOpen(true)}
             className="motion-tactile flex min-h-12 items-center justify-center gap-2 rounded-[12px] border border-border text-[13px] font-bold disabled:cursor-not-allowed disabled:opacity-35"
           >
-            <Stop size={17} weight="fill" />
-            Finish
+            <Message
+              text={"{{value0}}Finish"}
+              values={{ value0: <Stop size={17} weight="fill" /> }}
+            />
           </button>
         </div>
         <p className="mt-3 text-center text-[11px] text-muted-foreground">
           {session.status === "recording"
-            ? "Pause the workout before finishing."
-            : "Ready to save, or resume to keep moving."}
+            ? tr("Pause the workout before finishing.")
+            : tr("Ready to save, or resume to keep moving.")}
         </p>
       </main>
 
       {heartRateOpen && (
         <MobileSheet
-          ariaLabel="Heart rate graph"
+          ariaLabel={tr("Heart rate graph")}
           onClose={() => setHeartRateOpen(false)}
           panelClassName="mx-auto w-full sm:max-w-[520px]"
           overlayClassName="bg-black/65"
@@ -1260,15 +1324,17 @@ export default function ActiveEnduranceWorkout() {
             <div className="flex items-start justify-between gap-5">
               <div>
                 <h2 className="text-[22px] font-bold tracking-tight">
-                  Heart rate
+                  {tr("Heart rate")}
                 </h2>
                 <p className="mt-1 text-[13px] text-muted-foreground">
-                  Live from Apple Watch
+                  {tr("Live from Apple Watch")}
                 </p>
               </div>
               <p className="text-[28px] font-bold tabular-nums">
                 {session.currentHeartRateBpm
-                  ? `${session.currentHeartRateBpm} bpm`
+                  ? tr("{{value0}} bpm", {
+                      value0: session.currentHeartRateBpm,
+                    })
                   : "—"}
               </p>
             </div>
@@ -1283,21 +1349,23 @@ export default function ActiveEnduranceWorkout() {
             <dl className="mt-5 grid grid-cols-2 divide-x divide-border border-y border-border">
               <div className="py-3 pr-4">
                 <dt className="text-[11px] font-semibold text-muted-foreground">
-                  Average
+                  {tr("Average")}
                 </dt>
                 <dd className="mt-0.5 text-[18px] font-bold tabular-nums">
                   {session.averageHeartRateBpm
-                    ? `${session.averageHeartRateBpm} bpm`
+                    ? tr("{{value0}} bpm", {
+                        value0: session.averageHeartRateBpm,
+                      })
                     : "—"}
                 </dd>
               </div>
               <div className="py-3 pl-5">
                 <dt className="text-[11px] font-semibold text-muted-foreground">
-                  Maximum
+                  {tr("Maximum")}
                 </dt>
                 <dd className="mt-0.5 text-[18px] font-bold tabular-nums">
                   {session.maxHeartRateBpm
-                    ? `${session.maxHeartRateBpm} bpm`
+                    ? tr("{{value0}} bpm", { value0: session.maxHeartRateBpm })
                     : "—"}
                 </dd>
               </div>
@@ -1308,7 +1376,7 @@ export default function ActiveEnduranceWorkout() {
 
       {finishOpen && (
         <MobileSheet
-          ariaLabel="Finish endurance workout"
+          ariaLabel={tr("Finish endurance workout")}
           onClose={() => {
             if (!saving) setFinishOpen(false)
           }}
@@ -1319,18 +1387,27 @@ export default function ActiveEnduranceWorkout() {
           <div className="px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:p-6">
             <div>
               <h2 className="text-[22px] font-bold tracking-tight">
-                Finish {meta.label.toLowerCase()}
+                <Message
+                  text={"Finish {{value0}}"}
+                  values={{ value0: meta.label.toLowerCase() }}
+                />
               </h2>
               <p className="mt-1 text-[13px] text-muted-foreground">
                 {session.environment === "indoor"
                   ? formatElapsed(elapsed)
-                : `${formatDistance(session.distanceMeters, distanceUnit)} · ${formatElapsed(elapsed)}`}
+                  : tr("{{value0}} · {{value1}}", {
+                      value0: formatDistance(
+                        session.distanceMeters,
+                        distanceUnit
+                      ),
+                      value1: formatElapsed(elapsed),
+                    })}
               </p>
             </div>
 
             <label className="mt-5 block">
               <span className="text-[12px] font-bold text-muted-foreground">
-                Activity title
+                {tr("Activity title")}
               </span>
               <input
                 value={title}
@@ -1351,7 +1428,7 @@ export default function ActiveEnduranceWorkout() {
               disabled={saving || nativeBusy}
               className="mt-5 h-12 w-full"
             >
-              {saving ? "Saving activity…" : "Save activity"}
+              {saving ? tr("Saving activity…") : tr("Save activity")}
             </PrimaryButton>
           </div>
         </MobileSheet>
@@ -1359,7 +1436,7 @@ export default function ActiveEnduranceWorkout() {
 
       {leaveOpen && (
         <MobileSheet
-          ariaLabel="Leave active workout"
+          ariaLabel={tr("Leave active workout")}
           onClose={() => setLeaveOpen(false)}
           panelClassName="mx-auto w-full sm:max-w-[400px]"
           overlayClassName="bg-black/65"
@@ -1369,11 +1446,12 @@ export default function ActiveEnduranceWorkout() {
               <MapPin size={22} className="mt-0.5 shrink-0" weight="bold" />
               <div>
                 <h2 className="text-[20px] font-bold tracking-tight">
-                  Leave this workout?
+                  {tr("Leave this workout?")}
                 </h2>
                 <p className="mt-1 text-[13px] leading-5 text-muted-foreground">
-                  Your recording is saved on this device. You can return and
-                  continue from the Endurance tab.
+                  {tr(
+                    "Your recording is saved on this device. You can return and continue from the Endurance tab."
+                  )}
                 </p>
               </div>
             </div>
@@ -1390,7 +1468,7 @@ export default function ActiveEnduranceWorkout() {
               }}
               className="motion-tactile mt-5 h-12 w-full rounded-[10px] bg-foreground text-[14px] font-bold text-background"
             >
-              Save and leave
+              {tr("Save and leave")}
             </button>
             <button
               type="button"
@@ -1398,7 +1476,7 @@ export default function ActiveEnduranceWorkout() {
               onClick={discard}
               className="motion-tactile mt-2 h-12 w-full rounded-[10px] text-[14px] font-bold text-destructive"
             >
-              Abort workout
+              {tr("Abort workout")}
             </button>
           </div>
         </MobileSheet>

@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 /**
  * Net-carbohydrate display mode.
  *
@@ -36,17 +37,17 @@ export function displayCarbs(
 
 /** Title-case label for headings, rings and table columns. */
 export function carbLabel(mode: CarbDisplayMode): string {
-  return mode === "net" ? "Net carbs" : "Carbs"
+  return mode === "net" ? tr("Net carbs") : tr("Carbs")
 }
 
 /** Lower-case label for aria-labels and mid-sentence use. */
 export function carbLabelLower(mode: CarbDisplayMode): string {
-  return mode === "net" ? "net carbs" : "carbs"
+  return mode === "net" ? tr("net carbs") : "carbs"
 }
 
 /** Explanatory label for settings rows and report legends. */
 export function carbLabelLong(mode: CarbDisplayMode): string {
-  return mode === "net" ? "Net carbs (carbs − fiber)" : "Carbs"
+  return mode === "net" ? tr("Net carbs (carbs − fiber)") : tr("Carbs")
 }
 
 /**

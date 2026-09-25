@@ -1,3 +1,4 @@
+import { choice, tr } from "@repo/ui/i18n"
 /**
  * A week of training, seven columns wide.
  *
@@ -24,8 +25,8 @@ export type WeekStripDay = {
 
 export function WeekStrip({
   days,
-  title = "Sets per day",
-  footnote = "Filled dot: food logged that day.",
+  title = tr("Sets per day"),
+  footnote = tr("Filled dot: food logged that day."),
 }: {
   days: WeekStripDay[]
   title?: string
@@ -39,7 +40,9 @@ export function WeekStrip({
       <figcaption className="mb-2 flex items-baseline justify-between px-0.5">
         <span className="text-[13px] font-semibold">{title}</span>
         <span className="text-[12px] text-muted-foreground">
-          {peak > 0 ? `peak ${peak}` : "nothing logged"}
+          {peak > 0
+            ? tr("peak {{value0}}", { value0: peak })
+            : tr("nothing logged")}
         </span>
       </figcaption>
 
@@ -66,9 +69,13 @@ export function WeekStrip({
               <div
                 className="relative flex h-[72px] w-full items-end overflow-hidden rounded-[4px] bg-muted/40"
                 role="img"
-                aria-label={`${day.label}: ${day.sets} sets, ${
-                  day.loggedFood ? "food logged" : "no food logged"
-                }`}
+                aria-label={tr("{{value0}}: {{value1}} sets, {{value2}}", {
+                  value0: day.label,
+                  value1: day.sets,
+                  value2: choice(
+                    day.loggedFood ? "food logged" : "no food logged"
+                  ),
+                })}
               >
                 {day.sets > 0 && (
                   <div

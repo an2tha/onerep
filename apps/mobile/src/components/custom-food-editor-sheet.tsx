@@ -1,3 +1,4 @@
+import { Message, tr } from "@repo/ui/i18n"
 import { useState } from "react"
 import { CaretDown, Star, Trash, Warning, X } from "@phosphor-icons/react"
 import { PrimaryButton } from "@repo/ui"
@@ -51,15 +52,16 @@ export function CustomFoodEditorSheet({
   // own serving is what the copy keeps, so the user is not agreeing to a
   // serving they cannot see — and where there is no weight to convert onto, the
   // copy stays on the basis it was typed in.
-  const basisHint = `Type the label's per-100 g column.${
-    declaredGrams === undefined
-      ? " Without a serving weight to convert onto, the copy is kept per 100 g."
-      : declaredGrams === 100
-        ? ""
-        : ` One serving (${
-            draft.servingLabel || `${declaredGrams} g`
-          }) is kept.`
-  }`
+  const basisHint = tr("Type the label's per-100 g column.{{value0}}", {
+    value0:
+      declaredGrams === undefined
+        ? " Without a serving weight to convert onto, the copy is kept per 100 g."
+        : declaredGrams === 100
+          ? ""
+          : tr(" One serving ({{value0}}) is kept.", {
+              value0: draft.servingLabel || `${declaredGrams} g`,
+            }),
+  })
 
   const update = (patch: Partial<CustomFoodDraft>) =>
     onChange({ ...draft, ...patch })
@@ -75,13 +77,13 @@ export function CustomFoodEditorSheet({
       <div className="px-5 pt-4 pb-8">
         <div className="mb-4 flex items-start justify-between gap-4">
           <h2 className="text-[21px] font-semibold">
-            {title ?? (draft.id ? "Edit food" : "New custom food")}
+            {title ?? (draft.id ? tr("Edit food") : tr("New custom food"))}
           </h2>
           <button
             type="button"
             onClick={onClose}
             className="native-toolbar-button -mt-1 -mr-2 px-0 text-muted-foreground"
-            aria-label="Close food editor"
+            aria-label={tr("Close food editor")}
           >
             <X size={17} weight="bold" />
           </button>
@@ -89,12 +91,12 @@ export function CustomFoodEditorSheet({
 
         <div className="space-y-3">
           <label className="native-field">
-            <span className="native-field-label">Name</span>
+            <span className="native-field-label">{tr("Name")}</span>
             <input
               className="native-input"
               value={draft.name}
               onChange={(event) => update({ name: event.target.value })}
-              placeholder="Protein shake"
+              placeholder={tr("Protein shake")}
               autoFocus={!draft.id}
             />
             {validation.errors.name && (
@@ -105,7 +107,7 @@ export function CustomFoodEditorSheet({
           </label>
 
           <label className="native-field">
-            <span className="native-field-label">Brand (optional)</span>
+            <span className="native-field-label">{tr("Brand (optional)")}</span>
             <input
               className="native-input"
               value={draft.brand}
@@ -115,14 +117,14 @@ export function CustomFoodEditorSheet({
 
           <div className="grid grid-cols-2 gap-3">
             <label className="native-field">
-              <span className="native-field-label">One serving is</span>
+              <span className="native-field-label">{tr("One serving is")}</span>
               <input
                 className="native-input"
                 value={draft.servingLabel}
                 onChange={(event) =>
                   update({ servingLabel: event.target.value })
                 }
-                placeholder="1 scoop"
+                placeholder={tr("1 scoop")}
               />
               {validation.errors.servingLabel && (
                 <span className="native-field-error" role="alert">
@@ -131,7 +133,9 @@ export function CustomFoodEditorSheet({
               )}
             </label>
             <label className="native-field">
-              <span className="native-field-label">Grams (optional)</span>
+              <span className="native-field-label">
+                {tr("Grams (optional)")}
+              </span>
               <input
                 className="native-input"
                 inputMode="decimal"
@@ -144,7 +148,9 @@ export function CustomFoodEditorSheet({
           </div>
 
           <fieldset>
-            <legend className="native-field-label mb-2">Values are</legend>
+            <legend className="native-field-label mb-2">
+              {tr("Values are")}
+            </legend>
             <div className="flex gap-1.5">
               {CUSTOM_FOOD_BASES.map((option) => {
                 const active = draft.basis === option
@@ -163,18 +169,18 @@ export function CustomFoodEditorSheet({
                         : "bg-muted/60 text-muted-foreground active:bg-muted"
                     )}
                   >
-                    {option === "100g" ? "Per 100 g" : "Per serving"}
+                    {option === "100g" ? tr("Per 100 g") : tr("Per serving")}
                   </button>
                 )
               })}
             </div>
-            {per100g && (
-              <p className="native-field-hint mt-2">{basisHint}</p>
-            )}
+            {per100g && <p className="native-field-hint mt-2">{basisHint}</p>}
           </fieldset>
 
           <fieldset>
-            <legend className="native-field-label mb-2">Nutrition</legend>
+            <legend className="native-field-label mb-2">
+              {tr("Nutrition")}
+            </legend>
             <div className="grid grid-cols-2 gap-3">
               {CUSTOM_FOOD_MACRO_KEYS.map((key) => {
                 const meta = CUSTOM_FOOD_NUTRIENT_LABELS[key]
@@ -205,9 +211,15 @@ export function CustomFoodEditorSheet({
                 role="status"
                 className="native-field-hint mt-2 flex items-center gap-1.5 text-[var(--accent-food)]"
               >
-                <Warning size={14} weight="bold" aria-hidden />
-                Macros add up to {caloriesFromMacros(nutrients)} kcal. Double
-                check the numbers.
+                <Message
+                  text={
+                    "{{value0}}Macros add up to {{value1}} kcal. Double check the numbers."
+                  }
+                  values={{
+                    value0: <Warning size={14} weight="bold" aria-hidden />,
+                    value1: caloriesFromMacros(nutrients),
+                  }}
+                />
               </p>
             )}
           </fieldset>
@@ -220,7 +232,7 @@ export function CustomFoodEditorSheet({
               className="flex min-h-11 w-full items-center justify-between text-left"
             >
               <span className="native-field-label">
-                Micronutrients (optional)
+                {tr("Micronutrients (optional)")}
               </span>
               <CaretDown
                 size={16}
@@ -268,7 +280,7 @@ export function CustomFoodEditorSheet({
               aria-hidden
               className={draft.favorite ? "text-[var(--accent-food)]" : ""}
             />
-            {draft.favorite ? "Pinned to the top" : "Pin to the top"}
+            {draft.favorite ? tr("Pinned to the top") : tr("Pin to the top")}
           </button>
         </div>
 
@@ -279,12 +291,12 @@ export function CustomFoodEditorSheet({
           aria-busy={saving}
         >
           {saving
-            ? "Saving…"
+            ? tr("Saving…")
             : !validation.valid
-              ? "Fix the errors to save"
+              ? tr("Fix the errors to save")
               : draft.id
-                ? "Save changes"
-                : "Save food"}
+                ? tr("Save changes")
+                : tr("Save food")}
         </PrimaryButton>
 
         {onDelete && (
@@ -293,8 +305,10 @@ export function CustomFoodEditorSheet({
             onClick={onDelete}
             className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 text-[15px] font-semibold text-destructive"
           >
-            <Trash size={16} weight="bold" aria-hidden />
-            Delete food
+            <Message
+              text={"{{value0}}Delete food"}
+              values={{ value0: <Trash size={16} weight="bold" aria-hidden /> }}
+            />
           </button>
         )}
       </div>

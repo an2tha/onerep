@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 /**
  * Re-pushes the past week's nutrition and hydration day totals to the health
  * store, replacing whatever earlier versions of the app left there.
@@ -21,7 +22,10 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { useQueries } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
 import { PrimaryButton } from "@repo/ui"
-import { saveHealthDailyMetric, deleteHealthDailyRecords } from "@/lib/health-provider"
+import {
+  saveHealthDailyMetric,
+  deleteHealthDailyRecords,
+} from "@/lib/health-provider"
 import {
   beginHealthSync,
   endHealthSync,
@@ -39,11 +43,7 @@ function offsetKey(daysBack: number): string {
   return localDateKey(d)
 }
 
-export function HealthWriteBackRepair({
-  disabled,
-}: {
-  disabled?: boolean
-}) {
+export function HealthWriteBackRepair({ disabled }: { disabled?: boolean }) {
   const [armed, setArmed] = useState(false)
   const [summary, setSummary] = useState<string | null>(null)
 
@@ -55,9 +55,20 @@ export function HealthWriteBackRepair({
           setSummary(
             result === null
               ? "Repair couldn't read the past week's logs. Try again."
-              : `Repair re-wrote ${result.days} day${result.days === 1 ? "" : "s"} (${result.writes} values${
-                  result.failures > 0 ? `, ${result.failures} refused` : ""
-                }).`
+              : tr(
+                  "Repair re-wrote {{value0}} day{{value1}} ({{value2}} values{{value3}}).",
+                  {
+                    value0: result.days,
+                    value1: result.days === 1 ? "" : "s",
+                    value2: result.writes,
+                    value3:
+                      result.failures > 0
+                        ? tr(", {{value0}} refused", {
+                            value0: result.failures,
+                          })
+                        : "",
+                  }
+                )
           )
         }}
       />
@@ -71,7 +82,7 @@ export function HealthWriteBackRepair({
         disabled={disabled}
         onClick={() => setArmed(true)}
       >
-        Repair last week's written totals
+        {tr("Repair last week's written totals")}
       </PrimaryButton>
       {summary && (
         <p className="native-row-detail px-[var(--app-page-x)]">{summary}</p>
@@ -156,8 +167,7 @@ function RepairRunner({
     if (phase !== "loading" || timedOutRef.current) return
 
     const allSettled = dayKeys.every(
-      (key) =>
-        foodQueries[key] !== undefined && waterQueries[key] !== undefined
+      (key) => foodQueries[key] !== undefined && waterQueries[key] !== undefined
     )
     if (!allSettled) return
     let readErrors = 0
@@ -166,11 +176,24 @@ function RepairRunner({
       const water = waterQueries[date]
       if (food instanceof Error || water instanceof Error) {
         readErrors += 1
-        return { date, totals: { calories: 0, protein: 0, carbs: 0, fat: 0 }, waterMl: 0 }
+        return {
+          date,
+          totals: { calories: 0, protein: 0, carbs: 0, fat: 0 },
+          waterMl: 0,
+        }
       }
       const entries =
-        (food as { date: string; entries: { calories: number; protein: number; carbs: number; fat: number }[] }[])
-          ?.find((doc) => doc.date === date)?.entries ?? []
+        (
+          food as {
+            date: string
+            entries: {
+              calories: number
+              protein: number
+              carbs: number
+              fat: number
+            }[]
+          }[]
+        )?.find((doc) => doc.date === date)?.entries ?? []
       const totals = entries.reduce(
         (acc, e) => ({
           calories: acc.calories + e.calories,
@@ -206,10 +229,18 @@ function RepairRunner({
       for (let i = 0; i < snapshot!.length; i++) {
         if (cancelled) return
         const { date, totals, waterMl } = snapshot![i]
-        setHealthSyncPhase(i === 0 ? "Rewriting today…" : `Rewriting ${date}…`)
+        setHealthSyncPhase(
+          i === 0
+            ? "Rewriting today…"
+            : tr("Rewriting {{value0}}…", { value0: date })
+        )
         setProgress(i)
 
-        const hadNutrition = totals.calories > 0 || totals.protein > 0 || totals.carbs > 0 || totals.fat > 0
+        const hadNutrition =
+          totals.calories > 0 ||
+          totals.protein > 0 ||
+          totals.carbs > 0 ||
+          totals.fat > 0
         const hadWater = waterMl > 0
         if (hadNutrition || hadWater) {
           // Wash pre-fix stacks once per day BEFORE the batch: the four
@@ -244,7 +275,11 @@ function RepairRunner({
               ["dietaryFatG", Math.round(totals.fat)],
             ]
             for (const [metric, value] of pushes) {
-              const result = await saveHealthDailyMetric({ metric, date, value })
+              const result = await saveHealthDailyMetric({
+                metric,
+                date,
+                value,
+              })
               if (result.saved) summary.writes += 1
               else summary.failures += 1
             }
@@ -285,7 +320,10 @@ function RepairRunner({
       recordSyncActivity(
         summary.failures === 0
           ? "Repair re-pushed the past week"
-          : `Repair finished, ${summary.failures} write${summary.failures === 1 ? "" : "s"} refused`,
+          : tr("Repair finished, {{value0}} write{{value1}} refused", {
+              value0: summary.failures,
+              value1: summary.failures === 1 ? "" : "s",
+            }),
         summary.writes
       )
       setProgress(snapshot!.length)
@@ -315,7 +353,7 @@ function RepairRunner({
           style={{ width: `${Math.round((progress / REPAIR_DAYS) * 100)}%` }}
         />
       </div>
-      <p className="native-row-detail mt-2">Re-pushing day totals…</p>
+      <p className="native-row-detail mt-2">{tr("Re-pushing day totals…")}</p>
     </div>
   )
 }

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_quick_actions_label">Ações OneRep</string>
+    <string name="widget_quick_actions_description">Inicie um treino ou registre uma refeição.</string>
+    <string name="widget_nutrition_label">Visão Geral da Nutrição</string>
+    <string name="widget_nutrition_description">Calorias e macros em tempo real da OneRep.</string>
+    <string name="widget_schedule_label">Treino de hoje</string>
+    <string name="widget_schedule_description">Exercícios e séries agendados para hoje.</string>
+    <string name="widget_combined_label">Detalhes Nutricionais</string>
+    <string name="widget_combined_description">Alimentos registados, calorias restantes e decomposição macro.</string>
+    <string name="health_permissions_rationale">O OneRep lê os treinos de cardio concluídos, a frequência cardíaca, a distância e a energia ativa, para que o seu histórico de treino esteja completo. Com a sua permissão, também pode escrever as sessões concluídas do OneRep de volta ao Health Connect.</string>
+    <string name="widget_snap_camera_label">Câmera de instantâneo</string>
+    <string name="widget_snap_camera_caption">Registar uma refeição</string>
+    <string name="widget_snap_camera_description">Abra a câmara para tirar uma foto e registar uma refeição.</string>
+    <string name="widget_open_to_sync">Abra o OneRep para sincronizar</string>
+    <string name="widget_updates_from_account">Atualizações de dados do widget da sua conta.</string>
+    <string name="widget_start_workout">Iniciar o treino</string>
+    <string name="widget_log_meal">Registar uma refeição</string>
+    <string name="widget_water_summary">Água %1$s</string>
+    <string name="widget_kcal_left">kcal restantes</string>
+    <string name="widget_calories_left">%1$d kcal restantes</string>
+    <string name="widget_calories_eaten">%1$d de %2$d comido</string>
+    <string name="widget_protein">proteína</string>
+    <string name="widget_carbs">Hidratos</string>
+    <string name="widget_fat">Gordura</string>
+    <string name="navigation_open">Abrir navegação</string>
+</resources>

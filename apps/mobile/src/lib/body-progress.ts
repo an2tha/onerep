@@ -1,3 +1,4 @@
+import { tr, uiLocale } from "@repo/ui/i18n"
 import { Capacitor } from "@capacitor/core"
 
 export type BodyMeasurementEntry = {
@@ -149,8 +150,10 @@ export async function syncDailyCheckInReminder(
     notifications: [
       {
         id: DAILY_CHECK_IN_NOTIFICATION_ID,
-        title: "Daily check-in",
-        body: "Log your latest measurements and see how your goal is moving.",
+        title: tr("Daily check-in"),
+        body: tr(
+          "Log your latest measurements and see how your goal is moving."
+        ),
         schedule: { at: nextReminderDate(reminder), allowWhileIdle: true },
         channelId: supportsNotificationChannels()
           ? NOTIFICATION_CHANNELS.reminders
@@ -165,9 +168,9 @@ export async function syncDailyCheckInReminder(
 export function formatReminderLabel(reminder: DailyCheckInReminder) {
   const base = new Date()
   base.setHours(reminder.hour, reminder.minute, 0, 0)
-  const time = base.toLocaleTimeString("en-US", {
+  const time = base.toLocaleTimeString(uiLocale(), {
     hour: "numeric",
     minute: "2-digit",
   })
-  return `Daily at ${time}`
+  return tr("Daily at {{value0}}", { value0: time })
 }

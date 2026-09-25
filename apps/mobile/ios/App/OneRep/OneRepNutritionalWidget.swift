@@ -129,7 +129,7 @@ struct QuickActionsView: View {
     }
     private func action(_ title: String, _ icon: String, _ url: String) -> some View {
         Link(destination: URL(string: url)!) {
-            VStack(spacing: 10) { Image(systemName: icon).font(.title2.weight(.semibold)); Text(title).font(.subheadline.weight(.semibold)) }
+            VStack(spacing: 10) { Image(systemName: icon).font(.title2.weight(.semibold)); Text(LocalizedStringKey(title)).font(.subheadline.weight(.semibold)) }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
@@ -164,7 +164,7 @@ struct WorkoutScheduleView: View {
         if !entry.workoutSynced { UnsyncedView() } else {
             Link(destination: URL(string: "onerep://workouts")!) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Label("Today's workout", systemImage: "figure.strengthtraining.traditional").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                    Label("Today's Workout", systemImage: "figure.strengthtraining.traditional").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
                     Text(entry.workoutExercises).font(.headline).lineLimit(4)
                     Spacer(minLength: 0)
                     Text(entry.workoutBrief).font(.caption.weight(.medium)).foregroundStyle(.secondary)
@@ -203,7 +203,7 @@ struct CombinedOverviewView: View {
     }
     private func macroCard(_ label: String, _ value: Int, _ goal: Int) -> some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text(label).font(.caption2).foregroundStyle(.secondary)
+            Text(LocalizedStringKey(label)).font(.caption2).foregroundStyle(.secondary)
             Text("\(value) / \(goal)g").font(.caption.weight(.semibold)).monospacedDigit()
         }.frame(maxWidth: .infinity, alignment: .leading).padding(8).background(.black.opacity(0.05), in: RoundedRectangle(cornerRadius: 9))
     }

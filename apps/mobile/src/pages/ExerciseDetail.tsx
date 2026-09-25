@@ -1,3 +1,4 @@
+import { Message, choice, tr } from "@repo/ui/i18n"
 /**
  * One exercise, at length: what it has done for you, and how to do it.
  *
@@ -74,9 +75,12 @@ export default function ExerciseDetail() {
     <div className="desktop-canvas min-h-svh bg-background text-foreground lg:pr-8 lg:pl-72">
       <main className="mx-auto min-h-svh w-full max-w-5xl pb-[calc(var(--app-safe-bottom-lg)+2rem)]">
         <NavigationBar
-          title={exercise?.name ?? "Exercise"}
+          title={exercise?.name ?? tr("Exercise")}
           leading={
-            <ToolbarButton onClick={goBack} aria-label="Back to exercises">
+            <ToolbarButton
+              onClick={goBack}
+              aria-label={tr("Back to exercises")}
+            >
               <ArrowLeft size={20} weight="bold" />
             </ToolbarButton>
           }
@@ -85,15 +89,17 @@ export default function ExerciseDetail() {
         {notFound ? (
           <div className="px-[var(--app-page-x)] py-16 text-center">
             <p className="text-[15px] font-semibold">
-              That exercise is not in the catalog
+              {tr("That exercise is not in the catalog")}
             </p>
             <p className="mt-1 text-[14px] text-muted-foreground">
-              It was renamed, deleted, or the link was wrong to begin with.
+              {tr(
+                "It was renamed, deleted, or the link was wrong to begin with."
+              )}
             </p>
           </div>
         ) : !exercise ? (
           <div className="px-[var(--app-page-x)] py-16 text-center text-[14px] text-muted-foreground">
-            Loading…
+            {tr("Loading…")}
           </div>
         ) : (
           <div className="px-[var(--app-page-x)]">
@@ -103,7 +109,7 @@ export default function ExerciseDetail() {
 
             <div
               role="tablist"
-              aria-label="Exercise detail"
+              aria-label={tr("Exercise detail")}
               className="mt-4 flex gap-1 lg:hidden"
             >
               {(
@@ -135,7 +141,7 @@ export default function ExerciseDetail() {
 
             <div className="mt-6 grid gap-10 lg:grid-cols-2 lg:gap-x-12">
               <section
-                aria-label="Progress"
+                aria-label={tr("Progress")}
                 className={cn("lg:block", pane === "progress" ? "" : "hidden")}
               >
                 <ProgressPane
@@ -145,7 +151,7 @@ export default function ExerciseDetail() {
                 />
               </section>
               <section
-                aria-label="How to"
+                aria-label={tr("How to")}
                 className={cn(
                   "lg:block",
                   pane === "instructions" ? "" : "hidden"
@@ -196,7 +202,7 @@ function ProgressPane({
   if (loading) {
     return (
       <p className="py-16 text-center text-[14px] text-muted-foreground">
-        Loading…
+        {tr("Loading…")}
       </p>
     )
   }
@@ -205,9 +211,9 @@ function ProgressPane({
     return (
       <div className="flex flex-col items-center gap-2 py-16 text-center">
         <ChartLineUp size={26} className="text-muted-foreground/40" />
-        <p className="text-[15px] font-semibold">No history yet</p>
+        <p className="text-[15px] font-semibold">{tr("No history yet")}</p>
         <p className="max-w-xs text-[14px] text-muted-foreground">
-          Log a set of this and the chart writes itself.
+          {tr("Log a set of this and the chart writes itself.")}
         </p>
       </div>
     )
@@ -224,10 +230,10 @@ function ProgressPane({
 
   return (
     <div>
-      <PaneHeading>Records</PaneHeading>
+      <PaneHeading>{tr("Records")}</PaneHeading>
       <dl className="mb-8 grid grid-cols-2 gap-px overflow-hidden rounded-xl bg-border/50">
         <RecordCell
-          label="Heaviest set"
+          label={tr("Heaviest set")}
           value={
             records.heaviestWeight
               ? formatWeight(records.heaviestWeight.value, unit)
@@ -239,14 +245,14 @@ function ProgressPane({
           }
         />
         <RecordCell
-          label="Best est. 1RM"
+          label={tr("Best est. 1RM")}
           value={
             records.bestE1rm ? formatWeight(records.bestE1rm.value, unit) : "—"
           }
           hint={records.bestE1rm && formatSessionDate(records.bestE1rm.date)}
         />
         <RecordCell
-          label="Best session volume"
+          label={tr("Best session volume")}
           value={
             records.bestSessionVolume
               ? formatWeight(records.bestSessionVolume.value, unit)
@@ -258,7 +264,7 @@ function ProgressPane({
           }
         />
         <RecordCell
-          label="Most reps in a set"
+          label={tr("Most reps in a set")}
           value={records.mostReps ? `${records.mostReps.value}` : "—"}
           hint={records.mostReps && formatSessionDate(records.mostReps.date)}
         />
@@ -305,8 +311,13 @@ function ProgressPane({
                       : "text-muted-foreground"
                 )}
               >
-                {trend > 0 ? "+" : ""}
-                {trend}% all time
+                <Message
+                  text={"{{value0}}{{value1}}% all time"}
+                  values={{
+                    value0: choice(trend > 0 ? "+" : ""),
+                    value1: trend,
+                  }}
+                />
               </p>
             )}
           </div>
@@ -315,7 +326,14 @@ function ProgressPane({
             height={chartHeight}
             viewBox={`0 0 ${chartWidth} ${chartHeight}`}
             role="img"
-            aria-label={`${PROGRESS_METRIC_LABELS[metric]} across ${series.length} sessions, latest ${formatWeight(latestValue, unit)}`}
+            aria-label={tr(
+              "{{value0}} across {{value1}} sessions, latest {{value2}}",
+              {
+                value0: PROGRESS_METRIC_LABELS[metric],
+                value1: series.length,
+                value2: formatWeight(latestValue, unit),
+              }
+            )}
             className="w-full overflow-visible text-foreground/70"
           >
             <polyline
@@ -330,12 +348,13 @@ function ProgressPane({
         </div>
       ) : (
         <p className="mb-8 text-[14px] text-muted-foreground">
-          One session logged. Come back after the next one and there will be a
-          line.
+          {tr(
+            "One session logged. Come back after the next one and there will be a line."
+          )}
         </p>
       )}
 
-      <PaneHeading>History</PaneHeading>
+      <PaneHeading>{tr("History")}</PaneHeading>
       <ul className="divide-y divide-border/50 border-t border-border/50">
         {[...sessions].reverse().map((session) => (
           <li key={session.id} className="py-3">
@@ -344,7 +363,10 @@ function ProgressPane({
                 {formatSessionDate(session.date)}
               </p>
               <p className="shrink-0 text-[13px] text-muted-foreground">
-                {formatWeight(session.volume, unit)} volume
+                <Message
+                  text={"{{value0}} volume"}
+                  values={{ value0: formatWeight(session.volume, unit) }}
+                />
               </p>
             </div>
             <p className="mt-1 text-[13px] text-muted-foreground">
@@ -392,15 +414,15 @@ function RecordCell({
  */
 export function InstructionsPane({ exercise }: { exercise: ClientExercise }) {
   const facts = [
-    ["Equipment", exercise.equipment && titleCase(exercise.equipment)],
+    [tr("Equipment"), exercise.equipment && titleCase(exercise.equipment)],
     [
-      "Type",
+      tr("Type"),
       EXERCISE_CATEGORY_LABELS[exercise.category] ??
         titleCase(exercise.category),
     ],
-    ["Mechanic", exercise.mechanic && titleCase(exercise.mechanic)],
-    ["Force", exercise.force && titleCase(exercise.force)],
-    ["Level", exercise.level && titleCase(exercise.level)],
+    [tr("Mechanic"), exercise.mechanic && titleCase(exercise.mechanic)],
+    [tr("Force"), exercise.force && titleCase(exercise.force)],
+    [tr("Level"), exercise.level && titleCase(exercise.level)],
   ].filter((entry): entry is [string, string] => Boolean(entry[1]))
 
   const instructions = exercise.instructions ?? []
@@ -428,18 +450,19 @@ export function InstructionsPane({ exercise }: { exercise: ClientExercise }) {
 
       {secondaryMuscles.length > 0 && (
         <div className="mb-8">
-          <PaneHeading>Also works</PaneHeading>
+          <PaneHeading>{tr("Also works")}</PaneHeading>
           <p className="text-[14px] text-muted-foreground">
             {secondaryMuscles.map(titleCase).join(" · ")}
           </p>
         </div>
       )}
 
-      <PaneHeading>Instructions</PaneHeading>
+      <PaneHeading>{tr("Instructions")}</PaneHeading>
       {instructions.length === 0 ? (
         <p className="text-[14px] text-muted-foreground">
-          The dataset never wrote any down for this one. The pictures will have
-          to carry it.
+          {tr(
+            "The dataset never wrote any down for this one. The pictures will have to carry it."
+          )}
         </p>
       ) : (
         <ol className="space-y-3">

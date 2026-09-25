@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 import { defineVisualIdentity, type VisualIdentity } from "./visual-identity"
 
 /**
@@ -20,7 +21,7 @@ import { defineVisualIdentity, type VisualIdentity } from "./visual-identity"
  */
 export const ONEREPALETTE: VisualIdentity = defineVisualIdentity({
   id: "onerep",
-  label: "OneRep",
+  label: tr("OneRep"),
   assets: {
     appName: "OneRep",
     appIconSrc: "/app-icon.svg",
@@ -29,7 +30,7 @@ export const ONEREPALETTE: VisualIdentity = defineVisualIdentity({
 
 export const DUSK_PALETTE: VisualIdentity = defineVisualIdentity({
   id: "dusk",
-  label: "Dusk",
+  label: tr("Dusk"),
   assets: {
     appName: "OneRep",
     appIconSrc: "/app-icon.svg",
@@ -121,7 +122,7 @@ export const DUSK_PALETTE: VisualIdentity = defineVisualIdentity({
 
 export const SLATE_PALETTE: VisualIdentity = defineVisualIdentity({
   id: "slate",
-  label: "Slate",
+  label: tr("Slate"),
   assets: {
     appName: "OneRep",
     appIconSrc: "/app-icon.svg",
@@ -205,7 +206,7 @@ export const SLATE_PALETTE: VisualIdentity = defineVisualIdentity({
 
 export const FOREST_PALETTE: VisualIdentity = defineVisualIdentity({
   id: "forest",
-  label: "Forest",
+  label: tr("Forest"),
   assets: {
     appName: "OneRep",
     appIconSrc: "/app-icon.svg",
@@ -296,7 +297,7 @@ export const FOREST_PALETTE: VisualIdentity = defineVisualIdentity({
 
 export const OCEAN_PALETTE: VisualIdentity = defineVisualIdentity({
   id: "ocean",
-  label: "Ocean",
+  label: tr("Ocean"),
   assets: {
     appName: "OneRep",
     appIconSrc: "/app-icon.svg",
@@ -387,7 +388,7 @@ export const OCEAN_PALETTE: VisualIdentity = defineVisualIdentity({
 
 export const BLOSSOM_PALETTE: VisualIdentity = defineVisualIdentity({
   id: "blossom",
-  label: "Blossom",
+  label: tr("Blossom"),
   assets: {
     appName: "OneRep",
     appIconSrc: "/app-icon.svg",

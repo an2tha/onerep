@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 /**
  * The coach bubble's menu: two ways to ask, so the bubble does not have to
  * guess which one someone meant — film a set, or just talk.
@@ -76,10 +77,12 @@ export function WorkoutCoachMenu({
     {
       id: "form",
       icon: VideoCamera,
-      label: formCoachLabel ? `Film ${formCoachLabel}` : "Form Coach",
+      label: formCoachLabel
+        ? tr("Film {{value0}}", { value0: formCoachLabel })
+        : tr("Form Coach"),
       disabled: !formCoachLabel,
     },
-    { id: "chat", icon: ChatCircleDots, label: "Ask Coach" },
+    { id: "chat", icon: ChatCircleDots, label: tr("Ask Coach") },
   ]
 
   const state = closing ? "closing" : "open"
@@ -88,7 +91,7 @@ export function WorkoutCoachMenu({
     <>
       <button
         type="button"
-        aria-label="Close coach menu"
+        aria-label={tr("Close coach menu")}
         onClick={() => dismiss()}
         data-state={state}
         className="coach-fab-scrim fixed inset-0 z-40 cursor-default"
@@ -96,7 +99,7 @@ export function WorkoutCoachMenu({
       <div
         ref={panelRef}
         role="menu"
-        aria-label="Ask your coach"
+        aria-label={tr("Ask your coach")}
         data-state={state}
         className="coach-fab-menu fixed right-[max(1rem,env(safe-area-inset-right,0px))] bottom-[calc(var(--app-safe-bottom-lg)+8.5rem)] z-50 flex flex-col items-end gap-2"
       >

@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 import { CheckCircle, Circle, Minus, Plus } from "@phosphor-icons/react"
 import { useEffect, useRef, useState, type ReactNode } from "react"
 
@@ -184,7 +185,7 @@ export function SectionSaveButton({
           confirmed && "motion-save-confirm"
         )}
       >
-        {saving ? "Saving…" : confirmed ? "Saved" : label}
+        {saving ? tr("Saving…") : confirmed ? tr("Saved") : label}
       </button>
     </div>
   )
@@ -235,7 +236,9 @@ export function NumberStepper({
         type="button"
         onClick={() => change(value - step)}
         disabled={value <= min}
-        aria-label={label ? `Decrease ${label}` : "Decrease"}
+        aria-label={
+          label ? tr("Decrease {{value0}}", { value0: label }) : tr("Decrease")
+        }
         className="flex size-11 items-center justify-center rounded-[0.65rem] bg-muted text-foreground transition-colors active:bg-[var(--surface-pressed)] disabled:pointer-events-none disabled:opacity-25"
       >
         <Minus size={13} weight="bold" />
@@ -253,8 +256,11 @@ export function NumberStepper({
           }}
           aria-label={
             label
-              ? `Edit ${label}, current value ${value}`
-              : `Edit value ${value}`
+              ? tr("Edit {{value0}}, current value {{value1}}", {
+                  value0: label,
+                  value1: value,
+                })
+              : tr("Edit value {{value0}}", { value0: value })
           }
           className="relative flex min-h-11 min-w-[68px] flex-col items-center justify-center rounded-[0.65rem] bg-muted px-2 transition-colors"
         >
@@ -284,7 +290,7 @@ export function NumberStepper({
                 setEditing(false)
               }
             }}
-            aria-label={label || "Value"}
+            aria-label={label || tr("Value")}
             className="w-12 bg-transparent text-center text-[14px] leading-none font-semibold tabular-nums focus:outline-none"
           />
           {suffix && (
@@ -298,7 +304,9 @@ export function NumberStepper({
         type="button"
         onClick={() => change(value + step)}
         disabled={value >= max}
-        aria-label={label ? `Increase ${label}` : "Increase"}
+        aria-label={
+          label ? tr("Increase {{value0}}", { value0: label }) : tr("Increase")
+        }
         className="flex size-11 items-center justify-center rounded-[0.65rem] bg-muted text-foreground transition-colors active:bg-[var(--surface-pressed)] disabled:pointer-events-none disabled:opacity-25"
       >
         <Plus size={13} weight="bold" />

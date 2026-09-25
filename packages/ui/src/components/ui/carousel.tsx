@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 import * as React from "react"
 import useEmblaCarousel, {
   type UseEmblaCarouselType,
@@ -194,7 +195,7 @@ function CarouselPrevious({
       {...props}
     >
       <CaretLeftIcon />
-      <span className="sr-only">Previous slide</span>
+      <span className="sr-only">{tr("Previous slide")}</span>
     </Button>
   )
 }
@@ -224,7 +225,7 @@ function CarouselNext({
       {...props}
     >
       <CaretRightIcon />
-      <span className="sr-only">Next slide</span>
+      <span className="sr-only">{tr("Next slide")}</span>
     </Button>
   )
 }

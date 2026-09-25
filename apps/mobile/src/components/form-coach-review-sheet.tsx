@@ -1,3 +1,4 @@
+import { Message, tr, translateError } from "@repo/ui/i18n"
 import { useState } from "react"
 import { Image as ImageIcon, Plus, Trash, X } from "@phosphor-icons/react"
 import { SwipeToStart, toast } from "@repo/ui"
@@ -21,7 +22,10 @@ import {
 
 function formatDuration(ms: number) {
   const tenths = Math.round(ms / 100)
-  return `${Math.floor(tenths / 10)}.${tenths % 10}s`
+  return tr("{{value0}}.{{value1}}s", {
+    value0: Math.floor(tenths / 10),
+    value1: tenths % 10,
+  })
 }
 
 /**
@@ -85,7 +89,9 @@ export function FormCoachReviewSheet() {
     } catch (error) {
       // Keep the draft so the angles survive a failed run.
       logDevError("Form coach pose estimation failed", error)
-      toast.error("Couldn't read your form from that footage")
+      toast.error(
+        translateError(tr("Couldn't read your form from that footage"))
+      )
       setAnalysing(false)
       setProgress(null)
       setAttempt((value) => value + 1)
@@ -100,7 +106,9 @@ export function FormCoachReviewSheet() {
   return (
     <MobileSheet
       onClose={discard}
-      ariaLabel={`Review your ${draft.exerciseName} form`}
+      ariaLabel={tr("Review your {{value0}} form", {
+        value0: draft.exerciseName,
+      })}
       closeOnBackdrop={false}
       showHandle
       overlayClassName="bg-black/50 backdrop-blur-[8px]"
@@ -132,7 +140,10 @@ export function FormCoachReviewSheet() {
                       : "bg-foreground/[0.06] text-muted-foreground"
                   )}
                 >
-                  Angle {index + 1}
+                  <Message
+                    text={"Angle {{value0}}"}
+                    values={{ value0: index + 1 }}
+                  />
                 </button>
               )
             })}
@@ -140,7 +151,7 @@ export function FormCoachReviewSheet() {
               <button
                 type="button"
                 onClick={addAngle}
-                aria-label="Add another angle (optional)"
+                aria-label={tr("Add another angle (optional)")}
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-dashed border-foreground/20 text-muted-foreground transition-colors active:bg-muted/60 active:text-foreground"
               >
                 <Plus size={14} weight="bold" />
@@ -150,7 +161,7 @@ export function FormCoachReviewSheet() {
           <button
             type="button"
             onClick={discard}
-            aria-label="Discard clips and close"
+            aria-label={tr("Discard clips and close")}
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors active:bg-muted/60"
             style={{
               color: "color-mix(in srgb, var(--foreground) 40%, transparent)",
@@ -167,7 +178,10 @@ export function FormCoachReviewSheet() {
               {active.kind === "image" ? (
                 <img
                   src={active.url}
-                  alt={`${draft.exerciseName}, angle ${clips.indexOf(active) + 1}`}
+                  alt={tr("{{value0}}, angle {{value1}}", {
+                    value0: draft.exerciseName,
+                    value1: clips.indexOf(active) + 1,
+                  })}
                   className="aspect-[3/4] w-full object-cover"
                 />
               ) : (
@@ -189,7 +203,7 @@ export function FormCoachReviewSheet() {
                 <div className="absolute right-3 bottom-3 flex items-center gap-1.5 rounded-full bg-black/60 px-2.5 py-1 backdrop-blur-md">
                   <ImageIcon size={12} weight="bold" className="text-white" />
                   <span className="text-[12px] font-medium text-white">
-                    Photo
+                    {tr("Photo")}
                   </span>
                 </div>
               ) : (
@@ -205,7 +219,8 @@ export function FormCoachReviewSheet() {
             <div className="flex items-center justify-between pt-2.5">
               <p className="truncate text-[13px] text-muted-foreground">
                 {draft.exerciseName}
-                {clips.length > 1 && ` · ${clips.length} angles`}
+                {clips.length > 1 &&
+                  tr(" · {{value0}} angles", { value0: clips.length })}
               </p>
               <button
                 type="button"
@@ -216,8 +231,10 @@ export function FormCoachReviewSheet() {
                 }}
                 className="flex min-h-9 items-center gap-1.5 rounded-full px-2.5 text-[13px] font-semibold text-muted-foreground transition-colors active:bg-destructive/10 active:text-destructive disabled:opacity-40"
               >
-                <Trash size={14} weight="bold" />
-                Delete
+                <Message
+                  text={"{{value0}}Delete"}
+                  values={{ value0: <Trash size={14} weight="bold" /> }}
+                />
               </button>
             </div>
           </div>
@@ -239,8 +256,8 @@ export function FormCoachReviewSheet() {
               <div className="flex items-baseline justify-between">
                 <span className="text-[14px] font-semibold">
                   {progress?.stage === "loading"
-                    ? "Preparing to read your form…"
-                    : "Reading your form…"}
+                    ? tr("Preparing to read your form…")
+                    : tr("Reading your form…")}
                 </span>
                 <span className="text-[12px] text-muted-foreground tabular-nums">
                   {Math.round((progress?.value ?? 0) * 100)}%
@@ -249,7 +266,7 @@ export function FormCoachReviewSheet() {
               <div
                 className="h-1.5 overflow-hidden rounded-full bg-foreground/10"
                 role="progressbar"
-                aria-label="Reading your form"
+                aria-label={tr("Reading your form")}
                 aria-valuemin={0}
                 aria-valuemax={100}
                 aria-valuenow={Math.round((progress?.value ?? 0) * 100)}
@@ -269,9 +286,9 @@ export function FormCoachReviewSheet() {
               // A failed send remounts the track so the thumb returns home
               // instead of sitting stuck at the completed end.
               key={attempt}
-              label="Check my form"
-              readyLabel="Release to check"
-              completingLabel="Checking"
+              label={tr("Check my form")}
+              readyLabel={tr("Release to check")}
+              completingLabel={tr("Checking")}
               onComplete={() => void analyse()}
               onHaptic={(kind) =>
                 kind === "complete" ? hapticMedium() : hapticSelection()

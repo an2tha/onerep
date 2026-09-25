@@ -1,5 +1,8 @@
 "use client"
 
+import { uiLocale } from "../../i18n"
+import { de, enUS, es, fr, it, pt } from "react-day-picker/locale"
+
 import * as React from "react"
 import {
   DayPicker,
@@ -16,13 +19,15 @@ import {
   CaretDownIcon,
 } from "@phosphor-icons/react"
 
+const calendarLocales: Record<string, Locale> = { en: enUS, de, es, fr, it, pt }
+
 function Calendar({
   className,
   classNames,
   showOutsideDays = true,
   captionLayout = "label",
   buttonVariant = "ghost",
-  locale,
+  locale = calendarLocales[uiLocale()] ?? enUS,
   formatters,
   components,
   ...props

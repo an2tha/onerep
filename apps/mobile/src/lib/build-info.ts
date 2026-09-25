@@ -1,3 +1,4 @@
+import { uiLocale } from "@repo/ui/i18n"
 /**
  * What this bundle actually is, from the stamp the build wrote.
  *
@@ -31,7 +32,7 @@ export function formatBuiltAt(builtAt: string | null | undefined) {
   if (!builtAt) return ""
   const date = new Date(builtAt)
   if (Number.isNaN(date.getTime())) return ""
-  return date.toLocaleDateString(undefined, {
+  return date.toLocaleDateString(uiLocale(), {
     year: "numeric",
     month: "short",
     day: "numeric",

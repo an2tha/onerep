@@ -1,3 +1,4 @@
+import { tr, uiLocale } from "@repo/ui/i18n"
 import { useMemo } from "react"
 import { useQuery } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
@@ -46,7 +47,7 @@ type RawMetric = {
 export function formatCustomValue(value: number, unit: string) {
   const rounded =
     Math.abs(value) >= 100 || Number.isInteger(value)
-      ? Math.round(value).toLocaleString()
+      ? Math.round(value).toLocaleString(uiLocale())
       : value.toFixed(1)
   return unit ? `${rounded} ${unit}` : rounded
 }
@@ -112,14 +113,14 @@ export function useCustomMetricsByDial(): {
 
 /** The one-line caption a dial wears when custom metrics are all it has. */
 export function customMetricCaption(rows: CustomMetricRow[]): string {
-  if (rows.length === 0) return "nothing recorded"
+  if (rows.length === 0) return tr("nothing recorded")
   if (rows.length === 1) {
     const row = rows[0]
     return row.latest
       ? formatCustomValue(row.latest.value, row.unit)
-      : "nothing yet"
+      : tr("nothing yet")
   }
-  return `${rows.length} metrics tracked`
+  return tr("{{value0}} metrics tracked", { value0: rows.length })
 }
 
 /**
@@ -141,8 +142,8 @@ export function DialCustomMetrics({
   if (loading || rows.length === 0) return null
 
   return (
-    <section aria-label="Your own metrics">
-      <p className="app-section-title mb-2">Your own metrics</p>
+    <section aria-label={tr("Your own metrics")}>
+      <p className="app-section-title mb-2">{tr("Your own metrics")}</p>
       <div className="divide-y divide-border border-t border-border">
         {rows.map((row, index) => (
           <article
@@ -157,7 +158,7 @@ export function DialCustomMetrics({
               <p className="shrink-0 text-[15px] font-bold tabular-nums">
                 {row.latest
                   ? formatCustomValue(row.latest.value, row.unit)
-                  : "no reading"}
+                  : tr("no reading")}
               </p>
             </div>
             {/*
@@ -168,10 +169,12 @@ export function DialCustomMetrics({
             */}
             <p className="mt-0.5 text-[13px] leading-[1.45] text-muted-foreground tabular-nums">
               {row.basis === "target" && row.target !== null
-                ? `Against your target of ${formatCustomValue(row.target, row.unit)}`
+                ? tr("Against your target of {{value0}}", {
+                    value0: formatCustomValue(row.target, row.unit),
+                  })
                 : row.basis === "baseline"
-                  ? "Against your own usual reading"
-                  : "Not scored — set a target, or log a few more days"}
+                  ? tr("Against your own usual reading")
+                  : tr("Not scored — set a target, or log a few more days")}
             </p>
             {/*
               Two points is a segment, not a trend. Drawing one made every

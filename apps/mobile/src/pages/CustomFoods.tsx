@@ -1,3 +1,4 @@
+import { Message, tr, translateError } from "@repo/ui/i18n"
 import {
   foodLogTime,
   foodLogTimestamp,
@@ -119,10 +120,12 @@ export default function CustomFoods() {
     const validation = validateCustomFoodDraft(draft)
     if (!validation.valid) {
       toast.error(
-        validation.errors.name ??
-          validation.errors.servingLabel ??
-          validation.errors.calories ??
-          "Check the food details"
+        translateError(
+          validation.errors.name ??
+            validation.errors.servingLabel ??
+            validation.errors.calories ??
+            tr("Check the food details")
+        )
       )
       return
     }
@@ -142,7 +145,7 @@ export default function CustomFoods() {
         favorite: draft.favorite,
         nutrientsPerServing: customFoodNutrientsFromDraft(draft),
       })
-      toast.success(draft.id ? "Food updated" : "Custom food saved")
+      toast.success(draft.id ? tr("Food updated") : tr("Custom food saved"))
       if (!draft.id && logAfterSave) {
         // The offline queue resolves to nothing, so the id may be absent. The
         // log sheet only needs the nutrition, and logging offline queues too.
@@ -174,7 +177,7 @@ export default function CustomFoods() {
     if (!id) return
     try {
       await removeFood({ id: id as Id<"customFoods"> })
-      toast.success("Food deleted")
+      toast.success(tr("Food deleted"))
       setDraft(null)
     } catch (error) {
       reportOfflineMutationError(error, "Could not delete this food")
@@ -202,17 +205,21 @@ export default function CustomFoods() {
       // The entry carries its own id, so undo works offline too: the queue
       // takes the removal the same way it took the log.
       toast.success(
-        `Logged ${food.name} for ${options.date} at ${options.time}`,
+        tr("Logged {{value0}} for {{value1}} at {{value2}}", {
+          value0: food.name,
+          value1: options.date,
+          value2: options.time,
+        }),
         {
           action: {
-            label: "Undo",
+            label: tr("Undo"),
             onClick: () => {
               announceOrbActivity("delete")
               void removeFoodEntry({
                 date: options.date,
                 entryId: entry.id,
               }).catch(() => {
-                toast.error("Couldn't undo that")
+                toast.error(translateError(tr("Couldn't undo that")))
               })
             },
           },
@@ -230,12 +237,12 @@ export default function CustomFoods() {
   return (
     <div className="native-page mx-auto min-h-svh w-full max-w-xl pb-[calc(var(--app-safe-bottom)+6rem)] text-foreground">
       <NavigationBar
-        title="My foods"
-        subtitle="Foods you entered yourself"
+        title={tr("My foods")}
+        subtitle={tr("Foods you entered yourself")}
         leading={
           <ToolbarButton
             onClick={() => navigate(-1)}
-            aria-label="Back to nutrition"
+            aria-label={tr("Back to nutrition")}
             className="-ml-2 px-0 text-muted-foreground"
           >
             <ArrowLeft size={19} weight="bold" />
@@ -247,7 +254,7 @@ export default function CustomFoods() {
               hapticTap()
               setDraft(emptyCustomFoodDraft())
             }}
-            aria-label="Create custom food"
+            aria-label={tr("Create custom food")}
           >
             <Plus size={19} weight="bold" />
           </ToolbarButton>
@@ -257,7 +264,7 @@ export default function CustomFoods() {
       {foods.length > 4 && (
         <div className="px-[var(--app-page-x)] pt-1 pb-2">
           <label className="relative block">
-            <span className="sr-only">Search my foods</span>
+            <span className="sr-only">{tr("Search my foods")}</span>
             <MagnifyingGlass
               size={16}
               weight="bold"
@@ -268,7 +275,7 @@ export default function CustomFoods() {
               className="native-input pl-9"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search my foods"
+              placeholder={tr("Search my foods")}
             />
           </label>
         </div>
@@ -276,23 +283,27 @@ export default function CustomFoods() {
 
       {loading ? (
         <p className="px-[var(--app-page-x)] pt-8 text-[15px] text-muted-foreground">
-          Loading your foods…
+          {tr("Loading your foods…")}
         </p>
       ) : visibleFoods.length === 0 ? (
         <div className="pt-6">
           <EmptyState
             icon={ForkKnife}
             tone="food"
-            title={foods.length === 0 ? "No custom foods yet" : "No matches"}
+            title={
+              foods.length === 0 ? tr("No custom foods yet") : tr("No matches")
+            }
             detail={
               foods.length === 0
-                ? "Add the things the database gets wrong, such as your protein scoop, your usual takeaway, or grandma's stew. Save each one once, then log it in a tap."
-                : "Try a different search."
+                ? tr(
+                    "Add the things the database gets wrong, such as your protein scoop, your usual takeaway, or grandma's stew. Save each one once, then log it in a tap."
+                  )
+                : tr("Try a different search.")
             }
             action={
               foods.length === 0 ? (
                 <PrimaryButton onClick={() => setDraft(emptyCustomFoodDraft())}>
-                  Create a food
+                  {tr("Create a food")}
                 </PrimaryButton>
               ) : undefined
             }
@@ -301,11 +312,12 @@ export default function CustomFoods() {
       ) : (
         <div className="motion-content-in">
           <SectionHeader
-            title={`${visibleFoods.length} food${
-              visibleFoods.length === 1 ? "" : "s"
-            }`}
+            title={tr("{{value0}} food{{value1}}", {
+              value0: visibleFoods.length,
+              value1: visibleFoods.length === 1 ? "" : "s",
+            })}
           />
-          <GroupedList label="Custom foods">
+          <GroupedList label={tr("Custom foods")}>
             {visibleFoods.map((food) => (
               <div
                 key={food.id ?? food._id ?? food.name}
@@ -315,35 +327,46 @@ export default function CustomFoods() {
                   type="button"
                   onClick={() => setLogTarget(food)}
                   className="min-w-0 flex-1 text-left"
-                  aria-label={`Log ${food.name}`}
+                  aria-label={tr("Log {{value0}}", { value0: food.name })}
                 >
                   <span className="native-row-title flex items-center gap-1.5 truncate">
                     {food.favorite && (
                       <Star
                         size={13}
                         weight="fill"
-                        aria-label="Favorite"
+                        aria-label={tr("Favorite")}
                         className="shrink-0 text-[var(--accent-food)]"
                       />
                     )}
                     {food.name}
                   </span>
                   <span className="native-row-detail mt-0.5 block tabular-nums">
-                    {energyDisplay(
-                      food.nutrientsPerServing.calories,
-                      energyUnit
-                    )}{" "}
-                    {energyUnit} · {food.nutrientsPerServing.protein} P ·{" "}
-                    {food.nutrientsPerServing.carbs} C ·{" "}
-                    {food.nutrientsPerServing.fat} F per {food.servingLabel}
-                    {food.brand ? ` · ${food.brand}` : ""}
+                    <Message
+                      text={
+                        "{{value0}} {{value1}} · {{value2}} P · {{value3}} C · {{value4}} F per {{value5}}{{value6}}"
+                      }
+                      values={{
+                        value0: energyDisplay(
+                          food.nutrientsPerServing.calories,
+                          energyUnit
+                        ),
+                        value1: energyUnit,
+                        value2: food.nutrientsPerServing.protein,
+                        value3: food.nutrientsPerServing.carbs,
+                        value4: food.nutrientsPerServing.fat,
+                        value5: food.servingLabel,
+                        value6: food.brand
+                          ? tr(" · {{value0}}", { value0: food.brand })
+                          : "",
+                      }}
+                    />
                   </span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setDraft(customFoodDraftFromFood(food))}
                   className="native-toolbar-button h-11 w-11 shrink-0 px-0 text-muted-foreground"
-                  aria-label={`Edit ${food.name}`}
+                  aria-label={tr("Edit {{value0}}", { value0: food.name })}
                 >
                   <PencilSimple size={16} weight="bold" />
                 </button>
@@ -436,13 +459,18 @@ function LogCustomFoodSheet({
         <div className="mb-4 flex items-start justify-between gap-4">
           <div className="min-w-0">
             <h2 className="truncate text-[21px] font-semibold">{food.name}</h2>
-            <p className="native-row-detail">per {food.servingLabel}</p>
+            <p className="native-row-detail">
+              <Message
+                text={"per {{value0}}"}
+                values={{ value0: food.servingLabel }}
+              />
+            </p>
           </div>
           <button
             type="button"
             onClick={onClose}
             className="native-toolbar-button -mt-1 -mr-2 px-0 text-muted-foreground"
-            aria-label="Close log sheet"
+            aria-label={tr("Close log sheet")}
           >
             <X size={17} weight="bold" />
           </button>
@@ -450,7 +478,7 @@ function LogCustomFoodSheet({
 
         <div className="grid grid-cols-2 gap-3">
           <label className="native-field">
-            <span className="native-field-label">Servings</span>
+            <span className="native-field-label">{tr("Servings")}</span>
             <input
               className="native-input"
               inputMode="decimal"
@@ -459,7 +487,7 @@ function LogCustomFoodSheet({
             />
           </label>
           <label className="native-field">
-            <span className="native-field-label">Meal</span>
+            <span className="native-field-label">{tr("Meal")}</span>
             <select
               className="native-input"
               value={meal}
@@ -476,7 +504,7 @@ function LogCustomFoodSheet({
 
         <div className="mt-3 grid grid-cols-2 gap-3">
           <label className="native-field min-w-0">
-            <span className="native-field-label">Date</span>
+            <span className="native-field-label">{tr("Date")}</span>
             <input
               type="date"
               className="native-input min-w-0"
@@ -487,7 +515,7 @@ function LogCustomFoodSheet({
             />
           </label>
           <label className="native-field min-w-0">
-            <span className="native-field-label">Time</span>
+            <span className="native-field-label">{tr("Time")}</span>
             <input
               type="time"
               className="native-input min-w-0"
@@ -500,9 +528,18 @@ function LogCustomFoodSheet({
         </div>
 
         <p className="native-field-hint mt-3 tabular-nums">
-          {energyDisplay(preview.calories, energyUnit)} {energyUnit} ·{" "}
-          {preview.protein} g protein · {preview.carbs} g carbs · {preview.fat}{" "}
-          g fat
+          <Message
+            text={
+              "{{value0}}  {{value1}} · {{value2}} g protein · {{value3}} g carbs · {{value4}} g fat"
+            }
+            values={{
+              value0: energyDisplay(preview.calories, energyUnit),
+              value1: energyUnit,
+              value2: preview.protein,
+              value3: preview.carbs,
+              value4: preview.fat,
+            }}
+          />
         </p>
 
         <PrimaryButton
@@ -515,7 +552,7 @@ function LogCustomFoodSheet({
           }
           onClick={() => onLog({ servings: amount, meal, date, time })}
         >
-          {saving ? "Logging…" : "Log to diary"}
+          {saving ? tr("Logging…") : tr("Log to diary")}
         </PrimaryButton>
       </div>
     </MobileSheet>

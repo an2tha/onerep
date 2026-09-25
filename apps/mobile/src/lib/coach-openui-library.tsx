@@ -1,3 +1,4 @@
+import { Message, tr } from "@repo/ui/i18n"
 import { createContext, useContext, useState } from "react"
 import { createLibrary, defineComponent } from "@openuidev/react-lang"
 import { openuiLibrary } from "@openuidev/react-ui"
@@ -12,7 +13,7 @@ export type CoachOpenUIActions = {
   onAction: (action: CoachUiAction) => void
   onContinue: (message: string) => void
   onSubmitInteractive: (
-    operation: Extract<CoachOperation, { type: "log_nutrition" }>,
+    operation: Extract<CoachOperation, { type: "log_nutrition" }>
   ) => Promise<void>
   onPinGoal: (goal: {
     title: string
@@ -25,8 +26,9 @@ export const CoachOpenUIContext = createContext<CoachOpenUIActions | null>(null)
 
 const Goal = defineComponent({
   name: "CoachGoal",
-  description:
-    "A proposed goal with measurable tasks. The user can explicitly pin it; rendering never saves it.",
+  description: tr(
+    "A proposed goal with measurable tasks. The user can explicitly pin it; rendering never saves it."
+  ),
   props: z.object({
     title: z.string(),
     detail: z.string(),
@@ -44,7 +46,10 @@ const Goal = defineComponent({
         <h3 className="font-semibold">{props.title}</h3>
         <p>{props.detail}</p>
         <p className="text-sm text-muted-foreground">
-          {props.durationDays} days
+          <Message
+            text={"{{value0}} days"}
+            values={{ value0: props.durationDays }}
+          />
         </p>
         <ul className="space-y-2">
           {props.tasks.map((task, index) => (
@@ -76,13 +81,13 @@ const Goal = defineComponent({
           }}
         >
           {status === "saved"
-            ? "Pinned"
+            ? tr("Pinned")
             : status === "saving"
-              ? "Pinning…"
-              : "Pin goal"}
+              ? tr("Pinning…")
+              : tr("Pin goal")}
         </button>
         {status === "error" && (
-          <p role="alert">Couldn’t pin this goal. Try again.</p>
+          <p role="alert">{tr("Couldn’t pin this goal. Try again.")}</p>
         )}
       </section>
     )
@@ -91,8 +96,9 @@ const Goal = defineComponent({
 
 const MealLog = defineComponent({
   name: "MealLog",
-  description:
-    "Editable meal preview. Macros are per serving; quantity scales them. Saves only when the user taps Log meal. Do not also emit a log_nutrition operation for this meal.",
+  description: tr(
+    "Editable meal preview. Macros are per serving; quantity scales them. Saves only when the user taps Log meal. Do not also emit a log_nutrition operation for this meal."
+  ),
   props: z.object({
     name: z.string(),
     meal: z.enum(["Breakfast", "Lunch", "Dinner", "Snack"]),
@@ -116,41 +122,64 @@ const MealLog = defineComponent({
       <section className="space-y-3 rounded-xl border border-border p-4">
         <h3 className="font-semibold">{props.name}</h3>
         <p>
-          {Math.round(props.calories * quantity)} kcal ·{" "}
-          {Math.round(props.protein * quantity)} g protein ·{" "}
-          {Math.round(props.carbs * quantity)} g carbs ·{" "}
-          {Math.round(props.fat * quantity)} g fat
+          <Message
+            text={
+              "{{value0}} kcal · {{value1}} g protein · {{value2}} g carbs · {{value3}} g fat"
+            }
+            values={{
+              value0: Math.round(props.calories * quantity),
+              value1: Math.round(props.protein * quantity),
+              value2: Math.round(props.carbs * quantity),
+              value3: Math.round(props.fat * quantity),
+            }}
+          />
         </p>
         <label className="flex min-h-11 items-center justify-between gap-3">
-          Servings
-          <input
-            className="w-24 rounded-lg border border-border bg-background p-2"
-            type="number"
-            min={0.25}
-            max={20}
-            step={0.25}
-            value={quantity}
-            disabled={locked}
-            onChange={(event) => {
-              const value = Number(event.target.value)
-              if (Number.isFinite(value))
-                setQuantity(Math.min(20, Math.max(0.25, value)))
+          <Message
+            text={"Servings{{value0}}"}
+            values={{
+              value0: (
+                <input
+                  className="w-24 rounded-lg border border-border bg-background p-2"
+                  type="number"
+                  min={0.25}
+                  max={20}
+                  step={0.25}
+                  value={quantity}
+                  disabled={locked}
+                  onChange={(event) => {
+                    const value = Number(event.target.value)
+                    if (Number.isFinite(value))
+                      setQuantity(Math.min(20, Math.max(0.25, value)))
+                  }}
+                />
+              ),
             }}
           />
         </label>
         <label className="flex min-h-11 items-center justify-between gap-3">
-          Meal
-          <select
-            aria-label="Meal"
-            className="rounded-lg border border-border bg-background p-2"
-            value={meal}
-            disabled={locked}
-            onChange={(event) => setMeal(event.target.value as typeof meal)}
-          >
-            {["Breakfast", "Lunch", "Dinner", "Snack"].map((value) => (
-              <option key={value}>{value}</option>
-            ))}
-          </select>
+          <Message
+            text={"Meal{{value0}}"}
+            values={{
+              value0: (
+                <select
+                  aria-label={tr("Meal")}
+                  className="rounded-lg border border-border bg-background p-2"
+                  value={meal}
+                  disabled={locked}
+                  onChange={(event) =>
+                    setMeal(event.target.value as typeof meal)
+                  }
+                >
+                  {["Breakfast", "Lunch", "Dinner", "Snack"].map((value) => (
+                    <option key={value} value={value}>
+                      {tr(value)}
+                    </option>
+                  ))}
+                </select>
+              ),
+            }}
+          />
         </label>
         {props.assumptions.map((assumption, index) => (
           <p className="text-sm text-muted-foreground" key={index}>
@@ -168,7 +197,7 @@ const MealLog = defineComponent({
               await actions.onSubmitInteractive({
                 type: "log_nutrition",
                 confirmation: "auto",
-                summary: `Log ${props.name}`,
+                summary: tr("Log {{value0}}", { value0: props.name }),
                 assumptions: props.assumptions,
                 warnings: [],
                 name: props.name,
@@ -186,13 +215,13 @@ const MealLog = defineComponent({
           }}
         >
           {status === "saved"
-            ? "Logged"
+            ? tr("Logged")
             : status === "saving"
-              ? "Logging…"
-              : "Log meal"}
+              ? tr("Logging…")
+              : tr("Log meal")}
         </button>
         {status === "error" && (
-          <p role="alert">Couldn’t log this meal. Try again.</p>
+          <p role="alert">{tr("Couldn’t log this meal. Try again.")}</p>
         )}
       </section>
     )

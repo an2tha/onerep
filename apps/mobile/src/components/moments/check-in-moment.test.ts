@@ -1,3 +1,4 @@
+import { readLocalizedSource as readFileSync } from "../../../tests/helpers/localized-source"
 /**
  * Contract tests for the check-in moment's answers.
  *
@@ -7,7 +8,6 @@
  */
 
 import { describe, expect, test } from "bun:test"
-import { readFileSync } from "node:fs"
 
 const read = (path: string) =>
   readFileSync(new URL(path, import.meta.url), "utf8")

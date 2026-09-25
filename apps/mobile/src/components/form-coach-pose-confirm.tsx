@@ -1,3 +1,4 @@
+import { Message, tr, translateError } from "@repo/ui/i18n"
 import { Suspense, lazy, useEffect, useMemo, useState } from "react"
 import { ArrowCounterClockwise, Pause, Play } from "@phosphor-icons/react"
 import { SwipeToStart, toast } from "@repo/ui"
@@ -128,9 +129,11 @@ export function FormCoachPoseConfirm() {
       // Keep the draft so a failed send does not cost the user their angles.
       logDevError("Form coach submission failed", error)
       toast.error(
-        error instanceof Error && error.message
-          ? error.message
-          : "Couldn't send to the coach"
+        translateError(
+          error instanceof Error && error.message
+            ? error.message
+            : tr("Couldn't send to the coach")
+        )
       )
       setSending(false)
       setAttempt((value) => value + 1)
@@ -140,7 +143,7 @@ export function FormCoachPoseConfirm() {
   return (
     <MobileSheet
       onClose={tryAgain}
-      ariaLabel="Confirm your tracked pose"
+      ariaLabel={tr("Confirm your tracked pose")}
       closeOnBackdrop={false}
       showHandle
       overlayClassName="bg-black/50 backdrop-blur-[8px]"
@@ -155,14 +158,27 @@ export function FormCoachPoseConfirm() {
       <>
         <div className="px-5 pt-4 pb-3">
           <h2 className="text-[17px] font-semibold tracking-tight">
-            Does this look right?
+            {tr("Does this look right?")}
           </h2>
           <p className="pt-0.5 text-[13px] leading-5 text-muted-foreground">
             {showBestRep && collected && hasReps
-              ? `Your clearest of ${collected.repCount} rep${collected.repCount === 1 ? "" : "s"} across ${collected.angleCount} angle${collected.angleCount === 1 ? "" : "s"}. Drag to rotate it.`
+              ? tr(
+                  "Your clearest of {{value0}} rep{{value1}} across {{value2}} angle{{value3}}. Drag to rotate it.",
+                  {
+                    value0: collected.repCount,
+                    value1: collected.repCount === 1 ? "" : "s",
+                    value2: collected.angleCount,
+                    value3: collected.angleCount === 1 ? "" : "s",
+                  }
+                )
               : showBestRep
-                ? `No full rep was counted, so this is the clearest tracking instead. You can still send it. Drag to rotate it.`
-                : `This is how your ${draft.exerciseName.toLowerCase()} was tracked. Drag to rotate it.`}
+                ? tr(
+                    "No full rep was counted, so this is the clearest tracking instead. You can still send it. Drag to rotate it."
+                  )
+                : tr(
+                    "This is how your {{value0}} was tracked. Drag to rotate it.",
+                    { value0: draft.exerciseName.toLowerCase() }
+                  )}
           </p>
         </div>
 
@@ -184,7 +200,7 @@ export function FormCoachPoseConfirm() {
                     : "bg-foreground/[0.06] text-muted-foreground"
                 )}
               >
-                {hasReps ? "Best rep" : "Tracked"}
+                {hasReps ? tr("Best rep") : tr("Tracked")}
               </button>
             )}
             {landmarks.map((entry, index) => (
@@ -203,7 +219,10 @@ export function FormCoachPoseConfirm() {
                     : "bg-foreground/[0.06] text-muted-foreground"
                 )}
               >
-                Angle {entry.index}
+                <Message
+                  text={"Angle {{value0}}"}
+                  values={{ value0: entry.index }}
+                />
               </button>
             ))}
           </div>
@@ -215,11 +234,12 @@ export function FormCoachPoseConfirm() {
             {frames.length === 0 ? (
               <div className="flex aspect-[3/4] w-full flex-col items-center justify-center gap-2 px-8 text-center">
                 <p className="text-[15px] font-semibold text-white">
-                  No pose detected
+                  {tr("No pose detected")}
                 </p>
                 <p className="text-[13px] leading-5 text-white/70">
-                  Nothing was tracked in this angle. Film again with your whole
-                  body in frame and the room well lit.
+                  {tr(
+                    "Nothing was tracked in this angle. Film again with your whole body in frame and the room well lit."
+                  )}
                 </p>
               </div>
             ) : (
@@ -246,8 +266,13 @@ export function FormCoachPoseConfirm() {
                 <div className="absolute top-3 left-3 rounded-full bg-black/60 px-2.5 py-1 backdrop-blur-md">
                   <span className="text-[12px] font-medium text-white tabular-nums">
                     {showBestRep && collected && hasReps
-                      ? `${collected.repCount} rep${collected.repCount === 1 ? "" : "s"}`
-                      : `${Math.round((showBestRep ? 1 : rate) * 100)}% tracked`}
+                      ? tr("{{value0}} rep{{value1}}", {
+                          value0: collected.repCount,
+                          value1: collected.repCount === 1 ? "" : "s",
+                        })
+                      : tr("{{value0}}% tracked", {
+                          value0: Math.round((showBestRep ? 1 : rate) * 100),
+                        })}
                   </span>
                 </div>
                 {frames.length > 1 && (
@@ -258,7 +283,7 @@ export function FormCoachPoseConfirm() {
                       setSeekTimeMs(undefined)
                       setPlaying((value) => !value)
                     }}
-                    aria-label={playing ? "Pause" : "Play"}
+                    aria-label={playing ? tr("Pause") : tr("Play")}
                     className="absolute right-3 bottom-3 flex h-10 w-10 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-md active:opacity-70"
                   >
                     {playing ? (
@@ -287,11 +312,14 @@ export function FormCoachPoseConfirm() {
                   setProgressMs(next)
                   setSeekTimeMs(next)
                 }}
-                aria-label="Position in the rep"
+                aria-label={tr("Position in the rep")}
                 className="h-9 min-w-0 flex-1 accent-foreground"
               />
               <span className="shrink-0 text-[12px] text-muted-foreground tabular-nums">
-                {(progressMs / 1000).toFixed(1)}s
+                <Message
+                  text={"{{value0}}s"}
+                  values={{ value0: (progressMs / 1000).toFixed(1) }}
+                />
               </span>
             </div>
           )}
@@ -301,12 +329,16 @@ export function FormCoachPoseConfirm() {
             <div className="pt-3">
               <div className="flex items-center justify-between pb-1">
                 <p className="text-[13px] font-semibold">
-                  Straighten
-                  {measured && (
-                    <span className="pl-1.5 text-[12px] font-normal text-muted-foreground">
-                      auto
-                    </span>
-                  )}
+                  <Message
+                    text={"Straighten{{value0}}"}
+                    values={{
+                      value0: measured && (
+                        <span className="pl-1.5 text-[12px] font-normal text-muted-foreground">
+                          {tr("auto")}
+                        </span>
+                      ),
+                    }}
+                  />
                 </p>
                 <button
                   type="button"
@@ -319,12 +351,13 @@ export function FormCoachPoseConfirm() {
                   }
                   className="min-h-8 rounded-full px-2 text-[12px] font-semibold text-muted-foreground disabled:opacity-40"
                 >
-                  Reset
+                  {tr("Reset")}
                 </button>
               </div>
               <p className="pb-2 text-[12px] leading-4 text-muted-foreground">
-                A camera that was not quite level tilts the whole skeleton.
-                Nudge it upright, because the coach measures what you see here.
+                {tr(
+                  "A camera that was not quite level tilts the whole skeleton. Nudge it upright, because the coach measures what you see here."
+                )}
               </p>
               {(
                 [
@@ -373,15 +406,15 @@ export function FormCoachPoseConfirm() {
             >
               <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-foreground/20 border-t-foreground/60" />
               <span className="text-[15px] font-semibold">
-                Reading your form…
+                {tr("Reading your form…")}
               </span>
             </div>
           ) : (
             <SwipeToStart
               key={attempt}
-              label="Looks right, ask the coach"
-              readyLabel="Release to send"
-              completingLabel="Sending"
+              label={tr("Looks right, ask the coach")}
+              readyLabel={tr("Release to send")}
+              completingLabel={tr("Sending")}
               onComplete={() => void sendToCoach()}
               onHaptic={(kind) =>
                 kind === "complete" ? hapticMedium() : hapticSelection()
@@ -394,18 +427,48 @@ export function FormCoachPoseConfirm() {
             disabled={sending}
             className="motion-pressable flex min-h-12 w-full items-center justify-center gap-2 rounded-[14px] border border-border/60 text-[15px] font-semibold disabled:opacity-40"
           >
-            <ArrowCounterClockwise size={15} weight="bold" />
-            Try again
+            <Message
+              text={"{{value0}}Try again"}
+              values={{
+                value0: <ArrowCounterClockwise size={15} weight="bold" />,
+              }}
+            />
           </button>
           <p className="text-center text-[12px] text-muted-foreground">
             {collected
-              ? `${hasReps ? `${collected.repCount} rep${collected.repCount === 1 ? "" : "s"}` : "no reps counted"} · ${totalTracked} tracked frames · ${landmarks.length} angle${landmarks.length === 1 ? "" : "s"}`
-              : `${totalTracked} tracked frame${totalTracked === 1 ? "" : "s"} across ${landmarks.length} angle${landmarks.length === 1 ? "" : "s"}`}
+              ? tr(
+                  "{{value0}} · {{value1}} tracked frames · {{value2}} angle{{value3}}",
+                  {
+                    value0: hasReps
+                      ? tr("{{value0}} rep{{value1}}", {
+                          value0: collected.repCount,
+                          value1: collected.repCount === 1 ? "" : "s",
+                        })
+                      : tr("no reps counted"),
+                    value1: totalTracked,
+                    value2: landmarks.length,
+                    value3: landmarks.length === 1 ? "" : "s",
+                  }
+                )
+              : tr(
+                  "{{value0}} tracked frame{{value1}} across {{value2}} angle{{value3}}",
+                  {
+                    value0: totalTracked,
+                    value1: totalTracked === 1 ? "" : "s",
+                    value2: landmarks.length,
+                    value3: landmarks.length === 1 ? "" : "s",
+                  }
+                )}
           </p>
           {/* Said plainly, because it is the one part of this the skeleton
               above does not show. */}
           <p className="text-center text-[12px] text-muted-foreground">
-            Sends your skeleton and up to {MAX_COACH_STILLS} frames of the video
+            <Message
+              text={
+                "Sends your skeleton and up to {{value0}} frames of the video"
+              }
+              values={{ value0: MAX_COACH_STILLS }}
+            />
           </p>
         </div>
       </>

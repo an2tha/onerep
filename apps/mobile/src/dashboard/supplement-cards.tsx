@@ -1,3 +1,4 @@
+import { Message, tr } from "@repo/ui/i18n"
 import {
   CaretRight,
   Coffee,
@@ -63,7 +64,9 @@ export function SupplementWidget({
       <div className="px-4 py-2.5">
         <div className="mb-2 flex items-center justify-between">
           <div className="flex items-baseline gap-2">
-            <CardTitle className="text-sm font-semibold">Supplements</CardTitle>
+            <CardTitle className="text-sm font-semibold">
+              {tr("Supplements")}
+            </CardTitle>
             <span className="text-[10px] text-muted-foreground/35 tabular-nums">
               {doneCount}/{SUPPLEMENT_LIST.length}
             </span>
@@ -72,8 +75,10 @@ export function SupplementWidget({
             onClick={() => navigate("/supplements")}
             className="flex min-h-10 items-center gap-1 rounded-lg px-2 text-[10.5px] font-medium text-muted-foreground/45 active:bg-muted/45 active:text-muted-foreground/70"
           >
-            Open
-            <CaretRight size={10} weight="bold" />
+            <Message
+              text={"Open{{value0}}"}
+              values={{ value0: <CaretRight size={10} weight="bold" /> }}
+            />
           </button>
         </div>
 
@@ -143,7 +148,7 @@ export function SupplementsSmall({
       >
         <div className="flex w-full items-start justify-between">
           <p className="text-[10px] font-semibold text-muted-foreground/50">
-            Supplements
+            {tr("Supplements")}
           </p>
           <Pill
             size={14}
@@ -161,7 +166,10 @@ export function SupplementsSmall({
             </span>
           </div>
           <p className="mt-0.5 truncate text-[9px] text-muted-foreground/35">
-            {formatSupplementAmount(totals.caffeine, "mg")} caffeine
+            <Message
+              text={"{{value0}} caffeine"}
+              values={{ value0: formatSupplementAmount(totals.caffeine, "mg") }}
+            />
           </p>
         </div>
       </button>

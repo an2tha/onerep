@@ -1,6 +1,6 @@
+import { readLocalizedSource as readFileSync } from "../../tests/helpers/localized-source"
 import { describe, test } from "node:test"
 import assert from "node:assert/strict"
-import { readFileSync } from "node:fs"
 
 const FEEDBACK = readFileSync(
   new URL("../components/feedback-center.tsx", import.meta.url),

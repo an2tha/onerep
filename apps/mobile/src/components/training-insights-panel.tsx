@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 import { useQuery } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
 import { currentDateKey } from "@/lib/food-log"
@@ -15,10 +16,10 @@ import { cn } from "@/lib/utils"
  */
 
 const STATUS_LABEL: Record<string, string> = {
-  progressing: "Climbing",
-  stalled: "Flat",
-  regressing: "Slipping",
-  new: "Too new",
+  progressing: tr("Climbing"),
+  stalled: tr("Flat"),
+  regressing: tr("Slipping"),
+  new: tr("Too new"),
 }
 
 const STATUS_CLASS: Record<string, string> = {
@@ -29,9 +30,9 @@ const STATUS_CLASS: Record<string, string> = {
 }
 
 const RECOVERY_LABEL: Record<string, string> = {
-  ready: "Recovered",
-  steady: "One signal off",
-  compromised: "Under-recovered",
+  ready: tr("Recovered"),
+  steady: tr("One signal off"),
+  compromised: tr("Under-recovered"),
 }
 
 export function TrainingInsightsPanel() {
@@ -49,12 +50,14 @@ export function TrainingInsightsPanel() {
     return null
 
   return (
-    <section aria-label="Training analysis" className="mb-4">
-      <p className="native-section-title mb-2">What your coach sees</p>
+    <section aria-label={tr("Training analysis")} className="mb-4">
+      <p className="native-section-title mb-2">{tr("What your coach sees")}</p>
 
       {programming?.deload?.recommended && (
         <div className="mb-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
-          <p className="text-[13px] font-semibold">A lighter week is due</p>
+          <p className="text-[13px] font-semibold">
+            {tr("A lighter week is due")}
+          </p>
           <p className="mt-1 text-[13px] leading-snug text-muted-foreground">
             {programming.deload.reason}
           </p>
@@ -97,7 +100,7 @@ export function TrainingInsightsPanel() {
       {showRecovery && (
         <div className="mt-3 rounded-xl border border-border bg-card p-4">
           <div className="flex items-baseline justify-between gap-3">
-            <p className="text-[13px] font-semibold">Recovery</p>
+            <p className="text-[13px] font-semibold">{tr("Recovery")}</p>
             <p
               className={cn(
                 "text-[12px] font-semibold",
@@ -124,7 +127,7 @@ export function TrainingInsightsPanel() {
             </ul>
           ) : (
             <p className="mt-1 text-[12px] text-muted-foreground">
-              Sleep and heart rate are sitting on your usual baseline.
+              {tr("Sleep and heart rate are sitting on your usual baseline.")}
             </p>
           )}
         </div>

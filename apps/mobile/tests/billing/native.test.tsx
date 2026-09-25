@@ -55,6 +55,12 @@ const finish = mock(async (_options: unknown) => {
 const restore = mock(async () => ({ transactions }))
 const openBrowser = mock(async (_options: unknown) => {})
 const loadProduct = mock(async (_id: string) => product)
+let nativeUpgradesEnabled = true
+
+// Preserve coverage of the dormant StoreKit flow, then separately verify the pause.
+mock.module("../../src/lib/billing-policy", () => ({
+  canOfferProUpgrade: (native: boolean) => !native || nativeUpgradesEnabled,
+}))
 const actions = {
   "billing/public:getStoreIdentity": mock(async () => {
     calls.push("identity")
@@ -165,6 +171,7 @@ async function mount() {
   await act(async () => root!.render(<Harness />))
 }
 beforeEach(() => {
+  nativeUpgradesEnabled = true
   platform = "ios"
   pluginAvailable = true
   active = false
@@ -192,7 +199,7 @@ afterEach(async () => {
   calls.length = 0
 })
 
-test("iOS shows Apple pricing, purchase, and restore in both surfaces", async () => {
+test("iOS purchase flow remains functional when native upgrades are enabled", async () => {
   await mount()
   expect(billing.canPurchase).toBe(true)
   expect(billing.canRestore).toBe(true)
@@ -391,7 +398,10 @@ for (const subscribed of [false, true]) {
     await mount()
     expect(
       container.textContent?.split(NATIVE_SUBSCRIPTION_MESSAGE)
-    ).toHaveLength(3)
+    ).toHaveLength(2)
+    expect(container.textContent).toContain(
+      "Subscription management isn’t available in this app."
+    )
     expect(billing.canPurchase).toBe(false)
     expect(billing.canRestore).toBe(false)
     await expect(billing.purchaseMonthly()).rejects.toThrow(
@@ -412,5 +422,55 @@ test("web keeps subscription checkout available", async () => {
     await billing.purchaseMonthly()
   })
   expect(calls).toEqual(["stripe"])
+  expect(purchase).not.toHaveBeenCalled()
+})
+
+for (const nativePlatform of ["ios", "android"]) {
+  test(`${nativePlatform} pause removes offers and catalogue loading without granting Pro`, async () => {
+    nativeUpgradesEnabled = false
+    platform = nativePlatform
+    await mount()
+    expect(billing.canUpgrade).toBe(false)
+    expect(billing.canPurchase).toBe(false)
+    expect(billing.hasOneRepPro).toBe(false)
+    expect(loadProduct).not.toHaveBeenCalled()
+    expect(container.textContent).not.toMatch(
+      /Upgrade|Subscribe with Apple|OneRep Pro raises|4\.99|Retry loading plans/
+    )
+    expect(container.textContent).toContain("Monthly AI allowance")
+    await expect(billing.purchaseMonthly()).rejects.toThrow(
+      "Upgrade unavailable"
+    )
+    expect(purchase).not.toHaveBeenCalled()
+    expect(openBrowser).not.toHaveBeenCalled()
+    expect(calls).toEqual([])
+  })
+}
+
+test("paused iOS upgrades retain restore for existing purchases", async () => {
+  nativeUpgradesEnabled = false
+  transactions = [transaction]
+  await mount()
+  const restoreButton = [
+    ...container.querySelectorAll<HTMLButtonElement>("button"),
+  ].find((button) => button.textContent?.includes("Restore purchases"))!
+  expect(restoreButton).toBeDefined()
+  await act(async () => restoreButton.click())
+  expect(calls).toEqual(["redeem", "finish"])
+  expect(restore).toHaveBeenCalledTimes(1)
+  expect(loadProduct).not.toHaveBeenCalled()
+})
+
+test("paused upgrades retain App Store management for subscribers", async () => {
+  nativeUpgradesEnabled = false
+  active = true
+  await mount()
+  expect(billing.hasOneRepPro).toBe(true)
+  expect(container.textContent).toContain("Manage in the App Store")
+  expect(container.textContent).not.toContain("Upgrade to Pro")
+  await act(async () => billing.openBillingManagement())
+  expect(openBrowser).toHaveBeenCalledWith({
+    url: "https://apps.apple.com/account/subscriptions",
+  })
   expect(purchase).not.toHaveBeenCalled()
 })

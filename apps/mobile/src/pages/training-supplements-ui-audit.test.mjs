@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import { readFileSync } from "node:fs"
+import { readLocalizedSource as readFileSync } from "../../tests/helpers/localized-source.ts"
 import test from "node:test"
 
 function source(name) {
@@ -10,16 +10,18 @@ const activeWorkout = [
   "ActiveWorkout.tsx",
   "active-workout/set-rows.tsx",
   "active-workout/active-exercise-card.tsx",
-].map(source).join("\n")
+]
+  .map(source)
+  .join("\n")
 const workouts = source("Workouts.tsx")
 const newPreset = source("NewPreset.tsx")
 const supplements = source("Supplements.tsx")
 const setRow = readFileSync(
   new URL(
     "../../../../packages/ui/src/components/apple-fitness-set-row.tsx",
-    import.meta.url,
+    import.meta.url
   ),
-  "utf8",
+  "utf8"
 )
 
 test("active workout communicates time, progress, and next action", () => {
@@ -28,7 +30,7 @@ test("active workout communicates time, progress, and next action", () => {
   // state ahead of it, so the live pair is matched across the wrapping ternary.
   assert.match(
     activeWorkout,
-    /rest\.remaining !== null\s*\?\s*"Rest"\s*:\s*"Elapsed"/,
+    /rest\.remaining !== null\s*\?\s*"Rest"\s*:\s*"Elapsed"/
   )
   assert.match(activeWorkout, /formatElapsed\(rest\.remaining \?\? elapsed\)/)
   assert.match(activeWorkout, /role="progressbar"/)
@@ -61,10 +63,7 @@ test("supplements prioritizes adherence and labels library actions", () => {
 
 test("dense workout UI avoids tiny labels and undersized set controls", () => {
   assert.doesNotMatch(activeWorkout, /text-\[(?:7\.5|8\.5|9|10)px\]/)
-  assert.doesNotMatch(
-    activeWorkout,
-    /text-muted-foreground\/(?:25|30|35)/,
-  )
+  assert.doesNotMatch(activeWorkout, /text-muted-foreground\/(?:25|30|35)/)
   assert.match(setRow, /min-h-12/)
   assert.match(setRow, /h-11 w-11/)
 })

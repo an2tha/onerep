@@ -1,3 +1,4 @@
+import { readLocalizedSource as readFileSync } from "../../tests/helpers/localized-source"
 /**
  * Contract tests for retro mode — logging a workout after the fact.
  *
@@ -11,7 +12,6 @@
  */
 
 import { describe, expect, test } from "bun:test"
-import { readFileSync } from "node:fs"
 
 const PAGE = [
   "./ActiveWorkout.tsx",

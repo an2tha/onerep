@@ -1,3 +1,4 @@
+import { Message, tr, translateError, uiLocale } from "@repo/ui/i18n"
 import { NudgeIllustration } from "@repo/ui/mobile"
 import { useState } from "react"
 import { useAction, useMutation } from "convex/react"
@@ -36,7 +37,7 @@ function rangeLabel(weekStart: string) {
   const end = new Date(start)
   end.setDate(end.getDate() + 6)
   const format = (date: Date) =>
-    date.toLocaleDateString(undefined, { month: "short", day: "numeric" })
+    date.toLocaleDateString(uiLocale(), { month: "short", day: "numeric" })
   return `${format(start)} – ${format(end)}`
 }
 
@@ -82,10 +83,10 @@ export function WeeklyReviewMoment({
       await markApplied({ reviewId: review.id, index })
       setApplied((current) => [...current, index])
       hapticMedium()
-      toast.success("Done.")
+      toast.success(tr("Done."))
     } catch (error) {
       logDevWarn("Failed to apply a review proposal", error)
-      toast.error("Couldn't apply that one.")
+      toast.error(translateError(tr("Couldn't apply that one.")))
     } finally {
       setBusyIndex(null)
     }
@@ -111,7 +112,9 @@ export function WeeklyReviewMoment({
 
   return (
     <MomentScreen
-      title={`Your week: ${rangeLabel(review.weekStart)}`}
+      title={tr("Your week: {{value0}}", {
+        value0: rangeLabel(review.weekStart),
+      })}
       subtitle={review.headline}
       onClose={() => void close("dismissed")}
       showClose={false}
@@ -122,14 +125,14 @@ export function WeeklyReviewMoment({
               void close(applied.length > 0 ? "resolved" : "dismissed")
             }
           >
-            {applied.length > 0 ? "Done" : "Got it"}
+            {applied.length > 0 ? tr("Done") : tr("Got it")}
           </MomentPrimaryAction>
           {outstanding > 0 && (
             <MomentSecondaryAction
               onClick={() => void close("dismissed")}
               className="bg-transparent text-muted-foreground active:bg-muted/40"
             >
-              Not this week
+              {tr("Not this week")}
             </MomentSecondaryAction>
           )}
         </>
@@ -152,7 +155,7 @@ export function WeeklyReviewMoment({
       {review.focus && (
         <div className="app-surface mt-3 px-4 py-4">
           <p className="text-[12px] tracking-wide text-muted-foreground uppercase">
-            Next week
+            {tr("Next week")}
           </p>
           <p className="mt-1 text-[15px] leading-snug font-semibold tracking-tight">
             {review.focus}
@@ -173,7 +176,7 @@ export function WeeklyReviewMoment({
                 className="app-surface px-4 py-4"
               >
                 <p className="text-[14px] leading-snug font-medium">
-                  {operation.summary ?? "A change to your plan"}
+                  {operation.summary ?? tr("A change to your plan")}
                 </p>
 
                 {(operation.assumptions?.length ||
@@ -192,7 +195,10 @@ export function WeeklyReviewMoment({
                         key={line}
                         className="text-[12px] leading-snug text-muted-foreground"
                       >
-                        Assuming: {line}
+                        <Message
+                          text={"Assuming: {{value0}}"}
+                          values={{ value0: line }}
+                        />
                       </li>
                     ))}
                   </ul>
@@ -200,8 +206,10 @@ export function WeeklyReviewMoment({
 
                 {isApplied ? (
                   <p className="mt-3 flex items-center gap-1.5 text-[13px] font-medium text-muted-foreground">
-                    <Check size={14} weight="bold" />
-                    Applied
+                    <Message
+                      text={"{{value0}}Applied"}
+                      values={{ value0: <Check size={14} weight="bold" /> }}
+                    />
                   </p>
                 ) : (
                   <div className="mt-3 flex items-center gap-2">
@@ -211,11 +219,11 @@ export function WeeklyReviewMoment({
                       onClick={() => void approve(index)}
                       className="app-button-primary h-10 flex-1 text-[14px] disabled:opacity-50"
                     >
-                      {busyIndex === index ? "Applying…" : "Do it"}
+                      {busyIndex === index ? tr("Applying…") : tr("Do it")}
                     </button>
                     <button
                       type="button"
-                      aria-label="Skip this suggestion"
+                      aria-label={tr("Skip this suggestion")}
                       disabled={busyIndex !== null}
                       onClick={() => refuse(index)}
                       className="app-icon-button h-10 w-10 bg-muted/55 text-muted-foreground disabled:opacity-40"

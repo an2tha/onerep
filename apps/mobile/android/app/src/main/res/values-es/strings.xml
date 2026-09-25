@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_quick_actions_label">Acciones de OneRep</string>
+    <string name="widget_quick_actions_description">Empieza un entrenamiento o registra una comida.</string>
+    <string name="widget_nutrition_label">Resumen de nutrición</string>
+    <string name="widget_nutrition_description">Calorías y macros en tiempo real de OneRep.</string>
+    <string name="widget_schedule_label">Entrenamiento de hoy</string>
+    <string name="widget_schedule_description">Ejercicios y series de entrenamiento programados para hoy.</string>
+    <string name="widget_combined_label">Detalles de nutrición</string>
+    <string name="widget_combined_description">Alimentos registrados, calorías restantes y desglose de macronutrientes.</string>
+    <string name="health_permissions_rationale">OneRep lee los entrenamientos de cardio completados, la frecuencia cardíaca, la distancia y la energía activa, para que tu historial de entrenamiento esté completo. Con tu permiso, también puede devolver las sesiones completadas de OneRep a Health Connect.</string>
+    <string name="widget_snap_camera_label">Cámara Snap</string>
+    <string name="widget_snap_camera_caption">Registrar una comida</string>
+    <string name="widget_snap_camera_description">Abre la cámara para tomar una foto y registrar una comida.</string>
+    <string name="widget_open_to_sync">Abrir OneRep para sincronizar</string>
+    <string name="widget_updates_from_account">Los datos del widget se actualizan desde tu cuenta.</string>
+    <string name="widget_start_workout">Empezar entrenamiento</string>
+    <string name="widget_log_meal">Registrar una comida</string>
+    <string name="widget_water_summary">Agua %1$s</string>
+    <string name="widget_kcal_left">kcal restantes</string>
+    <string name="widget_calories_left">%1$d kcal restantes</string>
+    <string name="widget_calories_eaten">%1$d de %2$d comido</string>
+    <string name="widget_protein">Proteínas</string>
+    <string name="widget_carbs">Carbohidratos</string>
+    <string name="widget_fat">Grasa</string>
+    <string name="navigation_open">Navegación abierta</string>
+</resources>

@@ -1,3 +1,4 @@
+import { Message, tr, translateError } from "@repo/ui/i18n"
 import { useMemo, useState } from "react"
 import { useAction, useQuery } from "convex/react"
 import { useSearchParams } from "react-router"
@@ -19,14 +20,16 @@ type Scope = "read" | "write"
 
 const SCOPE_COPY: Record<Scope, { title: string; detail: string }> = {
   read: {
-    title: "Read your log",
-    detail:
-      "Workouts, meals, weight, and everything else you have recorded here.",
+    title: tr("Read your log"),
+    detail: tr(
+      "Workouts, meals, weight, and everything else you have recorded here."
+    ),
   },
   write: {
-    title: "Write to your log",
-    detail:
-      "Add and change entries on your behalf, including ones you did not ask for.",
+    title: tr("Write to your log"),
+    detail: tr(
+      "Add and change entries on your behalf, including ones you did not ask for."
+    ),
   },
 }
 
@@ -62,7 +65,7 @@ export default function OAuthConsent() {
   async function decide(allow: boolean) {
     if (busy) return
     setBusy(allow ? "allow" : "deny")
-    setError(undefined)
+    setError(translateError(undefined))
     try {
       const { redirectTo } = await approve({
         clientId,
@@ -76,18 +79,28 @@ export default function OAuthConsent() {
       window.location.replace(redirectTo)
     } catch (cause) {
       setError(
-        cause instanceof Error ? cause.message : "That did not go through."
+        translateError(
+          cause instanceof Error
+            ? cause.message
+            : tr("That did not go through.")
+        )
       )
       setBusy(null)
     }
   }
 
   const problem = !complete
-    ? "That link is missing pieces. Start the connection again from the app you were using."
+    ? tr(
+        "That link is missing pieces. Start the connection again from the app you were using."
+      )
     : details && !details.ok
       ? details.reason === "unknown_client"
-        ? "That app is not registered with OneRep, or its registration was removed."
-        : "That app asked to be sent somewhere it is not allowed to go. Nothing was approved."
+        ? tr(
+            "That app is not registered with OneRep, or its registration was removed."
+          )
+        : tr(
+            "That app asked to be sent somewhere it is not allowed to go. Nothing was approved."
+          )
       : null
 
   return (
@@ -95,7 +108,7 @@ export default function OAuthConsent() {
       <main className="mx-auto flex min-h-svh w-full max-w-md flex-col justify-center px-6 py-10">
         <header className="mb-8 flex items-center gap-2.5">
           <img src="/app-icon.svg" alt="" className="size-8" />
-          <span className="native-row-title font-semibold">OneRep</span>
+          <span className="native-row-title font-semibold">{tr("OneRep")}</span>
         </header>
 
         {problem ? (
@@ -104,23 +117,27 @@ export default function OAuthConsent() {
             className="motion-content-in"
           >
             <h1 id="consent-title" className="native-large-title">
-              Can't connect that
+              {tr("Can't connect that")}
             </h1>
             <p className="native-body mt-3 text-muted-foreground">{problem}</p>
           </section>
         ) : details === undefined ? (
-          <p className="native-body text-muted-foreground">Checking…</p>
+          <p className="native-body text-muted-foreground">{tr("Checking…")}</p>
         ) : (
           <section
             aria-labelledby="consent-title"
             className="motion-content-in"
           >
             <h1 id="consent-title" className="native-large-title">
-              Connect {details.clientName}?
+              <Message
+                text={"Connect {{value0}}?"}
+                values={{ value0: details.clientName }}
+              />
             </h1>
             <p className="native-body mt-3 text-muted-foreground">
-              It is asking for access to your OneRep log. You can take this back
-              at any time in Settings.
+              {tr(
+                "It is asking for access to your OneRep log. You can take this back at any time in Settings."
+              )}
             </p>
 
             <ul className="mt-7 space-y-4">
@@ -138,9 +155,12 @@ export default function OAuthConsent() {
 
             {details.registration === "dynamic" && (
               <p className="native-body mt-6 text-muted-foreground">
-                This app registered itself, which anything is allowed to do. The
-                name above is what it calls itself and nobody has checked it. If
-                you did not just start this from {details.clientName}, say no.
+                <Message
+                  text={
+                    "This app registered itself, which anything is allowed to do. The name above is what it calls itself and nobody has checked it. If you did not just start this from {{value0}}, say no."
+                  }
+                  values={{ value0: details.clientName }}
+                />
               </p>
             )}
 
@@ -158,7 +178,7 @@ export default function OAuthConsent() {
                 aria-busy={busy === "allow"}
                 className="native-primary-button min-h-12 w-full disabled:opacity-50"
               >
-                {busy === "allow" ? "Connecting…" : "Allow access"}
+                {busy === "allow" ? tr("Connecting…") : tr("Allow access")}
               </button>
               <button
                 type="button"
@@ -166,7 +186,7 @@ export default function OAuthConsent() {
                 disabled={busy !== null}
                 className="native-secondary-button min-h-12 w-full disabled:opacity-50"
               >
-                {busy === "deny" ? "Cancelling…" : "No thanks"}
+                {busy === "deny" ? tr("Cancelling…") : tr("No thanks")}
               </button>
             </div>
           </section>

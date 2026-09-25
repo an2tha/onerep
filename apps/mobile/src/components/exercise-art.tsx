@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 /**
  * free-exercise-db illustrations.
  *
@@ -14,7 +15,7 @@ import { cn } from "@/lib/utils"
 import { hapticSelection } from "@/lib/haptics"
 import { exerciseImageUrls, exerciseThumbnailUrl } from "@/lib/exercise-media"
 
-const FRAME_LABELS = ["Start", "Finish"]
+const FRAME_LABELS = [tr("Start"), tr("Finish")]
 
 /**
  * Small round frame for list rows. Falls back to an icon, never to nothing.
@@ -130,7 +131,12 @@ export function ExerciseArt({
           <img
             key={url}
             src={url}
-            alt={`${exerciseName}, ${FRAME_LABELS[index] ?? `frame ${index + 1}`}`}
+            alt={tr("{{value0}}, {{value1}}", {
+              value0: exerciseName,
+              value1:
+                FRAME_LABELS[index] ??
+                tr("frame {{value0}}", { value0: index + 1 }),
+            })}
             decoding="async"
             hidden={index !== current}
             onError={() => setFailed((state) => ({ ...state, [index]: true }))}
@@ -142,13 +148,13 @@ export function ExerciseArt({
           <>
             <ArtArrow
               side="left"
-              label="Previous frame"
+              label={tr("Previous frame")}
               disabled={position === 0}
               onClick={() => step(-1)}
             />
             <ArtArrow
               side="right"
-              label="Next frame"
+              label={tr("Next frame")}
               disabled={position === frames.length - 1}
               onClick={() => step(1)}
             />
@@ -159,7 +165,8 @@ export function ExerciseArt({
       {frames.length > 1 && (
         <figcaption className="mt-2 flex items-center justify-between text-[13px] text-muted-foreground">
           <span className="font-medium">
-            {FRAME_LABELS[current] ?? `Frame ${current + 1}`}
+            {FRAME_LABELS[current] ??
+              tr("Frame {{value0}}", { value0: current + 1 })}
           </span>
           <span>
             {position + 1} / {frames.length}

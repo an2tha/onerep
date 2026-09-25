@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 export type OfflineSyncStatusTone =
   "offline" | "pending" | "syncing" | "error" | "synced"
 
@@ -9,7 +10,10 @@ export type OfflineSyncStatusCopy = {
 }
 
 function pluralChanges(total: number) {
-  return `${total} change${total === 1 ? "" : "s"}`
+  return tr("{{value0}} change{{value1}}", {
+    value0: total,
+    value1: total === 1 ? "" : "s",
+  })
 }
 
 /**
@@ -23,9 +27,9 @@ function syncErrorBody(message: string) {
       message
     )
   ) {
-    return "We couldn’t reach OneRep. Check your connection, then retry."
+    return tr("We couldn’t reach OneRep. Check your connection, then retry.")
   }
-  return "Your changes are safe on this device. Retry to back them up."
+  return tr("Your changes are safe on this device. Retry to back them up.")
 }
 
 export function offlineSyncErrorText(error: unknown) {
@@ -35,7 +39,7 @@ export function offlineSyncErrorText(error: unknown) {
   if (typeof error === "string" && error.trim()) {
     return error
   }
-  return "Your changes are still on this device and not backed up yet."
+  return tr("Your changes are still on this device and not backed up yet.")
 }
 
 export function offlineSyncStatusCopy({
@@ -53,11 +57,13 @@ export function offlineSyncStatusCopy({
 }): OfflineSyncStatusCopy {
   if (!online) {
     return {
-      title: "Offline mode",
+      title: tr("Offline mode"),
       body:
         total > 0
-          ? `${pluralChanges(total)} saved locally. Connect to sync.`
-          : "Keep logging. Changes are saved locally.",
+          ? tr("{{value0}} saved locally. Connect to sync.", {
+              value0: pluralChanges(total),
+            })
+          : tr("Keep logging. Changes are saved locally."),
       tone: "offline",
       canRetry: false,
     }
@@ -65,11 +71,11 @@ export function offlineSyncStatusCopy({
 
   if (syncing && canSync) {
     return {
-      title: "Syncing changes",
+      title: tr("Syncing changes"),
       body:
         total > 0
-          ? "Uploading saved changes now."
-          : "Checking for saved changes.",
+          ? tr("Uploading saved changes now.")
+          : tr("Checking for saved changes."),
       tone: "syncing",
       canRetry: false,
     }
@@ -77,10 +83,10 @@ export function offlineSyncStatusCopy({
 
   if (lastError && (total > 0 || canSync)) {
     return {
-      title: "Sync needs attention",
+      title: tr("Sync needs attention"),
       body: canSync
         ? syncErrorBody(lastError)
-        : "Sign in again to retry syncing local changes.",
+        : tr("Sign in again to retry syncing local changes."),
       tone: "error",
       canRetry: canSync,
     }
@@ -88,8 +94,8 @@ export function offlineSyncStatusCopy({
 
   if (total > 0 && canSync) {
     return {
-      title: `${pluralChanges(total)} waiting to sync`,
-      body: "Uploading automatically. You can retry now.",
+      title: tr("{{value0}} waiting to sync", { value0: pluralChanges(total) }),
+      body: tr("Uploading automatically. You can retry now."),
       tone: "syncing",
       canRetry: true,
     }
@@ -97,8 +103,8 @@ export function offlineSyncStatusCopy({
 
   if (total > 0) {
     return {
-      title: "Waiting to sync",
-      body: "Sign-in is still connecting. Changes are saved locally.",
+      title: tr("Waiting to sync"),
+      body: tr("Sign-in is still connecting. Changes are saved locally."),
       tone: "pending",
       canRetry: false,
     }
@@ -106,16 +112,16 @@ export function offlineSyncStatusCopy({
 
   if (canSync) {
     return {
-      title: "All changes synced",
-      body: "Your latest changes are backed up.",
+      title: tr("All changes synced"),
+      body: tr("Your latest changes are backed up."),
       tone: "synced",
       canRetry: false,
     }
   }
 
   return {
-    title: "Waiting to sync",
-    body: "Sign-in is still connecting. New changes are saved locally.",
+    title: tr("Waiting to sync"),
+    body: tr("Sign-in is still connecting. New changes are saved locally."),
     tone: "pending",
     canRetry: false,
   }

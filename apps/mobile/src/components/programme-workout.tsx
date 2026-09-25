@@ -1,3 +1,4 @@
+import { Message, tr, translateError } from "@repo/ui/i18n"
 import { useEffect, useState } from "react"
 import { useQuery } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
@@ -61,17 +62,23 @@ export function ProgrammeWorkout({
   return (
     <section
       className="programme-workout"
-      aria-label="Programme workout compatibility"
+      aria-label={tr("Programme workout compatibility")}
     >
       <h2>
         {check.status === "too_demanding"
-          ? "A lighter session fits today"
+          ? tr("A lighter session fits today")
           : check.status === "watch"
-            ? "Keep recovery in view"
-            : "Training with your programme"}
+            ? tr("Keep recovery in view")
+            : tr("Training with your programme")}
       </h2>
       <p>
-        {PROGRAMME_NAMES[programme.goal]} · Estimated strain {strain ?? "—"}/100
+        <Message
+          text={"{{value0}} · Estimated strain {{value1}}/100"}
+          values={{
+            value0: PROGRAMME_NAMES[programme.goal],
+            value1: strain ?? "—",
+          }}
+        />
       </p>
       <p>{check.reason}</p>
       {check.status === "too_demanding" && (
@@ -82,7 +89,11 @@ export function ProgrammeWorkout({
               const next = dampenWorkout(data, check.ceiling)
               if (!next) {
                 toast.error(
-                  "Completed work or cardio already exceeds this ceiling. Consider ending the session."
+                  translateError(
+                    tr(
+                      "Completed work or cardio already exceeds this ceiling. Consider ending the session."
+                    )
+                  )
                 )
                 return
               }
@@ -93,13 +104,13 @@ export function ProgrammeWorkout({
               })
             }}
           >
-            Adjust workout
+            {tr("Adjust workout")}
           </button>
           <button
             className="programme-secondary"
             onClick={() => setCoach(true)}
           >
-            Ask AI to lighten it
+            {tr("Ask AI to lighten it")}
           </button>
         </div>
       )}
@@ -111,13 +122,21 @@ export function ProgrammeWorkout({
             setUndo(null)
           }}
         >
-          Undo adjustment
+          {tr("Undo adjustment")}
         </button>
       )}
       {coach && (
         <CoachSheet
           onClose={() => setCoach(false)}
-          initialInput={`Lighten my remaining workout for ${PROGRAMME_NAMES[programme.goal]}. ${check.reason} Current estimated strain: ${strain}/100. Keep exercise names, return only remaining sets, reduce set count or effort, and do not increase weights or reps. Aim below ${check.ceiling}/100 using load = sum(RPE × 6), score = round(100 × (1 − exp(−load/500))). Completed work stays unchanged.`}
+          initialInput={tr(
+            "Lighten my remaining workout for {{value0}}. {{value1}} Current estimated strain: {{value2}}/100. Keep exercise names, return only remaining sets, reduce set count or effort, and do not increase weights or reps. Aim below {{value3}}/100 using load = sum(RPE × 6), score = round(100 × (1 − exp(−load/500))). Completed work stays unchanged.",
+            {
+              value0: PROGRAMME_NAMES[programme.goal],
+              value1: check.reason,
+              value2: strain,
+              value3: check.ceiling,
+            }
+          )}
           activeWorkout={{
             summary,
             applying: false,
@@ -137,9 +156,11 @@ export function ProgrammeWorkout({
                 setCoach(false)
               } catch (e) {
                 toast.error(
-                  e instanceof Error
-                    ? e.message
-                    : "Couldn't validate the adjustment."
+                  translateError(
+                    e instanceof Error
+                      ? e.message
+                      : tr("Couldn't validate the adjustment.")
+                  )
                 )
                 throw e
               }
@@ -149,14 +170,22 @@ export function ProgrammeWorkout({
       )}
       {proposal && (
         <MobileSheet
-          ariaLabel="Review workout adjustment"
+          ariaLabel={tr("Review workout adjustment")}
           onClose={() => setProposal(null)}
         >
           <div className="programme-setup">
-            <h2>A lighter version of today</h2>
+            <h2>{tr("A lighter version of today")}</h2>
             <p>
-              {proposal.source} · Estimated strain {strain} →{" "}
-              {plannedWorkoutStrain(proposal.after) ?? 0}/100
+              <Message
+                text={
+                  "{{value0}} · Estimated strain {{value1}} → {{value2}}/100"
+                }
+                values={{
+                  value0: proposal.source,
+                  value1: strain,
+                  value2: plannedWorkoutStrain(proposal.after) ?? 0,
+                }}
+              />
             </p>
             <ul className="programme-review">
               {Object.entries(proposal.after)
@@ -168,23 +197,29 @@ export function ProgrammeWorkout({
                   <li key={id}>
                     <strong>{names[id] ?? id}</strong>
                     <span>
-                      {data[id]?.sets.filter((s) => !s.completed).length} →{" "}
-                      {state.sets.filter((s) => !s.completed).length} remaining
-                      sets
+                      <Message
+                        text={"{{value0}} → {{value1}} remaining sets"}
+                        values={{
+                          value0: data[id]?.sets.filter((s) => !s.completed)
+                            .length,
+                          value1: state.sets.filter((s) => !s.completed).length,
+                        }}
+                      />
                     </span>
                   </li>
                 ))}
             </ul>
             <p>
-              Completed sets stay unchanged. This adjustment applies to today's
-              session; your routine template stays saved.
+              {tr(
+                "Completed sets stay unchanged. This adjustment applies to today's session; your routine template stays saved."
+              )}
             </p>
             <div className="programme-actions">
               <button
                 className="programme-secondary"
                 onClick={() => setProposal(null)}
               >
-                Cancel
+                {tr("Cancel")}
               </button>
               <button
                 className="programme-primary"
@@ -204,7 +239,11 @@ export function ProgrammeWorkout({
                   ) {
                     setProposal(null)
                     toast.error(
-                      "Your workout or programme changed. Request a fresh adjustment."
+                      translateError(
+                        tr(
+                          "Your workout or programme changed. Request a fresh adjustment."
+                        )
+                      )
                     )
                     return
                   }
@@ -214,10 +253,10 @@ export function ProgrammeWorkout({
                   })
                   onApply(proposal.after)
                   setProposal(null)
-                  toast.success("Workout adjusted for your programme")
+                  toast.success(tr("Workout adjusted for your programme"))
                 }}
               >
-                Use this workout
+                {tr("Use this workout")}
               </button>
             </div>
           </div>

@@ -1,3 +1,4 @@
+import { Message, tr, translateError } from "@repo/ui/i18n"
 import { useState } from "react"
 import { Sparkle, X } from "@phosphor-icons/react"
 import { useAction, useMutation } from "convex/react"
@@ -50,14 +51,17 @@ export function CustomMetricBuilderSheet({
     const described =
       request.trim() ||
       (healthBinding
-        ? `Track ${healthBinding.label.toLowerCase()} in ${healthBinding.unit}`
+        ? tr("Track {{value0}} in {{value1}}", {
+            value0: healthBinding.label.toLowerCase(),
+            value1: healthBinding.unit,
+          })
         : "")
     if (described.length < 3 || generating) {
-      setError("Describe what you want to track.")
+      setError(translateError(tr("Describe what you want to track.")))
       return
     }
     setGenerating(true)
-    setError("")
+    setError(translateError(""))
     try {
       const generated = await generateCustomMetric({ tab, request: described })
       await saveCustomMetric({
@@ -75,15 +79,17 @@ export function CustomMetricBuilderSheet({
         ...(healthBinding ? { healthMetricKey: healthBinding.key } : {}),
       })
       hapticMedium()
-      toast.success(`${generated.title} added`)
+      toast.success(tr("{{value0}} added", { value0: generated.title }))
       setRequest("")
       setHealthBinding(null)
       onClose()
     } catch (caught) {
       setError(
-        caught instanceof Error
-          ? caught.message
-          : "Coach could not create that metric."
+        translateError(
+          caught instanceof Error
+            ? caught.message
+            : tr("Coach could not create that metric.")
+        )
       )
     } finally {
       setGenerating(false)
@@ -109,46 +115,59 @@ export function CustomMetricBuilderSheet({
         >
           <div className="flex items-start justify-between gap-4">
             <h2 className="text-[20px] font-bold">
-              Track something new in {tab}
+              <Message
+                text={"Track something new in {{value0}}"}
+                values={{ value0: tab }}
+              />
             </h2>
             <button
               type="button"
               disabled={generating}
               onClick={onClose}
-              aria-label="Close metric builder"
+              aria-label={tr("Close metric builder")}
               className="native-toolbar-button -mt-1 -mr-2 px-0"
             >
               <X size={14} weight="bold" />
             </button>
           </div>
           <p className="mt-2 text-[12px] leading-5 text-muted-foreground">
-            Coach will choose the controls, unit, target, and visualization. Try
-            caffeine, stretching, sleep, steps, or a training habit.
+            {tr(
+              "Coach will choose the controls, unit, target, and visualization. Try caffeine, stretching, sleep, steps, or a training habit."
+            )}
           </p>
           <label className="mt-5 block">
-            <span className="sr-only">Describe a custom progress metric</span>
+            <span className="sr-only">
+              {tr("Describe a custom progress metric")}
+            </span>
             <textarea
               autoFocus
               rows={4}
               value={request}
               onChange={(event) => setRequest(event.target.value)}
-              placeholder="For example: Track caffeine in 50 mg increments with a 400 mg daily limit"
+              placeholder={tr(
+                "For example: Track caffeine in 50 mg increments with a 400 mg daily limit"
+              )}
               className="w-full resize-none rounded-xl border border-border bg-background px-4 py-3 text-[14px] leading-5 outline-none focus:border-foreground/35"
             />
           </label>
           {isHealthSyncSupportedPlatform() && (
             <div className="mt-4">
-              <GroupedList label="Where the numbers come from">
+              <GroupedList label={tr("Where the numbers come from")}>
                 <DisclosureRow
                   title={
                     healthBinding
                       ? healthBinding.label
-                      : `Fill from ${healthProviderLabel()}`
+                      : tr("Fill from {{value0}}", {
+                          value0: healthProviderLabel(),
+                        })
                   }
                   detail={
                     healthBinding
-                      ? `Read each day in ${healthBinding.unit}. Type a value and that day stays yours.`
-                      : "Optional. Otherwise you type it in yourself."
+                      ? tr(
+                          "Read each day in {{value0}}. Type a value and that day stays yours.",
+                          { value0: healthBinding.unit }
+                        )
+                      : tr("Optional. Otherwise you type it in yourself.")
                   }
                   onClick={() => {
                     hapticSelection()
@@ -175,7 +194,7 @@ export function CustomMetricBuilderSheet({
               weight="fill"
               className={generating ? "animate-pulse" : undefined}
             />
-            {generating ? "Coach is designing it…" : "Generate metric"}
+            {generating ? tr("Coach is designing it…") : tr("Generate metric")}
           </button>
         </form>
       </MobileSheet>

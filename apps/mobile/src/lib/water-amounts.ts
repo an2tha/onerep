@@ -1,3 +1,4 @@
+import { tr } from "@repo/ui/i18n"
 import { flOzToMl } from "./measurement-system"
 import { browserLocalStorage } from "./utils"
 import type { WaterUnit } from "./use-water-unit"
@@ -48,24 +49,26 @@ export function validateCustomWaterAmount(value: string): {
   error: string | null
 } {
   const trimmed = value.trim()
-  if (!trimmed) return { amountMl: null, error: "Enter an amount in ml." }
+  if (!trimmed) return { amountMl: null, error: tr("Enter an amount in ml.") }
 
   const parsed = Number(trimmed)
   if (!Number.isFinite(parsed)) {
-    return { amountMl: null, error: "Use numbers only." }
+    return { amountMl: null, error: tr("Use numbers only.") }
   }
 
   const amountMl = Math.round(parsed)
   if (amountMl < CUSTOM_WATER_MIN_ML) {
     return {
       amountMl: null,
-      error: `Use at least ${CUSTOM_WATER_MIN_ML} ml.`,
+      error: tr("Use at least {{value0}} ml.", { value0: CUSTOM_WATER_MIN_ML }),
     }
   }
   if (amountMl > CUSTOM_WATER_MAX_ML) {
     return {
       amountMl: null,
-      error: `Use ${fmtMl(CUSTOM_WATER_MAX_ML)} or less for one entry.`,
+      error: tr("Use {{value0}} or less for one entry.", {
+        value0: fmtMl(CUSTOM_WATER_MAX_ML),
+      }),
     }
   }
 

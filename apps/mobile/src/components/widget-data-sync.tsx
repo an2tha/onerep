@@ -1,3 +1,4 @@
+import { tr, translateError, uiLocale } from "@repo/ui/i18n"
 import { useEffect, useMemo } from "react"
 import { useQuery } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
@@ -45,13 +46,7 @@ export function WidgetDataSync() {
   )
 
   const payload = useMemo(() => {
-    if (
-      !user ||
-      !goals ||
-      !foodLogs ||
-      !presetDocs ||
-      schedule === undefined
-    ) {
+    if (!user || !goals || !foodLogs || !presetDocs || schedule === undefined) {
       return null
     }
 
@@ -70,7 +65,7 @@ export function WidgetDataSync() {
       normalizePresetCard(preset as Parameters<typeof normalizePresetCard>[0])
     )
     const routines = normalizeScheduleRoutines(schedule?.routine)
-    const day = new Intl.DateTimeFormat("en-US", {
+    const day = new Intl.DateTimeFormat(uiLocale(), {
       timeZone: preferences?.lastActiveTimezone || "UTC",
       weekday: "short",
     }).format(new Date())
@@ -119,19 +114,25 @@ export function WidgetDataSync() {
               .slice(-4)
               .map((entry) => entry.name)
               .join(" · ")
-          : "No food logged yet",
+          : tr("No food logged yet"),
       workoutExercises:
         exerciseNames.length > 0
           ? exerciseNames.join(" · ")
-          : "No workout scheduled",
+          : tr("No workout scheduled"),
       workoutBrief:
         exerciseNames.length > 0
-          ? `${exerciseNames.length} exercises · ${totalSets} sets`
-          : "Recovery day",
+          ? tr("{{value0}} exercises · {{value1}} sets", {
+              value0: exerciseNames.length,
+              value1: totalSets,
+            })
+          : tr("Recovery day"),
       waterUnit,
       ...(waterLogs !== undefined
         ? {
-            waterMl: waterEntries.reduce((sum, entry) => sum + entry.amountMl, 0),
+            waterMl: waterEntries.reduce(
+              (sum, entry) => sum + entry.amountMl,
+              0
+            ),
             waterGoalMl: preferences?.waterGoalMl ?? 2500,
           }
         : {}),
@@ -188,13 +189,7 @@ export function WidgetDataSync() {
       daysLast28: calcTrailingSessions(trainedDates, trailingDate, 28),
       workoutBrief: payload.workoutBrief,
     }
-  }, [
-    payload,
-    preferences?.waterGoalMl,
-    waterLogs,
-    waterUnit,
-    workoutHistory,
-  ])
+  }, [payload, preferences?.waterGoalMl, waterLogs, waterUnit, workoutHistory])
 
   useEffect(() => {
     if (!watchPayload) return
@@ -221,7 +216,9 @@ export function WidgetDataSync() {
             amountMl,
             loggedAt: new Date().toISOString(),
           },
-        }).catch(() => toast.error("Could not log water from your watch"))
+        }).catch(() =>
+          toast.error(translateError(tr("Could not log water from your watch")))
+        )
         return
       }
 
@@ -232,8 +229,8 @@ export function WidgetDataSync() {
         const minutes = Math.round((event.payload.durationSeconds ?? 0) / 60)
         toast.success(
           minutes > 0
-            ? `Watch workout saved · ${minutes} min`
-            : "Watch workout saved"
+            ? tr("Watch workout saved · {{value0}} min", { value0: minutes })
+            : tr("Watch workout saved")
         )
       }
     })
