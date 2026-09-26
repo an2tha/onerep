@@ -333,6 +333,90 @@ describe("AI monthly usage quota", () => {
       }),
     ).rejects.toThrow("Monthly AI request limit reached");
   });
+
+  test("a failed request refunds its cost", async () => {
+    const t = convexTest(schema, modules);
+    const userId = "test|ai-usage-refund-user";
+    await t
+      .withIdentity({ tokenIdentifier: userId })
+      .mutation(api.ai.usage.setSharingConsent, {
+        granted: true,
+        version: AI_SHARING_VERSION,
+      });
+
+    const quota = await t.mutation(internal.ai.usage.consumeMonthlyQuota, {
+      userId,
+      source: "progress_metrics",
+    });
+    expect(quota).toMatchObject({ allowed: true, count: 1 });
+
+    const refunded = await t.mutation(internal.ai.usage.refundMonthlyQuota, {
+      userId,
+      source: "progress_metrics",
+    });
+    expect(refunded).toMatchObject({ count: 0, refunded: 1 });
+
+    // The refund makes the request available again.
+    await expect(
+      t.mutation(internal.ai.usage.consumeMonthlyQuota, {
+        userId,
+        source: "progress_metrics",
+      }),
+    ).resolves.toMatchObject({ allowed: true, count: 1 });
+  });
+
+  test("refunding below zero clamps at zero without creating rows", async () => {
+    const t = convexTest(schema, modules);
+    const userId = "test|ai-usage-refund-clamp-user";
+    await t
+      .withIdentity({ tokenIdentifier: userId })
+      .mutation(api.ai.usage.setSharingConsent, {
+        granted: true,
+        version: AI_SHARING_VERSION,
+      });
+
+    // No consume first: the refund must not fabricate a usage row.
+    const refunded = await t.mutation(internal.ai.usage.refundMonthlyQuota, {
+      userId,
+      source: "progress_metrics",
+    });
+    expect(refunded).toBeNull();
+
+    await t.mutation(internal.ai.usage.consumeMonthlyQuota, {
+      userId,
+      source: "progress_metrics",
+    });
+    // Double refund on a single spend clamps, never goes negative.
+    for (let i = 0; i < 2; i += 1) {
+      await expect(
+        t.mutation(internal.ai.usage.refundMonthlyQuota, {
+          userId,
+          source: "progress_metrics",
+        }),
+      ).resolves.toMatchObject({ count: 0 });
+    }
+  });
+
+  test("a two-cost refund credits both requests back", async () => {
+    const t = convexTest(schema, modules);
+    const userId = "test|ai-usage-refund-costly-user";
+    await t
+      .withIdentity({ tokenIdentifier: userId })
+      .mutation(api.ai.usage.setSharingConsent, {
+        granted: true,
+        version: AI_SHARING_VERSION,
+      });
+
+    await t.mutation(internal.ai.usage.consumeMonthlyQuota, {
+      userId,
+      source: "form_coach",
+    });
+    const refunded = await t.mutation(internal.ai.usage.refundMonthlyQuota, {
+      userId,
+      source: "form_coach",
+    });
+    expect(refunded).toMatchObject({ count: 0, refunded: 2 });
+  });
 });
 
 describe("one-time AI usage reset", () => {
