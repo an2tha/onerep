@@ -1,9 +1,11 @@
 import { describe, expect, test } from "bun:test"
 import { canOfferProUpgrade } from "../billing-policy"
 
-test("native Pro upgrades are paused while web upgrades remain available", () => {
-  expect(canOfferProUpgrade(true)).toBe(false)
-  expect(canOfferProUpgrade(false)).toBe(true)
+test("Pro upgrades are available on iOS and web, but not Android", () => {
+  expect(canOfferProUpgrade(true, "ios")).toBe(true)
+  expect(canOfferProUpgrade(true, "android")).toBe(false)
+  expect(canOfferProUpgrade(true, "unknown")).toBe(false)
+  expect(canOfferProUpgrade(false, "web")).toBe(true)
 })
 import {
   billingErrorMessage,
