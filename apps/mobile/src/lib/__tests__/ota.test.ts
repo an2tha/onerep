@@ -420,6 +420,25 @@ describe("cold-launch activation", () => {
     dispose()
   })
 
+  test("keeps the pending marker when cold-launch activation fails", async () => {
+    storage.setItem(
+      "onerep:ota:pending-bundle",
+      JSON.stringify({ id: "bundle-1.0.482", version: "1.0.482" })
+    )
+    setMock.mockImplementationOnce(async () => {
+      throw new Error("native updater unavailable")
+    })
+
+    const dispose = await initializeOta()
+
+    expect(setMock).toHaveBeenCalledWith({ id: "bundle-1.0.482" })
+    expect(readPendingMarker()).toEqual({
+      id: "bundle-1.0.482",
+      version: "1.0.482",
+    })
+    dispose()
+  })
+
   test("initializeOta with no pending bundle touches nothing", async () => {
     const dispose = await initializeOta()
 
@@ -441,6 +460,23 @@ describe("applyOtaUpdateNow", () => {
   test("does nothing when no bundle is staged", async () => {
     await applyOtaUpdateNow()
     expect(setMock).not.toHaveBeenCalled()
+  })
+
+  test("keeps the marker when explicit activation fails", async () => {
+    stubFetch(async () => MANIFEST)
+    await checkForOtaUpdate({ force: true })
+    setMock.mockImplementationOnce(async () => {
+      throw new Error("native updater unavailable")
+    })
+
+    await applyOtaUpdateNow()
+
+    expect(setMock).toHaveBeenCalledWith({ id: "bundle-1.0.482" })
+    expect(readPendingMarker()).toEqual({
+      id: "bundle-1.0.482",
+      version: "1.0.482",
+    })
+    expect(getOtaState()).toMatchObject({ phase: "error" })
   })
 })
 
