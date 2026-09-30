@@ -224,10 +224,12 @@ export default function SnapAndLog() {
   const [added, setAdded] = useState<string | null>(null)
   const [loggingTarget, setLoggingTarget] = useState<string | null>(null)
   const loggingTargetRef = useRef<string | null>(null)
-  // Keep the camera feed inside OneRep on iOS and Android. The Capacitor
-  // camera picker remains available only as a fallback when WebView capture
-  // cannot start on a particular device.
-  const useNativeCapture = false
+  // Snap mode hands the shutter to the system camera on a phone: the WebView
+  // getUserMedia preview was the flaky link in the chain — it can fail to
+  // start, fail to autoplay, or disagree with the native permission state —
+  // and every failure still cost the user a snap credit. Barcode mode keeps
+  // the live feed because the scanner needs a stream to decode continuously.
+  const useNativeCapture = Capacitor.isNativePlatform() && mode === "snap"
   const hasNativeCameraFallback = Capacitor.isNativePlatform()
 
   useEffect(() => {
@@ -486,6 +488,57 @@ export default function SnapAndLog() {
     }
   }
 
+  /**
+   * The zero-review path: one detected food, one matched product. Builds the
+   * same entry the review sheet would have built and logs it immediately —
+   * the undo toast stands in for the confirmation step.
+   */
+  async function autoLogSingleSnap(item: SnapReviewItem) {
+    const entry = buildSnapFoodLogEntry(item, meal, {
+      loggedAt: logStamp(),
+      quantityLabel: quantityLabel(item.grams, currentMeasurementSystem()),
+    })
+    if (!entry) {
+      setSnapPhase("results")
+      setSnapReviewItems([item])
+      return
+    }
+    setSnapReviewItems([item])
+    setSnapRaw(item.detectedName)
+    loggingTargetRef.current = "snap-review"
+    setSnapLogging(true)
+    try {
+      await addFoodEntry({ date, entry })
+      announceOrbActivity("log")
+      captureFeatureUsage("food_logged_from_camera", {
+        item_count: 1,
+        detected_count: 1,
+        source: "snap_one_tap",
+      })
+      toast.success(tr("{{value0}} logged", { value0: entry.name }), {
+        action: {
+          label: tr("Undo"),
+          onClick: () => {
+            announceOrbActivity("delete")
+            void removeFoodEntry({ date, entryId: entry.id }).catch(() =>
+              toast.error(translateError(tr("Couldn't undo that")))
+            )
+          },
+        },
+      })
+      setSnapPhase("idle")
+      setSnapReviewItems([])
+      setSnapRaw(null)
+    } catch (error) {
+      console.error("Failed to log snapped meal:", error)
+      toast.error(translateError(tr("Could not log meal")))
+      setSnapPhase("results")
+    } finally {
+      loggingTargetRef.current = null
+      setSnapLogging(false)
+    }
+  }
+
   async function processSnapBlob(blob: Blob) {
     if (!requireAiAccess(1, "snap_process")) return
 
@@ -520,6 +573,15 @@ export default function SnapAndLog() {
           providedMatches: result.matches,
         }
       )
+
+      // One detected food with one confident match needs no review table:
+      // log it on the spot with an undo toast. The review sheet stays for
+      // multi-item plates and for anything the search could not match.
+      const single = reviewItems.length === 1 ? reviewItems[0] : null
+      if (single && single.food && single.selected) {
+        void autoLogSingleSnap(single)
+        return
+      }
 
       setSnapReviewItems(reviewItems)
       setSnapRaw(detections.map((detection) => detection.name).join(", "))
