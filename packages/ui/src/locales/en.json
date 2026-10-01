@@ -5461,5 +5461,9 @@
   "−{{value1}}%": "−{{value1}}%",
   "−{{value1}}bpm on baseline": "−{{value1}}bpm on baseline",
   "−{{value1}}ms on baseline": "−{{value1}}ms on baseline",
-  "✓ Logged to {{value0}}": "✓ Logged to {{value0}}"
+  "✓ Logged to {{value0}}": "✓ Logged to {{value0}}",
+  "Log by voice": "Log by voice",
+  "Say what you ate to Coach": "Say what you ate to Coach",
+  "Stop and log": "Stop and log",
+  "{{value0}}Listening": "{{value0}}Listening"
 }

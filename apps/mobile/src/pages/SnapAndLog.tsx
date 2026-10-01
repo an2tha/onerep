@@ -1,3 +1,4 @@
+import { prepareSnapImage } from "@/lib/snap-image"
 import { Message, tr, translateError } from "@repo/ui/i18n"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useLocation, useSearchParams } from "react-router"
@@ -224,10 +225,9 @@ export default function SnapAndLog() {
   const [added, setAdded] = useState<string | null>(null)
   const [loggingTarget, setLoggingTarget] = useState<string | null>(null)
   const loggingTargetRef = useRef<string | null>(null)
-  // Keep the camera feed inside OneRep on iOS and Android. The Capacitor
-  // camera picker remains available only as a fallback when WebView capture
-  // cannot start on a particular device.
-  const useNativeCapture = false
+  // Native snap capture uses the system camera. Barcode scanning retains
+  // the live WebView stream for continuous decoding.
+  const useNativeCapture = Capacitor.isNativePlatform() && mode === "snap"
   const hasNativeCameraFallback = Capacitor.isNativePlatform()
 
   useEffect(() => {
@@ -486,11 +486,17 @@ export default function SnapAndLog() {
     }
   }
 
+  const snapGeneration = useRef(0)
+  useEffect(() => () => { snapGeneration.current += 1 }, [])
+
   async function processSnapBlob(blob: Blob) {
     if (!requireAiAccess(1, "snap_process")) return
 
+    const generation = ++snapGeneration.current
     setSnapPhase("uploading")
     try {
+      blob = await prepareSnapImage(blob)
+      if (generation !== snapGeneration.current) return
       const arrayBuffer = await blob.arrayBuffer()
       const bytes = new Uint8Array(arrayBuffer)
       let binary = ""
@@ -507,6 +513,7 @@ export default function SnapAndLog() {
         matches?: SnapFoodMatch[]
       }
 
+      if (generation !== snapGeneration.current) return
       const aiResult = result.aiResult ?? {}
       const detections = snapDetectionsFromAiResult(aiResult)
       const reviewItems = await mapSnapDetectionsToReviewItems(
@@ -521,10 +528,12 @@ export default function SnapAndLog() {
         }
       )
 
+      if (generation !== snapGeneration.current) return
       setSnapReviewItems(reviewItems)
       setSnapRaw(detections.map((detection) => detection.name).join(", "))
       setSnapPhase("results")
     } catch (error) {
+      if (generation !== snapGeneration.current) return
       console.error("Failed to process snapped meal:", error)
       setSnapPhase("error")
     }
@@ -540,8 +549,9 @@ export default function SnapAndLog() {
   }, [aiAccessLoading])
 
   async function handleNativeCapture() {
+    const generation = snapGeneration.current
     try {
-      const permission = await NativeCamera.requestPermissions()
+      const permission = await NativeCamera.requestPermissions({ permissions: ["camera"] })
       if (permission.camera !== "granted") {
         setCameraState("denied")
         toast.error(
@@ -554,7 +564,9 @@ export default function SnapAndLog() {
       const photo = await NativeCamera.getPhoto({
         source: CameraSource.Camera,
         resultType: CameraResultType.Uri,
-        quality: 85,
+        quality: 80,
+        width: 1600,
+        height: 1600,
         correctOrientation: true,
       })
       if (!photo.webPath) {
@@ -563,6 +575,7 @@ export default function SnapAndLog() {
         return
       }
       const blob = await fetch(photo.webPath).then((res) => res.blob())
+      if (generation !== snapGeneration.current) return
       if (mode === "snap") {
         captureFeatureUsage("food_snap_captured")
         await processSnapBlob(blob)
@@ -596,6 +609,7 @@ export default function SnapAndLog() {
    * so it also works on a device that refused camera permission outright.
    */
   async function handlePickFromLibrary() {
+    const generation = snapGeneration.current
     if (mode === "snap" && !requireAiAccess(1, "snap_capture")) return
     try {
       // Only iOS gates the picker on a photos permission. Android's photo
@@ -628,11 +642,14 @@ export default function SnapAndLog() {
       const photo = await NativeCamera.getPhoto({
         source: CameraSource.Photos,
         resultType: CameraResultType.Uri,
-        quality: 85,
+        quality: 80,
+        width: 1600,
+        height: 1600,
         correctOrientation: true,
       })
       if (!photo.webPath) return
       const blob = await fetch(photo.webPath).then((res) => res.blob())
+      if (generation !== snapGeneration.current) return
       if (mode === "snap") {
         captureFeatureUsage("food_snap_captured")
         await processSnapBlob(blob)
@@ -917,6 +934,7 @@ export default function SnapAndLog() {
   function switchMode(m: ScreenMode) {
     if (m === "snap" && !requireAiAccess(1, "snap_camera")) return
 
+    snapGeneration.current += 1
     setMode(m)
     setSnapPhase("idle")
     setSnapReviewItems([])

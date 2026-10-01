@@ -22,6 +22,12 @@ import { useSmoothNavigate } from "@/lib/navigation"
 import { currentDateKey, mealLabel, type FoodLogEntry } from "@/lib/food-log"
 import { QuickAddFab, type QuickAddOption } from "@/dashboard/quick-add-fab"
 import {
+  rankQuickActions,
+  recordQuickActionUse,
+} from "@/lib/quick-add-rank"
+import { RepeatChips } from "@/dashboard/repeat-chips"
+import { VoiceLogButton } from "@/dashboard/voice-log-button"
+import {
   ScheduleEntrySheet,
   type ScheduleEntryRequest,
 } from "@/dashboard/schedule-entry-sheet"
@@ -250,7 +256,10 @@ function Dashboard() {
     id: QuickActionId,
     forDateKey = dateKey,
     atMinutes?: number
-  ) => setQuickAction({ id, dateKey: forDateKey, atMinutes })
+  ) => {
+    recordQuickActionUse(id)
+    setQuickAction({ id, dateKey: forDateKey, atMinutes })
+  }
   const [editFoodEntry, setEditFoodEntry] = useState<FoodLogEntry | null>(null)
   const [scheduleRequest, setScheduleRequest] =
     useState<ScheduleEntryRequest | null>(null)
@@ -326,6 +335,12 @@ function Dashboard() {
         >
           <div className="px-[var(--app-page-x)]">
             {viewingToday && <RecoveryBanner />}
+            {viewingToday && (
+              <div className="my-2 flex items-center gap-2">
+                <RepeatChips dateKey={dateKey} />
+                <VoiceLogButton />
+              </div>
+            )}
             <div className="lg:hidden">
               {!recovery?.active && (
                 <DashboardDials {...dialProps} layout="row" />
@@ -463,7 +478,7 @@ function Dashboard() {
         />
       </div>
       <QuickAddFab
-        options={QUICK_ADD_OPTIONS}
+        options={rankQuickActions(QUICK_ADD_OPTIONS)}
         onChoose={(action) => openQuickAction(action)}
       />
       <QuickActionDrawer

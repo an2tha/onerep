@@ -55,6 +55,10 @@ import {
 } from "@/lib/food-log"
 import { recipeTotals } from "@/lib/coach-chat"
 import { buildQuickRepeatFoods } from "@/lib/food-quick-repeat"
+import {
+  readLastFoodMode,
+  rememberFoodMode,
+} from "@/lib/food-mode-memory"
 import { searchFoodsAccurate } from "@/lib/openfoodfacts"
 import { FoodModeDial } from "./food-mode-dial"
 import { QuickFoodCamera } from "./quick-food-camera"
@@ -460,7 +464,11 @@ function FoodDrawer({
   const addFood = useMutation(api.logs.foodLogs.addEntry)
   const removeFood = useMutation(api.logs.foodLogs.removeEntry)
   const [busy, setBusy] = useState(false)
-  const [mode, setMode] = useState<"snap" | "repeat" | "search">("repeat")
+  // Start where the person left off: the last mode they used, not a default
+  // they have to dial away from every single time.
+  const [mode, setMode] = useState<"snap" | "repeat" | "search">(
+    readLastFoodMode
+  )
   const [query, setQuery] = useState("")
   const [searching, setSearching] = useState(false)
   const [searchError, setSearchError] = useState(false)
@@ -564,6 +572,7 @@ function FoodDrawer({
 
   function selectMode(next: "snap" | "repeat" | "search") {
     if (next === mode) return
+    rememberFoodMode(next)
     setMode(next)
   }
 

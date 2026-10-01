@@ -282,3 +282,49 @@ describe("foodLogs Convex functions", () => {
     });
   });
 });
+
+test("batch repeat is atomic, retry-safe, and scoped to the authenticated account", async () => {
+  const t = convexTest(schema, modules);
+  const user = t.withIdentity({ tokenIdentifier: "test|batch-food" });
+  const other = t.withIdentity({ tokenIdentifier: "test|other-food" });
+  const date = "2026-10-01";
+  const entry = {
+    id: "one",
+    loggedAt: "2026-10-01T08:00:00.000Z",
+    name: "Oats",
+    calories: 200,
+    protein: 10,
+    carbs: 30,
+    fat: 4,
+    meal: "breakfast",
+  };
+  await user.mutation(api.logs.foodLogs.addEntry, {
+    date,
+    entry: { ...entry, id: "existing" },
+  });
+  await other.mutation(api.logs.foodLogs.addEntry, { date, entry });
+  await expect(
+    user.mutation(api.logs.foodLogs.addEntries, {
+      date,
+      entries: [entry, { ...entry, id: " " }],
+    }),
+  ).rejects.toThrow();
+  expect(await user.query(api.logs.foodLogs.getDay, { date })).toHaveLength(1);
+  const entries = [entry, { ...entry, id: "two" }];
+  for (let retry = 0; retry < 2; retry++)
+    await user.mutation(api.logs.foodLogs.addEntries, { date, entries });
+  expect(await user.query(api.logs.foodLogs.getDay, { date })).toHaveLength(3);
+  await user.mutation(api.logs.foodLogs.removeEntries, {
+    date,
+    entryIds: ["one", "two"],
+  });
+  expect(
+    (await user.query(api.logs.foodLogs.getDay, { date })).map(
+      (item) => item.id,
+    ),
+  ).toEqual(["existing"]);
+  expect(await other.query(api.logs.foodLogs.getDay, { date })).toHaveLength(1);
+  await expect(
+    t.mutation(api.logs.foodLogs.addEntries, { date, entries }),
+  ).rejects.toThrow();
+});

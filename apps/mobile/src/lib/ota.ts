@@ -503,9 +503,12 @@ export async function applyOtaUpdateNow(): Promise<void> {
   setState({ phase: "applying", version: bundle.version })
   try {
     const updater = await loadCapgo()
+    // Do not discard the retry marker until the native plugin confirms the
+    // bundle was accepted. This also protects an explicit Update tap from
+    // losing the staged bundle during a transient native failure.
+    await updater.set({ id: bundle.id })
     clearPendingBundle()
     stagedBundle = null
-    await updater.set({ id: bundle.id })
   } catch (error) {
     console.warn("OTA apply failed", error)
     setState({
@@ -551,9 +554,11 @@ export async function initializeOta(
     if (stagedBundle === null) {
       const pending = readPendingBundle()
       if (pending) {
-        clearPendingBundle()
         try {
+          // Keep the marker until activation succeeds. A transient native
+          // failure must leave the bundle retryable on the next launch.
           await updater.set({ id: pending.id })
+          clearPendingBundle()
         } catch (error) {
           console.warn("OTA cold-launch apply failed", error)
         }

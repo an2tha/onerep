@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, mock, test } from "bun:test"
 
 const toastError = mock(() => {})
 
-mock.module("sonner", () => ({
+mock.module("@repo/ui", () => ({
   toast: {
     error: toastError,
   },

@@ -3,7 +3,7 @@ import { api, internal } from "../_generated/api";
 import { action, internalMutation, type ActionCtx } from "../_generated/server";
 import { hasOpenAiApiKey, requestOpenAiJson } from "../ai/provider";
 import { renderSystemPrompt } from "../ai/prompts.generated";
-import { consumeAiUsageOrThrow } from "../ai/usage";
+import { consumeAiUsageOrThrow, refundAiUsage } from "../ai/usage";
 import { getAuthUser } from "../lib/auth";
 
 const MAX_SNAPS_PER_DAY = 10;
@@ -671,7 +671,20 @@ export const snap = action({
     const usage = await consumeAiUsageOrThrow(ctx, user._id, "food_snap");
 
     const imageData = `data:${mimeType};base64,${args.base64Image}`;
-    const aiResult = await analyzeImageWithOpenAi(imageData, usage.apiKey);
+    // One retry on a provider failure: the request was already paid for, so
+    // the second attempt is free to the user , and if it also fails, the
+    // charge is refunded rather than eaten.
+    let aiResult: Awaited<ReturnType<typeof analyzeImageWithOpenAi>>;
+    try {
+      aiResult = await analyzeImageWithOpenAi(imageData, usage.apiKey);
+    } catch {
+      try {
+        aiResult = await analyzeImageWithOpenAi(imageData, usage.apiKey);
+      } catch (retryError) {
+        await refundAiUsage(ctx, user._id, "food_snap", usage.month);
+        throw retryError;
+      }
+    }
     return await runAiMealAnalysis({
       ctx,
       aiResult,
@@ -705,7 +718,18 @@ export const describeText = action({
     // selection from search results.
     const usage = await consumeAiUsageOrThrow(ctx, user._id, "food_snap");
 
-    const aiResult = await analyzeFoodDescriptionWithOpenAi(text, usage.apiKey);
+    // One retry on a provider failure; refund the charge if both fail.
+    let aiResult: Awaited<ReturnType<typeof analyzeFoodDescriptionWithOpenAi>>;
+    try {
+      aiResult = await analyzeFoodDescriptionWithOpenAi(text, usage.apiKey);
+    } catch {
+      try {
+        aiResult = await analyzeFoodDescriptionWithOpenAi(text, usage.apiKey);
+      } catch (retryError) {
+        await refundAiUsage(ctx, user._id, "food_snap", usage.month);
+        throw retryError;
+      }
+    }
     return await runAiMealAnalysis({
       ctx,
       aiResult,
