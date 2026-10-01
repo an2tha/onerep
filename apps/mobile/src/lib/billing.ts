@@ -125,6 +125,8 @@ export function billingErrorMessage(error: unknown, fallback: string) {
     const maybeError = error as { message?: unknown; errorMessage?: unknown }
     const message = maybeError.message ?? maybeError.errorMessage
     if (typeof message === "string" && message.trim().length > 0) {
+      if (/\[CONVEX|Request ID:|Server Error|Called by client/i.test(message))
+        return fallback
       return message
     }
   }
@@ -604,6 +606,7 @@ export function useBilling({ userId }: UseBillingOptions) {
       setError(null)
       setPurchaseNotice(null)
       setIsBusy(true)
+      let purchased = false
       try {
         const { appAccountToken } = await getStoreIdentity({})
         const outcome = await purchaseStoreProduct({
@@ -624,6 +627,7 @@ export function useBilling({ userId }: UseBillingOptions) {
             "The App Store could not complete your purchase. Please try again."
           )
         }
+        purchased = true
         const result = await redeem(outcome)
         if (!result.redeemed) {
           throw new Error(
@@ -634,11 +638,15 @@ export function useBilling({ userId }: UseBillingOptions) {
       } catch (cause) {
         const message = billingErrorMessage(
           cause,
-          tr("Could not complete your purchase")
+          purchased
+            ? tr(
+                "Your purchase could not be verified yet. Use Restore purchases to try again."
+              )
+            : tr("Could not complete your purchase")
         )
         if (mounted.current && message !== "Purchase canceled")
           setError(translateError(message))
-        throw cause
+        throw new Error(message)
       } finally {
         purchaseInFlight.current = false
         if (mounted.current) setIsBusy(false)

@@ -1,8 +1,7 @@
-import type {
-  BillingEnvironment,
-  BillingState,
-  PlatformSubscriptionFacts,
-} from "./types";
+import type { FunctionArgs } from "convex/server";
+import type { internal } from "../_generated/api";
+
+import type { BillingEnvironment, BillingState } from "./types";
 
 /**
  * Apple's subscription vocabulary, reduced to ours.
@@ -107,7 +106,10 @@ export function applySubscriptionFacts(
   transaction: AppleTransactionFacts,
   status: AppleStatusFacts,
   raw?: unknown,
-): PlatformSubscriptionFacts {
+): Omit<
+  FunctionArgs<typeof internal.billing.store.upsertPlatformSubscription>,
+  "userId"
+> {
   const state = appleStateFor(status);
   const expiresAt =
     status.expiresDate ??
@@ -123,7 +125,6 @@ export function applySubscriptionFacts(
     expiresAt,
     gracePeriodExpiresAt: status.gracePeriodExpiresDate ?? undefined,
     environment: appleEnvironmentFor(transaction.environment),
-    managementUrl: APPLE_MANAGEMENT_URL,
     // Apple stamps every signed payload. Feeding it to the store layer is what
     // makes out-of-order notification delivery a non-event: a renewal that
     // arrives after the expiry it superseded is dropped on the timestamp.

@@ -1,4 +1,8 @@
 import { describe, expect, test } from "vitest";
+import { convexTest } from "convex-test";
+import schema from "../schema";
+import { internal } from "../_generated/api";
+const modules = import.meta.glob("../**/*.ts");
 import {
   APPLE_AUTO_RENEW_ON,
   APPLE_MANAGEMENT_URL,
@@ -144,7 +148,6 @@ describe("subscription facts", () => {
       autoRenew: true,
       expiresAt: FUTURE,
       environment: "production",
-      managementUrl: APPLE_MANAGEMENT_URL,
       // The monotonicity guard. Without it, a renewal notification overtaken by
       // the expiry it superseded would roll the row backwards.
       sourceUpdatedAt: NOW,
@@ -208,3 +211,34 @@ describe("notification triage", () => {
     expect(appleNotificationIsActionable(notificationType)).toBe(actionable);
   });
 });
+
+// Exercise the actual validated mutation, not just the Apple status mapper.
+test.each(["Sandbox", "Production"])(
+  "%s Apple facts persist and unlock Pro",
+  async (environment) => {
+    const t = convexTest(schema, modules);
+    const facts = applySubscriptionFacts(
+      {
+        originalTransactionId: "2000000000000001",
+        productId: "onerep_pro_monthly",
+        environment,
+        signedDate: Date.now(),
+      },
+      {
+        status: APPLE_STATUS_ACTIVE,
+        autoRenewStatus: APPLE_AUTO_RENEW_ON,
+        expiresDate: Date.now() + DAY,
+      },
+    );
+    await t.mutation(internal.billing.store.upsertPlatformSubscription, {
+      userId: "apple_test_user",
+      ...facts,
+    });
+    const state = await t.run(async (ctx) =>
+      ctx.db.query("subscriptionStates").unique(),
+    );
+    expect(state?.isActive).toBe(true);
+    expect(state?.store).toBe("app_store");
+    expect(state?.managementUrl).toBe(APPLE_MANAGEMENT_URL);
+  },
+);

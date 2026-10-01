@@ -147,6 +147,16 @@ describe("subscriptionDiagnosticCopy", () => {
 })
 
 describe("billingErrorMessage", () => {
+  test("hides server implementation details", () => {
+    expect(
+      billingErrorMessage(
+        new Error(
+          "[CONVEX A(billing/public:redeemAppleTransaction)] [Request ID: test] Server Error Called by client"
+        ),
+        "Please restore your purchase"
+      )
+    ).toBe("Please restore your purchase")
+  })
   test("prefers a message from the thrown value", () => {
     expect(billingErrorMessage(new Error("Card declined"), "fallback")).toBe(
       "Card declined"

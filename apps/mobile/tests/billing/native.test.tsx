@@ -488,3 +488,22 @@ test("web keeps subscription checkout available", async () => {
   expect(calls).toEqual(["stripe"])
   expect(purchase).not.toHaveBeenCalled()
 })
+
+test("a server failure after Apple purchase gives recovery guidance to the sheet and caller", async () => {
+  await mount()
+  actions["billing/public:redeemAppleTransaction"].mockImplementationOnce(
+    async () => {
+      throw new Error(
+        "[CONVEX A(billing/public:redeemAppleTransaction)] [Request ID: test] Server Error Called by client"
+      )
+    }
+  )
+  await act(async () => {
+    await expect(billing.purchaseMonthly()).rejects.toThrow(
+      "Use Restore purchases to try again"
+    )
+  })
+  expect(billing.error).toContain("Use Restore purchases")
+  expect(billing.error).not.toContain("CONVEX")
+  expect(finish).not.toHaveBeenCalled()
+})
