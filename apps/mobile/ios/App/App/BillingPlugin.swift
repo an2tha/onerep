@@ -205,8 +205,8 @@ public class BillingPlugin: CAPPlugin, CAPBridgedPlugin {
             do {
                 try await AppStore.sync()
             } catch {
-                // A cancelled password prompt lands here. The entitlements read
-                // below still works and is usually enough, so this is not fatal.
+                call.reject("Could not restore purchases. Please try again.", nil, error)
+                return
             }
             call.resolve(["transactions": await self.entitlementPayloads()])
         }

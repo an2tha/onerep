@@ -42,6 +42,7 @@ let appleProvider = true
 let outcome: Record<string, unknown>
 let redemption: Record<string, unknown>
 let transactions: (typeof transaction)[] = []
+let currentTransactions: (typeof transaction)[] = []
 let updated: ((value: typeof transaction) => void) | undefined
 const calls: string[] = []
 const purchase = mock(async (_options: unknown) => {
@@ -88,7 +89,7 @@ mock.module("@capacitor/core", () => ({
     purchase,
     finishTransaction: finish,
     restore,
-    currentEntitlements: async () => ({ transactions: [] }),
+    currentEntitlements: async () => ({ transactions: currentTransactions }),
     addListener: async (_event: string, handler: typeof updated) => {
       updated = handler
       return { remove: async () => {} }
@@ -173,6 +174,7 @@ beforeEach(() => {
   outcome = { status: "purchased", ...transaction }
   redemption = { redeemed: true, status: verifiedStatus }
   transactions = []
+  currentTransactions = []
   updated = undefined
   for (const fn of [
     purchase,
@@ -288,6 +290,74 @@ test("restore redeems existing Apple purchases before finishing", async () => {
   expect(calls).toEqual(["redeem", "finish"])
 })
 
+for (const trigger of ["online", "resume", "refresh"] as const) {
+  test(`interrupted verification recovers on ${trigger} without another purchase`, async () => {
+    await mount()
+    actions["billing/public:redeemAppleTransaction"].mockImplementationOnce(
+      async () => {
+        throw new Error("Network offline")
+      }
+    )
+    await act(async () => {
+      await expect(billing.purchaseMonthly()).rejects.toThrow("Network offline")
+    })
+    expect(finish).not.toHaveBeenCalled()
+    currentTransactions = [transaction]
+    await act(async () => {
+      if (trigger === "online") window.dispatchEvent(new Event("online"))
+      if (trigger === "resume") {
+        Object.defineProperty(document, "visibilityState", {
+          value: "visible",
+          configurable: true,
+        })
+        document.dispatchEvent(new Event("visibilitychange"))
+      }
+      if (trigger === "refresh") await billing.refresh()
+    })
+    expect(purchase).toHaveBeenCalledTimes(1)
+    expect(finish).toHaveBeenCalledTimes(1)
+    expect(billing.error).toBeNull()
+    expect(billing.hasOneRepPro).toBe(false)
+  })
+}
+
+test("reconnect events share an in-flight recovery", async () => {
+  await mount()
+  currentTransactions = [transaction]
+  let resolveRedemption!: (value: typeof redemption) => void
+  actions["billing/public:redeemAppleTransaction"].mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        resolveRedemption = resolve
+      })
+  )
+  await act(async () => {
+    window.dispatchEvent(new Event("online"))
+    window.dispatchEvent(new Event("online"))
+  })
+  expect(
+    actions["billing/public:redeemAppleTransaction"]
+  ).toHaveBeenCalledTimes(1)
+  expect(finish).not.toHaveBeenCalled()
+  await act(async () => {
+    resolveRedemption(redemption)
+  })
+  expect(finish).toHaveBeenCalledTimes(1)
+})
+
+test("restore sync failure is not presented as an empty purchase history", async () => {
+  restore.mockImplementationOnce(async () => {
+    throw new Error("Could not restore purchases. Please try again.")
+  })
+  await mount()
+  await act(async () => {
+    await billing.restorePurchases()
+  })
+  expect(billing.error).toContain("Could not restore purchases")
+  expect(billing.error).not.toContain("No previous purchases")
+  expect(finish).not.toHaveBeenCalled()
+})
+
 test("empty restore explains that no purchases were found", async () => {
   await mount()
   await act(async () => {
@@ -398,7 +468,9 @@ for (const subscribed of [false, true]) {
       /Upgrade to Pro|Subscribe with Apple|Retry loading plans/
     )
     expect(container.textContent).toContain("Monthly AI allowance")
-    await expect(billing.purchaseMonthly()).rejects.toThrow("Upgrade unavailable")
+    await expect(billing.purchaseMonthly()).rejects.toThrow(
+      "Upgrade unavailable"
+    )
     expect(calls).toEqual([])
   })
 }

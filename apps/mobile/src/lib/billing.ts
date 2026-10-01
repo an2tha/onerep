@@ -311,6 +311,8 @@ export function useBilling({ userId }: UseBillingOptions) {
   const [catalogueLoading, setCatalogueLoading] = useState(false)
   const catalogueRequest = useRef(0)
   const mounted = useRef(true)
+  const recoveryInFlight = useRef<Promise<void> | null>(null)
+  const recoveryGeneration = useRef(0)
 
   useEffect(() => {
     mounted.current = true
@@ -421,28 +423,56 @@ export function useBilling({ userId }: UseBillingOptions) {
    * being force-quit, and what carries a subscription onto a reinstall without
    * anyone tapping Restore.
    */
-  useEffect(() => {
-    if (!storeKit || !appleProvider || !userId) return
-    let cancelled = false
-
-    void (async () => {
+  const recoverPurchases = useCallback(() => {
+    if (!storeKit || !appleProvider || !userId) return Promise.resolve()
+    if (recoveryInFlight.current) return recoveryInFlight.current
+    const generation = recoveryGeneration.current
+    const recovery = (async () => {
       const transactions = await currentStoreEntitlements()
       for (const transaction of transactions) {
-        if (cancelled) return
+        if (!mounted.current || generation !== recoveryGeneration.current)
+          return
         try {
-          await redeem(transaction)
+          const result = await redeem(transaction)
+          if (
+            mounted.current &&
+            generation === recoveryGeneration.current &&
+            result.redeemed &&
+            result.status?.isActive
+          ) {
+            setError(null)
+            setPurchaseNotice(null)
+          }
         } catch {
-          // Offline, or the server said no. The cron and the next launch both
-          // get another go, and a failed redemption must not surface as an
-          // error on a screen the user did not ask for.
+          // Keep the transaction unfinished so reconnect, resume, or manual
+          // refresh can retry without asking the user to buy again.
         }
       }
-    })()
-
-    return () => {
-      cancelled = true
-    }
+    })().finally(() => {
+      if (generation === recoveryGeneration.current)
+        recoveryInFlight.current = null
+    })
+    recoveryInFlight.current = recovery
+    return recovery
   }, [appleProvider, redeem, storeKit, userId])
+
+  useEffect(() => {
+    const retry = () => {
+      void recoverPurchases()
+    }
+    const resume = () => {
+      if (document.visibilityState === "visible") retry()
+    }
+    retry()
+    window.addEventListener("online", retry)
+    document.addEventListener("visibilitychange", resume)
+    return () => {
+      recoveryGeneration.current += 1
+      recoveryInFlight.current = null
+      window.removeEventListener("online", retry)
+      document.removeEventListener("visibilitychange", resume)
+    }
+  }, [recoverPurchases])
 
   /** Renewals and Ask to Buy approvals that land while the app is open. */
   useEffect(() => {
@@ -458,7 +488,11 @@ export function useBilling({ userId }: UseBillingOptions) {
   const refresh = useCallback(async () => {
     if (!userId) return serverStatus
     try {
-      await Promise.all([refreshStatus({}), reloadProducts()])
+      await Promise.all([
+        refreshStatus({}),
+        reloadProducts(),
+        recoverPurchases(),
+      ])
       if (mounted.current) setError(null)
     } catch (cause) {
       if (mounted.current) {
@@ -471,7 +505,7 @@ export function useBilling({ userId }: UseBillingOptions) {
     }
     // The Convex query is reactive, so the fresh value arrives on its own.
     return serverStatus
-  }, [refreshStatus, reloadProducts, serverStatus, userId])
+  }, [refreshStatus, reloadProducts, recoverPurchases, serverStatus, userId])
 
   /**
    * Restore Purchases.
