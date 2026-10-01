@@ -344,3 +344,67 @@ export const removeEntry = mutation({
     return { ok: true };
   },
 });
+
+/** Commit a repeated meal atomically. Stable entry IDs make transport retries safe. */
+export const addEntries = mutation({
+  args: { date: v.string(), entries: v.array(foodLogEntryValidator) },
+  handler: async (ctx, args) => {
+    const user = await getAuthUser(ctx);
+    if (!user) throw new Error("Not authenticated");
+    if (args.entries.length === 0 || args.entries.length > 100) {
+      throw new Error("A meal must contain between 1 and 100 entries");
+    }
+    const entries = normalizeFoodLogEntries(args.entries);
+    const existing = await ctx.db
+      .query("foodLogs")
+      .withIndex("by_userId_date", (q) =>
+        q.eq("userId", user._id).eq("date", args.date),
+      )
+      .unique();
+    const updatedAt = Date.now();
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        entries: [
+          ...existing.entries.filter(
+            (old) => !entries.some((entry) => entryHasId(old, entry.id)),
+          ),
+          ...entries,
+        ],
+        updatedAt,
+      });
+    } else {
+      await ctx.db.insert("foodLogs", {
+        userId: user._id,
+        date: args.date,
+        entries,
+        updatedAt,
+      });
+    }
+    return { ok: true };
+  },
+});
+
+/** Undo a repeated meal in one transaction without changing other entries. */
+export const removeEntries = mutation({
+  args: { date: v.string(), entryIds: v.array(v.string()) },
+  handler: async (ctx, args) => {
+    const user = await getAuthUser(ctx);
+    if (!user) throw new Error("Not authenticated");
+    if (args.entryIds.length > 100) throw new Error("Too many entries");
+    const existing = await ctx.db
+      .query("foodLogs")
+      .withIndex("by_userId_date", (q) =>
+        q.eq("userId", user._id).eq("date", args.date),
+      )
+      .unique();
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        entries: existing.entries.filter(
+          (entry) => !args.entryIds.some((id) => entryHasId(entry, id)),
+        ),
+        updatedAt: Date.now(),
+      });
+    }
+    return { ok: true };
+  },
+});

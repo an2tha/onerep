@@ -1,3 +1,10 @@
+import { Capacitor } from "@capacitor/core"
+import {
+  Camera as NativeCamera,
+  CameraResultType,
+  CameraSource,
+} from "@capacitor/camera"
+import { toast } from "@repo/ui"
 import { tr } from "@repo/ui/i18n"
 import { useEffect, useRef, useState } from "react"
 import { Camera, ImagesSquare } from "@phosphor-icons/react"
@@ -14,11 +21,13 @@ export function QuickFoodCamera({
 }) {
   const video = useRef<HTMLVideoElement>(null)
   const [status, setStatus] = useState<"starting" | "ready" | "unavailable">(
-    "starting"
+    "starting",
   )
   const capturing = useRef(false)
 
+  const native = Capacitor.isNativePlatform()
   useEffect(() => {
+    if (native) return
     let disposed = false
     let stream: MediaStream | undefined
     async function start() {
@@ -50,11 +59,33 @@ export function QuickFoodCamera({
       disposed = true
       stream?.getTracks().forEach((track) => track.stop())
     }
-  }, [])
+  }, [native])
 
-  function capture() {
+  async function capture() {
     if (capturing.current) return
     hapticMedium()
+    if (native) {
+      capturing.current = true
+      try {
+        const photo = await NativeCamera.getPhoto({
+          source: CameraSource.Camera,
+          resultType: CameraResultType.Uri,
+          quality: 80,
+          width: 1600,
+          height: 1600,
+          correctOrientation: true,
+        })
+        if (photo.webPath)
+          onCapture(await fetch(photo.webPath).then((res) => res.blob()))
+      } catch (error) {
+        if (!(error instanceof Error && /cancel/i.test(error.message))) {
+          toast.error(tr("Camera unavailable"))
+        }
+      } finally {
+        capturing.current = false
+      }
+      return
+    }
     const feed = video.current
     if (status !== "ready" || !feed?.videoWidth) {
       onCamera()
@@ -72,20 +103,23 @@ export function QuickFoodCamera({
         else onCamera()
       },
       "image/jpeg",
-      0.85
+      0.85,
     )
   }
 
   return (
     <div className="quick-food-camera">
-      <video
-        ref={video}
-        autoPlay
-        muted
-        playsInline
-        aria-label={tr("Live meal camera preview")}
-      />
-      {status !== "ready" && (
+      {!native && (
+        <video
+          ref={video}
+          autoPlay
+          muted
+          playsInline
+          aria-label={tr("Live meal camera preview")}
+        />
+      )}
+      {native && <p>{tr("Capture meal")}</p>}
+      {!native && status !== "ready" && (
         <p role="status">
           {status === "starting"
             ? tr("Starting camera…")

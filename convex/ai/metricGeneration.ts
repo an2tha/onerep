@@ -2358,9 +2358,9 @@ export const generateCoachChatMessage = action({
     // template advice into recommendation cards or executable operations.
     // Rejecting also lets the client retain the prompt for its retry control.
     // And because the credit was spent up front, a request that produces no
-    // answer is refunded — otherwise provider outages would silently drain
+    // answer is refunded , otherwise provider outages would silently drain
     // the monthly allowance with nothing to show for it.
-    await refundAiUsage(ctx, user._id, "progress_metrics");
+    await refundAiUsage(ctx, user._id, "progress_metrics", quota.month);
     if (providerFailure?.status === 429) throw new ConvexError("The AI provider is temporarily rate-limiting this model. Please wait a moment and try again, or choose another model. Your message is saved for retry.");
     if (providerFailure?.status === 402) throw new ConvexError("The AI provider has insufficient credits. Check your AI billing or API key settings, then try again.");
     throw new ConvexError(

@@ -3,7 +3,7 @@
  * person actually reaches for at the top instead of making everybody scroll
  * past "Create a recipe" to log their lunch.
  *
- * Local on purpose. The counts are a private convenience, not telemetry —
+ * Local on purpose. The counts are a private convenience, not telemetry ,
  * nothing here leaves the device, so a rank can never leak what somebody
  * ate. Analytics stay the product-side view of the same events.
  */
@@ -77,9 +77,10 @@ export function rankQuickActions<T extends { action: string }>(
   return [...options].sort((a, b) => {
     const used = (counts[b.action] ?? 0) - (counts[a.action] ?? 0)
     if (used !== 0) return used
-    const fallback =
-      (DEFAULT_QUICK_ADD_ORDER as readonly string[]).indexOf(a.action) -
-      (DEFAULT_QUICK_ADD_ORDER as readonly string[]).indexOf(b.action)
-    return fallback
+    const rank = (action: string) => {
+      const index = (DEFAULT_QUICK_ADD_ORDER as readonly string[]).indexOf(action)
+      return index < 0 ? DEFAULT_QUICK_ADD_ORDER.length : index
+    }
+    return rank(a.action) - rank(b.action)
   })
 }

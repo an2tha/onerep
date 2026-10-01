@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test } from "bun:test"
+import { afterEach, beforeEach, describe, expect, test } from "bun:test"
 import {
   rankQuickActions,
   readQuickActionUsage,
@@ -40,8 +40,12 @@ class MemoryStorage {
 }
 
 let storage: MemoryStorage
+let originalWindow: PropertyDescriptor | undefined
+let originalStorage: PropertyDescriptor | undefined
 
 beforeEach(() => {
+  originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window")
+  originalStorage = Object.getOwnPropertyDescriptor(globalThis, "localStorage")
   storage = new MemoryStorage()
   Object.defineProperty(globalThis, "localStorage", {
     value: storage,
@@ -51,6 +55,13 @@ beforeEach(() => {
     value: { localStorage: storage },
     configurable: true,
   })
+})
+
+afterEach(() => {
+  for (const [key, descriptor] of [["window", originalWindow], ["localStorage", originalStorage]] as const) {
+    if (descriptor) Object.defineProperty(globalThis, key, descriptor)
+    else Reflect.deleteProperty(globalThis, key)
+  }
 })
 
 describe("quick-add ranking", () => {
@@ -99,7 +110,6 @@ describe("quick-add ranking", () => {
       { action: "food", label: "Log Food" },
       { action: "mystery", label: "Mystery" },
     ]
-    recordQuickActionUse("food")
     const ranked = rankQuickActions(mixed)
     expect(ranked.map((o) => o.action)).toEqual(["food", "mystery"])
   })

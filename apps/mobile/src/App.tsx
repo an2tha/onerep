@@ -336,8 +336,9 @@ function Dashboard() {
           <div className="px-[var(--app-page-x)]">
             {viewingToday && <RecoveryBanner />}
             {viewingToday && (
-              <div className="mt-2 mb-2 -mx-[var(--app-page-x)] md:-mx-8">
+              <div className="my-2 flex items-center gap-2">
                 <RepeatChips dateKey={dateKey} />
+                <VoiceLogButton />
               </div>
             )}
             <div className="lg:hidden">
@@ -480,7 +481,6 @@ function Dashboard() {
         options={rankQuickActions(QUICK_ADD_OPTIONS)}
         onChoose={(action) => openQuickAction(action)}
       />
-      <VoiceLogButton />
       <QuickActionDrawer
         id={quickAction?.id ?? null}
         dateKey={quickAction?.dateKey ?? dateKey}

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { convexTest } from "convex-test";
 import schema from "../schema";
-import { api } from "../_generated/api";
+import { api, internal } from "../_generated/api";
 import { AI_SHARING_VERSION } from "../lib/aiSharing";
 
 vi.mock("../ai/provider", async (importOriginal) => ({
@@ -63,6 +63,9 @@ describe("Coach chat provider failures", () => {
         granted: true,
         version: AI_SHARING_VERSION,
       });
+      await t.mutation(internal.ai.usage.consumeMonthlyQuota, {
+        userId: `test|coach-failure-${failure}`, source: "progress_metrics",
+      });
       await expect(
         user.action(api.ai.metricGeneration.generateCoachChatMessage, {
           context,
@@ -72,6 +75,7 @@ describe("Coach chat provider failures", () => {
           today: "2026-09-17",
         }),
       ).rejects.toThrow("Coach couldn’t answer your message right now");
+      expect(await user.query(api.ai.usage.getMonthlyUsage, {})).toMatchObject({ count: 1 });
     });
   }
 });

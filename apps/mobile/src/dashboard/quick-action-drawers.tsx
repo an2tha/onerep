@@ -62,12 +62,6 @@ import {
 import { searchFoodsAccurate } from "@/lib/openfoodfacts"
 import { FoodModeDial } from "./food-mode-dial"
 import { QuickFoodCamera } from "./quick-food-camera"
-import { Capacitor } from "@capacitor/core"
-import {
-  Camera as NativeCamera,
-  CameraResultType,
-  CameraSource,
-} from "@capacitor/camera"
 import { useEnergyUnit, type EnergyUnit } from "@/lib/use-energy-unit"
 import { energyDisplay } from "@repo/ui"
 import { WATER_BG, WATER_COLOR } from "./constants"
@@ -630,46 +624,7 @@ function FoodDrawer({
       <div className="quick-food-log__stage" data-mode={mode}>
         {mode === "snap" && (
           <QuickFoodCamera
-            onCapture={async (snapCapture) => {
-              // On a phone, skip the intermediate capture screen entirely:
-              // take the photo through the system camera right now and hand
-              // the blob to the snap pipeline. The WebView preview inside
-              // this drawer was the unreliable link — the picker is not.
-              if (Capacitor.isNativePlatform()) {
-                try {
-                  const permission = await NativeCamera.requestPermissions({
-                    permissions: ["camera"],
-                  })
-                  if (permission.camera !== "granted") return
-                  const photo = await NativeCamera.getPhoto({
-                    source: CameraSource.Camera,
-                    resultType: CameraResultType.Uri,
-                    quality: 85,
-                    correctOrientation: true,
-                  })
-                  if (!photo.webPath) return
-                  const blob = await fetch(photo.webPath).then((res) =>
-                    res.blob()
-                  )
-                  onClose()
-                  navigate(`/camera?${context}`, {
-                    motion: "forward",
-                    state: { snapCapture: blob },
-                  })
-                } catch (error) {
-                  // A cancelled picker is a decision, not a fault.
-                  if (
-                    error instanceof Error &&
-                    (error.name === "UserCancelled" ||
-                      error.name === "AbortError" ||
-                      /cancel/i.test(error.message ?? ""))
-                  )
-                    return
-                  onClose()
-                  navigate(`/camera?${context}`, { motion: "forward" })
-                }
-                return
-              }
+            onCapture={(snapCapture) => {
               onClose()
               navigate(`/camera?${context}`, {
                 motion: "forward",

@@ -1,3 +1,4 @@
+import { prepareSnapImage } from "@/lib/snap-image"
 import { Message, tr, translateError } from "@repo/ui/i18n"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useLocation, useSearchParams } from "react-router"
@@ -224,11 +225,8 @@ export default function SnapAndLog() {
   const [added, setAdded] = useState<string | null>(null)
   const [loggingTarget, setLoggingTarget] = useState<string | null>(null)
   const loggingTargetRef = useRef<string | null>(null)
-  // Snap mode hands the shutter to the system camera on a phone: the WebView
-  // getUserMedia preview was the flaky link in the chain — it can fail to
-  // start, fail to autoplay, or disagree with the native permission state —
-  // and every failure still cost the user a snap credit. Barcode mode keeps
-  // the live feed because the scanner needs a stream to decode continuously.
+  // Native snap capture uses the system camera. Barcode scanning retains
+  // the live WebView stream for continuous decoding.
   const useNativeCapture = Capacitor.isNativePlatform() && mode === "snap"
   const hasNativeCameraFallback = Capacitor.isNativePlatform()
 
@@ -488,62 +486,17 @@ export default function SnapAndLog() {
     }
   }
 
-  /**
-   * The zero-review path: one detected food, one matched product. Builds the
-   * same entry the review sheet would have built and logs it immediately —
-   * the undo toast stands in for the confirmation step.
-   */
-  async function autoLogSingleSnap(item: SnapReviewItem) {
-    const entry = buildSnapFoodLogEntry(item, meal, {
-      loggedAt: logStamp(),
-      quantityLabel: quantityLabel(item.grams, currentMeasurementSystem()),
-    })
-    if (!entry) {
-      setSnapPhase("results")
-      setSnapReviewItems([item])
-      return
-    }
-    setSnapReviewItems([item])
-    setSnapRaw(item.detectedName)
-    loggingTargetRef.current = "snap-review"
-    setSnapLogging(true)
-    try {
-      await addFoodEntry({ date, entry })
-      announceOrbActivity("log")
-      captureFeatureUsage("food_logged_from_camera", {
-        item_count: 1,
-        detected_count: 1,
-        source: "snap_one_tap",
-      })
-      toast.success(tr("{{value0}} logged", { value0: entry.name }), {
-        action: {
-          label: tr("Undo"),
-          onClick: () => {
-            announceOrbActivity("delete")
-            void removeFoodEntry({ date, entryId: entry.id }).catch(() =>
-              toast.error(translateError(tr("Couldn't undo that")))
-            )
-          },
-        },
-      })
-      setSnapPhase("idle")
-      setSnapReviewItems([])
-      setSnapRaw(null)
-    } catch (error) {
-      console.error("Failed to log snapped meal:", error)
-      toast.error(translateError(tr("Could not log meal")))
-      setSnapPhase("results")
-    } finally {
-      loggingTargetRef.current = null
-      setSnapLogging(false)
-    }
-  }
+  const snapGeneration = useRef(0)
+  useEffect(() => () => { snapGeneration.current += 1 }, [])
 
   async function processSnapBlob(blob: Blob) {
     if (!requireAiAccess(1, "snap_process")) return
 
+    const generation = ++snapGeneration.current
     setSnapPhase("uploading")
     try {
+      blob = await prepareSnapImage(blob)
+      if (generation !== snapGeneration.current) return
       const arrayBuffer = await blob.arrayBuffer()
       const bytes = new Uint8Array(arrayBuffer)
       let binary = ""
@@ -560,6 +513,7 @@ export default function SnapAndLog() {
         matches?: SnapFoodMatch[]
       }
 
+      if (generation !== snapGeneration.current) return
       const aiResult = result.aiResult ?? {}
       const detections = snapDetectionsFromAiResult(aiResult)
       const reviewItems = await mapSnapDetectionsToReviewItems(
@@ -574,19 +528,12 @@ export default function SnapAndLog() {
         }
       )
 
-      // One detected food with one confident match needs no review table:
-      // log it on the spot with an undo toast. The review sheet stays for
-      // multi-item plates and for anything the search could not match.
-      const single = reviewItems.length === 1 ? reviewItems[0] : null
-      if (single && single.food && single.selected) {
-        void autoLogSingleSnap(single)
-        return
-      }
-
+      if (generation !== snapGeneration.current) return
       setSnapReviewItems(reviewItems)
       setSnapRaw(detections.map((detection) => detection.name).join(", "))
       setSnapPhase("results")
     } catch (error) {
+      if (generation !== snapGeneration.current) return
       console.error("Failed to process snapped meal:", error)
       setSnapPhase("error")
     }
@@ -602,8 +549,9 @@ export default function SnapAndLog() {
   }, [aiAccessLoading])
 
   async function handleNativeCapture() {
+    const generation = snapGeneration.current
     try {
-      const permission = await NativeCamera.requestPermissions()
+      const permission = await NativeCamera.requestPermissions({ permissions: ["camera"] })
       if (permission.camera !== "granted") {
         setCameraState("denied")
         toast.error(
@@ -616,7 +564,9 @@ export default function SnapAndLog() {
       const photo = await NativeCamera.getPhoto({
         source: CameraSource.Camera,
         resultType: CameraResultType.Uri,
-        quality: 85,
+        quality: 80,
+        width: 1600,
+        height: 1600,
         correctOrientation: true,
       })
       if (!photo.webPath) {
@@ -625,6 +575,7 @@ export default function SnapAndLog() {
         return
       }
       const blob = await fetch(photo.webPath).then((res) => res.blob())
+      if (generation !== snapGeneration.current) return
       if (mode === "snap") {
         captureFeatureUsage("food_snap_captured")
         await processSnapBlob(blob)
@@ -658,6 +609,7 @@ export default function SnapAndLog() {
    * so it also works on a device that refused camera permission outright.
    */
   async function handlePickFromLibrary() {
+    const generation = snapGeneration.current
     if (mode === "snap" && !requireAiAccess(1, "snap_capture")) return
     try {
       // Only iOS gates the picker on a photos permission. Android's photo
@@ -690,11 +642,14 @@ export default function SnapAndLog() {
       const photo = await NativeCamera.getPhoto({
         source: CameraSource.Photos,
         resultType: CameraResultType.Uri,
-        quality: 85,
+        quality: 80,
+        width: 1600,
+        height: 1600,
         correctOrientation: true,
       })
       if (!photo.webPath) return
       const blob = await fetch(photo.webPath).then((res) => res.blob())
+      if (generation !== snapGeneration.current) return
       if (mode === "snap") {
         captureFeatureUsage("food_snap_captured")
         await processSnapBlob(blob)
@@ -979,6 +934,7 @@ export default function SnapAndLog() {
   function switchMode(m: ScreenMode) {
     if (m === "snap" && !requireAiAccess(1, "snap_camera")) return
 
+    snapGeneration.current += 1
     setMode(m)
     setSnapPhase("idle")
     setSnapReviewItems([])

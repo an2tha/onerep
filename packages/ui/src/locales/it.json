@@ -5461,5 +5461,9 @@
   "−{{value1}}%": "−{{value1}}%",
   "−{{value1}}bpm on baseline": "−{{value1}} bpm rispetto al valore di base",
   "−{{value1}}ms on baseline": "−{{value1}} ms rispetto al valore di base",
-  "✓ Logged to {{value0}}": "✓ Registrato su {{value0}}"
+  "✓ Logged to {{value0}}": "✓ Registrato su {{value0}}",
+  "Log by voice": "Registra con la voce",
+  "Say what you ate to Coach": "Di’ a Coach cosa hai mangiato",
+  "Stop and log": "Ferma e registra",
+  "{{value0}}Listening": "{{value0}}In ascolto"
 }

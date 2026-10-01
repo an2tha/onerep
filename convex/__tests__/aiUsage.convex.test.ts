@@ -351,6 +351,7 @@ describe("AI monthly usage quota", () => {
     expect(quota).toMatchObject({ allowed: true, count: 1 });
 
     const refunded = await t.mutation(internal.ai.usage.refundMonthlyQuota, {
+      month: new Date().toISOString().slice(0, 7),
       userId,
       source: "progress_metrics",
     });
@@ -377,6 +378,7 @@ describe("AI monthly usage quota", () => {
 
     // No consume first: the refund must not fabricate a usage row.
     const refunded = await t.mutation(internal.ai.usage.refundMonthlyQuota, {
+      month: new Date().toISOString().slice(0, 7),
       userId,
       source: "progress_metrics",
     });
@@ -390,6 +392,7 @@ describe("AI monthly usage quota", () => {
     for (let i = 0; i < 2; i += 1) {
       await expect(
         t.mutation(internal.ai.usage.refundMonthlyQuota, {
+          month: new Date().toISOString().slice(0, 7),
           userId,
           source: "progress_metrics",
         }),
@@ -412,6 +415,7 @@ describe("AI monthly usage quota", () => {
       source: "form_coach",
     });
     const refunded = await t.mutation(internal.ai.usage.refundMonthlyQuota, {
+      month: new Date().toISOString().slice(0, 7),
       userId,
       source: "form_coach",
     });
@@ -461,4 +465,29 @@ describe("one-time AI usage reset", () => {
         .query(api.ai.usage.getMonthlyUsage, {}),
     ).resolves.toMatchObject({ count: 1 });
   });
+});
+
+test("refund targets the charged month and leaves new-month usage untouched", async () => {
+  const t = convexTest(schema, modules);
+  const userId = "test|rollover-refund";
+  const currentMonth = new Date().toISOString().slice(0, 7);
+  await t.run(async (ctx) => {
+    for (const month of ["2020-01", currentMonth]) {
+      await ctx.db.insert("aiUsage", {
+        userId,
+        month,
+        count: 3,
+        updatedAt: Date.now(),
+        lastSource: "food_snap",
+      });
+    }
+  });
+  await t.mutation(internal.ai.usage.refundMonthlyQuota, {
+    userId,
+    month: "2020-01",
+    source: "food_snap",
+  });
+  const rows = await t.run((ctx) => ctx.db.query("aiUsage").collect());
+  expect(rows.find((row) => row.month === "2020-01")?.count).toBe(2);
+  expect(rows.find((row) => row.month === currentMonth)?.count).toBe(3);
 });

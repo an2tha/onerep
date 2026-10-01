@@ -672,16 +672,16 @@ export const snap = action({
 
     const imageData = `data:${mimeType};base64,${args.base64Image}`;
     // One retry on a provider failure: the request was already paid for, so
-    // the second attempt is free to the user — and if it also fails, the
+    // the second attempt is free to the user , and if it also fails, the
     // charge is refunded rather than eaten.
     let aiResult: Awaited<ReturnType<typeof analyzeImageWithOpenAi>>;
     try {
       aiResult = await analyzeImageWithOpenAi(imageData, usage.apiKey);
-    } catch (error) {
+    } catch {
       try {
         aiResult = await analyzeImageWithOpenAi(imageData, usage.apiKey);
       } catch (retryError) {
-        await refundAiUsage(ctx, user._id, "food_snap");
+        await refundAiUsage(ctx, user._id, "food_snap", usage.month);
         throw retryError;
       }
     }
@@ -722,11 +722,11 @@ export const describeText = action({
     let aiResult: Awaited<ReturnType<typeof analyzeFoodDescriptionWithOpenAi>>;
     try {
       aiResult = await analyzeFoodDescriptionWithOpenAi(text, usage.apiKey);
-    } catch (error) {
+    } catch {
       try {
         aiResult = await analyzeFoodDescriptionWithOpenAi(text, usage.apiKey);
       } catch (retryError) {
-        await refundAiUsage(ctx, user._id, "food_snap");
+        await refundAiUsage(ctx, user._id, "food_snap", usage.month);
         throw retryError;
       }
     }
