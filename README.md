@@ -3,6 +3,11 @@
   <h1>OneRep</h1>
   <p>Training, food, health, and your daily journal in one place.</p>
   <p>
+    <a href="https://apps.apple.com/us/app/onerep-life-fitness/id6804442452">
+      <img src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg" alt="Download OneRep on the App Store" width="300" height="100">
+    </a>
+  </p>
+  <p>
     <a href="https://app.onerep.life">Open the app</a> ·
     <a href="https://docs.onerep.life">Read the docs</a> ·
     <a href="https://testflight.apple.com/join/edJwRJDP">Join the iOS beta</a> ·

@@ -3,7 +3,7 @@ import type { WorkoutLogRecord } from "./muscle-volume"
 export type ExerciseHistoryEntry = {
   id?: unknown
   exerciseId?: unknown
-  sets?: Array<{ completed?: unknown }>
+  sets?: Array<{ completed?: unknown; type?: unknown }>
 }
 
 export type WorkoutHistoryEntry = {
@@ -67,7 +67,7 @@ export function toWorkoutLogRecords(
   return history.map((log) => ({
     date: log.date,
     exercises: (log.exercises ?? [])
-      .map((exercise) => {
+      .map((exercise): WorkoutLogRecord["exercises"][number] | null => {
         const id = getLoggedExerciseId(exercise)
         if (!id) return null
 
@@ -75,6 +75,7 @@ export function toWorkoutLogRecords(
           id,
           sets: (exercise.sets ?? []).map((set) => ({
             completed: Boolean(set.completed),
+            type: typeof set.type === "string" ? set.type : undefined,
           })),
         }
       })

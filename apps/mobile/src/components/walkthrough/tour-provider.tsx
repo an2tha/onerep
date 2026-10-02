@@ -187,7 +187,9 @@ export function TourProvider({ children }: { children: ReactNode }) {
       progress: { ...progress, ...localProgress.current },
       chapters: WALKTHROUGH_CHAPTERS,
       ctx: featureContext,
-      blocked,
+      // Goals owns its first-visit introduction. Do not stack the legacy
+      // spotlight tour (or the app primer) over that dialog.
+      blocked: blocked || location.pathname === "/progress",
       primerShownThisSession: primerShownRef.current,
     })
 

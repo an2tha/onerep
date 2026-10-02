@@ -1,3 +1,11 @@
+import type { FunctionArgs } from "convex/server"
+import { useSearchParams } from "react-router"
+import type { Id } from "../../../../convex/_generated/dataModel"
+import type { GoalNutritionRecommendation } from "../../../../convex/lib/goalNutrition"
+import {
+  GOAL_NUTRITION_LABELS,
+  GOAL_NUTRITION_NOTES,
+} from "@/lib/goal-nutrition-copy"
 import { Message, choice, tr, translateError } from "@repo/ui/i18n"
 import { useEffect, useId, useState } from "react"
 import { ConvexError } from "convex/values"
@@ -40,6 +48,14 @@ export function NutritionProgramme({
   placement?: "primary" | "secondary"
 }) {
   const programme = useQuery(api.nutritionProgrammes.getCurrent, {})
+  const goalRecommendation = useQuery(
+    api.nutritionProgrammes.getGoalRecommendation,
+    {}
+  )
+  const [searchParams, setSearchParams] = useSearchParams()
+  const requestedSetup =
+    placement === "primary" && searchParams.get("programme") === "setup"
+
   const recommendations = useQuery(
     api.logs.recipes.recommendedForProgramme,
     programme ? { date, limit: 3 } : "skip"
@@ -59,7 +75,14 @@ export function NutritionProgramme({
   )
   const [invitationOpen, setInvitationOpen] = useState(false)
   const invitationId = useId()
-  if (programme === undefined)
+  useEffect(() => {
+    if (!requestedSetup) return
+    setSetup(true)
+    const next = new URLSearchParams(searchParams)
+    next.delete("programme")
+    setSearchParams(next, { replace: true })
+  }, [requestedSetup, searchParams, setSearchParams])
+  if (programme === undefined || goalRecommendation === undefined)
     return placement === "secondary" ? null : (
       <div className="programme-loading" role="status">
         {tr("Loading your programme…")}
@@ -68,7 +91,18 @@ export function NutritionProgramme({
   const day = programme ? programmeDay(programme, date) : null
   const active = programme && !programme.requiresCare && day?.active
   if (placement === "secondary" && day?.active) return null
-  if (placement === "primary" && !day?.active && dismissed) return null
+  if (
+    placement === "primary" &&
+    !day?.active &&
+    dismissed &&
+    !setup &&
+    !requestedSetup
+  )
+    return null
+  const goalChanged =
+    active &&
+    goalRecommendation &&
+    programme.goalFocus !== goalRecommendation.focus
   const invitation = (
     <div className="programme-intro">
       <div>
@@ -78,7 +112,11 @@ export function NutritionProgramme({
               ? tr("Programme guidance paused")
               : programme && day && day.day >= programme.weeks * 7
                 ? tr("Programme complete")
-                : tr("Nutrition, with a plan")}
+                : goalRecommendation
+                  ? tr("Programme for {{goal}}", {
+                      goal: tr(GOAL_NUTRITION_LABELS[goalRecommendation.focus]),
+                    })
+                  : tr("Nutrition programme")}
           </h2>
         )}
         <p>
@@ -86,7 +124,11 @@ export function NutritionProgramme({
             ? tr(
                 "Your updated profile needs an individual nutrition plan. Programme targets and workout suggestions are paused."
               )
-            : tr("A few weeks of guidance. Built around how you train.")}
+            : goalRecommendation
+              ? tr(GOAL_NUTRITION_NOTES[goalRecommendation.focus])
+              : tr(
+                  "Choose a calorie progression and review your daily targets before starting."
+                )}
         </p>
       </div>
       <button
@@ -126,6 +168,33 @@ export function NutritionProgramme({
               </div>
               <Leaf size={28} aria-hidden="true" />
             </div>
+            {programme.goalFocus && (
+              <p className="programme-goal-link">
+                {tr("Goal: {{goal}}", {
+                  goal: tr(GOAL_NUTRITION_LABELS[programme.goalFocus]),
+                })}
+              </p>
+            )}
+            {goalChanged && (
+              <div className="programme-goal-update">
+                <h3>
+                  {tr("Update this programme for {{goal}}?", {
+                    goal: tr(GOAL_NUTRITION_LABELS[goalRecommendation.focus]),
+                  })}
+                </h3>
+                <p>
+                  {tr(
+                    "Review the suggested targets. Applying them replaces this programme from today; earlier targets stay in your history."
+                  )}
+                </p>
+                <button
+                  className="programme-secondary"
+                  onClick={() => setSetup(true)}
+                >
+                  {tr("Review changes")}
+                </button>
+              </div>
+            )}
             <div className="programme-phase">
               <strong>{day.phase}</strong>
               <span>
@@ -436,6 +505,16 @@ export function NutritionProgramme({
           baseline={baseline}
           protein={protein}
           fat={fat}
+          recommendation={goalRecommendation}
+          replacing={
+            active
+              ? {
+                  id: programme._id,
+                  timezone: programme.timezone,
+                  calories: day.targets.calories,
+                }
+              : undefined
+          }
           onClose={() => setSetup(false)}
         />
       )}
@@ -489,24 +568,55 @@ export function NutritionProgramme({
   )
 }
 
-function ProgrammeSetup({
-  baseline,
-  protein,
-  fat,
-  onClose,
-}: {
+type ProgrammeSetupProps = {
   baseline: number
   protein: number
   fat: number
+  recommendation?: GoalNutritionRecommendation | null
+  replacing?: {
+    id: Id<"nutritionProgrammes">
+    timezone: string
+    calories: number
+  }
   onClose: () => void
-}) {
+}
+function ProgrammeSetup(props: ProgrammeSetupProps) {
   const start = useMutation(api.nutritionProgrammes.start)
   const eligibility = useQuery(api.nutritionProgrammes.getEligibility, {})
+  return (
+    <ProgrammeSetupView {...props} start={start} eligibility={eligibility} />
+  )
+}
+export function ProgrammeSetupView({
+  baseline,
+  protein,
+  fat,
+  recommendation,
+  replacing: initialReplacement,
+  onClose,
+  start,
+  eligibility,
+}: ProgrammeSetupProps & {
+  start: (
+    args: FunctionArgs<typeof api.nutritionProgrammes.start>
+  ) => Promise<unknown>
+  eligibility: { eligible: boolean; reason: string | null } | undefined
+}) {
+  const [suggestion] = useState(recommendation)
+  const [replacing] = useState(initialReplacement)
   const [step, setStep] = useState(0)
-  const [goal, setGoal] = useState<ProgrammeGoal>("maintain")
+  const [goal, setGoal] = useState<ProgrammeGoal>(
+    suggestion?.goal ?? "maintain"
+  )
   const [weeks, setWeeks] = useState(6)
-  const [calories, setCalories] = useState(Math.round(baseline))
-  const [change, setChange] = useState(10)
+  const [calories, setCalories] = useState(
+    suggestion ? (suggestion.baselineCalories ?? 0) : Math.round(baseline)
+  )
+  const [proteinTarget, setProteinTarget] = useState(
+    suggestion?.protein ?? protein
+  )
+  const [fatTarget, setFatTarget] = useState(suggestion?.fat ?? fat)
+  const [change, setChange] = useState(suggestion?.changePercent || 10)
   const [fast, setFast] = useState(0)
   const [eatingStart, setEatingStart] = useState("09:00")
   const [confirmed, setConfirmed] = useState(false)
@@ -515,14 +625,17 @@ function ProgrammeSetup({
   useEffect(() => {
     document.getElementById("programme-setup-title")?.focus()
   }, [step])
-  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+  const timezone =
+    replacing?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone
   const candidate = {
     goal,
     weeks,
     baselineCalories: calories,
     changePercent: goal === "maintain" ? 0 : change,
-    protein,
-    fat,
+    protein: proteinTarget,
+    fat: fatTarget,
+    goalFocus: suggestion?.focus,
+    replaceProgrammeId: replacing?.id,
     fastingHours: fast,
     eatingStart,
     timezone,
@@ -576,7 +689,8 @@ function ProgrammeSetup({
   return (
     <MobileSheet
       ariaLabel={tr("Start a nutrition programme")}
-      onClose={() => !busy && onClose()}
+      onClose={onClose}
+      dismissible={!busy}
       panelClassName="programme-glass-sheet"
     >
       <form
@@ -593,7 +707,11 @@ function ProgrammeSetup({
             const { startDate: _, ...args } = candidate
             await start({ ...args, screeningConfirmed: confirmed })
             onClose()
-            toast.success(tr("Your programme starts today"))
+            toast.success(
+              replacing
+                ? tr("Your programme has been updated")
+                : tr("Your programme starts today")
+            )
           } catch (e) {
             setError(
               translateError(
@@ -626,19 +744,33 @@ function ProgrammeSetup({
         <h2 id="programme-setup-title" tabIndex={-1}>
           {
             [
-              tr("Find your rhythm"),
-              tr("Make it fit your day"),
-              tr("Your next few weeks"),
+              tr("Choose your programme"),
+              tr("Set daily targets"),
+              tr("Review your programme"),
             ][step]
           }
         </h2>
         {step === 0 && (
           <>
-            <p>
-              {tr(
-                "Choose a direction. We’ll guide the progression week by week."
-              )}
-            </p>
+            {suggestion ? (
+              <div className="programme-goal-suggestion">
+                <h3>
+                  {tr("Suggested for {{goal}}", {
+                    goal: tr(GOAL_NUTRITION_LABELS[suggestion.focus]),
+                  })}
+                </h3>
+                <p>{tr(GOAL_NUTRITION_NOTES[suggestion.focus])}</p>
+                <p>
+                  {tr(
+                    "These are editable starting targets. Review them against your actual intake and training."
+                  )}
+                </p>
+              </div>
+            ) : (
+              <p>
+                {tr("Choose a calorie progression for the next few weeks.")}
+              </p>
+            )}
             <fieldset className="programme-choices">
               <legend>{tr("Programme goal")}</legend>
               {(
@@ -696,9 +828,17 @@ function ProgrammeSetup({
         {step === 1 && (
           <>
             <p>
-              {tr(
-                "Start from your current intake. The first week holds steady before any changes."
-              )}
+              {suggestion?.baselineCalories
+                ? tr(
+                    "The starting calories use estimated maintenance from your saved profile, before any deficit or surplus. Adjust this estimate if your weight trend suggests otherwise."
+                  )
+                : suggestion
+                  ? tr(
+                      "We do not have a maintenance estimate from your profile. Enter your estimated maintenance intake to avoid reducing an existing deficit or adding to an existing surplus."
+                    )
+                  : tr(
+                      "Start from your current intake. The first week holds steady before any changes."
+                    )}
             </p>
             <label>
               <Message
@@ -710,7 +850,7 @@ function ProgrammeSetup({
                       min={1600}
                       max={5000}
                       required
-                      value={calories}
+                      value={calories || ""}
                       onChange={(e) => setCalories(Number(e.target.value))}
                     />
                   ),
@@ -743,6 +883,39 @@ function ProgrammeSetup({
                   }}
                 />
               </label>
+            )}
+            <div className="programme-macro-fields">
+              <label>
+                {tr("Protein · g/day")}
+                <input
+                  type="number"
+                  min={40}
+                  max={300}
+                  required
+                  value={proteinTarget || ""}
+                  onChange={(event) =>
+                    setProteinTarget(Number(event.target.value))
+                  }
+                />
+              </label>
+              <label>
+                {tr("Fat · g/day")}
+                <input
+                  type="number"
+                  min={40}
+                  max={150}
+                  required
+                  value={fatTarget || ""}
+                  onChange={(event) => setFatTarget(Number(event.target.value))}
+                />
+              </label>
+            </div>
+            {suggestion && (
+              <p>
+                {tr(
+                  "Protein and fat use your saved body weight when available. Carbohydrates use the remaining calories. Fasting is optional and is not enabled by your goal."
+                )}
+              </p>
             )}
             <label>
               <Message
@@ -814,6 +987,45 @@ function ProgrammeSetup({
         )}
         {step === 2 && (
           <>
+            {replacing && (
+              <div className="programme-goal-suggestion">
+                <h3>{tr("Replace your current programme")}</h3>
+                <p>
+                  {tr(
+                    "Today changes from {{before}} to {{after}} kcal. A new {{weeks}}-week programme starts today. Earlier targets and food logs stay saved.",
+                    { before: replacing.calories, after: calories, weeks }
+                  )}
+                </p>
+              </div>
+            )}
+            {suggestion && (
+              <p>
+                {tr("Goal: {{goal}}", {
+                  goal: tr(GOAL_NUTRITION_LABELS[suggestion.focus]),
+                })}
+              </p>
+            )}
+            <p>
+              {tr(
+                "Daily protein: {{protein}} g. Daily fat: {{fat}} g. Carbohydrates: {{start}} to {{end}} g as calories change.",
+                {
+                  protein: proteinTarget,
+                  fat: fatTarget,
+                  start: Math.max(
+                    0,
+                    Math.round(
+                      (calories - proteinTarget * 4 - fatTarget * 9) / 4
+                    )
+                  ),
+                  end: Math.max(
+                    0,
+                    Math.round(
+                      (endCalories - proteinTarget * 4 - fatTarget * 9) / 4
+                    )
+                  ),
+                }
+              )}
+            </p>
             <p>
               <Message
                 text={"{{value0}} · {{value1}} weeks, starting today."}
@@ -902,7 +1114,9 @@ function ProgrammeSetup({
             {busy
               ? tr("Starting…")
               : step === 2
-                ? tr("Start my programme")
+                ? replacing
+                  ? tr("Apply changes")
+                  : tr("Start my programme")
                 : tr("Continue")}
             <ArrowRight aria-hidden="true" />
           </button>

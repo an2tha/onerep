@@ -172,7 +172,7 @@ export const WALKTHROUGH_CHAPTERS: readonly TourChapter[] = [
   },
   {
     id: "progress",
-    title: tr("Progress"),
+    title: tr("Goals"),
     route: "/progress",
     version: 1,
     kind: "hub",
@@ -180,9 +180,9 @@ export const WALKTHROUGH_CHAPTERS: readonly TourChapter[] = [
       {
         id: "progress.tabs",
         anchor: "progress-tabs",
-        title: tr("Four views"),
+        title: tr("Your progress in detail"),
         body: tr(
-          "Body, nutrition, and training trends each get a tab — and the exercise library sits in the fourth."
+          "Body, nutrition, training and health each have a tab below your goal. The exercise library is here too."
         ),
       },
       {

@@ -18,6 +18,7 @@ import "@openuidev/react-ui/components.css"
 import "./coach-openui.css"
 
 const navigationActions = new Set<CoachUiAction>([
+  "open_restart",
   "open_nutrition",
   "open_workouts",
   "open_progress",

@@ -11,6 +11,7 @@ export default defineConfig([
     "android/app/build",
     "android/.gradle",
     "ios/DerivedData",
+    "ios/App/build",
     "convex/_generated",
   ]),
   {

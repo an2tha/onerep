@@ -405,6 +405,8 @@ export default function SearchFoods() {
       const product = detail?.openFoodFacts ?? item.openFoodFacts
       const macros = scaledFoodMacros(item, grams, detail)
       const entry = stripUndefined({
+        // Runs only from the Log again click handler, never during render.
+        // eslint-disable-next-line react-hooks/purity
         id: Math.random().toString(36).slice(2),
         name:
           grams === 100 && !portion
@@ -450,6 +452,8 @@ export default function SearchFoods() {
       const entry = stripUndefined({
         ...previous,
         _id: undefined,
+        // Runs only from the Log again click handler, never during render.
+        // eslint-disable-next-line react-hooks/purity
         id: Math.random().toString(36).slice(2),
         meal: previous.meal || defaultMeal(),
         loggedAt: foodLogTimestampForMeal(

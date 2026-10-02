@@ -45,7 +45,7 @@ const BASE_NATIVE_TAB_ITEMS: NativeTabBarItem[] = [
   { id: "/journal", symbol: "book.closed.fill", label: tr("Journal") },
   { id: "/nutrition", symbol: "fork.knife", label: tr("Nutrition") },
   { id: "/workouts", symbol: "dumbbell.fill", label: tr("Training") },
-  { id: "/progress", symbol: "chart.bar.fill", label: tr("Progress") },
+  { id: "/progress", symbol: "chart.bar.fill", label: tr("Goals") },
   { id: "/health", symbol: "heart.text.square.fill", label: tr("Health") },
   { id: "/coach", symbol: "sparkles", label: tr("Coach") },
 ]

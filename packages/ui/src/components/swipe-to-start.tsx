@@ -25,6 +25,7 @@ export function SwipeToStart({
   onHaptic?: (kind: "start" | "step" | "complete") => void
 }) {
   const [position, setPosition] = useState(0)
+  const [travelDistance, setTravelDistance] = useState(280 - THUMB_SIZE - TRACK_INSET * 2)
   const [settling, setSettling] = useState(false)
   const [dragging, setDragging] = useState(false)
   const [completing, setCompleting] = useState(false)
@@ -49,7 +50,9 @@ export function SwipeToStart({
   }
 
   function updatePosition(next: number) {
-    const clamped = Math.max(0, Math.min(next, travel()))
+    const distance = travel()
+    setTravelDistance(distance)
+    const clamped = Math.max(0, Math.min(next, distance))
     positionRef.current = clamped
     setPosition(clamped)
   }
@@ -132,7 +135,7 @@ export function SwipeToStart({
     []
   )
 
-  const progress = position / Math.max(1, travel())
+  const progress = position / Math.max(1, travelDistance)
   const ready = progress >= COMPLETE_THRESHOLD
   const thumbColor = isCompleted
     ? `color-mix(in srgb, ${accent} ${Math.round(72 + progress * 28)}%, var(--foreground))`
@@ -156,7 +159,7 @@ export function SwipeToStart({
       <span
         className="swipe-to-start-fill pointer-events-none absolute inset-y-[5px] left-[5px] rounded-[15px]"
         style={{
-          width: `${THUMB_SIZE + progress * travel()}px`,
+          width: `${THUMB_SIZE + position}px`,
           background: `color-mix(in srgb, ${accent} ${Math.round(10 + progress * 18)}%, transparent)`,
         }}
         aria-hidden="true"

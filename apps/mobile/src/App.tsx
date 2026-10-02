@@ -1,3 +1,4 @@
+import { RestartNudge } from "@/components/restart/restart-nudge"
 import { Message, tr, uiLocale } from "@repo/ui/i18n"
 import { ProfileAvatar } from "@/components/profile-avatar"
 import { RecoveryBanner } from "@/components/recovery/recovery-banner"
@@ -334,6 +335,7 @@ function Dashboard() {
           }
         >
           <div className="px-[var(--app-page-x)]">
+            {viewingToday && <RestartNudge />}
             {viewingToday && <RecoveryBanner />}
             {viewingToday && (
               <div className="my-2 flex items-center gap-2">

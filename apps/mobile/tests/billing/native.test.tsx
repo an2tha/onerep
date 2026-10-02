@@ -127,6 +127,7 @@ mock.module("convex/react", () => ({
 const React = await import("react")
 const { act } = React
 const { createRoot } = await import("react-dom/client")
+const { useLayoutEffect } = await import("react")
 const { useBilling, NATIVE_SUBSCRIPTION_MESSAGE } =
   await import("../../src/lib/billing")
 const { BillingSubscriptionPanel, AiAccessRequiredModal } =
@@ -134,25 +135,26 @@ const { BillingSubscriptionPanel, AiAccessRequiredModal } =
 let billing: ReturnType<typeof useBilling>
 const noop = () => {}
 function Harness() {
-  billing = useBilling({ userId: "test-user" })
+  const currentBilling = useBilling({ userId: "test-user" })
+  useLayoutEffect(() => { billing = currentBilling })
   return (
     <>
-      <BillingSubscriptionPanel billing={billing} />
+      <BillingSubscriptionPanel billing={currentBilling} />
       <AiAccessRequiredModal
         open
         busy={false}
-        price={billing.monthlyPrice ?? "Monthly"}
-        error={billing.error}
-        notice={billing.purchaseNotice}
-        isNative={billing.isNative}
-        plansLoading={billing.catalogueLoading}
-        canPurchase={billing.canPurchase}
-        canRestore={billing.canRestore}
-        onRetry={() => void billing.reloadProducts()}
+        price={currentBilling.monthlyPrice ?? "Monthly"}
+        error={currentBilling.error}
+        notice={currentBilling.purchaseNotice}
+        isNative={currentBilling.isNative}
+        plansLoading={currentBilling.catalogueLoading}
+        canPurchase={currentBilling.canPurchase}
+        canRestore={currentBilling.canRestore}
+        onRetry={() => void currentBilling.reloadProducts()}
         onClose={noop}
-        onOpenPaywall={() => void billing.purchaseMonthly()}
+        onOpenPaywall={() => void currentBilling.purchaseMonthly()}
         onOpenSettings={noop}
-        onRestore={() => void billing.restorePurchases()}
+        onRestore={() => void currentBilling.restorePurchases()}
       />
     </>
   )

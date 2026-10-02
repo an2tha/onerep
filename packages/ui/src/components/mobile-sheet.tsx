@@ -15,6 +15,7 @@ export type MobileSheetProps = {
   bottom?: React.ReactNode
   showHandle?: boolean
   closeOnBackdrop?: boolean
+  dismissible?: boolean
   dragThreshold?: number
   minHeight?: string
   maxHeight?: string
@@ -40,6 +41,7 @@ export function MobileSheet({
   bottom,
   showHandle = true,
   closeOnBackdrop = true,
+  dismissible = true,
   dragThreshold = 100,
   minHeight = "15vh",
   maxHeight = "85vh",
@@ -81,11 +83,11 @@ export function MobileSheet({
   }, [maxHeight])
 
   const dismiss = React.useCallback(() => {
-    if (closingRef.current) return
+    if (!dismissible || closingRef.current) return
     closingRef.current = true
     setIsClosing(true)
     closeTimerRef.current = window.setTimeout(onClose, CLOSE_MS)
-  }, [onClose])
+  }, [dismissible, onClose])
 
   React.useEffect(
     () => () => {
@@ -165,7 +167,6 @@ export function MobileSheet({
       }
     }
     // Mount and unmount only. See `dismissRef` above.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   React.useEffect(() => {

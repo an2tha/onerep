@@ -1,4 +1,6 @@
-import { Message, tr, translateError } from "@repo/ui/i18n"
+import { GoalsDisclosure } from "@/components/goals-disclosure"
+import { GoalsHub } from "@/components/goals-hub"
+import { tr, translateError } from "@repo/ui/i18n"
 import { PageBarActions } from "@/components/page-bar-actions"
 import { RecoveryBanner } from "@/components/recovery/recovery-banner"
 import {
@@ -553,7 +555,7 @@ export default function Progress() {
       <ReactiveOrbField className="progress-hero-wash" />
       <main className="app-page pb-28">
         <header className="app-header" ref={progressHeaderRef}>
-          <h1 className="app-title">{tr("Progress")}</h1>
+          <h1 className="app-title">{tr("Goals")}</h1>
           <PageBarActions>
             <div
               className="flex items-center gap-1"
@@ -589,44 +591,33 @@ export default function Progress() {
         </header>
         <RecoveryBanner surface="progress" />
 
-        {/* Progress opens on the week itself, not on a tab bar. Nutrition
-             rings its dials in a row and Training rings them in a crown;
-             here the three tracks are nested, because they are three ways
-             through the same seven days rather than three separate readings.
-             The library gets the same hero with the instrument folded away —
-             it is the one tab that isn't about the week. */}
-        <section
-          className="progress-hero relative flex flex-col justify-center pt-1 pb-5 text-center"
-          aria-label={tr("Week in review")}
-        >
-          <p className="text-[13px] font-medium text-muted-foreground">
-            {shownMetric === "exercises"
-              ? tr("Exercise library")
-              : tr("Last {{value0}} days", { value0: summary.days.length })}
-          </p>
-          {shownMetric === "exercises" ? (
-            <p className="mt-1.5 text-[15px] text-muted-foreground tabular-nums">
-              <Message
-                text={"{{value0}} of {{value1}} days kept this week"}
-                values={{ value0: daysKept, value1: summary.days.length }}
+        <GoalsHub
+          preferences={preferences}
+          history={workoutHistory}
+          today={today}
+        />
+
+        <div className="goals-logging">
+          <GoalsDisclosure title={tr("Your logging week")}>
+            <section
+              className="progress-hero relative flex flex-col items-center py-4"
+              aria-label={tr("Logging activity, not goal attainment")}
+            >
+              <ProgressRings
+                tracks={heroTracks}
+                headline={String(daysKept)}
+                detail={tr("of {{value0}} days logged", {
+                  value0: summary.days.length,
+                })}
+                collapsed={false}
+                onSelect={(id) => selectMetric(id as ProgressTab)}
               />
-            </p>
-          ) : null}
-          {/* The number lives inside the rings rather than above them —
-                the other two heroes lead with a headline, this one makes you
-                read the instrument to get it. The top margin lives inside the
-                fold, so it collapses with everything else instead of popping
-                out on the first frame. */}
-          <ProgressRings
-            tracks={heroTracks}
-            headline={String(daysKept)}
-            detail={tr("of {{value0}} days kept", {
-              value0: summary.days.length,
-            })}
-            collapsed={shownMetric === "exercises"}
-            onSelect={(id) => selectMetric(id as ProgressTab)}
-          />
-        </section>
+            </section>
+          </GoalsDisclosure>
+        </div>
+        <h2 className="mt-8 text-xl font-semibold">
+          {tr("Your progress in detail")}
+        </h2>
 
         <div
           ref={progressTabsRef}

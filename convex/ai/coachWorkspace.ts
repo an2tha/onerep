@@ -1,3 +1,4 @@
+import { routineContext } from "../lib/routineContext";
 import { activeRecovery } from "../lib/illnessRecovery";
 import { v } from "convex/values";
 import { programmeDay, programmeNeedsCare } from "../lib/nutritionProgramme";
@@ -457,7 +458,9 @@ export async function buildCoachWorkspace(
 
   const illnessRecovery = await activeRecovery(ctx, args.userId);
   const recoveryHistory = await ctx.db.query("recoveryEpisodes").withIndex("by_userId_and_startedOn", q => q.eq("userId", args.userId)).order("desc").take(30);
+  const routine = await routineContext(ctx, args.userId, args.today);
   const base = {
+    commitments: routine,
     illnessRecovery,
     recoveryHistory,
     today: args.today,
@@ -646,7 +649,11 @@ export async function buildCoachWorkspace(
 
   // Inferred behaviour, as opposed to content the user authored. This is the
   // line the privacy toggle draws.
+  const journal = personalized ? await ctx.db.query("journalEntries")
+    .withIndex("by_userId_and_date", q => q.eq("userId", args.userId).gte("date", shiftDate(args.today, -13)).lte("date", args.today))
+    .order("desc").take(14) : [];
   const personalSources = {
+    journal: journal.map(({ date, mood, alcohol, caffeine, notes }) => ({ date, mood, alcohol, caffeine, notes: notes?.slice(0, 600) })),
     sleepAnalysis: personalized ? await sleepContext(ctx, args.userId, args.today).then(data => ({night: data.sleep, strain: data.strain, history: data.history.slice(-14), lastReview: data.review?.review ?? null})) : null,
     foodEntries: foodDays
       .flatMap((day) =>
@@ -657,7 +664,8 @@ export async function buildCoachWorkspace(
       )
       .slice(0, 50),
     checkIns: checkIns.map(
-      ({ date, energy, soreness, sleepQuality, mood }) => ({
+      ({ date, energy, soreness, sleepQuality, mood, note }) => ({
+        note,
         date,
         energy,
         soreness,

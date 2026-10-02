@@ -1,3 +1,4 @@
+import { RestartNudge } from "@/components/restart/restart-nudge"
 import { Message, choice, tr, translateError, uiLocale } from "@repo/ui/i18n"
 import { PageBarActions } from "@/components/page-bar-actions"
 import { useRecovery } from "@/lib/use-recovery"
@@ -1437,6 +1438,7 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
         <ReactiveOrbField className="training-hero-wash" />
       )}
       <div className={embedded ? "" : "app-page"}>
+        {isToday && !embedded && <RestartNudge activeOnly />}
         <header className="app-header" ref={trainingHeaderRef}>
           {!embedded && (
             <div className="min-w-0">

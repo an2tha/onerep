@@ -7,7 +7,7 @@ const prompt = coachOpenUILibrary.prompt({
   additionalRules: [
     "Use 1-3 compact sections sized for a phone. Use only registered components.",
     "Use MealLog for editable meal logging and CoachGoal for goals the user may pin.",
-    "Use Button actions with type continue_conversation to send choices and form state to the Coach, or a supported navigation action: open_nutrition, open_workouts, open_progress, open_settings, open_workout_builder, open_recipe_builder, open_supplements, log_food.",
+    "Use Button actions with type continue_conversation to send choices and form state to the Coach, or a supported navigation action: open_restart, open_nutrition, open_workouts, open_progress, open_settings, open_workout_builder, open_recipe_builder, open_supplements, log_food.",
     "Do not use Query, Mutation, external links, HTML, JavaScript, or automatic writes. App writes stay in the outer operations array or the explicit MealLog and CoachGoal controls.",
   ],
 });

@@ -859,7 +859,7 @@ describe("settings is reachable without a desktop sidebar", () => {
 describe("App Review settings navigation regression", () => {
   test("native workout queries use the deployed contract and only load in Health", () => {
     const query = SETTINGS_SOURCE.match(
-      /const healthWorkouts = useQuery\(([\s\S]*?)\n  \)/
+      /const healthWorkouts = useQuery\(([\s\S]*?)\n {2}\)/
     )?.[1]
     assert.ok(query, "Settings must retain the health workout query")
     assert.match(query, /api\.logs\.healthWorkouts\.list/)

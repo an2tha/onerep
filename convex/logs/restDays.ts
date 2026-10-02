@@ -1,3 +1,4 @@
+import { creditRestartAction } from "../lib/restart";
 import { recoveryDates } from "../lib/illnessRecovery";
 import { v } from "convex/values";
 import { mutation, query } from "../_generated/server";
@@ -59,6 +60,7 @@ export const mark = mutation({
         source,
         createdAt: now,
       });
+      await creditRestartAction(ctx, user._id, "rest", date, now);
       marked++;
     }
 

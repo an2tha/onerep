@@ -400,6 +400,7 @@ export type CoachOperationResult =
     }
 
 export type CoachUiAction =
+  | "open_restart"
   | "open_nutrition"
   | "open_workouts"
   | "open_progress"

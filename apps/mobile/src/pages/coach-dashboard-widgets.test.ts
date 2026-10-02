@@ -28,7 +28,7 @@ describe("Coach-created dashboard widgets", () => {
 
   test("renders compact counter, stat, progress, sparkline, and decay views", () => {
     for (const kind of ["counter", "stat", "progress", "sparkline", "decay"]) {
-      expect(widgetSource).toContain(`\"${kind}\"`)
+      expect(widgetSource).toContain(`"${kind}"`)
     }
     expect(widgetSource).toContain("min-h-28")
     expect(widgetSource).toContain("Estimate ·")

@@ -52,7 +52,7 @@ describe("bottom bar accessibility contract", () => {
       ["/", "nav.today", "Today"],
       ["/nutrition", "nav.nutrition", "Nutrition"],
       ["/workouts", "nav.training", "Training"],
-      ["/progress", "nav.progress", "Progress"],
+      ["/progress", "nav.progress", "Goals"],
       ["/coach", "nav.coach", "Coach"],
     ] as const
 

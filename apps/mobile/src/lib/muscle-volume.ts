@@ -42,6 +42,7 @@ export type ExerciseMeta = {
 
 export type WorkoutSetRecord = {
   completed: boolean
+  type?: string
 }
 
 export type WorkoutExerciseRecord = {
@@ -121,7 +122,9 @@ export function computeMuscleVolume(
       const meta = catalog.get(exercise.id)
       if (!meta) continue
 
-      const completedSets = exercise.sets.filter((s) => s.completed).length
+      const completedSets = exercise.sets.filter(
+        (s) => s.completed && s.type !== "warmup"
+      ).length
       if (completedSets === 0) continue
 
       for (const m of meta.primaryMuscles ?? []) {
@@ -208,7 +211,9 @@ export function computeMuscleRecovery(
       const meta = catalog.get(exercise.id)
       if (!meta) continue
 
-      const completedSets = exercise.sets.filter((s) => s.completed).length
+      const completedSets = exercise.sets.filter(
+        (s) => s.completed && s.type !== "warmup"
+      ).length
       if (completedSets === 0) continue
 
       for (const muscle of meta.primaryMuscles ?? []) {

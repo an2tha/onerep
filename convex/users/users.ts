@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import { goalPlanValidator, validateGoalRange } from "../lib/goalPlan";
 import { localProgrammeTime, programmeDay, programmeNeedsCare, validDate } from "../lib/nutritionProgramme";
 import { internal } from "../_generated/api";
 import { internalMutation, mutation, query } from "../_generated/server";
@@ -46,6 +47,27 @@ export const getPreferences = query({
       .query("userPreferences")
       .withIndex("by_userId", (q) => q.eq("userId", user._id))
       .unique();
+  },
+});
+
+export const saveGoalPlan = mutation({
+  args: { plan: v.optional(goalPlanValidator) },
+  handler: async (ctx, { plan }) => {
+    const user = await requireUser(ctx);
+    if (plan) {
+      validateGoalRange(plan.minimumSets, plan.maximumSets);
+      if (!plan.muscle.trim() || plan.muscle.length > 60) throw new Error("Choose a muscle group.");
+    }
+    const existing = await ctx.db.query("userPreferences")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id)).unique();
+    const changes = {
+      goalsIntroducedAt: existing?.goalsIntroducedAt ?? Date.now(),
+      ...(plan ? { goalPlan: plan } : {}),
+      updatedAt: Date.now(),
+    };
+    if (existing) await ctx.db.patch("userPreferences", existing._id, changes);
+    else await ctx.db.insert("userPreferences", { userId: user._id, lastActiveTimezone: "UTC", ...changes });
+    return null;
   },
 });
 
@@ -983,6 +1005,7 @@ export const exportMyData = query({
       healthMetrics,
       sleepPreferences,
       sleepReviews,
+      restartPlans,
       recoveryEpisodes,
       recoveryCheckIns,
       dailyCheckIns,
@@ -1071,6 +1094,7 @@ export const exportMyData = query({
         .collect(),
       ctx.db.query("sleepPreferences").withIndex("by_userId", q => q.eq("userId", user._id)).take(1),
       ctx.db.query("sleepReviews").withIndex("by_userId", q => q.eq("userId", user._id)).take(2000),
+      ctx.db.query("restartPlans").withIndex("by_userId", q => q.eq("userId", user._id)).take(1),
       ctx.db.query("recoveryEpisodes").withIndex("by_userId", q => q.eq("userId", user._id)).take(2000),
       ctx.db.query("recoveryCheckIns").withIndex("by_userId", q => q.eq("userId", user._id)).take(2000),
       ctx.db
@@ -1189,6 +1213,7 @@ export const exportMyData = query({
         healthMetrics,
         sleepPreferences,
         sleepReviews,
+      restartPlans,
       recoveryEpisodes,
       recoveryCheckIns,
         dailyCheckIns,

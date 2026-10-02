@@ -1,3 +1,4 @@
+import { useRestart } from "@/lib/use-restart"
 import { useRecovery } from "@/lib/use-recovery"
 import { recoveryDates } from "../../../../../convex/lib/illnessRecovery"
 import { useEffect, useMemo, useState } from "react"
@@ -64,6 +65,8 @@ function readClock() {
  */
 export function AppMoments() {
   const recovery = useRecovery()
+  const restart = useRestart()
+  const quietRestart = restart === undefined || restart.plan?.status === "active" || restart.nudgeDue
   const { isAuthenticated } = useConvexAuth()
   const records = useMomentRecords()
   const [clock, setClock] = useState(readClock)
@@ -295,7 +298,7 @@ export function AppMoments() {
   const missedLog = useFullScreenEvent({
     id: MISSED_LOG_ID,
     key:
-      recovery === undefined || recovery.active?.simpleFood
+      quietRestart || recovery === undefined || recovery.active?.simpleFood
         ? null
         : (missed?.key ?? null),
     priority: 20,
@@ -304,6 +307,7 @@ export function AppMoments() {
     id: LAPSE_ID,
     key:
       recovery === undefined ||
+      quietRestart ||
       recovery.active?.quietTraining ||
       recovery.active?.deferTraining
         ? null

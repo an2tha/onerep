@@ -1,3 +1,4 @@
+import { RestartNudge } from "@/components/restart/restart-nudge"
 import { Message, tr, translateError, uiLocale } from "@repo/ui/i18n"
 import { coachErrorMessage } from "@/lib/coach-error"
 import { RecoveryBanner } from "@/components/recovery/recovery-banner"
@@ -2108,6 +2109,10 @@ export default function Coach({
   }
 
   function handleUiAction(action: CoachUiAction) {
+    if (action === "open_restart") {
+      navigate("/restart", { motion: "forward" })
+      return
+    }
     if (action === "open_workout_builder") {
       navigate("/workouts/new", { motion: "forward" })
       return
@@ -2568,6 +2573,7 @@ export default function Coach({
             </div>
           </header>
           <RecoveryBanner surface="coach" />
+          <RestartNudge coach />
 
           <nav
             ref={coachModesRef}

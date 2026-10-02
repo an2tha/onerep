@@ -1,3 +1,4 @@
+import { routineContext } from "../lib/routineContext";
 import { activeRecovery } from "../lib/illnessRecovery";
 /**
  * The coach between sets.
@@ -115,6 +116,7 @@ export const loadContext = internalQuery({
       : null;
 
     return {
+      commitments: await routineContext(ctx, args.userId, args.today),
       illnessRecovery: await activeRecovery(ctx, args.userId),
       session,
       programming: personalized

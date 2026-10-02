@@ -1272,17 +1272,21 @@ export function TodayTimeline({
   onEditEvent?: (event: TimelineEvent) => void
 }) {
   const [showAll, setShowAll] = useState(false)
-  const knownEventIds = useRef(new Set(events.map((event) => event.id)))
-  const newEventIds = new Set(
-    events
-      .filter((event) => !knownEventIds.current.has(event.id))
-      .map((event) => event.id)
-  )
+  const [timeline, setTimeline] = useState(() => ({
+    events,
+    knownIds: new Set(events.map(event => event.id)),
+    newIds: new Set<string>(),
+  }))
+  if (timeline.events !== events) {
+    setTimeline({
+      events,
+      knownIds: new Set([...timeline.knownIds, ...events.map(event => event.id)]),
+      newIds: new Set(events.filter(event => !timeline.knownIds.has(event.id)).map(event => event.id)),
+    })
+  }
+  const newEventIds = timeline.newIds
   const visibleEvents = showAll ? events : events.slice(0, 3)
 
-  useEffect(() => {
-    for (const event of events) knownEventIds.current.add(event.id)
-  }, [events])
   return (
     <section className="mx-[var(--app-page-x)] mt-5 md:mx-8 md:mt-6 md:max-w-5xl short-phone:mt-4">
       <SectionHeader title={tr("Recent")} className="px-0 pt-0 pb-2" />

@@ -6,6 +6,7 @@ import { readCachedWeightUnit } from "@/lib/use-weight-unit"
 import { useParams, useSearchParams } from "react-router"
 import { captureFeatureUsage, durationBucket } from "@/lib/analytics"
 import { useAction, useQuery, useMutation } from "convex/react"
+import { ConvexError } from "convex/values"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import {
   ExerciseDropIndicator,
@@ -1479,6 +1480,7 @@ function ActiveWorkoutSession() {
    */
   async function handleBrainDump(text: string) {
     if (brainDumpPending) return
+    if (!requireAiAccess(1, "workout_log")) return
     setBrainDumpPending(true)
     try {
       const draft = await draftLogFromText({ text, unit })
@@ -1564,11 +1566,13 @@ function ActiveWorkoutSession() {
       logDevError("Failed to draft workout from text", error)
       toast.error(
         translateError(
-          error instanceof Error && error.message.includes("limit")
-            ? error.message
-            : tr(
-                "Could not read that description. Try again or add sets by hand."
-              )
+          error instanceof ConvexError && typeof error.data === "string"
+            ? error.data
+            : error instanceof Error && error.message.includes("limit")
+              ? error.message
+              : tr(
+                  "Could not read that description. Try again or add sets by hand."
+                )
         )
       )
     } finally {

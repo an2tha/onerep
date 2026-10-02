@@ -21,7 +21,7 @@ const APP_ENTRY = readFileSync(new URL("./main.tsx", import.meta.url), "utf8")
 test("keeps genuine OneRep wordmarks in the original brand font", () => {
   for (const source of [NAVIGATION, AUTH_MARK, ONBOARDING, APP_ENTRY]) {
     expect(source).toContain(
-      `style={{ fontFamily: '\"Instrument Sans Variable\", sans-serif' }}`
+      `style={{ fontFamily: '"Instrument Sans Variable", sans-serif' }}`
     )
   }
 })

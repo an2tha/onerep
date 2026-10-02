@@ -3,8 +3,21 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import { billingPlatform, billingState } from "./billing/types";
 import { nutrientProfileValidator } from "./lib/nutritionValues";
+import { goalPlanValidator, goalFocusValidator } from "./lib/goalPlan";
 
 export default defineSchema({
+  restartPlans: defineTable({
+    startedAt: v.optional(v.number()),
+    userId: v.string(),
+    status: v.union(v.literal("active"), v.literal("completed"), v.literal("paused"), v.literal("dismissed")),
+    reason: v.optional(v.union(v.literal("energy"), v.literal("starting"), v.literal("schedule"), v.literal("unsure"))),
+    action: v.optional(v.union(v.literal("walk"), v.literal("gym"), v.literal("home"), v.literal("rest"))),
+    anchor: v.optional(v.string()),
+    stage: v.number(),
+    lastActionOn: v.optional(v.string()),
+    quietUntil: v.number(),
+    updatedAt: v.number(),
+  }).index("by_userId", ["userId"]),
   journalEntries: defineTable({
     userId: v.string(), date: v.string(),
     alcohol: v.optional(v.number()), caffeine: v.optional(v.number()),
@@ -12,7 +25,8 @@ export default defineSchema({
     lowCarb: v.optional(v.union(v.boolean(), v.null())),
     addedSugar: v.optional(v.union(v.boolean(), v.null())),
     notes: v.optional(v.string()), updatedAt: v.number(),
-  }).index("by_userId_and_date", ["userId", "date"]),
+  }).index("by_userId_and_updatedAt", ["userId", "updatedAt"])
+    .index("by_userId_and_date", ["userId", "date"]),
   recoveryEpisodes: defineTable({
     userId: v.string(),
     active: v.boolean(),
@@ -49,9 +63,11 @@ export default defineSchema({
     manageable: v.string(),
     updatedAt: v.number(),
   })
+    .index("by_userId_and_updatedAt", ["userId", "updatedAt"])
     .index("by_episodeId_and_date", ["episodeId", "date"])
     .index("by_userId", ["userId"]),
   nutritionProgrammes: defineTable({
+    goalFocus: v.optional(goalFocusValidator),
     userId: v.string(), goal: v.union(v.literal("maintain"), v.literal("step_down"), v.literal("step_up")),
     startDate: v.string(), weeks: v.number(), baselineCalories: v.number(), changePercent: v.number(),
     protein: v.number(), fat: v.number(), fastingHours: v.number(), eatingStart: v.string(), timezone: v.string(),
@@ -85,6 +101,8 @@ export default defineSchema({
 
   // ── User preferences (settings) ───────────────────────────────────────────
   userPreferences: defineTable({
+    goalPlan: v.optional(goalPlanValidator),
+    goalsIntroducedAt: v.optional(v.number()),
     aiSharingConsent: v.optional(
       v.object({
         granted: v.boolean(),
@@ -546,6 +564,7 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
   })
+    .index("by_userId_and_updatedAt", ["userId", "updatedAt"])
     .index("by_userId", ["userId"])
     .index("by_userId_startedAt", ["userId", "startedAt"])
     // Lets the active-fast lookup be a single indexed read on endedAt === undefined.
@@ -732,6 +751,7 @@ export default defineSchema({
     durationSeconds: v.number(),
     completedAt: v.number(),
   })
+    .index("by_userId_and_completedAt", ["userId", "completedAt"])
     .index("by_userId_date", ["userId", "date"])
     .index("by_userId_and_date_and_sessionId", ["userId", "date", "sessionId"]),
 
@@ -877,6 +897,7 @@ export default defineSchema({
     syncedAt: v.number(),
     updatedAt: v.number(),
   })
+    .index("by_userId_and_updatedAt", ["userId", "updatedAt"])
     .index("by_userId", ["userId"])
     .index("by_userId_and_date", ["userId", "date"]),
 
@@ -886,7 +907,8 @@ export default defineSchema({
     date: v.string(), // YYYY-MM-DD
     entries: v.array(v.any()),
     updatedAt: v.number(),
-  }).index("by_userId_date", ["userId", "date"]),
+  }).index("by_userId_and_updatedAt", ["userId", "updatedAt"])
+    .index("by_userId_date", ["userId", "date"]),
 
   // ── Repeat meals (auto-logged at a local time of day) ─────────────────────
   repeatMeals: defineTable({
@@ -914,7 +936,8 @@ export default defineSchema({
     date: v.string(), // YYYY-MM-DD
     entries: v.array(v.any()), // WaterLogEntry[]
     updatedAt: v.number(),
-  }).index("by_userId_date", ["userId", "date"]),
+  }).index("by_userId_and_updatedAt", ["userId", "updatedAt"])
+    .index("by_userId_date", ["userId", "date"]),
 
   // ── Supplement logs (one doc per user+date) ───────────────────────────────
   supplementLogs: defineTable({
@@ -922,7 +945,8 @@ export default defineSchema({
     date: v.string(), // YYYY-MM-DD
     entries: v.array(v.any()), // SupplementLogEntry[]
     updatedAt: v.number(),
-  }).index("by_userId_date", ["userId", "date"]),
+  }).index("by_userId_and_updatedAt", ["userId", "updatedAt"])
+    .index("by_userId_date", ["userId", "date"]),
 
   // ── Supplement catalog (reusable user-owned supplement items) ─────────────
   supplementItems: defineTable({
@@ -1059,6 +1083,7 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
   })
+    .index("by_userId_and_updatedAt", ["userId", "updatedAt"])
     .index("by_userId_and_date", ["userId", "date"])
     .index("by_userId_and_date_and_supplementId", [
       "userId",
@@ -1102,6 +1127,7 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
   })
+    .index("by_userId_and_updatedAt", ["userId", "updatedAt"])
     .index("by_userId", ["userId"])
     .index("by_userId_clientId", ["userId", "clientId"])
     // Ordered by check-in date rather than `_creationTime` because backfilled
@@ -1156,6 +1182,7 @@ export default defineSchema({
     manual: v.optional(v.boolean()),
     updatedAt: v.number(),
   })
+    .index("by_userId_and_updatedAt", ["userId", "updatedAt"])
     .index("by_userId_and_metricId", ["userId", "metricId"])
     .index("by_userId_and_metricId_and_date", ["userId", "metricId", "date"]),
 
@@ -1449,6 +1476,7 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
   })
+    .index("by_userId_and_updatedAt", ["userId", "updatedAt"])
     .index("by_userId", ["userId"])
     .index("by_userId_and_date", ["userId", "date"])
     .index("by_userId_and_date_and_kind", ["userId", "date", "kind"]),

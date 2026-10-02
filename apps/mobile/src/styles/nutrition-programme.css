@@ -444,3 +444,16 @@
     transition: none;
   }
 }
+
+.programme-goal-suggestion, .programme-goal-update {
+  padding: 16px;
+  margin: 16px 0;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--foreground) 4%, transparent);
+}
+.programme-goal-suggestion h3, .programme-goal-update h3 { font-size: 15px; font-weight: 600; line-height: 1.4; }
+.programme-goal-link { font-size: 13px; margin-top: 8px; color: var(--muted-foreground); }
+.programme-macro-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.programme-macro-fields > label { min-width: 0; }
+.programme-macro-fields input { width: 100%; min-width: 0; }

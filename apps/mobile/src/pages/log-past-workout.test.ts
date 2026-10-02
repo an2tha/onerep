@@ -88,6 +88,21 @@ describe("describing a workout lands in dictation", () => {
     expect(RETRO).toContain("api.logs.logAgent.draftLogFromText")
     expect(RETRO).toContain("<BrainDumpSheet")
   })
+
+  test("checks AI consent before submitting without closing the description", () => {
+    const handler = RETRO.slice(
+      RETRO.indexOf("async function handleBrainDump(text: string)"),
+      RETRO.indexOf("function openAiWorkoutSheet")
+    )
+    const gate = handler.indexOf('if (!requireAiAccess(1, "workout_log")) return')
+    expect(gate).toBeGreaterThan(-1)
+    expect(gate).toBeLessThan(handler.indexOf("setBrainDumpPending(true)"))
+    expect(gate).toBeLessThan(handler.indexOf("await draftLogFromText"))
+    expect(handler.slice(0, gate)).not.toContain("setBrainDumpOpen(false)")
+    expect(handler).toContain(
+      'error instanceof ConvexError && typeof error.data === "string"'
+    )
+  })
 })
 
 describe("the abridged preset view", () => {

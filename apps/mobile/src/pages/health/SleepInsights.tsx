@@ -180,7 +180,7 @@ export default function SleepInsights({
   }, [data?.review?.status])
   const reviewPending =
     data?.review?.status === "pending" &&
-    Math.max(clock, Date.now()) - data.review.updatedAt < 120000
+    clock - data.review.updatedAt < 120000
   const colors: Record<string, string> = {
     Light: "#8595cb",
     Deep: "#5964ab",

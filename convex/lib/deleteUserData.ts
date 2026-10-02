@@ -195,6 +195,7 @@ export async function deleteUserDataBatch(
     ["customExercises", "by_userId"],
     ["coachMemories", "by_userId"],
     ["coachCheckIns", "by_userId"],
+    ["restartPlans", "by_userId"],
     ["recoveryEpisodes", "by_userId"],
     ["recoveryCheckIns", "by_userId"],
     ["coachActionEvents", "by_userId"],

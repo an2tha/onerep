@@ -13,6 +13,7 @@ export type UserDataClassification =
  * a data lifecycle here.
  */
 export const userDataRegistry = {
+  restartPlans: "directly_user_owned",
   journalEntries: "directly_user_owned",
   recoveryEpisodes: "directly_user_owned",
   recoveryCheckIns: "directly_user_owned",

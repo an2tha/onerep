@@ -1,3 +1,5 @@
+import { GoalsArt } from "@/components/goals-art"
+import "@/components/goals.css"
 import { Message, choice, tr, translateError, uiLocale } from "@repo/ui/i18n"
 import { useAiFeatureGate } from "@/lib/ai-access"
 import { useEnergyUnit } from "@/lib/use-energy-unit"
@@ -396,6 +398,7 @@ type StageId =
   | "nutrition"
   | "lifestyle"
   | "connections"
+  | "next"
 
 const stages = [
   { id: "intro", label: tr("Welcome") },
@@ -413,6 +416,7 @@ const stages = [
   { id: "import", label: tr("Your history") },
   { id: "assistant", label: tr("Coach setup") },
   { id: "review", label: tr("Review") },
+  { id: "next", label: tr("What’s next?") },
 ] as const satisfies readonly { id: StageId; label: string }[]
 
 const IMPORT_MAX_FILES = 3
@@ -507,6 +511,9 @@ function withImportMimeType(file: File): File {
 // Static per stage, so effects can reason about message counts without waiting
 // for a render, and a revisited stage can be shown fully typed in one frame.
 const stageMessages: Record<StageId, string[]> = {
+  next: [
+    tr("Open Goals to choose what you want to work on and find a programme."),
+  ],
   intro: [
     tr(
       "A place for your training, food, and progress. Set it up around the way you live. You can revisit any completed section."
@@ -594,10 +601,11 @@ const SETUP_STARTERS = [
   tr("Set up a 6-day push/pull/legs split"),
   tr("Give me a high-protein dinner recipe I can repeat"),
   tr("Set me a 4-week goal I can actually hit"),
-  tr("Add a daily water tracker to Progress"),
+  tr("Add a daily water tracker to Goals"),
 ] as const
 
 const SETUP_DESTINATIONS: Record<CoachUiAction, string> = {
+  open_restart: "/restart",
   open_nutrition: "/nutrition",
   log_food: "/nutrition",
   open_workouts: "/workouts",
@@ -609,11 +617,12 @@ const SETUP_DESTINATIONS: Record<CoachUiAction, string> = {
 }
 
 const SETUP_DESTINATION_LABELS: Record<CoachUiAction, string> = {
+  open_restart: tr("Restart"),
   open_nutrition: tr("Nutrition"),
   log_food: tr("Nutrition"),
   open_workouts: tr("Workouts"),
   open_workout_builder: tr("Workouts"),
-  open_progress: tr("Progress"),
+  open_progress: tr("Goals"),
   open_recipe_builder: tr("Recipes"),
   open_supplements: tr("Supplements"),
   open_settings: tr("Settings"),
@@ -1620,6 +1629,7 @@ export function OnboardingMobile() {
   async function finish() {
     setError(null)
     if (!consent.dataUse) {
+      setStage(stages.findIndex((item) => item.id === "review"))
       hapticHeavy()
       setError(
         translateError(
@@ -1736,6 +1746,38 @@ export function OnboardingMobile() {
   }
 
   function renderInput(stageId: StageId, stageIndex: number) {
+    if (stageId === "next")
+      return (
+        <div className="goals-hub">
+          <GoalsArt kind="adapt" />
+          <h3>{tr("Find your programme in Goals")}</h3>
+          <p className="mt-4 text-sm leading-7 text-muted-foreground">
+            {tr(
+              "Goals has training advice for muscle gain, fat loss, recomp and endurance, with links to workout planning and nutrition programmes."
+            )}
+          </p>
+          <p className="mt-3 text-sm leading-7 text-muted-foreground">
+            {tr(
+              "Tap Goals in the navigation to get started. You can set a weekly training target and see how your logged workouts compare."
+            )}
+          </p>
+          {error && (
+            <p role="alert" className="mt-4 text-sm text-destructive">
+              {error}
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={finish}
+            disabled={saving}
+            aria-busy={saving}
+            className="onboarding-primary-button mt-6 w-full"
+          >
+            {saving ? tr("Saving...") : tr("Open OneRep")}
+          </button>
+        </div>
+      )
+
     if (
       initialized &&
       ["preferences", "nutrition", "lifestyle"].includes(stageId)
@@ -2388,7 +2430,8 @@ export function OnboardingMobile() {
         <div className="setup-review-list">
           {stages
             .filter(
-              (item) => !["intro", "review", "assistant"].includes(item.id)
+              (item) =>
+                !["intro", "review", "assistant", "next"].includes(item.id)
             )
             .map((item) => (
               <button
@@ -2527,7 +2570,14 @@ export function OnboardingMobile() {
         )}
         <button
           type="button"
-          onClick={finish}
+          onClick={() => {
+            if (!consent.dataUse) {
+              setError(tr("Please confirm data consent before continuing."))
+              return
+            }
+            setError("")
+            advance(stageIndex)
+          }}
           disabled={saving}
           aria-busy={saving}
           className="onboarding-primary-button w-full"
@@ -2537,7 +2587,7 @@ export function OnboardingMobile() {
           ) : (
             <>
               <Message
-                text={"Open OneRep{{value0}}"}
+                text={"What’s next?{{value0}}"}
                 values={{ value0: <Check size={16} weight="bold" /> }}
               />
             </>
@@ -2564,6 +2614,7 @@ export function OnboardingMobile() {
     import: tr("Bring your progress."),
     assistant: tr("Build your first plan."),
     review: tr("Ready for your first day."),
+    next: tr("What’s next?"),
   }
   if (settingsView)
     return (

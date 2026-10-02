@@ -1,3 +1,4 @@
+import { creditRestartAction } from "./restart";
 import type { Doc } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 
@@ -120,7 +121,7 @@ export async function upsertWorkoutLog(
     return existing._id;
   }
 
-  return await ctx.db.insert("workoutLogs", {
+  const id = await ctx.db.insert("workoutLogs", {
     userId,
     date: args.date,
     sessionId: args.sessionId,
@@ -129,6 +130,10 @@ export async function upsertWorkoutLog(
     durationSeconds: args.durationSeconds,
     completedAt,
   });
+  if (args.exercises.some(exercise => exercise.sets.some(set => set.completed) || (exercise.cardio?.durationSeconds ?? 0) > 0)) {
+    await creditRestartAction(ctx, userId, "training", args.date, completedAt);
+  }
+  return id;
 }
 
 /**

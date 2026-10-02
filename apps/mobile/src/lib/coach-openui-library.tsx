@@ -38,7 +38,7 @@ const Goal = defineComponent({
       .min(1)
       .max(6),
   }),
-  component: ({ props }) => {
+  component: function CoachOpenUIComponent({ props }) {
     const actions = useContext(CoachOpenUIContext)
     const [status, setStatus] = useState("idle")
     return (
@@ -112,7 +112,7 @@ const MealLog = defineComponent({
       .regex(/^\d{4}-\d{2}-\d{2}$/)
       .optional(),
   }),
-  component: ({ props }) => {
+  component: function CoachOpenUIComponent({ props }) {
     const actions = useContext(CoachOpenUIContext)
     const [quantity, setQuantity] = useState(1)
     const [meal, setMeal] = useState(props.meal)

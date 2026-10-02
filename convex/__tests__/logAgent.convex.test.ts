@@ -31,6 +31,29 @@ describe("logs.logAgent.draftLogFromText", () => {
     ).rejects.toThrow(/at least one exercise/i);
   });
 
+  test("requires sharing consent without spending a request", async () => {
+    const t = convexTest(schema, modules);
+    const user = t.withIdentity({ tokenIdentifier: "test|log-agent-consent" });
+    await expect(
+      user.action(api.logs.logAgent.draftLogFromText, {
+        text: "muscle ups and deadlifts, increasing from 1 to 16 in 16 mins",
+      }),
+    ).rejects.toThrow(/Allow AI data sharing/);
+    const usage = await user.query(api.ai.usage.getMonthlyUsage, {});
+    expect(usage.count).toBe(0);
+
+    await user.mutation(api.ai.usage.setSharingConsent, {
+      granted: true,
+      version: AI_SHARING_VERSION,
+    });
+    const draft = await user.action(api.logs.logAgent.draftLogFromText, {
+      text: "deadlift 3x8 at 60kg",
+    });
+    expect(draft.exercises[0].name).toBe("deadlift");
+    const after = await user.query(api.ai.usage.getMonthlyUsage, {});
+    expect(after.count).toBe(1);
+  });
+
   test("parses a dictated recap into completed sets", async () => {
     const t = convexTest(schema, modules);
     const user = t.withIdentity({ tokenIdentifier: "test|log-agent" });

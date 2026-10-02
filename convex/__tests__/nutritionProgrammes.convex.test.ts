@@ -148,3 +148,170 @@ test("a legacy none flag is eligible, while real restrictions are surfaced befor
     owner.mutation(api.nutritionProgrammes.start, input),
   ).rejects.toThrow("individual plan");
 });
+
+test("goal recommendations use maintenance rather than an existing deficit and stay private", async () => {
+  const t = convexTest(schema, modules);
+  const owner = t.withIdentity({ name: "goal-recommendations" });
+  const other = t.withIdentity({ name: "other-goal-recommendations" });
+  const goalPlan = {
+    focus: "hypertrophy" as const,
+    muscle: "chest",
+    minimumSets: 8,
+    maximumSets: 12,
+  };
+  await owner.mutation(api.users.users.saveGoalPlan, { plan: goalPlan });
+  const prefs = await owner.query(api.users.users.getPreferences, {});
+  await t.run((ctx) =>
+    ctx.db.insert("healthProfiles", {
+      userId: prefs!.userId,
+      sex: "male",
+      age: 30,
+      weightKg: 80,
+      heightCm: 180,
+      activityLevel: "moderately_active",
+      goal: "lose",
+      updatedAt: Date.now(),
+    }),
+  );
+  await owner.mutation(api.users.users.setNutritionTargets, { calories: 1800 });
+  const recommendation = await owner.query(
+    api.nutritionProgrammes.getGoalRecommendation,
+    {},
+  );
+  const goals = await owner.query(api.users.users.getEffectiveGoals, {});
+  expect(recommendation?.baselineCalories).toBe(goals?.health?.tdee);
+  expect(recommendation?.baselineCalories).not.toBe(goals?.effective.calories);
+  expect(recommendation).toMatchObject({
+    goal: "step_up",
+    changePercent: 5,
+    protein: 144,
+    fastingHours: 0,
+  });
+  expect(
+    await other.query(api.nutritionProgrammes.getGoalRecommendation, {}),
+  ).toBeNull();
+  expect(
+    await t.query(api.nutritionProgrammes.getGoalRecommendation, {}),
+  ).toBeNull();
+  for (const [focus, direction, change, protein] of [
+    ["deficit", "step_down", 10, 160],
+    ["recomp", "maintain", 0, 144],
+    ["endurance", "maintain", 0, 128],
+  ] as const) {
+    await owner.mutation(api.users.users.saveGoalPlan, {
+      plan: { ...goalPlan, focus },
+    });
+    expect(
+      await owner.query(api.nutritionProgrammes.getGoalRecommendation, {}),
+    ).toMatchObject({
+      goal: direction,
+      changePercent: change,
+      protein,
+      fastingHours: 0,
+    });
+  }
+});
+
+test("missing health data is explicit and protected profiles receive no recommendation", async () => {
+  const t = convexTest(schema, modules);
+  const owner = t.withIdentity({ name: "goal-missing-profile" });
+  await owner.mutation(api.users.users.saveGoalPlan, {
+    plan: {
+      focus: "deficit",
+      muscle: "chest",
+      minimumSets: 8,
+      maximumSets: 12,
+    },
+  });
+  expect(
+    await owner.query(api.nutritionProgrammes.getGoalRecommendation, {}),
+  ).toMatchObject({ baselineCalories: null, protein: null, fat: null });
+  const prefs = await owner.query(api.users.users.getPreferences, {});
+  await t.run((ctx) =>
+    ctx.db.insert("onboardingProfiles", {
+      userId: prefs!.userId,
+      age: 30,
+      heightCm: 180,
+      goal: "health",
+      safetyMode: "recovery",
+      updatedAt: Date.now(),
+    }),
+  );
+  expect(
+    await owner.query(api.nutritionProgrammes.getGoalRecommendation, {}),
+  ).toBeNull();
+});
+
+test("replacing a programme preserves prior days and rejects stale or foreign replacements", async () => {
+  const t = convexTest(schema, modules);
+  const owner = t.withIdentity({ name: "goal-replacement" });
+  const other = t.withIdentity({ name: "goal-replacement-other" });
+  const oldId = await owner.mutation(api.nutritionProgrammes.start, input);
+  const date = localProgrammeTime(input.timezone).date;
+  const yesterday = new Date(Date.parse(date) - 86400000)
+    .toISOString()
+    .slice(0, 10);
+  await t.run((ctx) => ctx.db.patch(oldId, { startDate: yesterday }));
+  const plan = {
+    focus: "hypertrophy" as const,
+    muscle: "chest",
+    minimumSets: 8,
+    maximumSets: 12,
+  };
+  await owner.mutation(api.users.users.saveGoalPlan, { plan });
+  // Saving a goal alone does not change the active programme.
+  expect((await owner.query(api.nutritionProgrammes.getCurrent, {}))?._id).toBe(
+    oldId,
+  );
+  const replacement = {
+    ...input,
+    goal: "step_up" as const,
+    goalFocus: "hypertrophy" as const,
+    changePercent: 5,
+    baselineCalories: 2600,
+    replaceProgrammeId: oldId,
+  };
+  await expect(
+    other.mutation(api.nutritionProgrammes.start, {
+      ...input,
+      replaceProgrammeId: oldId,
+    }),
+  ).rejects.toThrow();
+  await expect(
+    owner.mutation(api.nutritionProgrammes.start, {
+      ...replacement,
+      baselineCalories: 1000,
+    }),
+  ).rejects.toThrow();
+  expect(
+    (await owner.query(api.nutritionProgrammes.getCurrent, {}))?.endedDate,
+  ).toBeUndefined();
+  const newId = await owner.mutation(
+    api.nutritionProgrammes.start,
+    replacement,
+  );
+  expect(newId).not.toBe(oldId);
+  expect(
+    (await owner.query(api.users.users.getEffectiveGoals, { date: yesterday }))
+      ?.effective.calories,
+  ).toBe(2400);
+  expect(
+    (await owner.query(api.users.users.getEffectiveGoals, { date }))?.effective
+      .calories,
+  ).toBe(2600);
+  expect(
+    (await owner.query(api.nutritionProgrammes.getCurrent, {}))?.goalFocus,
+  ).toBe("hypertrophy");
+  await expect(
+    owner.mutation(api.nutritionProgrammes.start, replacement),
+  ).rejects.toThrow("changed");
+  await owner.mutation(api.users.users.saveGoalPlan, {
+    plan: { ...plan, focus: "endurance" },
+  });
+  await expect(
+    owner.mutation(api.nutritionProgrammes.start, {
+      ...replacement,
+      replaceProgrammeId: newId,
+    }),
+  ).rejects.toThrow("goal changed");
+});

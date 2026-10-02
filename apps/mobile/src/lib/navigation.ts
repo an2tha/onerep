@@ -44,6 +44,7 @@ export const PRIMARY_TAB_ORDER = [
 
 /** Modal-style routes that animate up and hide the tab bar. */
 export const TASK_ROUTE_PREFIXES = [
+  "/restart",
   "/workouts/new",
   "/workouts/edit/",
   "/workout/active",
@@ -64,6 +65,12 @@ export function isTaskRoute(pathname: string) {
   return TASK_ROUTE_PREFIXES.some(
     (route) => pathname === route || pathname.startsWith(route)
   )
+}
+
+/** Focused Restart owns its own close control and safe-area spacing. */
+export function shouldShowPageBar(pathname: string, isAuthenticated: boolean) {
+  return isAuthenticated && pathname !== "/" && pathname !== "/restart" &&
+    !/^\/(auth|login|signup|onboarding|reset-password|verify-email)/.test(pathname)
 }
 
 export function shouldShowBottomBar(pathname: string) {

@@ -150,6 +150,7 @@ const TRIM_STEPS: TrimStep[] = [
     },
   },
   { field: "recentWorkouts", apply: (w) => cap(w, "recentWorkouts", 10) },
+  { field: "journal", apply: (w) => cap(w, "journal", 3) },
   { field: "checkIns", apply: (w) => cap(w, "checkIns", 7) },
   { field: "water", apply: (w) => drop(w, "water") },
   { field: "fasting", apply: (w) => drop(w, "fasting") },

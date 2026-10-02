@@ -1,3 +1,7 @@
+import { goalFocusValidator } from "./lib/goalPlan";
+import { goalNutritionDefaults } from "./lib/goalNutrition";
+import { getHealthProfile } from "./lib/healthProfiles";
+import { calculateCalories } from "./lib/calculateCalories";
 import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { getAuthUser, safeGetAuthUser } from "./lib/auth";
@@ -32,6 +36,33 @@ export const getCurrent = query({
     };
   },
 });
+export const getGoalRecommendation = query({
+  args: {},
+  handler: async (ctx) => {
+    const user = await safeGetAuthUser(ctx);
+    if (!user) return null;
+    const prefs = await ctx.db
+      .query("userPreferences")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .unique();
+    if (!prefs?.goalPlan) return null;
+    const onboarding = await getLatestOnboardingProfile(ctx, user._id);
+    if (programmeNeedsCare(onboarding)) return null;
+    const health = await getHealthProfile(ctx, user._id);
+    // Use maintenance, never the current target (which may already be a deficit
+    // or an active programme target). Otherwise successive plans compound it.
+    return goalNutritionDefaults(
+      prefs.goalPlan.focus,
+      health
+        ? {
+            maintenance: calculateCalories(health, onboarding).tdee,
+            weightKg: health.weightKg,
+          }
+        : null,
+    );
+  },
+});
+
 export const getEligibility = query({
   args: {},
   handler: async (ctx) => {
@@ -50,6 +81,8 @@ export const getEligibility = query({
 
 export const start = mutation({
   args: {
+    goalFocus: v.optional(goalFocusValidator),
+    replaceProgrammeId: v.optional(v.id("nutritionProgrammes")),
     goal: v.union(
       v.literal("maintain"),
       v.literal("step_down"),
@@ -73,6 +106,16 @@ export const start = mutation({
       throw new ConvexError(
         "Your nutrition needs require an individual plan with a qualified professional.",
       );
+    if (args.goalFocus) {
+      const prefs = await ctx.db
+        .query("userPreferences")
+        .withIndex("by_userId", (q) => q.eq("userId", user._id))
+        .unique();
+      if (prefs?.goalPlan?.focus !== args.goalFocus)
+        throw new ConvexError(
+          "Your goal changed during setup. Close this setup and review the new suggestion.",
+        );
+    }
     for (const n of [
       args.weeks,
       args.baselineCalories,
@@ -98,7 +141,7 @@ export const start = mutation({
     )
       throw new ConvexError("Check the programme targets and eating window.");
     const date = localProgrammeTime(args.timezone).date;
-    const { screeningConfirmed: _, ...body } = args;
+    const { screeningConfirmed: _, replaceProgrammeId, ...body } = args;
     const candidate = { ...body, startDate: date };
     const finalCalories =
       args.baselineCalories *
@@ -115,10 +158,33 @@ export const start = mutation({
       .withIndex("by_userId", (q) => q.eq("userId", user._id))
       .order("desc")
       .first();
-    if (previous && programmeDay(previous, date).active)
+    if (replaceProgrammeId) {
+      if (
+        !previous ||
+        previous._id !== replaceProgrammeId ||
+        !programmeDay(previous, localProgrammeTime(previous.timezone).date)
+          .active
+      ) {
+        throw new ConvexError(
+          "Your current programme changed. Close setup and review it again.",
+        );
+      }
+      // Keep the same local-day boundary when replacing an active programme.
+      if (args.timezone !== previous.timezone)
+        throw new ConvexError(
+          "Keep your current programme timezone when replacing it.",
+        );
+      await ctx.db.patch("nutritionProgrammes", previous._id, {
+        endedDate: date,
+      });
+    } else if (
+      previous &&
+      programmeDay(previous, localProgrammeTime(previous.timezone).date).active
+    ) {
       throw new ConvexError(
         "End your current programme before starting another.",
       );
+    }
     return await ctx.db.insert("nutritionProgrammes", {
       ...candidate,
       userId: user._id,

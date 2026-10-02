@@ -3877,6 +3877,11 @@ export default function Settings({
                 </SettingsSectionIntro>
                 <GroupedList label={tr("Full-screen moments")}>
                   <ListRow
+                    title={tr("Preview Help me restart")}
+                    detail={tr("Walk through the restart event without changing your plan")}
+                    onClick={() => navigate("/restart?preview=1", { motion: "forward" })}
+                  />
+                  <ListRow
                     title={tr("Show the missed-log nudge")}
                     detail={tr("The check-in for a day that went unlogged")}
                     onClick={() => handlePreviewMoment(MOMENT_IDS.missedLog)}

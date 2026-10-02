@@ -88,6 +88,7 @@ const FullScreenEventContext = createContext<LayerApi>(noopApi)
  * mid-camera. The moment waits; it has waited this long already.
  */
 const BLOCKED_ROUTE_PREFIXES = [
+  "/restart",
   "/workout/active",
   "/workout/log",
   "/onboarding",

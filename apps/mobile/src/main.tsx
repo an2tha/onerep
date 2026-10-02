@@ -2,6 +2,7 @@ import { tr } from "@repo/ui/i18n"
 import { CollapsingPageBar } from "./components/collapsing-page-bar"
 import Journal from "./pages/Journal"
 import Recovery from "./pages/Recovery"
+import Restart from "./pages/Restart"
 import { RecoveryReminderSync } from "./components/recovery/recovery-reminder-sync"
 import {
   captureRouteSnapshot,
@@ -137,6 +138,7 @@ import {
   PRIMARY_TAB_ORDER,
   ROUTE_TRANSITION_MS,
   shouldShowBottomBar,
+  shouldShowPageBar,
   useSmoothNavigate,
   type RouteMotion,
 } from "./lib/navigation"
@@ -401,12 +403,7 @@ function NavSync() {
   const threshold = 72
   const showBottomBar = shouldShowBottomBar(location.pathname)
   const { isAuthenticated } = useConvexAuth()
-  const showPageBar =
-    isAuthenticated &&
-    location.pathname !== "/" &&
-    !/^\/(auth|login|signup|onboarding|reset-password|verify-email)/.test(
-      location.pathname
-    )
+  const showPageBar = shouldShowPageBar(location.pathname, isAuthenticated)
   // On iOS the floating native bar replaces the web one entirely; the web app
   // keeps routing, the native layer only draws and reports taps.
   const nativeTabBarActive = useNativeTabBar({
@@ -1147,7 +1144,7 @@ const router = createBrowserRouter([
         path: "/progress",
         element: (
           <AuthGuard>
-            <ErrorBoundary label={tr("Progress")}>
+            <ErrorBoundary label={tr("Goals")}>
               <Progress />
             </ErrorBoundary>
           </AuthGuard>
@@ -1269,6 +1266,16 @@ const router = createBrowserRouter([
           <AuthGuard>
             <ErrorBoundary label={tr("Health trends")}>
               <HealthTrends />
+            </ErrorBoundary>
+          </AuthGuard>
+        ),
+      },
+      {
+        path: "/restart",
+        element: (
+          <AuthGuard>
+            <ErrorBoundary label={tr("Restart")}>
+              <Restart />
             </ErrorBoundary>
           </AuthGuard>
         ),

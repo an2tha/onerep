@@ -229,6 +229,16 @@ describe("@repo/ui package boundary", () => {
       "recovery/recovery-reminder-sync.tsx",
       // Moves routed page actions into the app shell toolbar before paint.
       "page-bar-actions.tsx",
+      // Goals and Restart are complete app-owned flows, including their local
+      // art and copy. Their controllers bind account data and route actions.
+      "goals-disclosure.tsx",
+      "goals-hub.tsx",
+      "goals-art.tsx",
+      "goals-assessment.tsx",
+      "restart/restart-art.tsx",
+      "restart/restart-content.ts",
+      "restart/restart-nudge.tsx",
+      "restart/restart-experience.tsx",
     ])
     const unexpected = sourceFiles(mobileComponents)
       .map((path) => relative(mobileComponents, path))
