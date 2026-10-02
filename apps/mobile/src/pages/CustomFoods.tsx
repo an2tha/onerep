@@ -1,3 +1,4 @@
+import { PageNavigationBar } from "@/components/page-navigation-bar"
 import { Message, tr, translateError } from "@repo/ui/i18n"
 import {
   foodLogTime,
@@ -23,7 +24,6 @@ import { useQuery } from "convex/react"
 import {
   EmptyState,
   GroupedList,
-  NavigationBar,
   PrimaryButton,
   SectionHeader,
   ToolbarButton,
@@ -236,9 +236,8 @@ export default function CustomFoods() {
 
   return (
     <div className="native-page mx-auto min-h-svh w-full max-w-xl pb-[calc(var(--app-safe-bottom)+6rem)] text-foreground">
-      <NavigationBar
+      <PageNavigationBar
         title={tr("My foods")}
-        subtitle={tr("Foods you entered yourself")}
         leading={
           <ToolbarButton
             onClick={() => navigate(-1)}
@@ -292,13 +291,6 @@ export default function CustomFoods() {
             tone="food"
             title={
               foods.length === 0 ? tr("No custom foods yet") : tr("No matches")
-            }
-            detail={
-              foods.length === 0
-                ? tr(
-                    "Add the things the database gets wrong, such as your protein scoop, your usual takeaway, or grandma's stew. Save each one once, then log it in a tap."
-                  )
-                : tr("Try a different search.")
             }
             action={
               foods.length === 0 ? (

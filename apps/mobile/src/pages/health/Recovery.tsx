@@ -39,7 +39,6 @@ export default function HealthRecovery() {
   return (
     <HealthDetailShell
       title={tr("Recovery")}
-      subtitle={tr("Measured against your own baseline")}
       heroFill={data?.recoveryScore ?? null}
       charts={
         <>
@@ -203,10 +202,7 @@ export default function HealthRecovery() {
             )}
           <DialCustomMetrics dial="recovery" tone={AREA_TONES.recovery} />
 
-          <TrackSomethingNew
-            tab="body"
-            detail={tr("Soreness, mood, whatever you judge a day by.")}
-          />
+          <TrackSomethingNew tab="body" />
         </>
       )}
     </HealthDetailShell>

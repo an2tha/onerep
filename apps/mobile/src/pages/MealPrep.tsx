@@ -1,3 +1,4 @@
+import { PageNavigationBar } from "@/components/page-navigation-bar"
 import { Message, choice, tr, translateError } from "@repo/ui/i18n"
 import { useMemo, useState } from "react"
 import {
@@ -16,7 +17,6 @@ import { useQuery } from "convex/react"
 import {
   EmptyState,
   GroupedList,
-  NavigationBar,
   PrimaryButton,
   SectionHeader,
   SummaryBlock,
@@ -221,9 +221,8 @@ export default function MealPrep() {
 
   return (
     <div className="native-page mx-auto min-h-svh w-full max-w-xl pb-[calc(var(--app-safe-bottom)+6rem)] text-foreground">
-      <NavigationBar
+      <PageNavigationBar
         title={tr("Meal prep")}
-        subtitle={tr("Cook once, log all week")}
         leading={
           <ToolbarButton
             onClick={() => navigate(-1)}
@@ -303,9 +302,6 @@ export default function MealPrep() {
             icon={BowlFood}
             tone="food"
             title={tr("No batches prepped")}
-            detail={tr(
-              "Add what you cooked and how many servings it made. Logging a portion then takes one tap."
-            )}
             action={
               <PrimaryButton
                 onClick={() => setEditorDraft(emptyMealPrepDraft(today))}

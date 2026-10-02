@@ -1,8 +1,13 @@
 import { useLayoutEffect, useState, useRef, type ReactNode } from "react"
 import { createPortal } from "react-dom"
 
-/** Render page-level controls in the persistent toolbar, including before scrolling. */
-export function PageBarActions({ children }: { children: ReactNode }) {
+function PageBarSlot({
+  children,
+  slot,
+}: {
+  children: ReactNode
+  slot: "actions" | "leading"
+}) {
   const source = useRef<HTMLDivElement>(null)
   const [destination, setDestination] = useState<HTMLElement | null>(null)
   useLayoutEffect(() => {
@@ -12,7 +17,7 @@ export function PageBarActions({ children }: { children: ReactNode }) {
     const sync = () =>
       setDestination(
         !route || route.classList.contains("app-route-frame-current")
-          ? bar.querySelector<HTMLElement>(".page-bar-actions")
+          ? bar.querySelector<HTMLElement>(`.page-bar-${slot}`)
           : null
       )
     const observer = new MutationObserver(sync)
@@ -24,14 +29,24 @@ export function PageBarActions({ children }: { children: ReactNode }) {
       observer.observe(route, { attributes: true, attributeFilter: ["class"] })
     sync()
     return () => observer.disconnect()
-  }, [])
+  }, [slot])
   return (
     <div
       ref={source}
-      className="page-heading-actions"
+      className={`page-heading-${slot}`}
       data-portaled={Boolean(destination)}
     >
       {destination ? createPortal(children, destination) : children}
     </div>
   )
+}
+
+/** Render page actions once, in the persistent toolbar when it is available. */
+export function PageBarActions({ children }: { children: ReactNode }) {
+  return <PageBarSlot slot="actions">{children}</PageBarSlot>
+}
+
+/** Keep the page's own destination or dismissal guard in the shared back slot. */
+export function PageBarBack({ children }: { children: ReactNode }) {
+  return <PageBarSlot slot="leading">{children}</PageBarSlot>
 }

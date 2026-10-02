@@ -5890,5 +5890,18 @@
   "{{protein}} g/day across {{days}} logged days": "{{protein}} g/day across {{days}} logged days",
   "{{value}} direct sets logged. Your planned range is {{min}} to {{max}} sets.": "{{value}} direct sets logged. Your planned range is {{min}} to {{max}} sets.",
   "Logged workouts update this plan. Coach knows your small commitment.": "Los entrenamientos registrados actualizan este plan. Coach conoce tu pequeño compromiso.",
-  "Completing this step marks today as rest in Training.": "Completar este paso marca hoy como descanso en Entrenamiento."
+  "Completing this step marks today as rest in Training.": "Completar este paso marca hoy como descanso en Entrenamiento.",
+  "Add tracker": "Añadir registro",
+  "Standard": "Estándar",
+  "Track caffeine, sodium, or fibre.": "Registra cafeína, sodio o fibra.",
+  "Track glucose, blood pressure, or temperature.": "Registra glucosa, presión arterial o temperatura.",
+  "Track meditation, breathwork, or journalling.": "Registra meditación, respiración o escritura.",
+  "Choose what to track about your cycle.": "Elige qué registrar de tu ciclo.",
+  "No repeat meals yet.": "Aún no hay comidas recurrentes.",
+  "No trackers yet": "Aún no hay registros",
+  "All logged": "Todo registrado",
+  "Film up to three angles.": "Graba hasta tres ángulos.",
+  "Say “remember…” to save a preference.": "Di «recuerda…» para guardar una preferencia.",
+  "All recipes": "Todas las recetas",
+  "Community": "Comunidad"
 }

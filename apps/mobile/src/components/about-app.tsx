@@ -1,5 +1,5 @@
 import { tr, translateError } from "@repo/ui/i18n"
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { Capacitor } from "@capacitor/core"
 import { App as CapacitorApp } from "@capacitor/app"
 import { GroupedList, ListRow, toast } from "@repo/ui"
@@ -19,6 +19,7 @@ import {
   shortCommit,
   type BuildInfo,
 } from "@/lib/build-info"
+import { withReadTimeout } from "@/lib/async-read"
 import { hapticTap } from "@/lib/haptics"
 
 /**
@@ -62,10 +63,16 @@ export function AboutApp() {
   const [otaState, setOtaState] = useState(getOtaState)
   const [checking, setChecking] = useState(false)
 
+  const loadSequence = useRef(0)
+
   const load = useCallback(async () => {
-    const [diagnostics, build] = await Promise.all([
+    const sequence = ++loadSequence.current
+    const [diagnostics, build, app] = await Promise.all([
       otaDiagnostics(),
-      loadBuildInfo(),
+      withReadTimeout(loadBuildInfo()).catch(() => null),
+      Capacitor.isNativePlatform()
+        ? withReadTimeout(CapacitorApp.getInfo()).catch(() => null)
+        : Promise.resolve(null),
     ])
     // The env stamp is absent outside release builds; version.json is the
     // fallback, and neither existing means a dev build.
@@ -74,20 +81,15 @@ export function AboutApp() {
       : (build?.version ?? diagnostics.buildVersion)
     let appBuild = ""
     if (Capacitor.isNativePlatform()) {
-      try {
-        const app = await CapacitorApp.getInfo()
-        appVersion = app.version
-        appBuild = app.build
-      } catch {
-        // Web build, or a shell too old to answer. The bundle version below
-        // is still the honest answer to "what am I running".
-      }
+      appVersion = app?.version ?? diagnostics.native ?? tr("Unavailable")
+      appBuild = app?.build ?? ""
     }
     const bundle =
-      diagnostics.current ??
+      (diagnostics.current === "builtin" ? null : diagnostics.current) ??
       (isStampedVersion(diagnostics.buildVersion)
         ? diagnostics.buildVersion
         : (build?.version ?? diagnostics.buildVersion))
+    if (sequence !== loadSequence.current) return
     setInfo({
       appVersion,
       appBuild,
@@ -102,11 +104,17 @@ export function AboutApp() {
   }, [])
 
   useEffect(() => {
-    void load()
-    return subscribeOtaState((next) => {
+    let first = true
+    const unsubscribe = subscribeOtaState((next) => {
       setOtaState(next)
-      void load()
+      // Always load on mount, including when a download is already running.
+      if (first || next.phase !== "downloading") void load()
+      first = false
     })
+    return () => {
+      unsubscribe()
+      loadSequence.current++
+    }
   }, [load])
 
   async function handleCheck() {
@@ -115,10 +123,13 @@ export function AboutApp() {
     hapticTap()
     try {
       const decision = await checkForOtaUpdate({ force: true })
-      if (decision.action === "download") {
-        toast.success(
-          tr("Update {{value0}} is downloading", { value0: decision.version })
-        )
+      const result = getOtaState()
+      if (result.phase === "error") {
+        toast.error(translateError(tr("Download failed")))
+      } else if (decision.action === "download") {
+        toast.success(tr("A OneRep update is ready"))
+      } else if (decision.reason === "in-progress") {
+        toast.message(tr("Checking…"))
       } else if (decision.reason === "already-staged") {
         toast.success(tr("An update is already waiting"))
       } else if (decision.reason === "invalid-manifest") {
@@ -134,6 +145,12 @@ export function AboutApp() {
 
   const staged =
     otaState.phase === "ready" ? otaState.version : (info?.staged ?? null)
+
+  const busy =
+    checking ||
+    otaState.phase === "checking" ||
+    otaState.phase === "downloading" ||
+    otaState.phase === "applying"
 
   return (
     <>
@@ -186,7 +203,7 @@ export function AboutApp() {
               "Version {{value0}} installs the next time OneRep restarts",
               { value0: staged }
             )}
-            value="Restart"
+            value={tr("Restart")}
             onClick={() => void applyOtaUpdateNow()}
           />
         )}
@@ -197,10 +214,16 @@ export function AboutApp() {
           <button
             type="button"
             onClick={() => void handleCheck()}
-            disabled={checking}
+            disabled={busy}
             className="native-secondary-button min-h-12 w-full rounded-[0.8rem] disabled:opacity-40"
           >
-            {checking ? tr("Checking…") : tr("Check for updates")}
+            {otaState.phase === "downloading"
+              ? tr("Update {{value0}} is downloading", {
+                  value0: otaState.version,
+                })
+              : busy
+                ? tr("Checking…")
+                : tr("Check for updates")}
           </button>
           <p className="native-row-detail pt-3">
             {tr(

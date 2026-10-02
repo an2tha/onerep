@@ -15,10 +15,8 @@ export default function HealthVitals() {
     <CustomDialScreen
       dial="vitals"
       title={tr("Vitals")}
-      subtitle={tr("Readings you take, not totals you accumulate")}
       tab="body"
-      create="A reading you take rather than a total you accumulate."
-      empty="Nothing filed here yet. Bind a metric to blood glucose, blood pressure, oxygen saturation or body temperature and it will land on this dial."
+      empty={tr("Track glucose, blood pressure, or temperature.")}
       about={
         <MetricAbout
           items={[

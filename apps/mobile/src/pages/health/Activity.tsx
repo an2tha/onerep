@@ -42,7 +42,6 @@ export default function HealthActivity() {
   return (
     <HealthDetailShell
       title={tr("Activity")}
-      subtitle={tr("Against public guidance")}
       heroFill={exercise?.score ?? null}
       charts={
         <>
@@ -176,12 +175,7 @@ export default function HealthActivity() {
           )}
           <DialCustomMetrics dial="activity" tone={AREA_TONES.activity} />
 
-          <TrackSomethingNew
-            tab="training"
-            detail={tr(
-              "A session, a distance, a habit OneRep does not count yet."
-            )}
-          />
+          <TrackSomethingNew tab="training" />
         </>
       )}
     </HealthDetailShell>

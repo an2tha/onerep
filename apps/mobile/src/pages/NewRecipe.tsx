@@ -1,3 +1,4 @@
+import { PageBarBack } from "@/components/page-bar-actions"
 import { Message, tr, translateError } from "@repo/ui/i18n"
 import { useEffect, useMemo, useRef, useState } from "react"
 import type { ChangeEvent } from "react"
@@ -1228,13 +1229,15 @@ export default function NewRecipe() {
               paddingTop: "max(1.25rem, env(safe-area-inset-top, 1.25rem))",
             }}
           >
-            <button
-              onClick={() => navigate(-1)}
-              className="app-icon-button"
-              aria-label={tr("Back")}
-            >
-              <ArrowLeft size={15} weight="bold" />
-            </button>
+            <PageBarBack>
+              <button
+                onClick={() => navigate(-1)}
+                className="app-icon-button"
+                aria-label={tr("Back")}
+              >
+                <ArrowLeft size={15} weight="bold" />
+              </button>
+            </PageBarBack>
             <h1 className="flex-1 text-[17px] font-semibold">
               {tr("Recipe missing")}
             </h1>
@@ -1287,13 +1290,15 @@ export default function NewRecipe() {
               paddingTop: "max(1.25rem, env(safe-area-inset-top, 1.25rem))",
             }}
           >
-            <button
-              onClick={() => navigate(-1)}
-              className="app-icon-button"
-              aria-label={tr("Back")}
-            >
-              <ArrowLeft size={15} weight="bold" />
-            </button>
+            <PageBarBack>
+              <button
+                onClick={() => navigate(-1)}
+                className="app-icon-button"
+                aria-label={tr("Back")}
+              >
+                <ArrowLeft size={15} weight="bold" />
+              </button>
+            </PageBarBack>
 
             <h1 className="flex-1 text-[17px] font-semibold">
               {initial ? tr("Edit recipe") : tr("New recipe")}

@@ -5,7 +5,12 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { readCachedWeightUnit } from "@/lib/use-weight-unit"
 import { useParams, useSearchParams } from "react-router"
 import { captureFeatureUsage, durationBucket } from "@/lib/analytics"
-import { useAction, useQuery, useMutation } from "convex/react"
+import {
+  useAction,
+  useQuery,
+  useMutation,
+  useConvexConnectionState,
+} from "convex/react"
 import { ConvexError } from "convex/values"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import {
@@ -555,6 +560,7 @@ function ActiveWorkoutSession() {
     api.logs.activeWorkout.getActive,
     isRetro ? "skip" : { slot }
   )
+  const connectionState = useConvexConnectionState()
   const createActive = useMutation(api.logs.activeWorkout.createActive)
   const updateActive = useMutation(api.logs.activeWorkout.updateActive)
   const abortActive = useMutation(api.logs.activeWorkout.abortActive)
@@ -1072,6 +1078,7 @@ function ActiveWorkoutSession() {
       if (isRetroRef.current) return
       if (abortingRef.current) return
       if (!isDirtyRef.current) return
+      if (!createdActiveRef.current && itemsRef.current.length === 0) return
       if (isSyncingRef.current) return
 
       if (syncTimeoutRef.current) {
@@ -1083,13 +1090,30 @@ function ActiveWorkoutSession() {
         async () => {
           if (abortingRef.current) return
           if (!isDirtyRef.current) return
+          if (!createdActiveRef.current && itemsRef.current.length === 0) return
           isSyncingRef.current = true
           syncTimeoutRef.current = null
           try {
             while (!abortingRef.current && isDirtyRef.current) {
               const syncVersion = dirtyVersionRef.current
               setWorkoutSyncStatus("saving")
-              if (pendingCreateRef.current) await pendingCreateRef.current
+              // Creation and updates share one queue. A failed create must be
+              // retried before an update, including after reconnecting on iOS.
+              if (!createdActiveRef.current) {
+                safeSessionStorageRemove(ABORTED_WORKOUT_SLOT_KEY)
+                pendingCreateRef.current = createActive({
+                  slot: slotRef.current,
+                  presetId: presetId ?? undefined,
+                  items: itemsRef.current,
+                  exerciseData: exDataRef.current,
+                })
+                try {
+                  await pendingCreateRef.current
+                  createdActiveRef.current = true
+                } finally {
+                  pendingCreateRef.current = null
+                }
+              }
               if (abortingRef.current) break
               pendingUpdateRef.current = updateActive({
                 slot: slotRef.current,
@@ -1124,7 +1148,7 @@ function ActiveWorkoutSession() {
         options.immediate ? 0 : 500
       ) // Debounce 500ms
     },
-    [updateActive]
+    [createActive, presetId, updateActive]
   )
 
   // ── Load from Convex or preset on mount ────────────────────────────────────
@@ -1240,6 +1264,7 @@ function ActiveWorkoutSession() {
         return
       }
 
+      createdActiveRef.current = true
       const loadedItems = (activeWorkout.items as WorkoutItem[]) ?? []
       const loadedExData =
         (activeWorkout.exerciseData as Record<string, ExerciseState>) ?? {}
@@ -1324,58 +1349,19 @@ function ActiveWorkoutSession() {
     setRetroCompletedAt(new Date(`${retroDate}T12:00:00`).getTime())
   }, [isRetro, retroCompletedAt, retroDate, healthWorkout, healthWorkoutParam])
 
-  // ── Create active workout in Convex when items are loaded ─────────────────
-  useEffect(() => {
-    if (isRetro) return
-    if (!isInitialized) return
-    if (abortingRef.current) return
-    if (items.length === 0) return
-    if (activeWorkout === undefined) return
-    if (activeWorkout) {
-      if (resumeDecision !== "discard") createdActiveRef.current = true
-      return
-    }
-    if (createdActiveRef.current || pendingCreateRef.current) return
-
-    const ids = items.flatMap((i) =>
-      i.kind === "solo" ? [i.exerciseId] : i.exerciseIds
-    )
-    if (ids.length > 0) {
-      safeSessionStorageRemove(ABORTED_WORKOUT_SLOT_KEY)
-      const pending = createActive({
-        slot,
-        presetId: presetId ?? undefined,
-        items,
-        exerciseData: exData,
-      })
-      pendingCreateRef.current = pending
-      void pending
-        .then(() => {
-          createdActiveRef.current = true
-        })
-        .catch(reportOfflineMutationError)
-        .finally(() => {
-          pendingCreateRef.current = null
-        })
-    }
-  }, [
-    isRetro,
-    isInitialized,
-    items.length,
-    activeWorkout,
-    createActive,
-    slot,
-    presetId,
-    resumeDecision,
-    items,
-    exData,
-  ])
-
   // ── Sync to Convex when state changes ─────────────────────────────────────
   useEffect(() => {
     if (!isInitialized) return
     syncToConvex()
   }, [isInitialized, items, exData, syncToConvex])
+
+  // A suspended iPhone can return after the debounce was cancelled or a
+  // request failed. Retry the latest draft once the connection is available.
+  useEffect(() => {
+    if (isInitialized && connectionState.isWebSocketConnected) {
+      syncToConvex({ immediate: true })
+    }
+  }, [isInitialized, connectionState.isWebSocketConnected, syncToConvex])
 
   // Sync elapsed time every 5 seconds
   useEffect(() => {
@@ -2236,7 +2222,21 @@ function ActiveWorkoutSession() {
       return
     }
 
+    // Stop autosaves before finishing so a late create/update cannot revive
+    // the session or race the completion mutation.
+    abortingRef.current = true
+    if (syncTimeoutRef.current) {
+      clearTimeout(syncTimeoutRef.current)
+      syncTimeoutRef.current = null
+    }
+    await Promise.allSettled(
+      [pendingCreateRef.current, pendingUpdateRef.current].filter(Boolean)
+    )
     try {
+      if (!createdActiveRef.current) {
+        await createActive({ slot, presetId, items, exerciseData: exData })
+        createdActiveRef.current = true
+      }
       // Finish the active workout in Convex (this also logs it)
       await finishActive({
         slot,
@@ -2271,6 +2271,7 @@ function ActiveWorkoutSession() {
         celebrateAchievement("workout")
         window.setTimeout(() => navigate(-1), 450)
       } catch (fallbackErr) {
+        abortingRef.current = false
         logDevError("Failed to log workout as fallback:", fallbackErr)
         toast.error(
           translateError(tr("Failed to finish workout. Please try again."))

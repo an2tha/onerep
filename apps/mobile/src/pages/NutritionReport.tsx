@@ -1,9 +1,10 @@
+import { PageNavigationBar } from "@/components/page-navigation-bar"
 import { Message, tr, translateError } from "@repo/ui/i18n"
 import { useMemo, useState } from "react"
 import { useSearchParams } from "react-router"
 import { ArrowLeft, DownloadSimple, Printer } from "@phosphor-icons/react"
 import { useQuery } from "convex/react"
-import { NavigationBar, ToolbarButton, toast } from "@repo/ui"
+import { ToolbarButton, toast } from "@repo/ui"
 import { api } from "../../../../convex/_generated/api"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { cn } from "@/lib/utils"
@@ -162,7 +163,7 @@ export default function NutritionReport() {
   return (
     <div className="native-page print-sheet mx-auto min-h-svh w-full max-w-xl pb-[calc(var(--app-safe-bottom)+6rem)] text-foreground">
       <div className="print-hidden">
-        <NavigationBar
+        <PageNavigationBar
           title={tr("Nutrition report")}
           subtitle={tr("Share with a coach or clinician")}
           leading={

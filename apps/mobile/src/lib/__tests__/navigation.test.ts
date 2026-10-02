@@ -5,6 +5,7 @@ import {
   hasNativeRouteTransition,
   prefersReducedMotion,
   setRouteMotion,
+  shouldShowPageBar,
 } from "../navigation"
 
 describe("route motion helpers", () => {
@@ -92,6 +93,38 @@ describe("route motion helpers", () => {
       expect(prefersReducedMotion()).toBe(true)
     } finally {
       restoreGlobals()
+    }
+  })
+})
+
+describe("shared page navigation", () => {
+  test("focused tasks keep their own dismissal controls", () => {
+    for (const path of [
+      "/camera",
+      "/workout/log/2026-10-03",
+      "/foods/review/apple",
+      "/restart",
+      "/workouts/new",
+      "/workouts/edit/preset",
+      "/workout/active",
+      "/workout/active/preset",
+      "/endurance/active/run",
+    ]) {
+      expect(shouldShowPageBar(path, true)).toBe(false)
+    }
+  })
+  test("browsing pages and food tools use the shared toolbar", () => {
+    for (const path of [
+      "/settings",
+      "/workout/log/2026-10-03/quick",
+      "/health/sleep",
+      "/recipes",
+      "/foods/search",
+      "/foods/recipe/new",
+      "/nutrition/groceries/list",
+    ]) {
+      expect(shouldShowPageBar(path, true)).toBe(true)
+      expect(shouldShowPageBar(path, false)).toBe(false)
     }
   })
 })

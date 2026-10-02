@@ -14,10 +14,8 @@ export default function HealthReproductive() {
     <CustomDialScreen
       dial="reproductive"
       title={tr("Cycle")}
-      subtitle={tr("In your own hand")}
       tab="body"
-      create="Recorded in your words, shown only on this dial."
-      empty="Nothing filed here yet. Make a metric for the part of your cycle you want recorded, or bind one to what your phone already tracks."
+      empty={tr("Choose what to track about your cycle.")}
       about={
         <MetricAbout
           items={[

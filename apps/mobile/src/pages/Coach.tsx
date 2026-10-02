@@ -589,9 +589,7 @@ function FormCoachPicker({
   return (
     <>
       <p className="text-[11px] leading-relaxed text-muted-foreground">
-        {tr(
-          "Pick the lift. You’ll film up to three angles, and the coach measures the joints rather than taking your word for it."
-        )}
+        {tr("Film up to three angles.")}
       </p>
       <input
         value={query}
@@ -3360,9 +3358,7 @@ export default function Coach({
         mode={activeMode}
       >
         <p className="text-[11px] leading-relaxed text-muted-foreground">
-          {tr(
-            "Coach uses these durable preferences when creating meals, workouts, and weekly plans. Say “remember…” in chat to add one."
-          )}
+          {tr("Say “remember…” to save a preference.")}
         </p>
         <div className="mt-4 rounded-2xl border border-border/60 bg-card p-3">
           <div className="grid gap-2 sm:grid-cols-[9rem_minmax(0,1fr)]">

@@ -969,7 +969,6 @@ export default function Progress() {
                 {!showMeasurements && (
                   <ListRow
                     title={tr("Add measurements")}
-                    detail={tr("Body fat, waist, hips, chest")}
                     onClick={() => setShowMeasurements(true)}
                     trailing={
                       <Plus
@@ -984,7 +983,6 @@ export default function Progress() {
                 {!showNote && (
                   <ListRow
                     title={tr("Add a note")}
-                    detail={tr("Training, sleep, appetite")}
                     onClick={() => setShowNote(true)}
                     trailing={
                       <Plus

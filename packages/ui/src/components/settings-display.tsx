@@ -51,9 +51,6 @@ export function SettingsLoadingState() {
     >
       <div className="h-5 w-5 animate-spin rounded-full border-2 border-muted-foreground/20 border-t-muted-foreground/70" />
       <p className="native-section-title mt-4">{tr("Loading settings")}</p>
-      <p className="native-row-detail mt-1 max-w-[18rem]">
-        {tr("Syncing your preferences, goals, and account controls.")}
-      </p>
     </div>
   )
 }

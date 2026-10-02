@@ -1,4 +1,12 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test"
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  mock,
+  spyOn,
+  test,
+} from "bun:test"
 
 let isNative = true
 let trustAvailable = true
@@ -209,6 +217,92 @@ describe("checkForOtaUpdate", () => {
     expect(getOtaState()).toMatchObject({ phase: "ready", version: "1.0.482" })
     const diagnostics = await otaDiagnostics()
     expect(diagnostics.staged).toBe("1.0.482")
+  })
+
+  test("a concurrent check is in progress, not a staged update", async () => {
+    let finish!: () => void
+    stubFetch(
+      () =>
+        new Promise((resolve) => {
+          finish = () => resolve(MANIFEST)
+        })
+    )
+    const first = checkForOtaUpdate({ force: true })
+    while (!finish) await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(await checkForOtaUpdate({ force: true })).toEqual({
+      action: "skip",
+      reason: "in-progress",
+    })
+    finish()
+    await first
+  })
+
+  test("checking again preserves the ready update and its restart action", async () => {
+    stubFetch(async () => MANIFEST)
+    await checkForOtaUpdate({ force: true })
+
+    expect(await checkForOtaUpdate({ force: true })).toEqual({
+      action: "skip",
+      reason: "already-staged",
+    })
+    expect(getOtaState()).toMatchObject({ phase: "ready" })
+    await applyOtaUpdateNow()
+    expect(setMock).toHaveBeenCalledWith({ id: "bundle-1.0.482" })
+    expect(downloadMock).toHaveBeenCalledTimes(1)
+  })
+
+  test("a stalled native version read releases the check and permits retry", async () => {
+    const realTimeout = globalThis.setTimeout
+    const timer = spyOn(globalThis, "setTimeout").mockImplementation(((
+      callback,
+      delay,
+      ...args
+    ) =>
+      realTimeout(
+        callback,
+        delay === 8000 ? 5 : delay,
+        ...args
+      )) as typeof setTimeout)
+    currentMock.mockImplementationOnce(() => new Promise(() => {}))
+    stubFetch(async () => MANIFEST)
+    try {
+      expect(await checkForOtaUpdate({ force: true })).toEqual({
+        action: "skip",
+        reason: "invalid-manifest",
+      })
+      expect(getOtaState()).toEqual({ phase: "idle" })
+      expect(downloadMock).not.toHaveBeenCalled()
+      expect(await checkForOtaUpdate({ force: true })).toMatchObject({
+        action: "download",
+      })
+    } finally {
+      timer.mockRestore()
+    }
+  })
+
+  test("a stalled pending-bundle read does not hide installed versions", async () => {
+    const realTimeout = globalThis.setTimeout
+    const timer = spyOn(globalThis, "setTimeout").mockImplementation(((
+      callback,
+      delay,
+      ...args
+    ) =>
+      realTimeout(
+        callback,
+        delay === 8000 ? 5 : delay,
+        ...args
+      )) as typeof setTimeout)
+    getNextBundleMock.mockImplementationOnce(() => new Promise(() => {}))
+    try {
+      expect(await otaDiagnostics()).toMatchObject({
+        current: "builtin",
+        native: "1.0.0",
+        staged: null,
+      })
+    } finally {
+      timer.mockRestore()
+    }
   })
 
   test("keeps the installed bundle when the network fails", async () => {
@@ -460,6 +554,18 @@ describe("applyOtaUpdateNow", () => {
   test("does nothing when no bundle is staged", async () => {
     await applyOtaUpdateNow()
     expect(setMock).not.toHaveBeenCalled()
+  })
+
+  test("can restart into an update persisted by an earlier session", async () => {
+    storage.setItem(
+      "onerep:ota:pending-bundle",
+      JSON.stringify({
+        id: "bundle-1.0.482",
+        version: "1.0.482",
+      })
+    )
+    await applyOtaUpdateNow()
+    expect(setMock).toHaveBeenCalledWith({ id: "bundle-1.0.482" })
   })
 
   test("keeps the marker when explicit activation fails", async () => {

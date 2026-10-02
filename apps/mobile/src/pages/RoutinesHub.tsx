@@ -1,6 +1,7 @@
+import { PageNavigationBar } from "@/components/page-navigation-bar"
 import { Message, tr } from "@repo/ui/i18n"
 import { ArrowLeft, Barbell, Clock } from "@phosphor-icons/react"
-import { NavigationBar, ToolbarButton } from "@repo/ui"
+import { ToolbarButton } from "@repo/ui"
 import { hapticSelection } from "@/lib/haptics"
 import { useSmoothNavigate } from "@/lib/navigation"
 
@@ -46,7 +47,7 @@ export default function RoutinesHub() {
   return (
     <div className="desktop-canvas min-h-svh bg-background text-foreground lg:pr-8 lg:pl-72">
       <main className="mx-auto min-h-svh w-full max-w-5xl pb-[calc(var(--app-safe-bottom-lg)+2rem)]">
-        <NavigationBar
+        <PageNavigationBar
           title={tr("Routines")}
           leading={
             <ToolbarButton onClick={goBack} aria-label={tr("Back to training")}>

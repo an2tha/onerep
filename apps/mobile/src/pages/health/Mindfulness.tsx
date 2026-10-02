@@ -8,10 +8,8 @@ export default function HealthMindfulness() {
     <CustomDialScreen
       dial="mindfulness"
       title={tr("Mindfulness")}
-      subtitle={tr("Rest you chose rather than rest you needed")}
       tab="body"
-      create="Breathwork, journalling, or whatever rest looks like for you."
-      empty="Nothing filed here yet. Bind a metric to mindful minutes, or make one for breathwork, journalling or whatever you actually do."
+      empty={tr("Track meditation, breathwork, or journalling.")}
       about={
         <MetricAbout
           items={[

@@ -1,3 +1,4 @@
+import { PageBarBack } from "@/components/page-bar-actions"
 import { Message, choice, tr, translateError } from "@repo/ui/i18n"
 import { toast } from "@repo/ui"
 import { useState } from "react"
@@ -121,14 +122,16 @@ export default function Recovery() {
   return (
     <main className="app-page recovery-page">
       <header className="app-header">
-        <button
-          type="button"
-          className="app-icon-button"
-          aria-label={tr("Back to today")}
-          onClick={() => navigate("/")}
-        >
-          <CaretLeft size={20} />
-        </button>
+        <PageBarBack>
+          <button
+            type="button"
+            className="app-icon-button"
+            aria-label={tr("Back to today")}
+            onClick={() => navigate("/")}
+          >
+            <CaretLeft size={20} />
+          </button>
+        </PageBarBack>
         <h1>{tr("Recovery")}</h1>
       </header>
       {data === undefined ? (

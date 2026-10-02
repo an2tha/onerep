@@ -67,10 +67,23 @@ export function isTaskRoute(pathname: string) {
   )
 }
 
-/** Focused Restart owns its own close control and safe-area spacing. */
+/** Focused editors, capture, and live sessions own their dismissal controls. */
 export function shouldShowPageBar(pathname: string, isAuthenticated: boolean) {
-  return isAuthenticated && pathname !== "/" && pathname !== "/restart" &&
-    !/^\/(auth|login|signup|onboarding|reset-password|verify-email)/.test(pathname)
+  return (
+    isAuthenticated &&
+    pathname !== "/" &&
+    pathname !== "/restart" &&
+    pathname !== "/camera" &&
+    !pathname.startsWith("/workout/active") &&
+    !/^\/workout\/log\/[^/]+$/.test(pathname) &&
+    !pathname.startsWith("/foods/review/") &&
+    !pathname.startsWith("/endurance/active") &&
+    pathname !== "/workouts/new" &&
+    !pathname.startsWith("/workouts/edit/") &&
+    !/^\/(auth|login|signup|onboarding|reset-password|verify-email)/.test(
+      pathname
+    )
+  )
 }
 
 export function shouldShowBottomBar(pathname: string) {

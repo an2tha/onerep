@@ -47,16 +47,19 @@ export function CollapsingPageBar({ pathname }: { pathname: string }) {
   }, [pathname])
   return (
     <header className="collapsing-page-bar" data-collapsed={collapsed}>
-      <button
-        type="button"
-        aria-label={tr("Back")}
-        className="page-bar-back"
-        onClick={() =>
-          window.history.length > 1 ? navigate(-1) : navigate("/")
-        }
-      >
-        <ArrowLeft size={21} />
-      </button>
+      <div className="page-bar-navigation">
+        <div className="page-bar-leading" />
+        <button
+          type="button"
+          aria-label={tr("Back")}
+          className="page-bar-back"
+          onClick={() =>
+            (window.history.state?.idx ?? 0) > 0 ? navigate(-1) : navigate("/")
+          }
+        >
+          <ArrowLeft size={21} />
+        </button>
+      </div>
       <span className="page-bar-title" aria-hidden={!collapsed}>
         {title}
       </span>

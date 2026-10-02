@@ -1879,9 +1879,6 @@ function RecipeManagementBox({
           <BookBookmark size={20} className="text-muted-foreground" />
           <div className="text-left">
             <p className="native-row-title">{tr("Create recipe")}</p>
-            <p className="native-row-detail">
-              {tr("Save a meal you log regularly.")}
-            </p>
           </div>
         </button>
       ) : (
@@ -2124,9 +2121,7 @@ function RepeatMealBox({
 
       {meals.length === 0 && !creating ? (
         <p className="native-row-detail border-y border-border/60 px-1 py-4">
-          {tr(
-            "Nothing repeats yet. Log a meal you eat every day, then save it here and stop typing it."
-          )}
+          {tr("No repeat meals yet.")}
         </p>
       ) : (
         <div className="divide-y divide-border/30 border-y border-border/60">
@@ -3393,7 +3388,6 @@ export default function Nutrition() {
                       aria-label={tr("Add nutrition entry")}
                     >
                       <Plus weight="bold" />
-                      <span>{tr("Add")}</span>
                     </button>
                   </TourAnchor>
                   <button
@@ -3406,7 +3400,6 @@ export default function Nutrition() {
                     aria-label={tr("Add nutrition entry")}
                   >
                     <Plus weight="bold" />
-                    <span className="ml-1">{tr("Add")}</span>
                   </button>
                 </>
               )}
@@ -3969,11 +3962,7 @@ export default function Nutrition() {
                     />
                   )}
                 </div>
-              ) : (
-                <p className="mt-4 pb-2 text-[14px] leading-5 text-muted-foreground">
-                  {tr("Log meals and focus on consistency.")}
-                </p>
-              )}
+              ) : null}
 
               {isTrainingDay && visibleMetrics.calories && (
                 <button
@@ -4120,7 +4109,7 @@ export default function Nutrition() {
                     </div>
                   ) : (
                     <p className="text-[14px] leading-5 text-muted-foreground">
-                      {tr("Nothing logged yet. Pick a way to log above.")}
+                      {tr("Nothing logged yet.")}
                     </p>
                   )}
                 </div>
@@ -4587,14 +4576,12 @@ export default function Nutrition() {
               {[
                 {
                   label: tr("Search food"),
-                  detail: tr("Manual log"),
                   Icon: MagnifyingGlass,
                   supportsHistory: true,
                   action: openFoodSearch,
                 },
                 {
                   label: tr("Scan barcode"),
-                  detail: tr("Packaged food"),
                   Icon: Barcode,
                   supportsHistory: true,
                   action: () => {
@@ -4606,7 +4593,6 @@ export default function Nutrition() {
                 },
                 {
                   label: tr("Snap meal"),
-                  detail: tr("Estimate from photo"),
                   Icon: Aperture,
                   requiresAiAccess: true,
                   supportsHistory: true,
@@ -4614,7 +4600,6 @@ export default function Nutrition() {
                 },
                 {
                   label: tr("Describe meal"),
-                  detail: tr("AI builds a temporary recipe"),
                   Icon: Sparkle,
                   requiresAiAccess: true,
                   supportsHistory: true,
@@ -4622,7 +4607,6 @@ export default function Nutrition() {
                 },
                 {
                   label: tr("Custom food"),
-                  detail: tr("Enter one the database is missing"),
                   Icon: PencilSimple,
                   supportsHistory: true,
                   action: () =>
@@ -4632,7 +4616,7 @@ export default function Nutrition() {
                 },
               ]
                 .filter((item) => isToday || item.supportsHistory)
-                .map(({ label, detail, Icon, action, requiresAiAccess }) => (
+                .map(({ label, Icon, action, requiresAiAccess }) => (
                   <button
                     key={label}
                     type="button"
@@ -4655,9 +4639,6 @@ export default function Nutrition() {
                       </span>
                       <span className="min-w-0">
                         <span className="native-row-title block">{label}</span>
-                        <span className="native-row-detail block">
-                          {detail}
-                        </span>
                       </span>
                     </span>
                     <CaretRight size={18} className="text-muted-foreground" />

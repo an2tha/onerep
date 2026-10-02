@@ -1,3 +1,4 @@
+import { PageNavigationBar } from "@/components/page-navigation-bar"
 import { Message, choice, tr, translateError, uiLocale } from "@repo/ui/i18n"
 import { AiSharingSettings } from "@/components/ai-sharing-consent"
 import React, { useCallback, useState, useEffect, useMemo, useRef } from "react"
@@ -212,7 +213,6 @@ import {
   DisclosureRow,
   GroupedList,
   ListRow,
-  NavigationBar,
   NumberStepper,
   PrimaryButton,
   SectionSaveButton,
@@ -1496,11 +1496,8 @@ export default function Settings({
       }
     >
       <main className="mx-auto min-h-svh w-full max-w-2xl pb-[calc(var(--app-safe-bottom-lg)+5rem)] md:pb-12">
-        <NavigationBar
+        <PageNavigationBar
           title={t(SETTINGS_VIEW_TITLE_KEYS[activeView])}
-          subtitle={
-            activeView === "overview" ? tr("Your OneRep experience") : undefined
-          }
           large={activeView === "overview"}
           leading={
             activeView !== "overview" ? (
@@ -1599,62 +1596,55 @@ export default function Settings({
                     </button>
                   )}
 
-                <SettingsSectionLabel
-                  title={tr("Plan")}
-                  detail={tr("Targets, training, and daily guidance")}
-                />
+                <SettingsSectionLabel title={tr("Plan")} />
                 <GroupedList label={tr("Plan settings")}>
                   <DisclosureRow
                     title={tr("Daily targets")}
-                    detail={tr("Calories, macros, and water")}
                     value={`${calories.toLocaleString(uiLocale())} kcal`}
                     leading={<ForkKnife size={20} weight="regular" />}
                     onClick={() => showView("targets")}
                   />
                   <DisclosureRow
                     title={tr("Training & app")}
-                    detail={tr("Focus, units, language, and feedback")}
                     value={
-                      workoutFocus[0].toUpperCase() + workoutFocus.slice(1)
+                      workoutFocus === "strength"
+                        ? tr("Strength")
+                        : workoutFocus === "cardio"
+                          ? tr("Cardio")
+                          : tr("Mobility")
                     }
                     leading={<Barbell size={20} weight="regular" />}
                     onClick={() => showView("preferences")}
                   />
                   <DisclosureRow
                     title={tr("Nutrition strategy")}
-                    detail={tr("Macro cycling and workout adjustments")}
-                    value={macroCyclingEnabled ? "Cycling" : "Standard"}
+                    value={macroCyclingEnabled ? tr("Macro cycling") : tr("Standard")}
                     leading={<SlidersHorizontal size={20} weight="regular" />}
                     onClick={() => showView("nutrition")}
                   />
                   <DisclosureRow
                     title={tr("Reminders")}
-                    detail={tr("Meals, water, workouts, and check-ins")}
                     value={
                       activeReminderCount > 0
-                        ? `${activeReminderCount} on`
-                        : "Off"
+                        ? String(activeReminderCount)
+                        : tr("Off")
                     }
                     leading={<BellSimple size={20} weight="regular" />}
                     onClick={() => showView("reminders")}
                   />
                 </GroupedList>
 
-                <SettingsSectionLabel
-                  title={tr("App")}
-                  detail={tr("Appearance, privacy, and account data")}
-                />
+                <SettingsSectionLabel title={tr("App")} />
                 <GroupedList label={tr("App settings")}>
                   <DisclosureRow
                     title={tr("Appearance")}
-                    detail={
+                    value={
                       theme === "system"
-                        ? tr("Follow this device")
-                        : tr("{{value0}} theme", {
-                            value0: choice(theme === "dark" ? "Dark" : "Light"),
-                          })
+                        ? tr("System")
+                        : theme === "dark"
+                          ? tr("Dark")
+                          : tr("Light")
                     }
-                    value={theme[0].toUpperCase() + theme.slice(1)}
                     leading={
                       theme === "dark" ? (
                         <Moon size={20} weight="regular" />
@@ -1690,7 +1680,6 @@ export default function Settings({
                   )}
                   <DisclosureRow
                     title={tr("Data & account")}
-                    detail={tr("Export, reset, or delete your data")}
                     leading={<Database size={20} weight="regular" />}
                     onClick={() => showView("data")}
                   />
@@ -1721,32 +1710,28 @@ export default function Settings({
                         ? tr("Connected to your self-hosted server")
                         : tr("OneRep Cloud, the default")
                     }
-                    value={serverOverride ? "Custom" : undefined}
+                    value={serverOverride ? tr("Custom") : undefined}
                     leading={<HardDrives size={20} weight="regular" />}
                     onClick={() => showView("server")}
                   />
                   <DisclosureRow
                     title={tr("App walkthrough")}
-                    detail={tr("Replay the guided tour of each area")}
                     leading={<Compass size={20} weight="regular" />}
                     onClick={() => showView("walkthrough")}
                   />
                   <DisclosureRow
                     title={tr("Feedback")}
-                    detail={tr("Report a bug, suggest an idea, or vote")}
                     leading={<ChatCircleDots size={20} weight="regular" />}
                     onClick={() => showView("feedback")}
                   />
                   <DisclosureRow
                     title={tr("About")}
-                    detail={tr("Version, updates, and what is installed")}
                     leading={<Info size={20} weight="regular" />}
                     onClick={() => showView("about")}
                   />
                   {SHOW_DEV_SETTINGS && (
                     <DisclosureRow
                       title={tr("Developer")}
-                      detail={tr("Internal testing controls")}
                       leading={<GearFine size={20} weight="regular" />}
                       onClick={() => showView("developer")}
                     />
@@ -1790,11 +1775,6 @@ export default function Settings({
 
             {activeView === "appearance" && (
               <>
-                <SettingsSectionIntro>
-                  {tr(
-                    "Choose a fixed theme or keep OneRep in step with this device."
-                  )}
-                </SettingsSectionIntro>
                 <GroupedList label={tr("Appearance options")}>
                   <SettingsRow label={tr("Theme")}>
                     <SegmentedControl
@@ -1810,15 +1790,9 @@ export default function Settings({
                     />
                   </SettingsRow>
                 </GroupedList>
-                <p className="native-row-detail px-[var(--app-page-x)] pt-3">
-                  {tr(
-                    "System updates automatically when your device appearance changes."
-                  )}
-                </p>
                 <GroupedList label={tr("Flavours")} className="mt-6">
                   <ListRow
                     title={tr("Flavour")}
-                    detail={tr("Personalise the look and feel")}
                     onClick={() => setFlavoursOpen(true)}
                     trailing={
                       <CaretRight
@@ -1834,11 +1808,6 @@ export default function Settings({
 
             {activeView === "account" && (
               <>
-                <SettingsSectionIntro>
-                  {tr(
-                    "Your account, your subscription, and what the AI allowance has left in it."
-                  )}
-                </SettingsSectionIntro>
                 <GroupedList label={tr("Signed in account")}>
                   <ListRow
                     title={user?.name || tr("OneRep user")}
@@ -1990,16 +1959,8 @@ export default function Settings({
 
             {activeView === "targets" && (
               <>
-                <SettingsSectionIntro>
-                  {tr(
-                    "These values drive Today, Nutrition, and progress coaching."
-                  )}
-                </SettingsSectionIntro>
                 <GroupedList label={tr("Daily nutrition targets")}>
-                  <SettingsRow
-                    label={tr("Calories")}
-                    detail={tr("Daily energy budget")}
-                  >
+                  <SettingsRow label={tr("Calories")}>
                     <NumberStepper
                       onInteract={hapticTap}
                       value={calories}
@@ -2047,10 +2008,7 @@ export default function Settings({
                       label={tr("Fat")}
                     />
                   </SettingsRow>
-                  <SettingsRow
-                    label={tr("Water")}
-                    detail={tr("Daily hydration target")}
-                  >
+                  <SettingsRow label={tr("Water")}>
                     {/* The fluid-ounce ceiling is derived from the metric one:
                         170 fl oz is 5,027 ml, which round-trips past the
                         canonical 5,000 ml maximum the metric side enforces. */}
@@ -2160,11 +2118,6 @@ export default function Settings({
 
             {activeView === "preferences" && (
               <>
-                <SettingsSectionIntro>
-                  {tr(
-                    "Set how OneRep presents training, measurements, and food search."
-                  )}
-                </SettingsSectionIntro>
                 {!setupView && (
                   <>
                     <SettingsSectionLabel title={tr("Training")} />
@@ -2321,10 +2274,7 @@ export default function Settings({
                       ]}
                     />
                   </SettingsRow>
-                  <SettingsRow
-                    label={tr("Haptic feedback")}
-                    detail={tr("How hard the phone buzzes back when you tap")}
-                  >
+                  <SettingsRow label={tr("Haptic feedback")}>
                     <SegmentedControl
                       label={tr("Haptic feedback")}
                       value={hapticLevel}
@@ -2339,10 +2289,7 @@ export default function Settings({
                       ]}
                     />
                   </SettingsRow>
-                  <SettingsRow
-                    label={tr("Rest completion bell")}
-                    detail={tr("A smooth bell when rest ends")}
-                  >
+                  <SettingsRow label={tr("Rest completion bell")}>
                     <CompactSwitch
                       onInteract={hapticSelection}
                       checked={restBellOn}
@@ -2353,10 +2300,7 @@ export default function Settings({
                       label={tr("Rest completion bell")}
                     />
                   </SettingsRow>
-                  <SettingsRow
-                    label={tr("Rest completion vibration")}
-                    detail={tr("A distinct vibration when rest ends")}
-                  >
+                  <SettingsRow label={tr("Rest completion vibration")}>
                     <CompactSwitch
                       onInteract={hapticSelection}
                       checked={restVibrationOn}
@@ -2392,11 +2336,6 @@ export default function Settings({
 
             {activeView === "nutrition" && (
               <>
-                <SettingsSectionIntro>
-                  {tr(
-                    "Choose whether daily targets respond to your training schedule."
-                  )}
-                </SettingsSectionIntro>
                 <GroupedList label={tr("Nutrition strategy options")}>
                   {metricsHiddenBySafety && (
                     // Only shown to accounts the screening actually muted.
@@ -2545,10 +2484,7 @@ export default function Settings({
 
                 {macroCyclingEnabled && (
                   <>
-                    <SettingsSectionLabel
-                      title={tr("Training day")}
-                      detail={tr("Higher-fuel target")}
-                    />
+                    <SettingsSectionLabel title={tr("Training day")} />
                     <GroupedList label={tr("Training day targets")}>
                       <SettingsRow label={tr("Calories")}>
                         <NumberStepper
@@ -2585,10 +2521,7 @@ export default function Settings({
                         />
                       </SettingsRow>
                     </GroupedList>
-                    <SettingsSectionLabel
-                      title={tr("Rest day")}
-                      detail={tr("Recovery target")}
-                    />
+                    <SettingsSectionLabel title={tr("Rest day")} />
                     <GroupedList label={tr("Rest day targets")}>
                       <SettingsRow label={tr("Calories")}>
                         <NumberStepper
@@ -3338,11 +3271,6 @@ export default function Settings({
             {activeView === "privacy" && (
               <>
                 <AiSharingSettings />
-                <SettingsSectionIntro>
-                  {tr(
-                    "Control personalized recommendations and this device’s sync state."
-                  )}
-                </SettingsSectionIntro>
                 <SettingsSectionLabel title={tr("Privacy")} />
                 <GroupedList label={tr("Privacy controls")}>
                   <SettingsRow
@@ -3556,7 +3484,6 @@ export default function Settings({
                 <GroupedList label={tr("Legal documents")}>
                   <ListRow
                     title={tr("Privacy Policy")}
-                    detail={tr("How OneRep uses and protects your information")}
                     onClick={() =>
                       window.open(
                         "https://onerep.life/privacy",
@@ -3570,7 +3497,6 @@ export default function Settings({
                   />
                   <ListRow
                     title={tr("Terms and Conditions")}
-                    detail={tr("Rules for using OneRep and Coach")}
                     onClick={() =>
                       window.open(
                         "https://onerep.life/terms",
@@ -3617,11 +3543,6 @@ export default function Settings({
 
             {activeView === "data" && (
               <>
-                <SettingsSectionIntro>
-                  {tr(
-                    "Export or reset your information. Destructive actions are kept separate below."
-                  )}
-                </SettingsSectionIntro>
                 <SettingsSectionLabel title={tr("Your data")} />
                 <GroupedList label={tr("Data tools")}>
                   <ListRow
@@ -3737,11 +3658,6 @@ export default function Settings({
 
             {activeView === "walkthrough" && (
               <>
-                <SettingsSectionIntro>
-                  {tr(
-                    "A short guided tour runs the first time you open each area. Replay any of them here."
-                  )}
-                </SettingsSectionIntro>
                 <GroupedList label={tr("Walkthrough chapters")}>
                   {WALKTHROUGH_CHAPTERS.map((chapter) => (
                     <ListRow
@@ -3771,22 +3687,12 @@ export default function Settings({
 
             {activeView === "about" && (
               <>
-                <SettingsSectionIntro>
-                  {tr(
-                    "OneRep updates itself in the background. This is what is running right now."
-                  )}
-                </SettingsSectionIntro>
                 <AboutApp />
               </>
             )}
 
             {activeView === "developer" && SHOW_DEV_SETTINGS && (
               <>
-                <SettingsSectionIntro>
-                  {tr(
-                    "Internal controls for testing product education and account state."
-                  )}
-                </SettingsSectionIntro>
                 <GroupedList label={tr("Developer controls")}>
                   <ListRow
                     title={tr("Reset Coach onboarding")}
@@ -3878,8 +3784,12 @@ export default function Settings({
                 <GroupedList label={tr("Full-screen moments")}>
                   <ListRow
                     title={tr("Preview Help me restart")}
-                    detail={tr("Walk through the restart event without changing your plan")}
-                    onClick={() => navigate("/restart?preview=1", { motion: "forward" })}
+                    detail={tr(
+                      "Walk through the restart event without changing your plan"
+                    )}
+                    onClick={() =>
+                      navigate("/restart?preview=1", { motion: "forward" })
+                    }
                   />
                   <ListRow
                     title={tr("Show the missed-log nudge")}

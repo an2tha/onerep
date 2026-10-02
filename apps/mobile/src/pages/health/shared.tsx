@@ -1,3 +1,4 @@
+import { PageNavigationBar } from "@/components/page-navigation-bar"
 import { Message, choice, tr, uiLocale } from "@repo/ui/i18n"
 import {
   useEffect,
@@ -14,7 +15,7 @@ import {
   ArrowUpRight,
   CaretRight,
 } from "@phosphor-icons/react"
-import { AppDial, NavigationBar, ToolbarButton } from "@repo/ui"
+import { AppDial, ToolbarButton } from "@repo/ui"
 import { useQuery } from "convex/react"
 import { api } from "../../../../../convex/_generated/api"
 import { useSmoothNavigate } from "@/lib/navigation"
@@ -744,7 +745,7 @@ export function HealthDetailShell({
     >
       {heroFill != null && <ReactiveOrbField className="health-hero-wash" />}
       <main className="app-page pb-28">
-        <NavigationBar
+        <PageNavigationBar
           title={title}
           subtitle={subtitle}
           large={false}
@@ -842,14 +843,16 @@ export function MetricAbout({
   items: Array<{ term: string; detail: string }>
 }) {
   return (
-    <section
-      className="progress-tab-enter mt-6 border-t border-border py-7"
+    <details
+      className="progress-tab-enter mt-3 border-t border-border"
       aria-label={tr("About these numbers")}
     >
-      <p className="app-section-title px-1">{tr("About these numbers")}</p>
+      <summary className="min-h-11 cursor-pointer px-1 py-3 text-[14px] font-semibold focus-visible:outline-2 focus-visible:outline-ring">
+        {tr("About these numbers")}
+      </summary>
       {/* Two columns at the widest. Four made every definition a 26-character
           ribbon, which is a column of hyphenation rather than an explanation. */}
-      <dl className="mt-5 grid gap-x-14 gap-y-7 px-1 md:grid-cols-2">
+      <dl className="mt-2 grid gap-x-14 gap-y-5 px-1 pb-5 md:grid-cols-2">
         {items.map((item) => (
           <div key={item.term} className="min-w-0">
             <dt className="text-[14px] font-semibold">{item.term}</dt>
@@ -859,7 +862,7 @@ export function MetricAbout({
           </div>
         ))}
       </dl>
-    </section>
+    </details>
   )
 }
 

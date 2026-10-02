@@ -5,7 +5,10 @@ import { Message, tr } from "@repo/ui/i18n"
  * decides whether a chosen exercise is added or replaces one.
  */
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useLayoutEffect, useRef, useState } from "react"
+import { createPortal } from "react-dom"
+import { pushDismissHandler } from "../../../../../packages/ui/src/lib/dismiss-stack"
+import "./exercise-search.css"
 import {
   Check,
   MagnifyingGlass,
@@ -44,10 +47,12 @@ export function AddExerciseSheet({
   addedIds,
   onAdd,
   onClose,
+  search = searchExercises,
 }: {
   addedIds: string[]
   onAdd: (ex: Exercise) => void
   onClose: () => void
+  search?: typeof searchExercises
 }) {
   const [query, setQuery] = useState("")
   const [searchState, setSearchState] = useState<
@@ -61,16 +66,70 @@ export function AddExerciseSheet({
   const [recentExercises, setRecentExercises] = useState(() =>
     readRecentExerciseSearches()
   )
-  const [closing, setClosing] = useState(false)
   const [editorDraft, setEditorDraft] = useState<CustomExerciseDraft | null>(
     null
   )
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const searchSeqRef = useRef(0)
+  const resultCacheRef = useRef(new Map<string, Exercise[]>())
   const inputRef = useRef<HTMLInputElement>(null)
-  useEffect(() => {
-    const t = setTimeout(() => inputRef.current?.focus(), 80)
-    return () => clearTimeout(t)
+  const overlayRef = useRef<HTMLDivElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
+  const onCloseRef = useRef(onClose)
+  const editorOpenRef = useRef(false)
+  useLayoutEffect(() => {
+    onCloseRef.current = onClose
+    editorOpenRef.current = editorDraft !== null
+  })
+
+  useLayoutEffect(() => {
+    const previousFocus = document.activeElement as HTMLElement | null
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = "hidden"
+    // One focus, with a 16px field so iOS does not zoom the viewport.
+    inputRef.current?.focus({ preventScroll: true })
+    const viewport = window.visualViewport
+    const sizeToKeyboard = () => {
+      if (!overlayRef.current || !viewport) return
+      overlayRef.current.style.height = `${viewport.height}px`
+      overlayRef.current.style.top = `${viewport.offsetTop}px`
+    }
+    sizeToKeyboard()
+    viewport?.addEventListener("resize", sizeToKeyboard)
+    viewport?.addEventListener("scroll", sizeToKeyboard)
+    const removeDismiss = pushDismissHandler(() => onCloseRef.current())
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (editorOpenRef.current) return
+      if (event.key === "Escape") {
+        event.preventDefault()
+        onCloseRef.current()
+      }
+      if (event.key !== "Tab") return
+      const controls = Array.from(
+        panelRef.current?.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), input, [tabindex="0"]'
+        ) ?? []
+      ).filter((element) => element.getClientRects().length > 0)
+      const first = controls[0]
+      const last = controls[controls.length - 1]
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last?.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first?.focus()
+      }
+    }
+    document.addEventListener("keydown", onKeyDown)
+    return () => {
+      searchSeqRef.current += 1
+      removeDismiss()
+      viewport?.removeEventListener("resize", sizeToKeyboard)
+      viewport?.removeEventListener("scroll", sizeToKeyboard)
+      document.removeEventListener("keydown", onKeyDown)
+      document.body.style.overflow = previousOverflow
+      previousFocus?.focus({ preventScroll: true })
+    }
   }, [])
 
   useEffect(() => {
@@ -85,28 +144,40 @@ export function AddExerciseSheet({
       return
     }
 
+    const cacheKey = JSON.stringify([q.toLowerCase(), activeCategory])
+    const cached = resultCacheRef.current.get(cacheKey)
+    if (cached) {
+      setRemoteExercises(cached)
+      setSearchState("done")
+      return
+    }
     setSearchState("loading")
-    debounceRef.current = setTimeout(async () => {
-      try {
-        const results = await searchExercises({
-          query: q,
-          categories: activeCategory ? [activeCategory] : undefined,
-          limit: 30,
-        })
-        if (requestSeq !== searchSeqRef.current) return
-        setRemoteExercises(results as Exercise[])
-        setSearchState("done")
-      } catch {
-        if (requestSeq !== searchSeqRef.current) return
-        setRemoteExercises([])
-        setSearchState("error")
-      }
-    }, 280)
+    debounceRef.current = setTimeout(
+      async () => {
+        try {
+          const results = await search({
+            query: q,
+            categories: activeCategory ? [activeCategory] : undefined,
+            limit: 30,
+          })
+          if (requestSeq !== searchSeqRef.current) return
+          resultCacheRef.current.set(cacheKey, results)
+          setRemoteExercises(results)
+          setSearchState("done")
+        } catch {
+          if (requestSeq !== searchSeqRef.current) return
+          setRemoteExercises([])
+          setSearchState("error")
+        }
+      },
+      q ? 150 : 0
+    )
 
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current)
+      searchSeqRef.current += 1
     }
-  }, [activeCategory, query, searchAttempt])
+  }, [activeCategory, query, searchAttempt, search])
 
   const filtered = remoteExercises
   const recentSuggestions = visibleRecentExerciseSearches(
@@ -127,7 +198,7 @@ export function AddExerciseSheet({
   function chooseSuggestion(exercise: ExerciseSearchSuggestion) {
     setQuery(exercise.name)
     setActiveCategory(exercise.category)
-    inputRef.current?.focus()
+    inputRef.current?.focus({ preventScroll: true })
   }
 
   function retrySearch() {
@@ -147,6 +218,7 @@ export function AddExerciseSheet({
 
   function handleCustomExerciseSaved(exercise: Exercise) {
     setEditorDraft(null)
+    resultCacheRef.current.clear()
     setRemoteExercises((current) => {
       const rest = current.filter((item) => item.id !== exercise.id)
       return [exercise, ...rest]
@@ -157,29 +229,15 @@ export function AddExerciseSheet({
   function handleCustomExerciseDeleted(docId: string) {
     const id = `${CUSTOM_EXERCISE_ID_PREFIX}${docId}`
     setEditorDraft(null)
+    resultCacheRef.current.clear()
     setRemoteExercises((current) => current.filter((item) => item.id !== id))
   }
 
-  function requestClose() {
-    if (closing) return
-    setClosing(true)
-    window.setTimeout(onClose, 340)
-  }
-
-  return (
-    <div
-      className={cn(
-        "fixed inset-0 z-40 flex justify-center bg-black/20 p-3 backdrop-blur-sm md:bg-black/40 md:p-0",
-        closing ? "sheet-backdrop-exit" : "sheet-backdrop-enter"
-      )}
-      style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top, 0px))" }}
-      onClick={requestClose}
-    >
+  return createPortal(
+    <div ref={overlayRef} className="exercise-search-overlay" onClick={onClose}>
       <div
-        className={cn(
-          "sheet-panel sheet-panel-fullscreen flex h-[calc(100%-0.75rem)] w-full max-w-xl flex-col self-start overflow-hidden rounded-[28px] border border-foreground/15 bg-[color-mix(in_srgb,var(--background)_78%,transparent)] shadow-[0_24px_80px_-28px_rgb(0_0_0/0.65)] backdrop-blur-2xl md:mt-12 md:h-auto md:max-h-[76vh]",
-          closing ? "sheet-panel-exit" : "sheet-panel-enter"
-        )}
+        ref={panelRef}
+        className="exercise-search-panel"
         role="dialog"
         aria-modal="true"
         aria-label={tr("Add exercises")}
@@ -188,9 +246,9 @@ export function AddExerciseSheet({
         <div className="flex items-center gap-3 px-4 pt-3 pb-2">
           <button
             type="button"
-            onClick={requestClose}
+            onClick={onClose}
             aria-label={tr("Close exercise search")}
-            className="flex h-10 w-10 shrink-0 appearance-none items-center justify-center rounded-full border border-foreground/10 bg-foreground/5 text-muted-foreground transition-colors active:bg-foreground/10 active:text-foreground"
+            className="flex h-11 w-11 shrink-0 appearance-none items-center justify-center rounded-full border border-foreground/10 bg-foreground/5 text-muted-foreground transition-colors active:bg-foreground/10 active:text-foreground"
           >
             <X size={16} weight="bold" />
           </button>
@@ -209,11 +267,10 @@ export function AddExerciseSheet({
               name="exercise-search-query"
               aria-label={tr("Search exercises")}
               aria-busy={searchState === "loading"}
-              autoFocus
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={tr("Search exercises…")}
-              className="h-11 w-full appearance-none rounded-xl border border-foreground/12 bg-foreground/6 pr-4 pl-10 text-[15px] shadow-[inset_0_1px_0_rgb(255_255_255/0.08)] outline-none placeholder:text-muted-foreground focus:border-foreground/30 focus:ring-2 focus:ring-foreground/10"
+              className="h-11 w-full appearance-none rounded-xl border border-foreground/12 bg-foreground/6 pr-11 pl-10 text-[16px] shadow-[inset_0_1px_0_rgb(255_255_255/0.08)] outline-none placeholder:text-muted-foreground focus:border-foreground/30 focus:ring-2 focus:ring-foreground/10"
             />
             {query && (
               <button
@@ -235,10 +292,10 @@ export function AddExerciseSheet({
           onChange={setActiveCategory}
         />
         <div
-          className="flex-1 overflow-y-auto px-4 pb-[max(1.25rem,env(safe-area-inset-bottom,1.25rem))]"
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(1.25rem,env(safe-area-inset-bottom,1.25rem))]"
           aria-live="polite"
         >
-          {searchState === "loading" ? (
+          {searchState === "loading" && filtered.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-16">
               <div className="h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground/25 border-t-muted-foreground/70" />
               <p className="text-[13px] font-medium text-muted-foreground/65">
@@ -367,7 +424,8 @@ export function AddExerciseSheet({
           />
         </div>
       )}
-    </div>
+    </div>,
+    document.body
   )
 }
 

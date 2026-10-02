@@ -63,6 +63,7 @@ export type OtaSkipReason =
   | "native-too-new"
   | "invalid-manifest"
   | "already-staged"
+  | "in-progress"
   | "blocked"
   | "rollout"
 

@@ -69,7 +69,6 @@ export default function HealthBody() {
   return (
     <HealthDetailShell
       title={tr("Body")}
-      subtitle={tr("Weight and composition over time")}
       charts={
         <>
           <MetricTrend
@@ -174,12 +173,7 @@ export default function HealthBody() {
 
       <DialCustomMetrics dial="body" tone={AREA_TONES.body} />
 
-      <TrackSomethingNew
-        tab="body"
-        detail={tr(
-          "Measurements or habits the check-in form has no field for."
-        )}
-      />
+      <TrackSomethingNew tab="body" />
 
       <button
         type="button"

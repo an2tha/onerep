@@ -723,10 +723,10 @@
   align-items: center;
   justify-content: center;
   gap: 16px;
-  min-height: 370px;
+  min-height: 280px;
   max-width: 840px;
   margin-inline: auto;
-  padding: 32px 24px 40px;
+  padding: 24px;
   text-align: center;
 }
 .journal-hero-reading {
@@ -744,10 +744,6 @@
 }
 .journal-hero-reading > span {
   font-size: 18px;
-}
-.journal-hero-detail {
-  color: var(--muted-foreground);
-  font-size: 14px;
 }
 .journal-hero-actions {
   display: flex;
@@ -779,5 +775,5 @@
   scroll-margin-top: calc(env(safe-area-inset-top, 0px) + 84px);
 }
 @media (min-width: 1024px) {
-  .journal-hero { min-height: 450px; }
+  .journal-hero { min-height: 320px; }
 }

@@ -38,7 +38,7 @@
   border-bottom: 1px solid transparent;
   pointer-events: none;
 }
-.collapsing-page-bar > button {
+.page-bar-navigation {
   pointer-events: auto;
 }
 .collapsing-page-bar[data-collapsed="true"] {
@@ -74,7 +74,9 @@
 /* Atmosphere heroes overlay their background and content in one grid cell.
    Inset only the content, so the background still reaches the top of the screen. */
 .app-route-frame[data-page-bar="true"]
-  > :first-child:not(.app-hero):not(.nutrition-hero):not(.coach-mobile-immersive),
+  > :first-child:not(.app-hero):not(.nutrition-hero):not(
+    .coach-mobile-immersive
+  ),
 .app-route-frame[data-page-bar="true"]
   > :is(.app-hero, .nutrition-hero)
   > :is(.app-page, .journal-content) {
@@ -120,6 +122,7 @@
 }
 
 .page-heading-actions[data-portaled="true"],
+.page-heading-leading[data-portaled="true"],
 .app-header:has(> .page-heading-actions[data-portaled="true"]):not(:has(h1)) {
   display: none;
 }
@@ -139,4 +142,36 @@
   > .coach-page-slide
   > .coach-content {
   padding-top: calc(env(safe-area-inset-top, 0px) + 60px);
+}
+
+.page-bar-navigation {
+  flex-shrink: 0;
+}
+.page-bar-navigation:has(.page-bar-leading > *) > .page-bar-back {
+  display: none;
+}
+.page-bar-leading:empty {
+  display: none;
+}
+.page-bar-leading > :is(button, a) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  margin: 0;
+  padding: 0;
+  gap: 0;
+  border-radius: 50%;
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--foreground);
+  font-size: 0;
+}
+.page-bar-leading svg {
+  width: 21px;
+  height: 21px;
+  flex-shrink: 0;
 }

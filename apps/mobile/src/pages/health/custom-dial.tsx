@@ -20,19 +20,14 @@ import { AREA_TONES, DialHero, HealthDetailShell, NoReadings } from "./shared"
 export function CustomDialScreen({
   dial,
   title,
-  subtitle,
   empty,
-  create,
   tab = "body",
   about,
 }: {
   dial: string
   title: string
-  subtitle: string
   /** What to say when nothing under this dial has been logged. */
   empty: string
-  /** The line under "Track something new", in this dial's own terms. */
-  create: string
   /**
    * Where an unbound metric made from this screen files. Bound ones ignore it
    * and sort by their catalogue reading, which is why every screen here can
@@ -49,7 +44,6 @@ export function CustomDialScreen({
   return (
     <HealthDetailShell
       title={title}
-      subtitle={subtitle}
       heroFill={score}
       about={rows.length > 0 ? about : undefined}
     >
@@ -87,7 +81,7 @@ export function CustomDialScreen({
         want to make a metric, and telling them to go back and find the row on
         the previous screen is a joke at their expense.
       */}
-      <TrackSomethingNew tab={tab} detail={create} />
+      <TrackSomethingNew tab={tab} />
     </HealthDetailShell>
   )
 }

@@ -572,9 +572,6 @@ export default function Endurance({
                     }}
                   />
                 </p>
-                <p className="mx-auto mt-1 max-w-[30rem] text-[13px] leading-5 text-muted-foreground">
-                  {tr("Connected sessions will appear here automatically.")}
-                </p>
               </div>
             ) : (
               <ul className="mt-2 divide-y divide-border border-y border-border">

@@ -1,3 +1,4 @@
+import { PageBarBack } from "@/components/page-bar-actions"
 import { Message, tr, translateError, uiLocale } from "@repo/ui/i18n"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useWeightUnit } from "@/lib/use-weight-unit"
@@ -257,16 +258,18 @@ export default function QuickLogPreset() {
           paddingBottom: "0.75rem",
         }}
       >
-        <button
-          type="button"
-          onClick={() => navigate(-1)}
-          className="flex min-h-11 items-center gap-1.5 px-2 text-[15px] font-medium text-muted-foreground transition-colors active:bg-muted/45 active:text-foreground"
-        >
-          <Message
-            text={"{{value0}}Back"}
-            values={{ value0: <ArrowLeft size={14} weight="bold" /> }}
-          />
-        </button>
+        <PageBarBack>
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="flex min-h-11 items-center gap-1.5 px-2 text-[15px] font-medium text-muted-foreground transition-colors active:bg-muted/45 active:text-foreground"
+          >
+            <Message
+              text={"{{value0}}Back"}
+              values={{ value0: <ArrowLeft size={14} weight="bold" /> }}
+            />
+          </button>
+        </PageBarBack>
         <button
           type="button"
           onClick={openFullLogger}

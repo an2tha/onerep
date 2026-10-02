@@ -1,3 +1,4 @@
+import { PageNavigationBar } from "@/components/page-navigation-bar"
 import { Message, tr, translateError, uiLocale } from "@repo/ui/i18n"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
@@ -14,7 +15,6 @@ import { useQuery } from "convex/react"
 import {
   EmptyState,
   GroupedList,
-  NavigationBar,
   PrimaryButton,
   SectionHeader,
   SummaryBlock,
@@ -317,9 +317,8 @@ export default function Fasting({
           </ToolbarButton>
         </div>
       ) : (
-        <NavigationBar
+        <PageNavigationBar
           title={tr("Fasting")}
-          subtitle={tr("Track an intermittent fast")}
           leading={
             <ToolbarButton
               onClick={() => navigate(-1)}

@@ -327,13 +327,10 @@ describe("getEffectiveGoals – priority: custom > health > default", () => {
 })
 
 describe("Settings – production feature visibility", () => {
-  test("settings loading state explains what is happening", () => {
+  test("settings loading state announces its status", () => {
     assert.match(SETTINGS_UI_SOURCE, /aria-label="Loading settings"/)
     assert.match(SETTINGS_UI_SOURCE, /Loading settings/)
-    assert.match(
-      SETTINGS_UI_SOURCE,
-      /Syncing your preferences, goals, and account controls\./
-    )
+    assert.match(SETTINGS_UI_SOURCE, /role="status"/)
   })
 
   test("privacy and data sections are reachable", () => {

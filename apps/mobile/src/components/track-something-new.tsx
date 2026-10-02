@@ -27,11 +27,9 @@ import { cn } from "@/lib/utils"
  */
 export function TrackSomethingNew({
   tab,
-  detail,
   className,
 }: {
   tab: CustomMetricTab
-  detail: string
   className?: string
 }) {
   const [open, setOpen] = useState(false)
@@ -49,12 +47,7 @@ export function TrackSomethingNew({
         )}
       >
         <div className="min-w-0">
-          <p className="text-[14px] font-semibold">
-            {tr("Track something new")}
-          </p>
-          <p className="mt-0.5 text-[13px] leading-5 text-muted-foreground">
-            {detail}
-          </p>
+          <p className="text-[14px] font-semibold">{tr("Add tracker")}</p>
         </div>
         <CaretRight
           size={14}

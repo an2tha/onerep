@@ -15,10 +15,8 @@ export default function HealthNutrition() {
     <CustomDialScreen
       dial="nutrition"
       title={tr("Nutrition")}
-      subtitle={tr("The intake you asked to count")}
       tab="nutrition"
-      create="Caffeine, sodium, fibre — anything the food log does not total."
-      empty="Nothing filed here yet. Create a metric for something you want to count — caffeine, sodium, fibre — and it will show up on this dial."
+      empty={tr("Track caffeine, sodium, or fibre.")}
       about={
         <MetricAbout
           items={[

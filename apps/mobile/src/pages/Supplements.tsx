@@ -1,3 +1,4 @@
+import { PageBarBack } from "@/components/page-bar-actions"
 import {
   Message,
   choice,
@@ -2118,17 +2119,19 @@ export default function Supplements() {
       <div className="mx-auto flex w-full max-w-lg flex-col pb-[calc(var(--app-safe-bottom-lg)+6.5rem)] md:max-w-6xl md:pb-10">
         <header className="flex items-end justify-between px-[var(--app-page-x)] pt-[var(--app-safe-top)] pb-5 md:px-6 md:pt-10 short-phone:pb-4">
           <div>
-            <button
-              type="button"
-              onClick={() => navigate("/nutrition")}
-              className="mb-1 flex min-h-11 items-center gap-1 pr-3 text-[13px] font-medium text-muted-foreground transition-colors active:text-foreground"
-              aria-label={tr("Back to Nutrition")}
-            >
-              <Message
-                text={"{{value0}}Nutrition"}
-                values={{ value0: <CaretLeft size={12} weight="bold" /> }}
-              />
-            </button>
+            <PageBarBack>
+              <button
+                type="button"
+                onClick={() => navigate("/nutrition")}
+                className="mb-1 flex min-h-11 items-center gap-1 pr-3 text-[13px] font-medium text-muted-foreground transition-colors active:text-foreground"
+                aria-label={tr("Back to Nutrition")}
+              >
+                <Message
+                  text={"{{value0}}Nutrition"}
+                  values={{ value0: <CaretLeft size={12} weight="bold" /> }}
+                />
+              </button>
+            </PageBarBack>
             <h1 className="text-[1.65rem] leading-[1.15] font-semibold tracking-tight short-phone:text-[1.42rem]">
               {tr("Supplements")}
             </h1>
@@ -2274,11 +2277,6 @@ export default function Supplements() {
                     <h3 className="text-[16px] font-semibold">
                       {tr("No supplements to take")}
                     </h3>
-                    <p className="mt-2 text-[15px] leading-6 text-muted-foreground">
-                      {tr(
-                        "Add a supplement and choose its schedule to see it here."
-                      )}
-                    </p>
                     <button
                       type="button"
                       onClick={() => {
@@ -2405,11 +2403,6 @@ export default function Supplements() {
                     <h3 className="text-[16px] font-semibold">
                       {tr("Your supplement library is empty")}
                     </h3>
-                    <p className="mt-2 text-[15px] leading-6 text-muted-foreground">
-                      {tr(
-                        "Add a product manually, search by name, or scan its barcode."
-                      )}
-                    </p>
                   </div>
                 ) : (
                   <div>

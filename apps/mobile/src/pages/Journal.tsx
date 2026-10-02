@@ -137,7 +137,7 @@ export default function Journal() {
   )
   const heading =
     date === today
-      ? tr("Today, in your own words.")
+      ? tr("Today")
       : calendarDate(date).toLocaleDateString(uiLocale(), {
           weekday: "long",
           month: "long",
@@ -225,20 +225,6 @@ export default function Journal() {
                 : tr("Loading your trackers")}
             </span>
           </div>
-          <p className="journal-hero-detail">
-            {!loaded
-              ? tr("Your daily check-in")
-              : !metrics?.length
-                ? tr("Add a tracker to start your daily check-in.")
-                : recorded === metrics.length
-                  ? tr("Every tracker logged for this day.")
-                  : tr("{{value0}} {{value1}} left to log.", {
-                      value0: metrics.length - recorded,
-                      value1: choice(
-                        metrics.length - recorded === 1 ? "tracker" : "trackers"
-                      ),
-                    })}
-          </p>
           <div className="journal-hero-actions">
             <button
               disabled={!loaded}
@@ -268,19 +254,13 @@ export default function Journal() {
             </button>
             <button
               disabled={!loaded}
+              aria-label={entry?.notes ? tr("Edit note") : tr("Write a note")}
               onClick={() => {
                 setDraft(entry?.notes ?? "")
                 setNotesOpen(true)
               }}
             >
               <NotePencil size={20} />
-              {entry?.notes ? tr("Edit note") : tr("Write a note")}
-            </button>
-            <button disabled={!loaded} onClick={() => setStudio(true)}>
-              <Message
-                text={"{{value0}}Track anything"}
-                values={{ value0: <PencilSimple size={20} /> }}
-              />
             </button>
           </div>
         </section>
@@ -361,9 +341,6 @@ export default function Journal() {
           <section aria-label={tr("Quick log")}>
             <div className="journal-section-heading">
               <h2>{tr("Quick log")}</h2>
-              <span className="journal-caption">
-                {tr("Already part of your day")}
-              </span>
             </div>
             <div className="journal-quick-grid">
               {quickLogs.map(({ id, title, Icon, detail, tone }) => (
@@ -386,28 +363,14 @@ export default function Journal() {
             <div className="journal-section-heading">
               <div>
                 <h2 id="journal-trackers-title">{tr("Your trackers")}</h2>
-                <p className="journal-caption">
-                  {loaded
-                    ? tr("{{value0}} of {{value1}} logged · {{value2}}", {
-                        value0: recorded,
-                        value1: metrics?.length ?? 0,
-                        value2:
-                          date === today
-                            ? "today"
-                            : calendarDate(date).toLocaleDateString(uiLocale()),
-                      })
-                    : tr("Loading your trackers…")}
-                </p>
               </div>
               <button
                 className="journal-add"
+                aria-label={tr("Add tracker")}
                 onClick={() => setStudio(true)}
                 disabled={!loaded}
               >
-                <Message
-                  text={"{{value0}} Track anything"}
-                  values={{ value0: <Plus size={18} /> }}
-                />
+                <Plus size={20} aria-hidden="true" />
               </button>
             </div>
             <div
@@ -448,12 +411,7 @@ export default function Journal() {
                 <span className="journal-glyph" data-tone="workout">
                   <Barbell size={28} weight="duotone" />
                 </span>
-                <h3>{tr("Track what moves you.")}</h3>
-                <p>
-                  {tr(
-                    "Energy before a lift. Minutes on the trail. A habit you want to keep. Start with an idea or build your own."
-                  )}
-                </p>
+                <h3>{tr("No trackers yet")}</h3>
                 <button
                   className="journal-save"
                   onClick={() => setStudio(true)}
@@ -463,11 +421,6 @@ export default function Journal() {
                     values={{ value0: <ArrowUpRight size={18} /> }}
                   />
                 </button>
-                <small>
-                  {tr(
-                    "Readings, daily totals and yes/no habits. Built around your routine."
-                  )}
-                </small>
               </div>
             )}
             {loaded &&
@@ -475,9 +428,7 @@ export default function Journal() {
               visibleMetrics.length === 0 && (
                 <p className="journal-empty-filter">
                   {filter === "unlogged" && !search
-                    ? tr(
-                        "Everything tracked for this day. You're all caught up."
-                      )
+                    ? tr("All logged")
                     : tr("No trackers match. Try another category or search.")}
                 </p>
               )}

@@ -35,7 +35,6 @@ export default function HealthHeart() {
   return (
     <HealthDetailShell
       title={tr("Heart")}
-      subtitle={tr("Relative to your own normal")}
       heroFill={cardio?.score ?? null}
       charts={
         <>
@@ -155,10 +154,7 @@ export default function HealthHeart() {
           )}
           <DialCustomMetrics dial="heart" tone={AREA_TONES.heart} />
 
-          <TrackSomethingNew
-            tab="body"
-            detail={tr("Anything else you want counted against your heart.")}
-          />
+          <TrackSomethingNew tab="body" />
         </>
       )}
     </HealthDetailShell>

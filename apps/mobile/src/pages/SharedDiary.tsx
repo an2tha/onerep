@@ -1,3 +1,4 @@
+import { PageNavigationBar } from "@/components/page-navigation-bar"
 import { Message, tr, translateError, uiLocale } from "@repo/ui/i18n"
 import { useEffect, useMemo, useState } from "react"
 import { useParams, useSearchParams } from "react-router"
@@ -14,7 +15,6 @@ import { useQuery } from "convex/react"
 import {
   EmptyState,
   GroupedList,
-  NavigationBar,
   PrimaryButton,
   SectionHeader,
   SummaryBlock,
@@ -104,7 +104,7 @@ export default function SharedDiary() {
 
   return (
     <div className="native-page mx-auto min-h-svh w-full max-w-xl pb-[calc(var(--app-safe-bottom)+6rem)] text-foreground">
-      <NavigationBar
+      <PageNavigationBar
         title={tr("Shared diaries")}
         subtitle={tr("Read-only access you gave or received")}
         leading={
@@ -423,7 +423,7 @@ export function SharedDiaryDay() {
 
   return (
     <div className="native-page print-sheet mx-auto min-h-svh w-full max-w-xl pb-[calc(var(--app-safe-bottom)+6rem)] text-foreground">
-      <NavigationBar
+      <PageNavigationBar
         className="print-hidden"
         title={profile?.name ?? tr("Shared diary")}
         subtitle={tr("Read only")}
@@ -623,7 +623,7 @@ export function SharedAccept() {
 
   return (
     <div className="native-page mx-auto min-h-svh w-full max-w-xl text-foreground">
-      <NavigationBar
+      <PageNavigationBar
         title={tr("Diary invitation")}
         leading={
           <ToolbarButton

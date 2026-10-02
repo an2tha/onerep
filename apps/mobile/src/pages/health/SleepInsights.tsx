@@ -1,3 +1,4 @@
+import { PageBarBack } from "@/components/page-bar-actions"
 import { Message, choice, tr, translateError, uiLocale } from "@repo/ui/i18n"
 import { useEffect, useState } from "react"
 import { Link, useSearchParams } from "react-router"
@@ -231,12 +232,14 @@ export default function SleepInsights({
   return (
     <DetailAtmosphere tone={strainMode ? "health" : "sleep"}>
       <main className="sleep-detail">
-        <Link to="/health" className="inline-flex items-center gap-2 text-sm">
-          <Message
-            text={"{{value0}} Health"}
-            values={{ value0: <ArrowLeft /> }}
-          />
-        </Link>
+        <PageBarBack>
+          <Link to="/health" className="inline-flex items-center gap-2 text-sm">
+            <Message
+              text={"{{value0}} Health"}
+              values={{ value0: <ArrowLeft /> }}
+            />
+          </Link>
+        </PageBarBack>
         <div className="sleep-date-nav">
           <button
             aria-label={tr("Previous day")}

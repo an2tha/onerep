@@ -1,3 +1,4 @@
+import { PageBarBack } from "@/components/page-bar-actions"
 import { Message, tr, translateError, uiLocale } from "@repo/ui/i18n"
 import {
   foodLogContextParams,
@@ -593,13 +594,15 @@ export default function SearchFoods() {
               paddingTop: "max(1.25rem, env(safe-area-inset-top, 1.25rem))",
             }}
           >
-            <button
-              onClick={() => navigate(-1)}
-              aria-label={tr("Go back")}
-              className="app-icon-button motion-tactile"
-            >
-              <ArrowLeft size={15} weight="bold" />
-            </button>
+            <PageBarBack>
+              <button
+                onClick={() => navigate(-1)}
+                aria-label={tr("Go back")}
+                className="app-icon-button motion-tactile"
+              >
+                <ArrowLeft size={15} weight="bold" />
+              </button>
+            </PageBarBack>
 
             <div className="relative flex-1">
               {searchState === "loading" ? (
@@ -683,11 +686,6 @@ export default function SearchFoods() {
                   <h1 className="text-[20px] font-semibold">
                     {tr("Find a food")}
                   </h1>
-                  <p className="mt-1 max-w-md text-[14px] leading-5 text-muted-foreground">
-                    {tr(
-                      "Search by food, brand, or the barcode number printed on the package."
-                    )}
-                  </p>
                 </div>
 
                 {showQuickRepeats && (

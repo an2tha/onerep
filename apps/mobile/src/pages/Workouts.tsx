@@ -1586,9 +1586,6 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
               </div>
             ) : (
               <div className="mt-4 border-t border-border pt-4">
-                <p className="text-[15px] leading-6 text-muted-foreground">
-                  {tr("Trained without your phone? Add it now.")}
-                </p>
                 <button
                   type="button"
                   onClick={() => startRetroLog(dateKey)}
@@ -1821,9 +1818,11 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
                   <div className="mb-2.5 flex items-center justify-between gap-3">
                     <div>
                       <p className="app-section-title">{tr("Routine")}</p>
-                      <p className="app-section-subtitle">
-                        {tr("Drag presets while editing")}
-                      </p>
+                      {routineEditMode && (
+                        <p className="app-section-subtitle">
+                          {tr("Drag presets while editing")}
+                        </p>
+                      )}
                     </div>
                     <div className="flex items-center gap-2">
                       <button
@@ -2025,9 +2024,6 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
                   >
                     <div className="min-w-0 flex-1">
                       <p className="app-section-title">{tr("Presets")}</p>
-                      <p className="app-section-subtitle">
-                        {tr("Your reusable training sessions")}
-                      </p>
                     </div>
                     <TourAnchor anchor="training-build" className="shrink-0">
                       <button
@@ -2036,12 +2032,10 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
                           hapticSelection()
                           navigate("/workouts/new")
                         }}
-                        className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg px-2 text-[13px] font-semibold text-muted-foreground transition-colors hover:bg-foreground/[0.04] hover:text-foreground"
+                        aria-label={tr("New preset")}
+                        className="app-icon-button"
                       >
-                        <Message
-                          text={"{{value0}}New preset"}
-                          values={{ value0: <Plus size={14} weight="bold" /> }}
-                        />
+                        <Plus size={20} weight="bold" aria-hidden="true" />
                       </button>
                     </TourAnchor>
                     <button
@@ -2095,11 +2089,6 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
                           <div className="border-y border-border py-5">
                             <p className="text-[16px] font-semibold text-foreground">
                               {tr("No presets yet")}
-                            </p>
-                            <p className="mt-1 text-[15px] leading-6 text-muted-foreground">
-                              {tr(
-                                "Save a repeatable workout, then assign it to your weekly routine."
-                              )}
                             </p>
                             <button
                               type="button"

@@ -1,3 +1,4 @@
+import { PageNavigationBar } from "@/components/page-navigation-bar"
 import { Message, choice, tr } from "@repo/ui/i18n"
 /**
  * One exercise, at length: what it has done for you, and how to do it.
@@ -12,7 +13,7 @@ import { useWeightUnit } from "@/lib/use-weight-unit"
 import { useQuery } from "convex/react"
 import { useParams } from "react-router"
 import { ArrowLeft, ChartLineUp, Trophy } from "@phosphor-icons/react"
-import { NavigationBar, ToolbarButton } from "@repo/ui"
+import { ToolbarButton } from "@repo/ui"
 
 import { api } from "../../../../convex/_generated/api"
 import type { ClientExercise } from "../../../../convex/lib/exerciseShape"
@@ -74,7 +75,7 @@ export default function ExerciseDetail() {
   return (
     <div className="desktop-canvas min-h-svh bg-background text-foreground lg:pr-8 lg:pl-72">
       <main className="mx-auto min-h-svh w-full max-w-5xl pb-[calc(var(--app-safe-bottom-lg)+2rem)]">
-        <NavigationBar
+        <PageNavigationBar
           title={exercise?.name ?? tr("Exercise")}
           leading={
             <ToolbarButton

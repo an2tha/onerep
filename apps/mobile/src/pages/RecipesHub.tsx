@@ -1,3 +1,4 @@
+import { PageNavigationBar } from "@/components/page-navigation-bar"
 import { Message, choice, tr, translateError } from "@repo/ui/i18n"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useLocation } from "react-router"
@@ -24,7 +25,7 @@ import {
 } from "@phosphor-icons/react"
 import type { Id } from "../../../../convex/_generated/dataModel"
 import { api } from "../../../../convex/_generated/api"
-import { NavigationBar, ToolbarButton } from "@repo/ui"
+import { ToolbarButton } from "@repo/ui"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { hapticSelection, hapticTap } from "@/lib/haptics"
 import { useSmoothNavigate } from "@/lib/navigation"
@@ -1238,7 +1239,7 @@ export default function RecipesHub() {
   return (
     <div className="desktop-canvas min-h-svh bg-background text-foreground lg:pr-8 lg:pl-72">
       <main className="mx-auto min-h-svh w-full max-w-6xl pb-[calc(var(--app-safe-bottom-lg)+2rem)]">
-        <NavigationBar
+        <PageNavigationBar
           title={tr("Recipes")}
           leading={
             <ToolbarButton
@@ -1261,38 +1262,25 @@ export default function RecipesHub() {
         />
 
         <div className="px-[var(--app-page-x)]">
-          <section className="recipes-hero motion-page overflow-hidden rounded-[1.75rem] bg-[linear-gradient(135deg,#17152e_0%,#31275d_55%,#8c583c_140%)] px-5 py-6 text-white md:px-8 md:py-8">
-            <div className="max-w-xl">
-              <p className="text-[11px] font-semibold tracking-[0.12em] text-white/55 uppercase">
-                {tr("Your kitchen")}
-              </p>
-              <h1 className="mt-2 text-[2rem] leading-[1.05] font-semibold tracking-[-0.04em] md:text-[2.65rem]">
-                {tr("Find something worth cooking.")}
-              </h1>
-              <p className="mt-3 max-w-md text-[14px] leading-6 text-white/65">
-                {tr(
-                  "Thirty practical starting points, plus every recipe you save with Coach or build yourself."
-                )}
-              </p>
-            </div>
-            <div className="relative mt-6">
+          <section className="motion-page" aria-label={tr("Search recipes")}>
+            <div className="relative">
               <MagnifyingGlass
                 size={18}
-                className="absolute top-1/2 left-4 -translate-y-1/2 text-white/55"
+                className="absolute top-1/2 left-4 -translate-y-1/2 text-muted-foreground"
               />
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder={tr("Search dishes, ingredients, or tags")}
+                placeholder={tr("Search recipes")}
                 aria-label={tr("Search recipes")}
-                className="min-h-13 w-full rounded-2xl border border-white/10 bg-white/10 pr-11 pl-11 text-[14px] text-white backdrop-blur transition-[background-color,border-color,transform] outline-none placeholder:text-white/45 focus:scale-[1.005] focus:border-white/30 focus:bg-white/[0.14]"
+                className="min-h-12 w-full rounded-2xl border border-border bg-muted/40 pr-12 pl-11 text-[15px] text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
               />
               {query && (
                 <button
                   type="button"
                   onClick={() => setQuery("")}
                   aria-label={tr("Clear recipe search")}
-                  className="absolute top-1/2 right-2 grid size-10 -translate-y-1/2 place-items-center text-white/55"
+                  className="absolute top-1/2 right-2 grid size-10 -translate-y-1/2 place-items-center text-muted-foreground"
                 >
                   <X size={15} />
                 </button>
@@ -1310,15 +1298,16 @@ export default function RecipesHub() {
             >
               {(
                 [
-                  ["all", "All recipes"],
+                  ["all", tr("All recipes")],
                   ["official", "OneRep"],
-                  ["community", "Community"],
-                  ["mine", "My recipes"],
+                  ["community", tr("Community")],
+                  ["mine", tr("My recipes")],
                 ] as const
               ).map(([value, label]) => (
                 <button
                   key={value}
                   type="button"
+                  aria-pressed={source === value}
                   onClick={() => {
                     if (source === value) return
                     hapticSelection()
@@ -1363,9 +1352,6 @@ export default function RecipesHub() {
                     >
                       {tr("My recipes")}
                     </h2>
-                    <p className="mt-0.5 text-[13px] text-muted-foreground">
-                      {tr("Saved by you and Chef Coach")}
-                    </p>
                   </div>
                   <span className="text-[12px] text-muted-foreground">
                     {visibleSavedRecipes.length}
@@ -1685,9 +1671,6 @@ export default function RecipesHub() {
                   >
                     {tr("From the community")}
                   </h2>
-                  <p className="mt-0.5 text-[13px] text-muted-foreground">
-                    {tr("Recipes members chose to share")}
-                  </p>
                 </div>
                 <span className="text-[12px] text-muted-foreground">
                   {filteredCommunity.length}
@@ -1701,9 +1684,6 @@ export default function RecipesHub() {
                   />
                   <p className="mt-2 text-[14px] font-semibold">
                     {tr("No shared recipes match these filters")}
-                  </p>
-                  <p className="mt-1 text-[12px] text-muted-foreground">
-                    {tr("Share one of your recipes to help start the table.")}
                   </p>
                 </div>
               ) : (
@@ -2176,9 +2156,6 @@ export default function RecipesHub() {
               values={{ value0: ratingRecipe.name }}
             />
           </h2>
-          <p className="mt-2 text-[13px] leading-5 text-muted-foreground">
-            {tr("Your rating helps everyone find recipes worth making.")}
-          </p>
           <div
             className="mt-5 flex justify-center gap-1"
             aria-label={tr("Rate from 1 to 5 stars")}

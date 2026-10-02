@@ -6,7 +6,10 @@ import {
   PencilSimple,
   Plus,
 } from "@phosphor-icons/react"
-import { PageBarActions } from "../../../src/components/page-bar-actions"
+import {
+  PageBarActions,
+  PageBarBack,
+} from "../../../src/components/page-bar-actions"
 import {
   captureRouteSnapshot,
   restoreSnapshotScroll,
@@ -16,6 +19,8 @@ import "../../../src/components/page-chrome.css"
 
 function Fixture() {
   const [result, setResult] = useState("")
+  const [customBack, setCustomBack] = useState(true)
+  const standalone = new URLSearchParams(location.search).has("standalone")
   const [snapshot, setSnapshot] = useState<ReturnType<
     typeof captureRouteSnapshot
   > | null>(null)
@@ -24,18 +29,23 @@ function Fixture() {
   }, [snapshot])
   return (
     <>
-      <header className="collapsing-page-bar" data-collapsed="false">
-        <button className="page-bar-back" aria-label="Back">
-          <ArrowLeft />
-        </button>
-        <span className="page-bar-title">Training</span>
-        <div className="page-bar-tools">
-          <div className="page-bar-actions" />
-          <button className="profile-avatar" aria-label="Profile">
-            AH
-          </button>
-        </div>
-      </header>
+      {!standalone && (
+        <header className="collapsing-page-bar" data-collapsed="false">
+          <div className="page-bar-navigation">
+            <div className="page-bar-leading" />
+            <button className="page-bar-back" aria-label="Back">
+              <ArrowLeft />
+            </button>
+          </div>
+          <span className="page-bar-title">Training</span>
+          <div className="page-bar-tools">
+            <div className="page-bar-actions" />
+            <button className="profile-avatar" aria-label="Profile">
+              AH
+            </button>
+          </div>
+        </header>
+      )}
       {snapshot && (
         <div
           className="app-route-frame app-route-frame-previous"
@@ -52,6 +62,17 @@ function Fixture() {
       >
         <div style={{ minHeight: "200vh", paddingTop: 100 }}>
           <h1>Training</h1>
+          {customBack && (
+            <PageBarBack>
+              <button
+                aria-label="Back to settings"
+                onClick={() => setResult("Settings returned")}
+              >
+                <ArrowLeft /> Back to settings
+              </button>
+            </PageBarBack>
+          )}
+          <button onClick={() => setCustomBack(false)}>Remove page back</button>
           <button
             style={{ marginTop: 400 }}
             onClick={() =>

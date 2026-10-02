@@ -34,12 +34,17 @@ describe("retro mode never touches live workout state", () => {
   })
 
   test("the three activeWorkouts writers are unreachable while reconstructing", () => {
-    // createActive
-    expect(PAGE).toMatch(
-      /useEffect\(\(\) => \{\s*if \(isRetro\) return\s*if \(!isInitialized\) return\s*if \(abortingRef\.current\) return\s*if \(items\.length === 0\) return/
+    // Creation and updates now share the guarded sync queue.
+    const sync = PAGE.slice(
+      PAGE.indexOf("const syncToConvex = useCallback"),
+      PAGE.indexOf("// ── Load from Convex")
     )
-    // updateActive, via the debounced sync closure
-    expect(PAGE).toContain("if (isRetroRef.current) return")
+    expect(sync.indexOf("if (isRetroRef.current) return")).toBeLessThan(
+      sync.indexOf("createActive({")
+    )
+    expect(sync.indexOf("if (isRetroRef.current) return")).toBeLessThan(
+      sync.indexOf("updateActive({")
+    )
     // abortActive
     expect(PAGE).toMatch(
       /if \(!isRetro\) \{\s*await abortWorkoutAfterPendingWrites\([\s\S]*?\(\) => abortActive\(\{ slot \}\)/

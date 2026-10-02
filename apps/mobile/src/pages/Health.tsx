@@ -485,7 +485,6 @@ function HealthHub({ data }: { data: Dashboard }) {
       <TrackSomethingNew
         className="mt-5"
         tab="body"
-        detail={tr("A metric of your own, filed under the dial it belongs to")}
       />
 
       <button

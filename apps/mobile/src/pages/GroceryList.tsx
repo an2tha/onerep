@@ -1,3 +1,4 @@
+import { PageNavigationBar } from "@/components/page-navigation-bar"
 import { Message, choice, tr, translateError } from "@repo/ui/i18n"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useParams, useSearchParams } from "react-router"
@@ -14,7 +15,6 @@ import { useQuery } from "convex/react"
 import {
   EmptyState,
   GroupedList,
-  NavigationBar,
   PrimaryButton,
   SectionHeader,
   SummaryBlock,
@@ -166,9 +166,8 @@ export default function GroceryLists() {
 
   return (
     <div className="native-page mx-auto min-h-svh w-full max-w-xl pb-[calc(var(--app-safe-bottom)+6rem)] text-foreground">
-      <NavigationBar
+      <PageNavigationBar
         title={tr("Grocery lists")}
-        subtitle={tr("Build a shopping list from recipes")}
         leading={
           <ToolbarButton
             onClick={() => navigate(-1)}
@@ -549,7 +548,7 @@ export function GroceryListDetail() {
   if (stored === null) {
     return (
       <div className="native-page mx-auto min-h-svh w-full max-w-xl text-foreground">
-        <NavigationBar
+        <PageNavigationBar
           title={tr("Grocery list")}
           leading={
             <ToolbarButton
@@ -581,7 +580,7 @@ export function GroceryListDetail() {
         color="var(--accent-food)"
         className="print-hidden h-32"
       />
-      <NavigationBar
+      <PageNavigationBar
         className="print-hidden"
         title={stored?.name ?? tr("Grocery list")}
         subtitle={

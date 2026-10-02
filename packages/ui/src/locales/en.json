@@ -5796,5 +5796,18 @@
   "{{muscle}} has {{sets}} logged sets against a lower reference of {{minimum}}. Check that all workouts are logged. If recovery feels good and the gap was unplanned, consider one additional set next week, then reassess.": "{{muscle}} has {{sets}} logged sets against a lower reference of {{minimum}}. Check that all workouts are logged. If recovery feels good and the gap was unplanned, consider one additional set next week, then reassess.",
   "{{protein}} g/day across {{days}} logged days": "{{protein}} g/day across {{days}} logged days",
   "Logged workouts update this plan. Coach knows your small commitment.": "Logged workouts update this plan. Coach knows your small commitment.",
-  "Completing this step marks today as rest in Training.": "Completing this step marks today as rest in Training."
+  "Completing this step marks today as rest in Training.": "Completing this step marks today as rest in Training.",
+  "Add tracker": "Add tracker",
+  "Standard": "Standard",
+  "Track caffeine, sodium, or fibre.": "Track caffeine, sodium, or fibre.",
+  "Track glucose, blood pressure, or temperature.": "Track glucose, blood pressure, or temperature.",
+  "Track meditation, breathwork, or journalling.": "Track meditation, breathwork, or journalling.",
+  "Choose what to track about your cycle.": "Choose what to track about your cycle.",
+  "No repeat meals yet.": "No repeat meals yet.",
+  "No trackers yet": "No trackers yet",
+  "All logged": "All logged",
+  "Film up to three angles.": "Film up to three angles.",
+  "Say “remember…” to save a preference.": "Say “remember…” to save a preference.",
+  "All recipes": "All recipes",
+  "Community": "Community"
 }

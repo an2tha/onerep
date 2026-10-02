@@ -1,3 +1,4 @@
+import { PageBarBack } from "@/components/page-bar-actions"
 import { Message, choice, tr, translateError } from "@repo/ui/i18n"
 import { useState } from "react"
 import { DetailAtmosphere } from "@/components/detail-atmosphere"
@@ -88,12 +89,14 @@ export function SharedHikingTrail() {
     <DetailAtmosphere tone="endurance" sidebar={false}>
       <main className="outdoor-detail min-h-svh px-5 py-[max(2rem,env(safe-area-inset-top))] text-foreground">
         <div className="mobile-glass trail-detail mx-auto max-w-5xl">
-          <Link to="/endurance" className={`${button} mb-6`}>
-            <Message
-              text={"{{value0}} OneRep endurance"}
-              values={{ value0: <ArrowLeft size={18} /> }}
-            />
-          </Link>
+          <PageBarBack>
+            <Link to="/endurance" className={`${button} mb-6`}>
+              <Message
+                text={"{{value0}} OneRep endurance"}
+                values={{ value0: <ArrowLeft size={18} /> }}
+              />
+            </Link>
+          </PageBarBack>
           {trail === undefined ? (
             <p role="status">{tr("Loading trail…")}</p>
           ) : !trail ? (
@@ -212,12 +215,14 @@ export default function HikingTrails() {
     <DetailAtmosphere tone="endurance">
       <main className="outdoor-detail min-h-svh px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-24 text-foreground sm:px-8">
         <div className="mx-auto max-w-6xl">
-          <Link to="/endurance" className={`${button} mb-6`}>
-            <Message
-              text={"{{value0}} Endurance"}
-              values={{ value0: <ArrowLeft size={18} /> }}
-            />
-          </Link>
+          <PageBarBack>
+            <Link to="/endurance" className={`${button} mb-6`}>
+              <Message
+                text={"{{value0}} Endurance"}
+                values={{ value0: <ArrowLeft size={18} /> }}
+              />
+            </Link>
+          </PageBarBack>
           <header className="mobile-glass trail-header mb-5 flex flex-wrap items-end justify-between gap-4">
             <div>
               <h1 className="text-3xl font-semibold">

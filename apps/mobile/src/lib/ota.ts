@@ -46,6 +46,7 @@ import {
   safeLocalStorageRemove,
   safeLocalStorageSet,
 } from "./utils"
+import { withReadTimeout } from "./async-read"
 import { OTA_ENABLED } from "./ota-config"
 
 export type OtaState =
@@ -316,7 +317,7 @@ function shouldCheckNow(now: number): boolean {
 }
 
 async function loadCapgo(): Promise<CapgoModule["CapacitorUpdater"]> {
-  const module = await import("@capgo/capacitor-updater")
+  const module = await withReadTimeout(import("@capgo/capacitor-updater"))
   return module.CapacitorUpdater
 }
 
@@ -341,7 +342,7 @@ export async function notifyOtaAppReady(): Promise<void> {
 async function currentVersions(
   updater: CapgoModule["CapacitorUpdater"]
 ): Promise<{ current: string; native: string }> {
-  const { bundle, native } = await updater.current()
+  const { bundle, native } = await withReadTimeout(updater.current())
   return {
     // "builtin" means the store-installed assets, which the plugin cannot
     // version; the CI stamp compiled into those assets is the real answer.
@@ -366,11 +367,13 @@ async function fetchManifest(platform: OtaPlatform, nativeVersion: string) {
   const envelope = parseOtaSignedEnvelope(await response.json())
   if (!envelope) return null
 
-  const verification = await otaTrust.verifyManifest({
-    payload: envelope.payload,
-    signature: envelope.signature,
-    keyId: envelope.keyId,
-  })
+  const verification = await withReadTimeout(
+    otaTrust.verifyManifest({
+      payload: envelope.payload,
+      signature: envelope.signature,
+      keyId: envelope.keyId,
+    })
+  )
   if (!verification.valid) return null
 
   return parseOtaManifest(
@@ -395,10 +398,14 @@ export async function checkForOtaUpdate(
 
   // A staged bundle is already waiting to apply; another download would only
   // race it.
-  if (state.phase === "checking" || state.phase === "downloading") {
-    return { action: "skip", reason: "already-staged" }
+  if (
+    state.phase === "checking" ||
+    state.phase === "downloading" ||
+    state.phase === "applying"
+  ) {
+    return { action: "skip", reason: "in-progress" }
   }
-  if (!options.force && state.phase === "ready") {
+  if (state.phase === "ready") {
     return { action: "skip", reason: "already-staged" }
   }
 
@@ -435,7 +442,8 @@ export async function checkForOtaUpdate(
   let stagedVersion: string | null =
     stagedBundle?.version ?? readPendingBundle()?.version ?? null
   try {
-    stagedVersion ??= (await updater.getNextBundle())?.version ?? null
+    stagedVersion ??=
+      (await withReadTimeout(updater.getNextBundle()))?.version ?? null
   } catch {
     // Nothing staged via the plugin.
   }
@@ -498,7 +506,13 @@ export async function checkForOtaUpdate(
 export async function applyOtaUpdateNow(): Promise<void> {
   if (!OTA_ENABLED || !isOtaSupported()) return
   const bundle = stagedBundle ?? readPendingBundle()
-  if (!bundle || state.phase !== "ready") return
+  if (
+    !bundle ||
+    state.phase === "checking" ||
+    state.phase === "downloading" ||
+    state.phase === "applying"
+  )
+    return
 
   setState({ phase: "applying", version: bundle.version })
   try {
@@ -645,11 +659,12 @@ export async function otaDiagnostics(): Promise<{
 
   try {
     const updater = await loadCapgo()
-    const { bundle, native } = await updater.current()
+    const { bundle, native } = await withReadTimeout(updater.current())
     const pending = readPendingBundle()?.version ?? null
     let nextVersion: string | null = null
     try {
-      nextVersion = (await updater.getNextBundle())?.version ?? null
+      nextVersion =
+        (await withReadTimeout(updater.getNextBundle()))?.version ?? null
     } catch {
       nextVersion = null
     }
