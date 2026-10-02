@@ -80,6 +80,8 @@ describe("@repo/ui package boundary", () => {
       "bottom-bar.tsx",
       // Observes the active app route's scrolling title and binds router actions.
       "collapsing-page-bar.tsx",
+      // Registers page actions in the app toolbar using shared NavigationBar UI.
+      "page-navigation-bar.tsx",
       // Reads the authenticated profile and opens the app's settings route.
       "profile-avatar.tsx",
       // Convex writes and haptics behind the shared sheet and button
