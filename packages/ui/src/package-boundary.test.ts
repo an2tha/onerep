@@ -1,6 +1,5 @@
-import { readLocalizedSource as readFileSync } from "../../../apps/mobile/tests/helpers/localized-source"
 import { describe, expect, test } from "bun:test"
-import { existsSync, readdirSync } from "node:fs"
+import { existsSync, readdirSync, readFileSync } from "node:fs"
 import { extname, join, relative } from "node:path"
 
 const sourceRoot = join(import.meta.dir)
