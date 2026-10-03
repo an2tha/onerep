@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs"
-import { fileURLToPath } from "node:url"
+import { join } from "node:path"
 import type { CapacitorConfig } from "@capacitor/cli"
 import { config as dotenvConfig } from "dotenv"
 
@@ -104,7 +104,7 @@ if (
   if (process.argv.some((arg) => arg === "sync" || arg === "copy")) {
     const stamp = JSON.parse(
       readFileSync(
-        fileURLToPath(new URL("./dist/version.json", import.meta.url)),
+        join(__dirname, "dist/version.json"),
         "utf8"
       )
     )
