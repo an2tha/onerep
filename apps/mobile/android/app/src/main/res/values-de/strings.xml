@@ -8,7 +8,7 @@
     <string name="widget_schedule_description">Für heute geplante Übungen und Sätze.</string>
     <string name="widget_combined_label">Ernährungsdetails</string>
     <string name="widget_combined_description">Erfasste Lebensmittel, verbleibende Kalorien und Makronährstoffaufteilung.</string>
-    <string name="health_permissions_rationale">OneRep liest abgeschlossene Cardio-Workouts, Herzfrequenz, Distanz und aktive Energie ein, sodass Ihre Trainingshistorie vollständig ist. Mit Ihrer Zustimmung kann es auch abgeschlossene OneRep-Sitzungen an Health Connect zurückschreiben.</string>
+    <string name="health_permissions_rationale">OneRep liest abgeschlossene Cardio-Workouts, Herzfrequenz, Distanz und aktive Energie ein, sodass Ihre Trainingshistorie vollständig ist. Mit Ihrer Zustimmung schreibt es außerdem die hier beendeten Sitzungen, Ihre erfassten Wiege- und Körpermessungen sowie Ihre protokollierten Mahlzeiten und Ihr Wasser als tägliche Nährwert- und Hydrationssummen an Health Connect zurück.</string>
     <string name="widget_snap_camera_label">Schnappschusskamera</string>
     <string name="widget_snap_camera_caption">Mahlzeit eintragen</string>
     <string name="widget_snap_camera_description">Öffne die Kamera, um eine Mahlzeit aufzunehmen und zu protokollieren.</string>
