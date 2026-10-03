@@ -8,7 +8,7 @@
     <string name="widget_schedule_description">Exercices et séries programmés pour aujourd’hui.</string>
     <string name="widget_combined_label">Détails nutritionnels</string>
     <string name="widget_combined_description">Aliments enregistrés, calories restantes et répartition des macronutriments.</string>
-    <string name="health_permissions_rationale">OneRep enregistre les entraînements cardio terminés, la fréquence cardiaque, la distance et l\'énergie active afin que votre historique d\'entraînement soit complet. Avec votre autorisation, il peut également enregistrer les sessions OneRep terminées dans Health Connect.</string>
+    <string name="health_permissions_rationale">OneRep enregistre les entraînements cardio terminés, la fréquence cardiaque, la distance et l\'énergie active afin que votre historique d\'entraînement soit complet. Avec votre autorisation, il peut également enregistrer dans Health Connect les séances terminées ici, le poids, la masse grasse, la masse maigre, la masse osseuse et le métabolisme de base que vous saisissez, ainsi que vos repas et votre eau sous forme de totaux quotidiens de nutrition et d\'hydratation.</string>
     <string name="widget_snap_camera_label">Appareil photo Snap</string>
     <string name="widget_snap_camera_caption">Enregistrer un repas</string>
     <string name="widget_snap_camera_description">Ouvrez l’appareil photo pour prendre une photo et enregistrer un repas.</string>
