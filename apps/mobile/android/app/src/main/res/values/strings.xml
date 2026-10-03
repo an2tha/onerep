@@ -17,7 +17,7 @@
     <string name="widget_combined_description">Foods logged, calories left, and macro breakdown.</string>
 
     <!-- Shown by Health Connect when it asks why we want the user's data. -->
-    <string name="health_permissions_rationale">OneRep reads completed cardio workouts, heart rate, distance, and active energy so your training history is complete. With your permission it can also write finished OneRep sessions back to Health Connect.</string>
+    <string name="health_permissions_rationale">OneRep reads completed cardio workouts, heart rate, distance, and active energy so your training history is complete. With your permission it can also write back the sessions you finish here, the weigh-ins and body measurements you record, and the meals and water you log, as daily nutrition and hydration totals.</string>
     <string name="widget_snap_camera_label">Snap Camera</string>
     <string name="widget_snap_camera_caption">Log a meal</string>
     <string name="widget_snap_camera_description">Open the camera to snap and log a meal.</string>
