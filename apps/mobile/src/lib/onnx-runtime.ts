@@ -16,7 +16,10 @@ import { otaOrigin } from "@/lib/ota"
  * leave the JS talking to a mismatched runtime — the failure mode there is a
  * corrupt-looking model load with no useful message.
  */
-const WASM_BASE = `https://cdn.jsdelivr.net/npm/onnxruntime-web@${ort.env.versions.web}/dist/`
+const WASM_BASE =
+  import.meta.env.VITE_NATIVE_PLATFORM === "ios"
+    ? "/runtime/"
+    : `https://cdn.jsdelivr.net/npm/onnxruntime-web@${ort.env.versions.web}/dist/`
 
 /**
  * Where the two .onnx files are served from.

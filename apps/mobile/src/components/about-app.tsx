@@ -1,6 +1,7 @@
 import { tr, translateError } from "@repo/ui/i18n"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Capacitor } from "@capacitor/core"
+import { Browser } from "@capacitor/browser"
 import { App as CapacitorApp } from "@capacitor/app"
 import { GroupedList, ListRow, toast } from "@repo/ui"
 import {
@@ -208,6 +209,26 @@ export function AboutApp() {
           />
         )}
       </GroupedList>
+
+      {Capacitor.getPlatform() === "ios" && (
+        <div className="px-[var(--app-page-x)] pt-4">
+          <button
+            type="button"
+            className="native-secondary-button min-h-12 w-full rounded-[0.8rem]"
+            onClick={() =>
+              void Browser.open({
+                url: "https://apps.apple.com/app/id6804442452",
+              }).catch(() =>
+                toast.error(
+                  translateError(tr("Something went wrong. Try again."))
+                )
+              )
+            }
+          >
+            {tr("Check for updates")}
+          </button>
+        </div>
+      )}
 
       {isOtaSupported() && (
         <div className="px-[var(--app-page-x)] pt-4">

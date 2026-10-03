@@ -21,8 +21,7 @@ let package = Package(
         .package(name: "CapacitorPreferences", path: "../../../../../node_modules/.bun/@capacitor+preferences@8.0.1+767ac80cbab8ae50/node_modules/@capacitor/preferences"),
         .package(name: "CapacitorPushNotifications", path: "../../../../../node_modules/.bun/@capacitor+push-notifications@8.1.2+767ac80cbab8ae50/node_modules/@capacitor/push-notifications"),
         .package(name: "CapacitorShare", path: "../../../../../node_modules/.bun/@capacitor+share@8.0.1+767ac80cbab8ae50/node_modules/@capacitor/share"),
-        .package(name: "CapgoCapacitorSpeechRecognition", path: "../../../../../node_modules/.bun/@capgo+capacitor-speech-recognition@8.1.10+767ac80cbab8ae50/node_modules/@capgo/capacitor-speech-recognition"),
-        .package(name: "CapgoCapacitorUpdater", path: "../../../../../node_modules/.bun/@capgo+capacitor-updater@8.51.3+767ac80cbab8ae50/node_modules/@capgo/capacitor-updater")
+        .package(name: "CapgoCapacitorSpeechRecognition", path: "../../../../../node_modules/.bun/@capgo+capacitor-speech-recognition@8.1.10+767ac80cbab8ae50/node_modules/@capgo/capacitor-speech-recognition")
     ],
     targets: [
         .target(
@@ -39,8 +38,7 @@ let package = Package(
                 .product(name: "CapacitorPreferences", package: "CapacitorPreferences"),
                 .product(name: "CapacitorPushNotifications", package: "CapacitorPushNotifications"),
                 .product(name: "CapacitorShare", package: "CapacitorShare"),
-                .product(name: "CapgoCapacitorSpeechRecognition", package: "CapgoCapacitorSpeechRecognition"),
-                .product(name: "CapgoCapacitorUpdater", package: "CapgoCapacitorUpdater")
+                .product(name: "CapgoCapacitorSpeechRecognition", package: "CapgoCapacitorSpeechRecognition")
             ]
         )
     ]

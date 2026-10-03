@@ -51,3 +51,14 @@ describe("OTA updater config", () => {
     expect(updater()?.allowModifyUrl).toBe(false)
   })
 })
+
+// Native linking is the release boundary, even when a web build still uses OTA.
+describe("iOS App Review bundle", () => {
+  test("excludes the executable updater from Capacitor sync", () => {
+    expect(config.ios?.includePlugins).not.toContain("@capgo/capacitor-updater")
+    expect(config.ios?.includePlugins).toContain("@capacitor/app")
+    expect(config.ios?.includePlugins).toContain(
+      "@capgo/capacitor-speech-recognition"
+    )
+  })
+})

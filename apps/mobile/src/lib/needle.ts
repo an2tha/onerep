@@ -38,7 +38,11 @@ import { otaOrigin } from "@/lib/ota"
  * and the runtime reports a wasm compile error for what is really an HTML page.
  */
 export function needleBase() {
-  return Capacitor.isNativePlatform() ? `${otaOrigin()}/needle` : "/needle"
+  return Capacitor.getPlatform() === "ios"
+    ? "/needle"
+    : Capacitor.isNativePlatform()
+      ? `${otaOrigin()}/needle`
+      : "/needle"
 }
 
 /**

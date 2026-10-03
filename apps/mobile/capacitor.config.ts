@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs"
+import { fileURLToPath } from "node:url"
 import type { CapacitorConfig } from "@capacitor/cli"
 import { config as dotenvConfig } from "dotenv"
 
@@ -16,6 +18,19 @@ const config: CapacitorConfig = {
     androidScheme: "https",
   },
   ios: {
+    // App Store builds cannot include a remote executable bundle updater.
+    includePlugins: [
+      "@capacitor/app",
+      "@capacitor/browser",
+      "@capacitor/camera",
+      "@capacitor/filesystem",
+      "@capacitor/haptics",
+      "@capacitor/local-notifications",
+      "@capacitor/preferences",
+      "@capacitor/push-notifications",
+      "@capacitor/share",
+      "@capgo/capacitor-speech-recognition",
+    ],
     buildOptions: {
       exportMethod: "debugging",
     },
@@ -80,5 +95,22 @@ const config: CapacitorConfig = {
       : undefined,
 }
 */
+
+if (
+  process.env.VITE_NATIVE_PLATFORM === "ios" ||
+  process.argv.includes("ios")
+) {
+  delete config.plugins?.CapacitorUpdater
+  if (process.argv.some((arg) => arg === "sync" || arg === "copy")) {
+    const stamp = JSON.parse(
+      readFileSync(
+        fileURLToPath(new URL("./dist/version.json", import.meta.url)),
+        "utf8"
+      )
+    )
+    if (stamp.nativePlatform !== "ios")
+      throw new Error("Build with VITE_NATIVE_PLATFORM=ios before syncing iOS.")
+  }
+}
 
 export default config

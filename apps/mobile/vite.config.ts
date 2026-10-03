@@ -1,4 +1,5 @@
 import path from "path"
+import { readFileSync } from "node:fs"
 import tailwindcss from "@tailwindcss/vite"
 import react from "@vitejs/plugin-react"
 import { defineConfig, loadEnv, type Plugin } from "vite"
@@ -31,7 +32,11 @@ function isPlaceholderServiceUrl(value: string | undefined) {
  * bundle whose contents are a build older than it claims, after which devices
  * consider themselves up to date forever.
  */
-function versionStampPlugin(version: string, commit: string): Plugin {
+function versionStampPlugin(
+  version: string,
+  commit: string,
+  nativePlatform?: string
+): Plugin {
   return {
     name: "onerep-version-stamp",
     apply: "build",
@@ -40,7 +45,12 @@ function versionStampPlugin(version: string, commit: string): Plugin {
         type: "asset",
         fileName: "version.json",
         source: JSON.stringify(
-          { version, commit, builtAt: new Date().toISOString() },
+          {
+            version,
+            commit,
+            builtAt: new Date().toISOString(),
+            nativePlatform,
+          },
           null,
           2
         ),
@@ -100,6 +110,7 @@ export default defineConfig(({ command, mode }) => {
   // Docker declares optional build arguments as empty environment variables.
   // Do not let those erase valid values loaded from .env.production.
   const env = { ...loadEnv(mode, envRoot, ""), ...processEnv }
+  const ios = env.VITE_NATIVE_PLATFORM === "ios"
   for (const key of ["VITE_CONVEX_URL", "VITE_CONVEX_SITE_URL"] as const) {
     if (!process.env[key]?.trim() && env[key]?.trim()) {
       process.env[key] = env[key].trim()
@@ -133,9 +144,38 @@ export default defineConfig(({ command, mode }) => {
       tailwindcss(),
       versionStampPlugin(
         env.VITE_BUNDLE_VERSION?.trim() || "0.0.0",
-        env.VITE_BUNDLE_COMMIT?.trim() || "unknown"
+        env.VITE_BUNDLE_COMMIT?.trim() || "unknown",
+        ios ? "ios" : undefined
       ),
-      umamiPlugin(env.VITE_UMAMI_SCRIPT_URL, env.VITE_UMAMI_WEBSITE_ID),
+      umamiPlugin(
+        ios ? undefined : env.VITE_UMAMI_SCRIPT_URL,
+        env.VITE_UMAMI_WEBSITE_ID
+      ),
+      ...(ios
+        ? [
+            {
+              name: "onerep-ios-bundled-runtime",
+              generateBundle() {
+                for (const file of [
+                  "ort-wasm-simd-threaded.mjs",
+                  "ort-wasm-simd-threaded.wasm",
+                ]) {
+                  this.emitFile({
+                    type: "asset",
+                    fileName: `runtime/${file}`,
+                    source: readFileSync(
+                      path.resolve(
+                        mobileNodeModules,
+                        "onnxruntime-web/dist",
+                        file
+                      )
+                    ),
+                  })
+                }
+              },
+            } satisfies Plugin,
+          ]
+        : []),
     ],
     /**
      * The Needle worker is spawned with `type: "module"`, and Rollup refuses to
@@ -204,6 +244,20 @@ export default defineConfig(({ command, mode }) => {
       ],
       dedupe: ["convex", "react", "react-dom"],
       alias: {
+        ...(ios
+          ? {
+              [path.resolve(appRoot, "lib/ota.ts")]: path.resolve(
+                appRoot,
+                "lib/ota-ios.ts"
+              ),
+              "@/lib/ota": path.resolve(appRoot, "lib/ota-ios.ts"),
+              "../lib/ota": path.resolve(appRoot, "lib/ota-ios.ts"),
+              "@repo/needle": path.resolve(
+                __dirname,
+                "../../packages/needle/src/index-ios.ts"
+              ),
+            }
+          : {}),
         "@": appRoot,
         "@repo/ui/styles.css": path.resolve(uiRoot, "index.css"),
         "@repo/ui": uiRoot,

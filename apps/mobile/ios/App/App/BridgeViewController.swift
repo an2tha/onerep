@@ -8,7 +8,6 @@ class BridgeViewController: CAPBridgeViewController {
         bridge?.registerPluginInstance(EnduranceLocationPlugin())
         bridge?.registerPluginInstance(WorkoutLiveActivityPlugin())
         bridge?.registerPluginInstance(NativeTabBarPlugin())
-        bridge?.registerPluginInstance(OtaTrustPlugin())
         bridge?.registerPluginInstance(OAuthSessionPlugin())
         bridge?.registerPluginInstance(BillingPlugin())
         bridge?.registerPluginInstance(NeedlePlugin())
