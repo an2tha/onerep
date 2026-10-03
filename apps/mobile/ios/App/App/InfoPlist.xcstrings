@@ -89,37 +89,37 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "OneRep can save the strength sessions you finish here to Apple Health, so your training shows up alongside the rest of your activity."
+            "value": "OneRep can save to Apple Health: the sessions you finish here, your recorded weight, body fat, lean body mass, and basal metabolic rate, and the meals and water you log as daily nutrition and hydration totals, so your training and food show up alongside the rest of your activity."
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "OneRep kann die Krafttrainingseinheiten, die du hier abschließt, in Apple Health speichern, damit dein Training neben deiner übrigen Aktivität angezeigt wird."
+            "value": "OneRep kann in Apple Health die hier abgeschlossenen Trainingseinheiten, dein erfasstes Gewicht, Körperfett, deine fettfreie Körpermasse und deinen Grundumsatz sowie deine protokollierten Mahlzeiten und dein Wasser als tägliche Nährwert- und Hydrationssummen speichern."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "OneRep puede guardar en Apple Health las sesiones de fuerza que termines aquí, para que tu entrenamiento aparezca junto al resto de tu actividad."
+            "value": "OneRep puede guardar en Apple Health las sesiones que terminas aquí, el peso, la grasa corporal, la masa magra y la tasa metabólica basal que registras, y las comidas y el agua que anotas como totales diarios de nutrición e hidratación."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "OneRep peut enregistrer dans Apple Health les séances de renforcement que vous terminez ici, afin que votre entraînement apparaisse avec le reste de votre activité."
+            "value": "OneRep peut enregistrer dans Apple Health les séances terminées ici, le poids, la masse grasse, la masse maigre et le métabolisme de base que vous saisissez, ainsi que vos repas et votre eau sous forme de totaux quotidiens de nutrition et d’hydratation."
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "OneRep può salvare qui le sessioni di forza che completi su Apple Health, così il tuo allenamento appare insieme al resto della tua attività."
+            "value": "OneRep può salvare in Apple Health le sessioni che termini qui, il peso, il grasso corporeo, la massa magra e il metabolismo basale che registri, oltre ai pasti e all’acqua che annoti come totali giornalieri di nutrizione e idratazione."
           }
         },
         "pt": {
           "stringUnit": {
             "state": "translated",
-            "value": "O OneRep pode guardar as sessões de treino de força que conclui aqui no Apple Health, para que o seu treino apareça ao lado do resto da sua atividade."
+            "value": "O OneRep pode guardar no Apple Health as sessões que conclui aqui, o peso, a gordura corporal, a massa magra e a taxa metabólica basal que regista, bem como as refeições e a água que regista como totais diários de nutrição e hidratação."
           }
         }
       }
