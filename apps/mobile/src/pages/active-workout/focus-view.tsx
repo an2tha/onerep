@@ -57,6 +57,7 @@ export function FocusWorkoutView({
   nextExerciseName,
   lastSession,
   onUpdateSet,
+  onWeightConfigChange,
   onCompleteSet,
   onSkipRest,
   onAddSet,
@@ -65,6 +66,8 @@ export function FocusWorkoutView({
   onShowInstructions,
   onExpand,
   onEnd,
+  onFinish,
+  isComplete = false,
 }: {
   exerciseName: string
   set: WorkoutSet | null
@@ -83,6 +86,7 @@ export function FocusWorkoutView({
   nextExerciseName: string
   lastSession?: LastSession | null
   onUpdateSet: (set: WorkoutSet) => void
+  onWeightConfigChange: (change: WeightSelectorChange) => void
   onCompleteSet: () => void
   onSkipRest: () => void
   onAddSet: () => void
@@ -91,6 +95,8 @@ export function FocusWorkoutView({
   onShowInstructions: () => void
   onExpand: () => void
   onEnd: () => void
+  onFinish: () => void
+  isComplete?: boolean
 }) {
   const [showWeight, setShowWeight] = useState(false)
   // The weight sheet offers "same as last time" from the matching set index.
@@ -100,13 +106,16 @@ export function FocusWorkoutView({
     null
   const [showRest, setShowRest] = useState(false)
 
+  const resting = isResting && !isComplete
   const restTotal = restDuration > 0 ? restDuration : Math.max(restRemaining, 1)
   // Resting drains the ring; lifting fills it as the sets of this exercise land.
-  const fraction = isResting
+  const fraction = resting
     ? Math.max(0, Math.min(1, restRemaining / restTotal))
-    : setCount > 0
-      ? Math.max(0, Math.min(1, (setNumber - 1) / setCount))
-      : 0
+    : isComplete
+      ? 1
+      : setCount > 0
+        ? Math.max(0, Math.min(1, (setNumber - 1) / setCount))
+        : 0
   const reps = Number(set?.reps ?? "") || 0
   const sets = allSets ?? []
   // The last set you logged is the one you meant to take back — undo walks
@@ -130,11 +139,11 @@ export function FocusWorkoutView({
         <button
           type="button"
           onClick={onEnd}
-          aria-label={tr("Discard or leave workout")}
+          aria-label={tr("Leave workout")}
           className="motion-tactile inline-flex min-h-11 items-center gap-1.5 rounded-full bg-muted/60 px-4 text-[14px] font-semibold text-muted-foreground active:text-foreground"
         >
           <Message
-            text={"{{value0}}End"}
+            text={"{{value0}}Leave"}
             values={{ value0: <X size={15} weight="bold" /> }}
           />
         </button>
@@ -151,7 +160,7 @@ export function FocusWorkoutView({
         </button>
       </div>
 
-      <div className="mt-8 flex h-[4.4rem] flex-col items-center justify-center gap-1">
+      <div className="mt-4 flex min-h-[4.4rem] flex-col items-center justify-center gap-1">
         <h2 className="line-clamp-2 max-w-[20ch] text-[1.6rem] leading-tight font-semibold tracking-tight">
           {exerciseName}
         </h2>
@@ -159,7 +168,7 @@ export function FocusWorkoutView({
           type="button"
           onClick={onShowInstructions}
           aria-label={tr("How to perform {{value0}}", { value0: exerciseName })}
-          className="motion-tactile inline-flex min-h-8 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium text-muted-foreground active:bg-muted/60 active:text-foreground"
+          className="motion-tactile inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium text-muted-foreground active:bg-muted/60 active:text-foreground"
         >
           <Message
             text={"{{value0}}How to"}
@@ -169,14 +178,17 @@ export function FocusWorkoutView({
       </div>
 
       <div
-        className="relative mt-6 shrink-0"
-        style={{ width: DIAL, height: DIAL }}
+        className="relative mt-3 shrink-0"
+        style={{
+          width: "clamp(140px, 25svh, 212px)",
+          height: "clamp(140px, 25svh, 212px)",
+        }}
       >
         {/* The pane, not a plate: whatever wash sits behind the dial carries on
             through the middle of it instead of stopping at the ring. */}
         <span
           className="macro-dial-glass"
-          style={{ inset: GLASS_INSET }}
+          style={{ inset: `${(GLASS_INSET / DIAL) * 100}%` }}
           aria-hidden="true"
         />
         {/* A breath of the accent behind the arc. Resting glows a little
@@ -185,7 +197,7 @@ export function FocusWorkoutView({
           aria-hidden="true"
           className={cn(
             "pointer-events-none absolute inset-2 rounded-full blur-2xl transition-opacity duration-500",
-            isResting ? "opacity-45" : "opacity-20"
+            resting ? "opacity-45" : "opacity-20"
           )}
           style={{
             background:
@@ -218,12 +230,12 @@ export function FocusWorkoutView({
             strokeDashoffset={RING_CIRCUMFERENCE * (1 - fraction)}
             className={cn(
               "transition-[stroke-dashoffset]",
-              isResting ? "duration-1000 ease-linear" : "duration-500 ease-out"
+              resting ? "duration-1000 ease-linear" : "duration-500 ease-out"
             )}
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          {isResting ? (
+          {resting ? (
             <>
               <p className="text-[2.6rem] leading-none font-semibold tracking-tight tabular-nums">
                 {formatElapsed(restRemaining)}
@@ -232,7 +244,7 @@ export function FocusWorkoutView({
                 {tr("resting")}
               </p>
             </>
-          ) : isCardio ? (
+          ) : isCardio && !isComplete ? (
             <>
               <p className="text-[1.75rem] leading-tight font-semibold">
                 {tr("Cardio")}
@@ -244,12 +256,22 @@ export function FocusWorkoutView({
           ) : (
             <>
               <p className="text-[3.25rem] leading-none font-semibold tabular-nums">
-                {setNumber}
+                {isComplete ? (
+                  <CheckCircle
+                    size={52}
+                    weight="fill"
+                    aria-label={tr("All activity logged")}
+                  />
+                ) : (
+                  setNumber
+                )}
               </p>
               <p className="mt-2 text-[14px] text-muted-foreground">
-                {setCount > 0
-                  ? tr("of {{value0}} sets", { value0: setCount })
-                  : tr("set")}
+                {isComplete
+                  ? tr("Ready to finish")
+                  : setCount > 0
+                    ? tr("of {{value0}} sets", { value0: setCount })
+                    : tr("set")}
               </p>
             </>
           )}
@@ -258,7 +280,7 @@ export function FocusWorkoutView({
 
       {/* The active workout card, shrunk to what fits under a dial: every set
           of this exercise, with the one you are on opened up for editing. */}
-      <div className="active-workout-focus-sets mt-6 w-full rounded-2xl border border-border/60 bg-card/40 p-2">
+      <div className="active-workout-focus-sets mt-3 w-full rounded-2xl border border-border/60 bg-card/40 p-2">
         {isCardio ? (
           <p className="px-2 py-3 text-[14px] text-muted-foreground">
             {tr("Cardio details live in the expanded view.")}
@@ -270,7 +292,8 @@ export function FocusWorkoutView({
         ) : (
           <ul className="flex flex-col">
             {sets.map((row, index) => {
-              const isActive = index === setNumber - 1 && !isResting
+              const isActive =
+                index === setNumber - 1 && !resting && !row.completed
               return (
                 <li
                   key={row.id}
@@ -301,33 +324,42 @@ export function FocusWorkoutView({
                             value1: unit,
                           }
                         )}
-                        className="motion-tactile min-h-10 flex-1 rounded-lg bg-background/70 px-3 text-[15px] font-semibold tabular-nums active:bg-background"
+                        className="motion-tactile min-h-11 min-w-0 flex-1 rounded-lg bg-background/70 px-3 text-[15px] font-semibold tabular-nums active:bg-background"
                       >
                         {toDisplay(row.weight, unit) || "—"}
                         <span className="ml-1 text-[13px] font-medium text-muted-foreground">
                           {unit}
                         </span>
                       </button>
-                      <div className="flex min-h-10 flex-1 items-center justify-between rounded-lg bg-background/70">
+                      <div className="flex min-h-11 min-w-0 flex-1 items-center justify-between rounded-lg bg-background/70">
                         <button
                           type="button"
                           onClick={() => stepReps(-1)}
                           aria-label={tr("One rep fewer")}
-                          className="motion-tactile flex h-10 w-9 items-center justify-center text-muted-foreground active:text-foreground"
+                          className="motion-tactile flex h-11 w-11 shrink-0 items-center justify-center text-muted-foreground active:text-foreground"
                         >
                           <Minus size={13} weight="bold" />
                         </button>
-                        <span className="text-[15px] font-semibold tabular-nums">
-                          {reps || "—"}
-                          <span className="ml-1 text-[13px] font-medium text-muted-foreground">
-                            {tr("reps")}
-                          </span>
-                        </span>
+                        <input
+                          type="number"
+                          min="0"
+                          step="1"
+                          inputMode="numeric"
+                          aria-label={tr("Set {{value0}} reps", {
+                            value0: setNumber,
+                          })}
+                          value={set?.reps ?? ""}
+                          onChange={(event) => {
+                            if (set)
+                              onUpdateSet({ ...set, reps: event.target.value })
+                          }}
+                          className="h-11 w-full min-w-0 bg-transparent text-center text-[16px] font-semibold tabular-nums outline-none focus:ring-2 focus:ring-ring [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
+                        />
                         <button
                           type="button"
                           onClick={() => stepReps(1)}
                           aria-label={tr("One rep more")}
-                          className="motion-tactile flex h-10 w-9 items-center justify-center text-muted-foreground active:text-foreground"
+                          className="motion-tactile flex h-11 w-11 shrink-0 items-center justify-center text-muted-foreground active:text-foreground"
                         >
                           <Plus size={13} weight="bold" />
                         </button>
@@ -355,7 +387,7 @@ export function FocusWorkoutView({
                       aria-label={tr("Set {{value0}} is done. Undo it", {
                         value0: index + 1,
                       })}
-                      className="motion-tactile group -mr-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
+                      className="motion-tactile group -mr-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
                     >
                       <CheckCircle
                         size={18}
@@ -368,9 +400,7 @@ export function FocusWorkoutView({
                         className="hidden text-muted-foreground group-active:block"
                       />
                     </button>
-                  ) : (
-                    <span className="w-10 shrink-0" aria-hidden="true" />
-                  )}
+                  ) : null}
                 </li>
               )
             })}
@@ -381,18 +411,38 @@ export function FocusWorkoutView({
       <button
         type="button"
         onClick={
-          isResting ? onSkipRest : setCount === 0 ? onAddSet : onCompleteSet
+          resting
+            ? onSkipRest
+            : isComplete
+              ? onFinish
+              : isCardio
+                ? onCompleteSet
+                : setCount === 0
+                  ? onAddSet
+                  : onCompleteSet
         }
-        className="motion-tactile mt-5 min-h-14 w-full rounded-full bg-foreground px-8 text-[16px] font-semibold text-background"
+        className="motion-tactile mt-3 min-h-14 w-full rounded-full bg-foreground px-8 text-[16px] font-semibold text-background"
       >
-        {isResting
+        {resting
           ? tr("Skip rest")
-          : isCardio
-            ? tr("Log cardio")
-            : setCount === 0
-              ? tr("Add a set")
-              : tr("Complete set")}
+          : isComplete
+            ? tr("Finish workout")
+            : isCardio
+              ? tr("Log cardio")
+              : setCount === 0
+                ? tr("Add a set")
+                : tr("Complete set")}
       </button>
+
+      {!isComplete && (
+        <button
+          type="button"
+          onClick={onFinish}
+          className="mt-1 min-h-11 rounded-full px-4 text-[14px] font-medium text-muted-foreground"
+        >
+          {tr("Finish workout")}
+        </button>
+      )}
 
       {/* Fixed height: swapping between resting and lifting must not shunt the
           dial up and down the screen. */}
@@ -415,7 +465,7 @@ export function FocusWorkoutView({
             />
           </button>
         )}
-        {!isResting && set && (
+        {!resting && set && (
           <>
             {lastLoggedIndex >= 0 && (
               <span className="text-muted-foreground/50" aria-hidden="true">
@@ -470,11 +520,7 @@ export function FocusWorkoutView({
           barType={barType}
           unit={unit}
           lastSet={lastSet}
-          onChange={(change: WeightSelectorChange) => {
-            if (change.weight !== undefined) {
-              onUpdateSet({ ...set, weight: change.weight })
-            }
-          }}
+          onChange={onWeightConfigChange}
           onClose={() => setShowWeight(false)}
         />
       )}

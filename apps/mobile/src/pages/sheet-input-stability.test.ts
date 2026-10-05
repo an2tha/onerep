@@ -7,6 +7,7 @@ const read = (path: string) =>
 const MOBILE_SHEET = read(
   "../../../../packages/ui/src/components/mobile-sheet.tsx"
 )
+const MODAL_LAYER = read("../../../../packages/ui/src/hooks/use-modal-layer.ts")
 const BACKDROP = read("../../../../packages/ui/src/lib/backdrop-dismiss.ts")
 const WEIGHT_SHEET = read("./active-workout/weight-selector-sheet.tsx")
 const COACH = read("./Coach.tsx")
@@ -23,27 +24,19 @@ describe("sheets keep their focus and stay open", () => {
   test("the focus trap runs on mount, not on every parent re-render", () => {
     // Depending on `dismiss` meant every fresh inline onClose re-ran the trap,
     // which restored focus to the opener and closed the keyboard.
-    expect(MOBILE_SHEET).toContain("const dismissRef = React.useRef(dismiss)")
-    expect(MOBILE_SHEET).toContain("dismissRef.current()")
-    // The trap's own effect takes no dependencies; only the ref sync does.
-    expect(MOBILE_SHEET).toContain(
-      "// Mount and unmount only. See `dismissRef` above."
-    )
-    expect(MOBILE_SHEET).not.toContain(
-      "previousFocus?.focus({ preventScroll: true })\n    }\n  }, [dismiss])"
-    )
+    expect(MOBILE_SHEET).toContain("useModalLayer(panelRef, dismiss)")
+    expect(MODAL_LAYER).toContain("const dismissRef = React.useRef(onDismiss)")
+    expect(MODAL_LAYER).toContain("dismissRef.current()")
+    // The stable panel ref controls the trap lifetime, not an inline callback.
+    expect(MODAL_LAYER).toContain("}, [panelRef])")
   })
 
   test("an autofocused field keeps the caret it already has", () => {
-    expect(MOBILE_SHEET).toContain(
-      "if (panel.contains(document.activeElement)) return"
-    )
+    expect(MODAL_LAYER).toContain("!panel.contains(document.activeElement)")
   })
 
-  test("focus only returns to the opener if it is still inside the sheet", () => {
-    expect(MOBILE_SHEET).toContain(
-      "if (panel.contains(document.activeElement)) {"
-    )
+  test("only the top sheet restores focus to a connected opener", () => {
+    expect(MODAL_LAYER).toContain("if (wasTop && opener?.isConnected)")
   })
 
   test("a backdrop only dismisses on a press that started there", () => {

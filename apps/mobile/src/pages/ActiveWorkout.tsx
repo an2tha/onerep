@@ -45,7 +45,10 @@ import {
   safeSessionStorageSet,
 } from "@/lib/utils"
 import { useSmoothNavigate } from "@/lib/navigation"
-import { abortWorkoutAfterPendingWrites } from "@/lib/workout-lifecycle"
+import {
+  abortWorkoutAfterPendingWrites,
+  shouldResumeDeviceDraft,
+} from "@/lib/workout-lifecycle"
 import { announceOrbActivity } from "@/lib/orb-activity"
 import { ReactiveOrbField } from "@/components/reactive-orb-field"
 import { useIsMobile } from "@/lib/is-mobile"
@@ -121,6 +124,7 @@ import type {
   WorkoutItem,
   WorkoutSet,
 } from "@/lib/workout-logging"
+import type { WeightSelectorChange } from "./active-workout/weight-selector-sheet"
 import { ActiveExerciseCard } from "./active-workout/active-exercise-card"
 import { NotchRestTimer } from "./active-workout/notch-rest-timer"
 import { FocusWorkoutView } from "./active-workout/focus-view"
@@ -846,11 +850,16 @@ function ActiveWorkoutSession() {
   const activeExerciseIndex = nextTarget
     ? Math.max(0, uniqueExerciseIds.indexOf(nextTarget.exerciseId)) + 1
     : Math.min(uniqueExerciseIds.length, uniqueExerciseIds.length || 1)
+  const fallbackExerciseId = uniqueExerciseIds[uniqueExerciseIds.length - 1]
+  const focusExerciseId = nextTarget?.exerciseId ?? fallbackExerciseId ?? null
+  const focusState = focusExerciseId ? exData[focusExerciseId] : undefined
   const activeExerciseName =
-    nextExercise?.name ??
-    (totalSets > 0 ? tr("Workout") : tr("No exercise yet"))
+    (focusExerciseId ? exerciseLookup[focusExerciseId]?.name : undefined) ??
+    tr("No exercise yet")
   const activeSetNumber =
-    nextTarget?.kind === "set" ? nextTarget.setIndex + 1 : doneSets + 1
+    nextTarget?.kind === "set"
+      ? nextTarget.setIndex + 1
+      : (focusState?.sets.length ?? 1)
   const liveActivityState = useMemo(
     () => ({
       exerciseName: nextExercise?.name ?? "OneRep workout",
@@ -886,7 +895,7 @@ function ActiveWorkoutSession() {
           ? item.exerciseId === nextTarget.exerciseId
           : item.exerciseIds.includes(nextTarget.exerciseId)
       )
-    : undefined
+    : items[items.length - 1]
   const activeSupersetPosition =
     activeWorkoutItem?.kind === "superset" && nextTarget
       ? activeWorkoutItem.exerciseIds.indexOf(nextTarget.exerciseId) + 1
@@ -923,8 +932,6 @@ function ActiveWorkoutSession() {
   const upcomingExercise = upcomingExerciseId
     ? exerciseLookup[upcomingExerciseId]
     : undefined
-  const focusExerciseId = nextTarget?.exerciseId ?? null
-  const focusState = focusExerciseId ? exData[focusExerciseId] : undefined
   const focusSet =
     nextTarget?.kind === "set" && focusState
       ? (focusState.sets[nextTarget.setIndex] ?? null)
@@ -953,6 +960,22 @@ function ActiveWorkoutSession() {
       }),
     })
   }
+  function updateFocusWeightConfig(change: WeightSelectorChange) {
+    if (!focusExerciseId || !focusState) return
+    const target = nextTarget?.kind === "set" ? nextTarget.setIndex : -1
+    const sets = focusState.sets.map((set, index) =>
+      index >= target && !set.completed && change.weight !== undefined
+        ? { ...set, weight: change.weight }
+        : set
+    )
+    updateExData(focusExerciseId, {
+      ...focusState,
+      sets,
+      barWeight: change.barWeight ?? focusState.barWeight,
+      barType: change.barType ?? focusState.barType,
+    })
+  }
+
   // What only this device knows: the session as it actually stands right now.
   const liveSessionSummary = useMemo(() => {
     const exercises = uniqueExerciseIds.map((exerciseId) => {
@@ -1053,12 +1076,13 @@ function ActiveWorkoutSession() {
         return next
       }
       const previousData = exData[previous]
-      const previousDone = previousData
-        ? exerciseLookup[previous]?.category === "cardio"
-          ? hasCardioStateDetails(previousData.cardio)
-          : previousData.sets.length > 0 &&
-            previousData.sets.every((set) => set.completed)
-        : false
+      // Cardio is saved as it is typed. Advancing after its first number must
+      // not fold the rest of the form away while someone is still entering it.
+      const previousDone =
+        previousData &&
+        exerciseLookup[previous]?.category !== "cardio" &&
+        previousData.sets.length > 0 &&
+        previousData.sets.every((set) => set.completed)
       return {
         ...current,
         ...(previousDone ? { [previous]: true } : {}),
@@ -1101,14 +1125,31 @@ function ActiveWorkoutSession() {
               // retried before an update, including after reconnecting on iOS.
               if (!createdActiveRef.current) {
                 safeSessionStorageRemove(ABORTED_WORKOUT_SLOT_KEY)
-                pendingCreateRef.current = createActive({
+                const draftBeforeCreate = readActiveWorkoutDraft(
+                  slotRef.current
+                )
+                const creation = createActive({
                   slot: slotRef.current,
                   presetId: presetId ?? undefined,
                   items: itemsRef.current,
                   exerciseData: exDataRef.current,
                 })
+                pendingCreateRef.current = creation
                 try {
-                  await pendingCreateRef.current
+                  const created = await creation
+                  // Creation can settle after leaving the page. Keep the
+                  // device draft attached to that session so unsaved edits
+                  // remain recoverable if its next update fails.
+                  const deviceDraft = readActiveWorkoutDraft(slotRef.current)
+                  if (
+                    deviceDraft &&
+                    deviceDraft.startedAt === draftBeforeCreate?.startedAt
+                  ) {
+                    writeActiveWorkoutDraft({
+                      ...deviceDraft,
+                      startedAt: created.startedAt,
+                    })
+                  }
                   createdActiveRef.current = true
                 } finally {
                   pendingCreateRef.current = null
@@ -1259,12 +1300,26 @@ function ActiveWorkoutSession() {
 
     // If there's an active workout in Convex, load it
     if (activeWorkout && resumeDecision !== "discard") {
+      const deviceDraft = readActiveWorkoutDraft(slot)
+      const localIsLatest = shouldResumeDeviceDraft(deviceDraft, activeWorkout)
       if (resumeDecision === "pending") {
-        setResumePrompt({ source: "convex" })
+        setResumePrompt(
+          localIsLatest
+            ? { source: "local", draft: deviceDraft }
+            : { source: "convex" }
+        )
         return
       }
 
       createdActiveRef.current = true
+      if (localIsLatest) {
+        loadWorkoutState(
+          deviceDraft.items,
+          deviceDraft.exerciseData,
+          deviceDraft.startedAt
+        )
+        return
+      }
       const loadedItems = (activeWorkout.items as WorkoutItem[]) ?? []
       const loadedExData =
         (activeWorkout.exerciseData as Record<string, ExerciseState>) ?? {}
@@ -1427,6 +1482,7 @@ function ActiveWorkoutSession() {
     }
     writeActiveWorkoutDraft(
       {
+        hasUnsyncedChanges: isDirtyRef.current,
         elapsedSeconds: elapsed,
         exerciseData: exData,
         items,
@@ -1561,6 +1617,7 @@ function ActiveWorkoutSession() {
                 )
         )
       )
+      throw error
     } finally {
       setBrainDumpPending(false)
     }
@@ -1870,6 +1927,7 @@ function ActiveWorkoutSession() {
             : tr("Could not update workout")
         )
       )
+      throw error
     } finally {
       aiUpdatingRef.current = false
       setAiUpdating(false)
@@ -1936,7 +1994,7 @@ function ActiveWorkoutSession() {
   function updateExData(id: string, data: ExerciseState) {
     // Compare stable set IDs so edits, reordering and adding empty rows don't
     // celebrate. Both workout views (and their undo controls) pass here.
-    if (isMobile && !isRetro) {
+    if (!isRetro) {
       const previous = new Map(
         exData[id]?.sets.map((set) => [set.id, set.completed])
       )
@@ -1946,8 +2004,12 @@ function ActiveWorkoutSession() {
       const undone = data.sets.filter(
         (set) => !set.completed && previous.get(set.id) === true
       ).length
-      if (logged > 0) announceOrbActivity("workout-set", logged)
-      else if (undone > 0) announceOrbActivity("workout-undo", undone)
+      if (isMobile && logged > 0) announceOrbActivity("workout-set", logged)
+      else if (undone > 0) {
+        if (isMobile) announceOrbActivity("workout-undo", undone)
+        wasRestingRef.current = false
+        if (rest.remaining !== null) rest.dismiss()
+      }
     }
     setExData((prev) => ({ ...prev, [id]: data }))
   }
@@ -2249,6 +2311,8 @@ function ActiveWorkoutSession() {
         item_count: exercises.length,
       })
       clearActiveWorkoutDraft(slot)
+      wasRestingRef.current = false
+      rest.dismiss()
       void endWorkoutLiveActivity(liveActivityState)
       void writeSessionToHealth(exercises.length)
       celebrateAchievement("workout")
@@ -2265,6 +2329,8 @@ function ActiveWorkoutSession() {
           durationSeconds: elapsed,
         })
         clearActiveWorkoutDraft(slot)
+        wasRestingRef.current = false
+        rest.dismiss()
         void endWorkoutLiveActivity(liveActivityState)
         void writeSessionToHealth(exercises.length)
         announceOrbActivity("log", 3)
@@ -2305,6 +2371,16 @@ function ActiveWorkoutSession() {
   }
 
   function completeNextSet() {
+    if (nextTarget?.kind === "cardio") {
+      setSimpleView(false)
+      safeLocalStorageSet(SIMPLE_VIEW_KEY, "false")
+      setCollapsed((previous) => ({
+        ...previous,
+        [nextTarget.exerciseId]: false,
+      }))
+      window.requestAnimationFrame(goToActiveSet)
+      return
+    }
     if (nextTarget?.kind !== "set") {
       hapticSelection()
       if (totalSets > 0) setConfirmFinish(true)
@@ -2344,7 +2420,13 @@ function ActiveWorkoutSession() {
     if (!element) return
     hapticSelection()
     element.scrollIntoView({ behavior: "smooth", block: "center" })
-    window.requestAnimationFrame(() => element.focus({ preventScroll: true }))
+    window.requestAnimationFrame(() => {
+      // A phone user may already be typing by the time scrolling settles.
+      // Keep their field focused rather than moving focus to the whole card.
+      if (!element.contains(document.activeElement)) {
+        element.focus({ preventScroll: true })
+      }
+    })
   }
 
   function dismissSupersetTip() {
@@ -2444,30 +2526,6 @@ function ActiveWorkoutSession() {
               >
                 <X size={22} weight="bold" />
               </button>
-              {!isRetro && (
-                <button
-                  type="button"
-                  aria-label={
-                    simpleView
-                      ? tr("Switch to expanded view")
-                      : tr("Switch to simple view")
-                  }
-                  aria-pressed={simpleView}
-                  onClick={() => {
-                    hapticSelection()
-                    const next = !simpleView
-                    setSimpleView(next)
-                    safeLocalStorageSet(SIMPLE_VIEW_KEY, String(next))
-                  }}
-                  className="motion-tactile inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-transparent text-muted-foreground active:text-foreground"
-                >
-                  {simpleView ? (
-                    <Rows size={20} weight="bold" />
-                  ) : (
-                    <Square size={20} weight="bold" />
-                  )}
-                </button>
-              )}
               <div
                 className={cn(
                   "min-w-0 flex-1 text-center transition-opacity duration-300",
@@ -2512,6 +2570,39 @@ function ActiveWorkoutSession() {
                       : formatElapsed(rest.remaining ?? elapsed)}
                 </p>
               </div>
+              <button
+                type="button"
+                onClick={() => setConfirmFinish(true)}
+                className="motion-tactile min-h-11 shrink-0 rounded-xl bg-foreground px-4 text-[14px] font-semibold text-background"
+              >
+                {isRetro ? tr("Save") : tr("Finish")}
+              </button>
+            </div>
+            <div className="flex items-center justify-between gap-2 border-t border-border/60 py-2">
+              {!isRetro && (
+                <button
+                  type="button"
+                  aria-label={
+                    simpleView
+                      ? tr("Switch to expanded view")
+                      : tr("Switch to simple view")
+                  }
+                  aria-pressed={simpleView}
+                  onClick={() => {
+                    hapticSelection()
+                    const next = !simpleView
+                    setSimpleView(next)
+                    safeLocalStorageSet(SIMPLE_VIEW_KEY, String(next))
+                  }}
+                  className="motion-tactile inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-transparent text-muted-foreground active:text-foreground"
+                >
+                  {simpleView ? (
+                    <Rows size={20} weight="bold" />
+                  ) : (
+                    <Square size={20} weight="bold" />
+                  )}
+                </button>
+              )}
               {isRetro ? (
                 <button
                   type="button"
@@ -2543,11 +2634,13 @@ function ActiveWorkoutSession() {
                         : "border border-border bg-card text-foreground"
                   )}
                 >
-                  {nextTarget?.kind === "set"
-                    ? tr("Complete set")
-                    : totalSets > 0
-                      ? tr("Finish")
-                      : tr("Add")}
+                  {nextTarget?.kind === "cardio"
+                    ? tr("Log cardio")
+                    : nextTarget?.kind === "set"
+                      ? tr("Complete set")
+                      : totalSets > 0
+                        ? tr("Finish")
+                        : tr("Add")}
                 </button>
               )}
               <div
@@ -2608,7 +2701,7 @@ function ActiveWorkoutSession() {
                   {progressPct}
                 </span>
               </div>
-              <div className="mt-2 flex min-w-0 items-center justify-center gap-2 text-[13px] font-medium text-muted-foreground">
+              <div className="mt-2 flex min-w-0 flex-wrap items-center justify-center gap-2 text-[13px] font-medium text-muted-foreground">
                 <button
                   type="button"
                   onClick={goToActiveSet}
@@ -2621,7 +2714,7 @@ function ActiveWorkoutSession() {
                         })
                       : undefined
                   }
-                  className="min-w-0 truncate active:text-foreground disabled:pointer-events-none"
+                  className="min-h-11 min-w-0 flex-1 text-left active:text-foreground disabled:pointer-events-none"
                 >
                   {uniqueExerciseIds.length > 0
                     ? tr("{{value0}}/{{value1}} · {{value2}}", {
@@ -2748,6 +2841,21 @@ function ActiveWorkoutSession() {
             />
           </div>
         )}
+        {simpleViewActive && workoutSyncStatus === "error" && (
+          <div
+            role="alert"
+            className="mx-[var(--app-page-x)] mt-3 rounded-xl bg-destructive/10 px-3 py-2 text-[14px] text-destructive"
+          >
+            <p>{workoutSyncError}</p>
+            <button
+              type="button"
+              onClick={() => syncToConvex({ immediate: true })}
+              className="min-h-11 font-semibold"
+            >
+              {tr("Retry")}
+            </button>
+          </div>
+        )}
         {simpleViewActive ? (
           <FocusWorkoutView
             exerciseName={activeExerciseName}
@@ -2769,6 +2877,9 @@ function ActiveWorkoutSession() {
               focusExerciseId ? (lastSessionMap[focusExerciseId] ?? null) : null
             }
             onUpdateSet={updateFocusSet}
+            onWeightConfigChange={updateFocusWeightConfig}
+            isComplete={!nextTarget && totalSets > 0 && doneSets >= totalSets}
+            onFinish={() => setConfirmFinish(true)}
             onCompleteSet={completeNextSet}
             onSkipRest={rest.dismiss}
             onAddSet={addFocusSet}
@@ -3101,6 +3212,32 @@ function ActiveWorkoutSession() {
       )}
       {confirmAbort && (
         <AbortSheet
+          onLeave={
+            !isRetro
+              ? () => {
+                  writeActiveWorkoutDraft({
+                    hasUnsyncedChanges: isDirtyRef.current,
+                    slot,
+                    items,
+                    exerciseData: exData,
+                    presetId: presetId ?? undefined,
+                    elapsedSeconds: elapsed,
+                    startedAt:
+                      activeWorkout?.startedAt ?? localStartedAt ?? Date.now(),
+                    savedAt: Date.now(),
+                  })
+                  navigate("/workouts", { replace: true, motion: "back" })
+                }
+              : undefined
+          }
+          onFinish={
+            !isRetro && doneSets > 0
+              ? () => {
+                  setConfirmAbort(false)
+                  setConfirmFinish(true)
+                }
+              : undefined
+          }
           onConfirm={async () => {
             try {
               abortingRef.current = true

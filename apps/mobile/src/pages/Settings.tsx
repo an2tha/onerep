@@ -1495,7 +1495,7 @@ export default function Settings({
           : "desktop-canvas min-h-svh bg-background text-foreground lg:pr-8 lg:pl-72"
       }
     >
-      <main className="mx-auto min-h-svh w-full max-w-2xl pb-[calc(var(--app-safe-bottom-lg)+5rem)] md:pb-12">
+      <main className="settings-page mx-auto min-h-svh w-full max-w-2xl pb-[calc(var(--app-safe-bottom-lg)+5rem)] md:pb-12">
         <PageNavigationBar
           title={t(SETTINGS_VIEW_TITLE_KEYS[activeView])}
           large={activeView === "overview"}
@@ -1520,7 +1520,7 @@ export default function Settings({
                 <button
                   type="button"
                   onClick={() => showView("account")}
-                  className="mx-[var(--app-page-x)] flex items-center gap-3 border-y border-border py-4 text-left active:bg-muted/35"
+                  className="mx-[var(--app-page-x)] flex w-[calc(100%-2*var(--app-page-x))] items-center gap-3 border-y border-border py-4 text-left active:bg-muted/35"
                 >
                   <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-foreground text-background">
                     <UserCircle size={27} weight="regular" />

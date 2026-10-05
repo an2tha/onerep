@@ -1,6 +1,10 @@
 import { describe, expect, test } from "bun:test"
 
-import { fillDownSetField, type WorkoutSet } from "./workout-logging"
+import {
+  fillDownSetField,
+  normalizeExerciseState,
+  type WorkoutSet,
+} from "./workout-logging"
 
 function sets(
   ...rows: Array<Partial<WorkoutSet> & { weight?: string; reps?: string }>
@@ -15,6 +19,11 @@ function sets(
     ...row,
   }))
 }
+
+test("resuming preserves a deliberately disabled rest timer", () => {
+  const normalized = normalizeExerciseState({ sets: sets({ restSeconds: 0 }) })
+  expect(normalized.sets[0]?.restSeconds).toBe(0)
+})
 
 describe("fillDownSetField", () => {
   test("carries a value into the blank sets below", () => {

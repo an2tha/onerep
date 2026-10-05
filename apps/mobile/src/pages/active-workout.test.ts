@@ -429,8 +429,11 @@ describe("active workout sync production safeguards", () => {
     expect(ACTIVE_WORKOUT_SOURCE).toContain(
       '{finishing ? "Finishing..." : "Finish workout"}'
     )
-    expect(ACTIVE_WORKOUT_SOURCE).toContain(
-      '{aborting ? "Aborting..." : "Abort workout"}'
+    expect(ACTIVE_WORKOUT_SOURCE).toMatch(
+      /aborting\s*\?\s*"Aborting\.\.\."\s*:\s*"Abort workout"/
+    )
+    expect(ACTIVE_WORKOUT_SOURCE).toMatch(
+      /aborting\s*\?\s*"Discarding\.\.\."\s*:\s*"Discard workout"/
     )
     expect(ACTIVE_WORKOUT_SOURCE).toContain(
       'toast.error("Failed to finish workout. Please try again.")'

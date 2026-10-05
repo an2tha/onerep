@@ -8,7 +8,7 @@ import { hapticConfirm } from "@/lib/haptics"
  */
 
 import { useEffect, useState } from "react"
-import { ArrowCounterClockwise, Check, Timer, X } from "@phosphor-icons/react"
+import { ArrowCounterClockwise, Check, Timer } from "@phosphor-icons/react"
 import { RestTimerSheet, formatRestDuration as formatRest } from "@repo/ui"
 import { cn } from "@/lib/utils"
 import { toDisplay } from "@/lib/workout-logging"
@@ -19,7 +19,7 @@ import {
 } from "./weight-selector-sheet"
 
 const SET_GRID =
-  "grid grid-cols-[1.9rem_minmax(0,1.15fr)_minmax(0,0.85fr)_3.4rem_2.25rem_2.75rem] items-center gap-1.5 px-3"
+  "grid grid-cols-[1.25rem_minmax(0,1fr)_minmax(0,0.8fr)_2.75rem_2.75rem] items-center gap-1 px-2 sm:grid-cols-[1.9rem_minmax(0,1.15fr)_minmax(0,0.85fr)_3.4rem_2.75rem] sm:gap-1.5 sm:px-3"
 
 export function SetListHeader({ unit }: { unit: WeightUnit }) {
   return (
@@ -31,7 +31,7 @@ export function SetListHeader({ unit }: { unit: WeightUnit }) {
       }}
       aria-hidden="true"
     >
-      {[tr("Set"), unit, tr("Reps"), tr("Rest"), "", ""].map(
+      {[tr("Set"), unit, tr("Reps"), tr("Rest"), tr("Done")].map(
         (label, column) => (
           <span
             key={column}
@@ -99,7 +99,7 @@ export function ActiveSetRow({
     ? toDisplay(String(lastSet.weight), unit)
     : "–"
   const fieldCls = cn(
-    "flex h-11 w-full min-w-0 items-center justify-center rounded-[14px] border text-[15px] font-semibold tabular-nums transition-colors outline-none",
+    "flex h-11 w-full min-w-0 items-center justify-center rounded-[14px] border text-[16px] font-semibold tabular-nums transition-colors outline-none",
     set.completed
       ? "border-transparent bg-transparent text-foreground/55"
       : "border-border/45 bg-muted/20 text-foreground"
@@ -143,6 +143,8 @@ export function ActiveSetRow({
           name={`set-${index + 1}-reps`}
           aria-label={tr("Set {{value0}} reps", { value0: index + 1 })}
           inputMode="numeric"
+          min="0"
+          step="1"
           value={set.reps}
           onChange={(event) => onRepsChange(event.target.value)}
           placeholder={lastSet?.reps ? String(lastSet.reps) : "–"}
@@ -161,29 +163,18 @@ export function ActiveSetRow({
           <Timer size={11} />
           {formatRest(set.restSeconds)}
         </button>
-        {canDelete && !set.completed ? (
-          <button
-            type="button"
-            onClick={onDelete}
-            aria-label={tr("Delete set {{value0}}", { value0: index + 1 })}
-            className="flex h-11 w-full items-center justify-center text-destructive transition-colors active:bg-destructive/10"
-          >
-            <X size={12} weight="bold" />
-          </button>
-        ) : (
-          <span aria-hidden="true" />
-        )}
         <button
           type="button"
           onClick={toggleDone}
           aria-label={
             set.completed ? tr("Mark set incomplete") : tr("Mark set complete")
           }
+          aria-pressed={set.completed}
           className={cn(
-            "mx-auto flex h-9 w-9 items-center justify-center rounded-full transition-colors",
+            "mx-auto flex h-11 w-11 items-center justify-center rounded-full transition-colors",
             set.completed
               ? "bg-muted text-foreground/70 active:bg-muted/80"
-              : "bg-white text-black active:bg-white/85",
+              : "bg-foreground text-background active:opacity-85",
             completionPulse && "motion-set-complete"
           )}
         >
@@ -202,6 +193,7 @@ export function ActiveSetRow({
             setShowRest(false)
           }}
           onClose={() => setShowRest(false)}
+          onDelete={canDelete && !set.completed ? onDelete : undefined}
         />
       )}
       {showWeight && (

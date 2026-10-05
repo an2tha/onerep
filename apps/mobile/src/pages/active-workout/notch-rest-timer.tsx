@@ -29,7 +29,7 @@ export function NotchRestTimer({
       aria-label={tr("Resting, {{value0}} left. Skip rest", {
         value0: formatElapsed(remaining),
       })}
-      className="motion-tactile fixed left-1/2 z-[70] flex -translate-x-1/2 items-center gap-2.5 rounded-full border border-white/15 bg-neutral-950/95 py-2 pr-4 pl-3 text-white shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur-xl"
+      className="motion-tactile fixed left-1/2 z-40 flex -translate-x-1/2 items-center gap-2.5 rounded-full border border-white/15 bg-neutral-950/95 py-2 pr-4 pl-3 text-white shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur-xl"
       style={{
         top: "max(0.5rem, calc(env(safe-area-inset-top, 0px) + 0.4rem))",
       }}

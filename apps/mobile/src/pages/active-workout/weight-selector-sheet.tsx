@@ -9,7 +9,7 @@ import type { ReactNode } from "react"
 import { createPortal } from "react-dom"
 import { CaretDown, Minus, Plus, X } from "@phosphor-icons/react"
 import { cn } from "@/lib/utils"
-import { pushDismissHandler, useBackdropDismiss } from "@repo/ui"
+import { useModalLayer, useBackdropDismiss } from "@repo/ui"
 import {
   BAR_PROFILES,
   KG_TO_LBS,
@@ -156,15 +156,20 @@ export function WeightSelectorSheet({
   function dismiss() {
     if (isClosing) return
     setIsClosing(true)
-    window.setTimeout(onClose, 190)
+    closeTimerRef.current = window.setTimeout(onClose, 190)
   }
 
   const backdropDismiss = useBackdropDismiss(dismiss)
 
-  // Android back closes this sheet before it leaves the workout.
-  const dismissRef = useRef(dismiss)
-  dismissRef.current = dismiss
-  useEffect(() => pushDismissHandler(() => dismissRef.current()), [])
+  const panelRef = useRef<HTMLDivElement>(null)
+  const closeTimerRef = useRef<number | null>(null)
+  const viewportStyle = useModalLayer(panelRef, dismiss)
+  useEffect(
+    () => () => {
+      if (closeTimerRef.current) clearTimeout(closeTimerRef.current)
+    },
+    []
+  )
 
   function emitChange(change: WeightSelectorChange) {
     onChange({
@@ -312,9 +317,16 @@ export function WeightSelectorSheet({
       // Picking a bar changes what this sheet renders, so the button under the
       // finger can be gone before the tap completes and the click lands here
       // instead. See `useBackdropDismiss`.
+      style={viewportStyle}
       {...backdropDismiss}
     >
       <div
+        ref={panelRef}
+        tabIndex={-1}
+        style={{
+          backgroundColor: "var(--background)",
+          maxHeight: "calc(var(--sheet-viewport-height, 100dvh) - 1rem)",
+        }}
         role="dialog"
         aria-modal="true"
         aria-label={tr("Weight selector")}

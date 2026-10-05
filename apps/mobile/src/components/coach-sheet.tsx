@@ -34,6 +34,7 @@ export function CoachSheet({
     <MobileSheet
       ariaLabel={tr("Coach")}
       onClose={onClose}
+      dismissible={!activeWorkout?.applying}
       minHeight="35vh"
       maxHeight="94vh"
       defaultHeight={
@@ -54,7 +55,9 @@ export function CoachSheet({
       <div className="h-full min-h-0">
         <Coach
           embedded
-          onClose={onClose}
+          onClose={() => {
+            if (!activeWorkout?.applying) onClose()
+          }}
           activeWorkout={activeWorkout}
           initialInput={initialInput}
         />

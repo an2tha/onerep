@@ -102,8 +102,8 @@ function utcMonthKey(date = new Date()) {
 }
 
 export const getMonthlyUsage = query({
-  args: {},
-  handler: async (ctx): Promise<Omit<AiUsageQuota, "allowed">> => {
+  args: { provider: v.optional(v.literal("typesafe")) },
+  handler: async (ctx, args): Promise<Omit<AiUsageQuota, "allowed">> => {
     const month = utcMonthKey();
     const user = await safeGetAuthUser(ctx);
     if (!user) {
@@ -115,7 +115,7 @@ export const getMonthlyUsage = query({
         isPro: false,
         byok: false,
         proLimit: AI_PRO_MONTHLY_REQUEST_LIMIT,
-        serverAiConfigured: Boolean(env.OPENROUTER_API_KEY?.trim()),
+        serverAiConfigured: Boolean((args.provider === "typesafe" ? env.TYPESAFE_API_KEY : env.OPENROUTER_API_KEY)?.trim()),
         unlimited: usageIsUnlimited(),
       };
     }
@@ -139,9 +139,9 @@ export const getMonthlyUsage = query({
       limit,
       month,
       isPro,
-      byok: byokKey !== null,
+      byok: args.provider !== "typesafe" && byokKey !== null,
       proLimit: AI_PRO_MONTHLY_REQUEST_LIMIT,
-      serverAiConfigured: Boolean(env.OPENROUTER_API_KEY?.trim()),
+      serverAiConfigured: Boolean((args.provider === "typesafe" ? env.TYPESAFE_API_KEY : env.OPENROUTER_API_KEY)?.trim()),
       unlimited: usageIsUnlimited(),
     };
   },
@@ -149,6 +149,7 @@ export const getMonthlyUsage = query({
 
 export const consumeMonthlyQuota = internalMutation({
   args: {
+    provider: v.optional(v.literal("typesafe")),
     userId: v.string(),
     source: v.union(
       v.literal("progress_metrics"),
@@ -182,7 +183,7 @@ export const consumeMonthlyQuota = internalMutation({
       hasActiveProEntitlement(ctx, args.userId),
       byokKeyFor(ctx, args.userId),
     ]);
-    const byok = byokKey !== null;
+    const byok = args.provider !== "typesafe" && byokKey !== null;
     const unlimited = usageIsUnlimited();
     const limit = aiMonthlyRequestLimit(isPro);
     const cost = aiUsageCost(args.source);
@@ -204,7 +205,7 @@ export const consumeMonthlyQuota = internalMutation({
         byok,
         apiKey: null,
         proLimit: AI_PRO_MONTHLY_REQUEST_LIMIT,
-        serverAiConfigured: Boolean(env.OPENROUTER_API_KEY?.trim()),
+        serverAiConfigured: Boolean((args.provider === "typesafe" ? env.TYPESAFE_API_KEY : env.OPENROUTER_API_KEY)?.trim()),
         unlimited,
       };
     }
@@ -235,9 +236,9 @@ export const consumeMonthlyQuota = internalMutation({
       month,
       isPro,
       byok,
-      apiKey: byokKey,
+      apiKey: args.provider === "typesafe" ? null : byokKey,
       proLimit: AI_PRO_MONTHLY_REQUEST_LIMIT,
-      serverAiConfigured: Boolean(env.OPENROUTER_API_KEY?.trim()),
+      serverAiConfigured: Boolean((args.provider === "typesafe" ? env.TYPESAFE_API_KEY : env.OPENROUTER_API_KEY)?.trim()),
       unlimited,
     };
   },
@@ -392,10 +393,11 @@ export async function consumeAiUsageOrThrow(
   ctx: ActionCtx,
   userId: string,
   source: AiUsageSource,
+  provider?: "typesafe",
 ) {
   const quota: AiUsageQuota & { apiKey: string | null } = await ctx.runMutation(
     internal.ai.usage.consumeMonthlyQuota,
-    { userId, source },
+    { userId, source, ...(provider ? { provider } : {}) },
   );
 
   if (!quota.allowed) {
@@ -409,7 +411,7 @@ export async function consumeAiUsageOrThrow(
 
     // Only a deployment that still offers BYOK points at it here; on the
     // hosted service the Settings field it names is not on the screen.
-    const byokHint = isProCompedForEveryone()
+    const byokHint = provider !== "typesafe" && isProCompedForEveryone()
       ? "add your own OpenRouter key in Settings, "
       : "";
     throw new Error(

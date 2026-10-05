@@ -21,9 +21,9 @@ export function pushDismissHandler(handler: DismissHandler) {
   }
 }
 
-/** True when something was closed, i.e. the back should go no further. */
+/** True when a layer consumed back, including while it is busy or closing. */
 export function dismissTopmost(): boolean {
-  const handler = stack.pop()
+  const handler = stack[stack.length - 1]
   if (!handler) return false
   handler()
   return true

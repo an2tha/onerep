@@ -78,7 +78,7 @@ export function ExerciseHistorySheet({
       onClose={onClose}
       ariaLabel={tr("Exercise history")}
       overlayClassName="sheet-overlay bg-black/50 backdrop-blur-[8px]"
-      panelClassName="w-full max-w-sm overflow-hidden rounded-t-3xl bg-card shadow-[0_-12px_60px_rgba(0,0,0,0.22)]"
+      panelClassName="w-full max-w-sm overflow-hidden rounded-t-3xl bg-card sm:rounded-3xl shadow-[0_-12px_60px_rgba(0,0,0,0.22)]"
       panelStyle={{
         paddingBottom: "max(2rem, env(safe-area-inset-bottom, 2rem))",
       }}
@@ -87,17 +87,15 @@ export function ExerciseHistorySheet({
       <>
         <div className="flex items-center gap-3 px-5 pt-4 pb-3">
           <button
+            type="button"
             onClick={onClose}
             aria-label={tr("Close history")}
-            className="flex h-10 w-10 items-center justify-center rounded-full transition-colors active:bg-muted/60"
-            style={{
-              color: "color-mix(in srgb, var(--foreground) 40%, transparent)",
-            }}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors active:bg-muted/60"
           >
             <ArrowLeft size={14} weight="bold" />
           </button>
           <div className="min-w-0 flex-1">
-            <h2 className="truncate text-[17px] font-semibold tracking-tight">
+            <h2 className="text-[17px] font-semibold tracking-tight">
               {exerciseName}
             </h2>
             <p className="text-[13px] text-muted-foreground">
@@ -108,7 +106,7 @@ export function ExerciseHistorySheet({
 
         {history === undefined ? (
           <div className="flex items-center justify-center py-16">
-            <span className="text-[13px] text-muted-foreground">
+            <span role="status" className="text-[13px] text-muted-foreground">
               {tr("Loading…")}
             </span>
           </div>

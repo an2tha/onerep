@@ -98,3 +98,5 @@ export * from "./lib/dismiss-stack"
 export * from "./lib/design-tokens"
 export * from "./lib/palettes"
 export * from "./lib/visual-identity"
+
+export * from "./hooks/use-modal-layer"

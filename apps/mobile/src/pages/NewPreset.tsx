@@ -1,5 +1,8 @@
 import { Message, tr, translateError } from "@repo/ui/i18n"
 import React, { useEffect, useRef, useState } from "react"
+import { WorkoutGuide } from "./workout-guide/WorkoutGuide"
+import { useAppAuth } from "@/lib/auth-client"
+import type { GuidedDraft } from "../../../../convex/lib/workoutGuide"
 import { readCachedWeightUnit } from "@/lib/use-weight-unit"
 import { useParams } from "react-router"
 import { captureFeatureUsage } from "@/lib/analytics"
@@ -1294,6 +1297,7 @@ export default function NewPreset() {
   const { id: presetId } = useParams<{ id?: string }>()
   const navigate = useSmoothNavigate()
   const { requireAiAccess, aiAccessModal } = useAiFeatureGate()
+  const guideGate = useAiFeatureGate("typesafe")
 
   const presets = useQuery(api.logs.presets.list, {})
   const createPreset = useOfflineMutation(
@@ -1306,6 +1310,11 @@ export default function NewPreset() {
   )
   const createPresetDraft = useAction(api.logs.presetAgent.createFromText)
 
+  const { userId } = useAppAuth()
+  const [guideOpen, setGuideOpen] = useState(false)
+  const planGuide = useAction(api.logs.presetAgent.planGuidedFollowups)
+  const generateGuide = useAction(api.logs.presetAgent.createGuidedDraft)
+  const guideButton = useRef<HTMLButtonElement>(null)
   const [confirming, setConfirming] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [pasteOpen, setPasteOpen] = useState(false)
@@ -1570,6 +1579,65 @@ export default function NewPreset() {
       generatingPresetRef.current = false
       setGeneratingPreset(false)
     }
+  }
+
+  async function applyGuidedDraft(draft: GuidedDraft) {
+    // Resolve everything before changing the editor. A partial catalog match
+    // must not silently remove an exercise from a reviewed workout.
+    const resolved = await Promise.all(
+      draft.exercises.map(async (entry) => {
+        const candidates = await searchExercises({
+          query: entry.name,
+          limit: 6,
+        })
+        const exercise = candidates.find(
+          (candidate) =>
+            normalizeExerciseNameForMatch(candidate.name) ===
+            normalizeExerciseNameForMatch(entry.name)
+        )
+        if (!exercise)
+          throw new Error(
+            tr(
+              "Could not find {{name}} in the exercise catalog. Go back and rebuild the workout.",
+              { name: entry.name }
+            )
+          )
+        return { entry, exercise }
+      })
+    )
+    if (
+      new Set(resolved.map((value) => value.exercise.id)).size !==
+      resolved.length
+    ) {
+      throw new Error(
+        tr(
+          "Some exercises matched the same catalog entry. Go back and rebuild the workout."
+        )
+      )
+    }
+    setItems(
+      resolved.map(({ exercise }) => ({
+        kind: "solo",
+        exerciseId: exercise.id,
+      }))
+    )
+    setExData(
+      Object.fromEntries(
+        resolved.map(({ exercise, entry }) => [
+          exercise.id,
+          makeExerciseStateFromAgentDraft(exercise, entry),
+        ])
+      )
+    )
+    setExerciseLookup(
+      Object.fromEntries(
+        resolved.map(({ exercise }) => [exercise.id, exercise])
+      )
+    )
+    setPresetName(draft.name.slice(0, 40))
+    setCollapsed({})
+    setGuideOpen(false)
+    requestAnimationFrame(() => document.getElementById("preset-name")?.focus())
   }
 
   // ── Add / remove ──────────────────────────────────────────
@@ -1946,6 +2014,57 @@ export default function NewPreset() {
 
   // ─────────────────────────────────────────────────────────
 
+  if (guideOpen)
+    return (
+      <>
+        <WorkoutGuide
+          key={`${userId}:${presetId ?? "new"}`}
+          storageKey={`onerep:workout-guide:v1:${userId}:${presetId ?? "new"}:${addedIds.length ? "edit" : "create"}`}
+          editing={addedIds.length > 0}
+          existingName={presetName}
+          onClose={() => {
+            setGuideOpen(false)
+            requestAnimationFrame(() => guideButton.current?.focus())
+          }}
+          onPlan={async (answers) => {
+            if (!guideGate.requireAiAccess(2, "workout_guide_questions"))
+              throw new Error(
+                tr("Enable AI access, then continue. Your answers are kept.")
+              )
+            return (await planGuide({ answers, editing: addedIds.length > 0 }))
+              .questionIds
+          }}
+          onGenerate={async (answers, notes) => {
+            if (!requireAiAccess(1, "workout_guide_draft"))
+              throw new Error(
+                tr("Enable AI access, then try again. Your answers are kept.")
+              )
+            return await generateGuide({
+              answers,
+              notes,
+              ...(addedIds.length
+                ? {
+                    existing: {
+                      name: presetName,
+                      exercises: addedIds.map((id) => ({
+                        name: exerciseLookup[id]?.name ?? id,
+                        sets: (exData[id]?.sets ?? []).map((set) => ({
+                          reps: set.reps,
+                          restSeconds: set.restSeconds,
+                        })),
+                      })),
+                    },
+                  }
+                : {}),
+            })
+          }}
+          onApply={applyGuidedDraft}
+        />
+        {guideGate.aiAccessModal}
+        {aiAccessModal}
+      </>
+    )
+
   return (
     <div className="desktop-canvas min-h-svh bg-background">
       <div className="mx-auto w-full max-w-lg pb-[calc(var(--app-safe-bottom-lg)+6.5rem)] md:max-w-3xl md:pb-10">
@@ -1982,6 +2101,30 @@ export default function NewPreset() {
               className={saving ? "animate-spin" : ""}
             />
             {saving ? tr("Saving…") : tr("Save")}
+          </button>
+        </div>
+
+        <div className="px-[var(--app-page-x)] pt-3 md:px-8">
+          <button
+            ref={guideButton}
+            type="button"
+            disabled={
+              loadingPreset ||
+              !userId ||
+              addedIds.some((id) => !exerciseLookup[id])
+            }
+            onClick={() => setGuideOpen(true)}
+            className="flex min-h-20 w-full items-center justify-between gap-4 rounded-xl bg-[#202426] px-5 py-4 text-left text-[#f2f0eb] shadow-sm transition-colors hover:bg-[#2b3033] focus-visible:outline-2 focus-visible:outline-offset-4 disabled:opacity-50"
+          >
+            <span>
+              <span className="block text-base font-semibold">
+                {tr("Build with AI")}
+              </span>
+              <span className="mt-1 block text-[13px] text-[#bfc1c2]">
+                {tr("Uses 2 AI requests")}
+              </span>
+            </span>
+            <Barbell size={28} className="shrink-0 text-[#d9c49b]" />
           </button>
         </div>
 

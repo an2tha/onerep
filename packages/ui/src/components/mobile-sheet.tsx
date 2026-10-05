@@ -2,7 +2,8 @@ import { tr } from "@repo/ui/i18n"
 import * as React from "react"
 import { createPortal } from "react-dom"
 import { cn } from "../lib/utils"
-import { pushDismissHandler } from "../lib/dismiss-stack"
+import { useModalLayer } from "../hooks/use-modal-layer"
+import { useBackdropDismiss } from "../lib/backdrop-dismiss"
 
 export type MobileSheetProps = {
   children: React.ReactNode
@@ -44,7 +45,7 @@ export function MobileSheet({
   dismissible = true,
   dragThreshold = 100,
   minHeight = "15vh",
-  maxHeight = "85vh",
+  maxHeight = "85dvh",
   snapPoints,
   defaultHeight,
   ariaLabel = tr("Sheet"),
@@ -98,76 +99,10 @@ export function MobileSheet({
     []
   )
 
-  // The trap reads `dismiss` through a ref so the effect below can depend on
-  // nothing. It used to depend on `dismiss`, which changes identity whenever
-  // the parent re-renders with a fresh inline `onClose` — every Convex tick,
-  // in practice. Each re-run restored focus to the opener and then re-focused
-  // the panel's first control, which on a phone closes the keyboard mid-word.
-  const dismissRef = React.useRef(dismiss)
-  React.useEffect(() => {
-    dismissRef.current = dismiss
-  }, [dismiss])
-
-  // Android's back gesture unwinds this before it touches the route.
-  React.useEffect(() => pushDismissHandler(() => dismissRef.current()), [])
-
-  React.useEffect(() => {
-    const previousFocus = document.activeElement as HTMLElement | null
-    const panel = panelRef.current
-    if (!panel) return
-
-    const focusableSelector =
-      'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-    const focusables = () =>
-      Array.from(panel.querySelectorAll<HTMLElement>(focusableSelector)).filter(
-        (element) => element.getClientRects().length > 0
-      )
-
-    const frame = requestAnimationFrame(() => {
-      // A field with `autoFocus` has already claimed the caret by now, and on
-      // a phone that means the keyboard is up. Moving focus to the first
-      // control — usually the close button — would shut it again.
-      if (panel.contains(document.activeElement)) return
-      ;(focusables()[0] ?? panel).focus({ preventScroll: true })
-    })
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        event.preventDefault()
-        dismissRef.current()
-        return
-      }
-      if (event.key !== "Tab") return
-
-      const items = focusables()
-      if (items.length === 0) {
-        event.preventDefault()
-        panelRef.current?.focus()
-        return
-      }
-      const first = items[0]
-      const last = items[items.length - 1]
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault()
-        last.focus()
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault()
-        first.focus()
-      }
-    }
-
-    document.addEventListener("keydown", handleKeyDown)
-    return () => {
-      cancelAnimationFrame(frame)
-      document.removeEventListener("keydown", handleKeyDown)
-      // Only hand focus back if it is still inside this sheet. Otherwise the
-      // unmount yanks the caret out of whatever the user moved on to.
-      if (panel.contains(document.activeElement)) {
-        previousFocus?.focus({ preventScroll: true })
-      }
-    }
-    // Mount and unmount only. See `dismissRef` above.
-  }, [])
+  const viewportStyle = useModalLayer(panelRef, dismiss)
+  const backdropDismiss = useBackdropDismiss(() => {
+    if (closeOnBackdrop) dismiss()
+  })
 
   React.useEffect(() => {
     if (!dragging || !panelRef.current) return
@@ -184,7 +119,7 @@ export function MobileSheet({
         normalizedMinHeight,
         Math.min(normalizedMaxHeight, startHeight.current - delta)
       )
-      setCurrentHeight(newHeight)
+      if (snapPoints || defaultHeight) setCurrentHeight(newHeight)
     }
 
     function handlePointerEnd() {
@@ -199,9 +134,9 @@ export function MobileSheet({
           normalizedMinHeight,
           Math.min(normalizedMaxHeight, startHeight.current - finalOffsetY)
         )
-        setCurrentHeight(newHeight)
+        if (snapPoints || defaultHeight) setCurrentHeight(newHeight)
 
-        if (snapPoints) {
+        if (snapPoints?.length) {
           const closest = snapPoints.reduce((prev, curr) =>
             Math.abs(curr - newHeight) < Math.abs(prev - newHeight)
               ? curr
@@ -236,6 +171,7 @@ export function MobileSheet({
     normalizedMaxHeight,
     normalizedMinHeight,
     snapPoints,
+    defaultHeight,
     onDismissGesture,
   ])
 
@@ -246,6 +182,7 @@ export function MobileSheet({
   }, [settling])
 
   function handlePointerDown(e: React.PointerEvent<HTMLButtonElement>) {
+    if (!dismissible) return
     e.preventDefault()
     if (panelRef.current) {
       startHeight.current = panelRef.current.offsetHeight
@@ -277,7 +214,7 @@ export function MobileSheet({
   return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-end justify-center sm:items-center"
-      style={{ overflow: "visible" }}
+      style={{ overflow: "visible", ...viewportStyle }}
     >
       {/* Backdrop */}
       <div
@@ -286,9 +223,7 @@ export function MobileSheet({
           overlayClassName,
           isClosing ? "sheet-backdrop-exit" : "sheet-backdrop-enter"
         )}
-        onClick={() => {
-          if (closeOnBackdrop) dismiss()
-        }}
+        {...backdropDismiss}
       />
 
       {/* Panel — slides in/out from the bottom, resizable */}
@@ -305,13 +240,14 @@ export function MobileSheet({
           isClosing ? "sheet-panel-exit" : "sheet-panel-enter"
         )}
         style={{
-          minHeight,
-          maxHeight,
+          backgroundColor: "var(--background)",
           height: currentHeight || undefined,
           transformOrigin: "bottom center",
           ...panelStyle,
           ...dragStyle,
           ...heightStyle,
+          minHeight: `min(${panelStyle?.minHeight ?? minHeight}, calc(var(--sheet-viewport-height, 100dvh) - 1rem))`,
+          maxHeight: `min(${panelStyle?.maxHeight ?? maxHeight}, calc(var(--sheet-viewport-height, 100dvh) - 1rem))`,
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -320,6 +256,7 @@ export function MobileSheet({
           <button
             type="button"
             onPointerDown={handlePointerDown}
+            disabled={!dismissible}
             className="flex h-11 w-full shrink-0 touch-none items-center justify-center md:hidden"
             aria-label={tr("Drag down to close or up to expand this panel")}
           >

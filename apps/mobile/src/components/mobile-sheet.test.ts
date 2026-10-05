@@ -23,6 +23,13 @@ const SHEET_SOURCE = readFileSync(
   ),
   "utf8"
 )
+const MODAL_SOURCE = readFileSync(
+  new URL(
+    "../../../../packages/ui/src/hooks/use-modal-layer.ts",
+    import.meta.url
+  ),
+  "utf8"
+)
 
 describe("MobileSheet – accessible dialog contract", () => {
   test("exposes modal semantics and a programmatic focus target", () => {
@@ -32,9 +39,10 @@ describe("MobileSheet – accessible dialog contract", () => {
   })
 
   test("supports Escape, traps Tab, and restores previous focus", () => {
-    assert.match(SHEET_SOURCE, /event\.key === "Escape"/)
-    assert.match(SHEET_SOURCE, /event\.key !== "Tab"/)
-    assert.match(SHEET_SOURCE, /previousFocus\?\.focus/)
+    assert.match(SHEET_SOURCE, /useModalLayer\(panelRef, dismiss\)/)
+    assert.match(MODAL_SOURCE, /event\.key === "Escape"/)
+    assert.match(MODAL_SOURCE, /event\.key === "Tab"/)
+    assert.match(MODAL_SOURCE, /opener\.focus/)
   })
 
   test("keeps the sheet mounted through exit and uses the live drag offset", () => {

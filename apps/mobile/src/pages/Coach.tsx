@@ -796,6 +796,7 @@ export default function Coach({
   const coachSwipeStartRef = useRef<{ x: number; y: number } | null>(null)
   const [workoutPlanDraft, setWorkoutPlanDraft] =
     useState<AgentWorkoutDraft | null>(null)
+  const [workoutPlanError, setWorkoutPlanError] = useState("")
   const [newChatPhase, setNewChatPhase] = useState<
     "idle" | "appear" | "open" | "suck" | "out"
   >("idle")
@@ -2046,6 +2047,7 @@ export default function Coach({
       const operations = workoutPlan
         ? allOperations.filter((operation) => operation !== workoutPlan)
         : allOperations
+      setWorkoutPlanError("")
       setWorkoutPlanDraft(
         workoutPlan ? workoutDraftFromOperation(workoutPlan) : null
       )
@@ -2448,7 +2450,7 @@ export default function Coach({
                   aria-label={
                     embedded ? tr("Close coach") : tr("Back to your workout")
                   }
-                  className="-ml-2 flex size-10 shrink-0 items-center justify-center rounded-full text-muted-foreground active:bg-muted"
+                  className="-ml-2 flex size-11 shrink-0 items-center justify-center rounded-full text-muted-foreground active:bg-muted"
                 >
                   <ArrowLeft size={16} weight="bold" />
                 </button>
@@ -3025,15 +3027,29 @@ export default function Coach({
                   }}
                 />
               </p>
+              {workoutPlanError && (
+                <p role="alert" className="mt-2 text-[13px] text-destructive">
+                  {workoutPlanError}
+                </p>
+              )}
               <div className="mt-2.5 flex gap-2">
                 <button
                   type="button"
                   disabled={activeWorkout.applying}
                   aria-busy={activeWorkout.applying}
-                  onClick={() => {
+                  onClick={async () => {
                     const draft = workoutPlanDraft
-                    setWorkoutPlanDraft(null)
-                    void activeWorkout.onApply(draft)
+                    setWorkoutPlanError("")
+                    try {
+                      await activeWorkout.onApply(draft)
+                      setWorkoutPlanDraft(null)
+                    } catch {
+                      setWorkoutPlanError(
+                        tr(
+                          "Could not apply this plan. Try again or keep your workout."
+                        )
+                      )
+                    }
                   }}
                   className="motion-tactile min-h-11 flex-1 rounded-xl bg-foreground px-4 text-[14px] font-semibold text-background disabled:opacity-45"
                 >
@@ -3041,6 +3057,7 @@ export default function Coach({
                 </button>
                 <button
                   type="button"
+                  disabled={activeWorkout.applying}
                   onClick={() => setWorkoutPlanDraft(null)}
                   className="motion-tactile min-h-11 rounded-xl border border-border px-4 text-[14px] font-semibold text-muted-foreground"
                 >

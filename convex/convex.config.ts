@@ -6,6 +6,8 @@ import migrations from "@convex-dev/migrations/convex.config.js";
 
 const app = defineApp({
   env: {
+    TYPESAFE_API_KEY: v.optional(v.string()),
+    TYPESAFE_MODEL: v.optional(v.string()),
     OPENAI_MODEL: v.optional(v.string()),
     OPENROUTER_API_KEY: v.optional(v.string()),
     OPENROUTER_MODEL: v.optional(v.string()),

@@ -28,7 +28,7 @@ export function useAiAccessSubscription() {
   }
 }
 
-export function useAiFeatureGate() {
+export function useAiFeatureGate(provider?: "typesafe") {
   const { user, userId } = useAppAuth()
   const billing = useBilling({
     email: user?.email,
@@ -36,7 +36,7 @@ export function useAiFeatureGate() {
     userId,
   })
   const hasPro = billing.hasOneRepPro
-  const usage = useQuery(api.ai.usage.getMonthlyUsage, {})
+  const usage = useQuery(api.ai.usage.getMonthlyUsage, provider ? {provider} : {})
   // A user on their own OpenRouter key (BYOK) has no monthly cap to hit, so
   // the paywall never applies to them. Same for an uncapped self-hosted
   // deployment (AI_USAGE_UNLIMITED=true).

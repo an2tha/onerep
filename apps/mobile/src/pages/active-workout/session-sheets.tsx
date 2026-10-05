@@ -42,6 +42,9 @@ export function AiWorkoutSheet({
   const [text, setText] = useState("")
   const [proposal, setProposal] = useState<CoachWorkoutProposal | null>(null)
   const [error, setError] = useState("")
+  const [applying, setApplying] = useState(false)
+  const applyingRef = useRef(false)
+  const busy = loading || applying
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const canAsk = text.trim().length >= 4 && !loading && contextReady
 
@@ -71,19 +74,32 @@ export function AiWorkoutSheet({
   }
 
   function requestClose() {
-    if (loading) return
+    if (busy) return
     onClose()
   }
 
   async function applyProposal() {
-    if (!proposal || loading) return
-    await onApply(proposal)
-    onClose()
+    if (!proposal || busy || applyingRef.current) return
+    applyingRef.current = true
+    setApplying(true)
+    setError("")
+    try {
+      await onApply(proposal)
+      onClose()
+    } catch {
+      setError(
+        tr("Could not apply this plan. Your workout is unchanged. Try again.")
+      )
+    } finally {
+      applyingRef.current = false
+      setApplying(false)
+    }
   }
 
   return (
     <MobileSheet
       onClose={requestClose}
+      dismissible={!busy}
       ariaLabel={tr("Ask Coach for workout help")}
       overlayClassName="bg-black/65 p-2 sm:p-5"
       panelClassName="max-h-[min(680px,calc(100svh-1rem))] w-full max-w-[480px] overflow-y-auto rounded-[22px] border border-border/55 bg-background shadow-2xl"
@@ -100,7 +116,7 @@ export function AiWorkoutSheet({
           <button
             type="button"
             onClick={requestClose}
-            disabled={loading}
+            disabled={busy}
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground disabled:opacity-40"
             aria-label={tr("Close Ask Coach")}
           >
@@ -135,7 +151,7 @@ export function AiWorkoutSheet({
                       key={`${exercise.name}-${index}`}
                       className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0"
                     >
-                      <span className="w-5 shrink-0 text-center text-[11px] font-bold text-muted-foreground/70 tabular-nums">
+                      <span className="w-5 shrink-0 text-center text-[11px] font-bold text-muted-foreground tabular-nums">
                         {String(index + 1).padStart(2, "0")}
                       </span>
                       <span className="min-w-0 flex-1 truncate text-[13px] font-semibold">
@@ -153,11 +169,16 @@ export function AiWorkoutSheet({
               </div>
             </div>
 
+            {error && (
+              <p role="alert" className="mt-3 text-[13px] text-destructive">
+                {error}
+              </p>
+            )}
             <div className="mt-3 grid grid-cols-[0.72fr_1.28fr] gap-2.5">
               <button
                 type="button"
                 onClick={askAgain}
-                disabled={loading}
+                disabled={busy}
                 className="h-11 rounded-xl border border-border/65 bg-card/35 text-[13px] font-semibold text-muted-foreground transition-colors hover:bg-muted/55 hover:text-foreground disabled:opacity-40"
               >
                 {tr("Ask again")}
@@ -165,10 +186,10 @@ export function AiWorkoutSheet({
               <button
                 type="button"
                 onClick={() => void applyProposal()}
-                disabled={loading}
+                disabled={busy}
                 className="flex h-11 items-center justify-center gap-2 rounded-xl bg-foreground text-[13px] font-bold text-background transition-opacity active:opacity-80 disabled:opacity-40"
               >
-                {loading ? tr("Applying plan…") : tr("Use this plan")}
+                {busy ? tr("Applying plan…") : tr("Use this plan")}
                 {!loading && <Check size={14} weight="bold" />}
               </button>
             </div>
@@ -178,6 +199,7 @@ export function AiWorkoutSheet({
             <div className="rounded-[18px] border border-border/65 bg-card/25 p-2 transition-colors focus-within:border-foreground/30">
               <textarea
                 ref={textareaRef}
+                aria-label={tr("Workout help request")}
                 value={text}
                 onChange={(event) => {
                   setText(event.target.value)
@@ -189,7 +211,7 @@ export function AiWorkoutSheet({
                     void askCoach()
                   }
                 }}
-                disabled={loading}
+                disabled={busy}
                 maxLength={900}
                 placeholder={
                   target?.exerciseName
@@ -199,7 +221,7 @@ export function AiWorkoutSheet({
                     : tr("Tell Coach what you want from today's session…")
                 }
                 autoFocus
-                className="min-h-32 w-full resize-none bg-transparent px-2 py-2 text-[15px] leading-relaxed outline-none placeholder:text-muted-foreground/55 disabled:opacity-60"
+                className="min-h-32 w-full resize-none bg-transparent px-2 py-2 text-[16px] leading-relaxed outline-none placeholder:text-muted-foreground/55 disabled:opacity-60"
               />
               <div className="flex items-center justify-end px-1 pb-0.5">
                 <button
@@ -243,6 +265,9 @@ export function ResumeWorkoutSheet({
   onDiscard: () => Promise<void>
 }) {
   const [discarding, setDiscarding] = useState(false)
+  const [confirmDiscard, setConfirmDiscard] = useState(false)
+  const [error, setError] = useState("")
+  const discardingRef = useRef(false)
   const savedLabel = savedAt
     ? new Date(savedAt).toLocaleTimeString(uiLocale(), {
         hour: "2-digit",
@@ -251,71 +276,89 @@ export function ResumeWorkoutSheet({
     : null
 
   async function discard() {
-    if (discarding) return
+    if (discardingRef.current) return
+    discardingRef.current = true
     setDiscarding(true)
+    setError("")
     try {
       await onDiscard()
     } catch {
+      setError(tr("Could not discard this workout. Try again or resume it."))
+    } finally {
+      discardingRef.current = false
       setDiscarding(false)
     }
   }
 
   return (
-    <div className="sheet-overlay fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-[8px]">
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="resume-workout-title"
-        className="sheet-panel w-full max-w-sm overflow-hidden rounded-t-3xl bg-card shadow-[0_-12px_60px_rgba(0,0,0,0.22)]"
-        style={{
-          paddingBottom: "max(2rem, env(safe-area-inset-bottom, 2rem))",
-        }}
-      >
-        <div className="flex justify-center pt-3 pb-0">
-          <div className="h-1 w-10 rounded-full bg-muted/70" />
-        </div>
-        <div className="px-6 pt-5 pb-2">
-          <h2
-            id="resume-workout-title"
-            className="text-[20px] font-semibold tracking-tight"
-          >
-            {tr("You have an active workout")}
-          </h2>
-          <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground/70">
-            <Message
-              text={
-                "Resume your {{value0}} workout{{value1}}, or discard it and start fresh."
-              }
-              values={{
-                value0: choice(source === "local" ? "locally saved" : "saved"),
-                value1: savedLabel
-                  ? tr(" from {{value0}}", { value0: savedLabel })
-                  : "",
-              }}
-            />
-          </p>
-        </div>
-        <div className="flex flex-col gap-2 px-6 pt-4">
-          <button
-            type="button"
-            onClick={onResume}
-            disabled={discarding}
-            className="h-[52px] w-full rounded-[20px] bg-foreground text-[15px] font-semibold tracking-tight text-background transition-opacity active:opacity-80 disabled:opacity-60"
-          >
-            {tr("Resume workout")}
-          </button>
-          <button
-            type="button"
-            onClick={() => void discard()}
-            disabled={discarding}
-            aria-busy={discarding}
-            className="h-[52px] w-full rounded-[20px] bg-destructive/10 text-[14px] font-bold text-destructive transition-colors active:bg-destructive/15 disabled:opacity-50"
-          >
-            {discarding ? tr("Discarding...") : tr("Discard workout")}
-          </button>
-        </div>
+    <MobileSheet
+      onClose={() => {
+        if (!discarding) onResume()
+      }}
+      dismissible={!discarding}
+      ariaLabel={tr("You have an active workout")}
+      panelClassName="w-full max-w-sm rounded-t-3xl bg-card sm:rounded-3xl"
+      panelStyle={{
+        paddingBottom: "max(1rem, env(safe-area-inset-bottom, 1rem))",
+      }}
+    >
+      <div className="px-6 pt-5 pb-2">
+        <h2
+          id="resume-workout-title"
+          className="text-[20px] font-semibold tracking-tight"
+        >
+          {tr("You have an active workout")}
+        </h2>
+        <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
+          <Message
+            text={
+              "Resume your {{value0}} workout{{value1}}, or discard it and start fresh."
+            }
+            values={{
+              value0: choice(source === "local" ? "locally saved" : "saved"),
+              value1: savedLabel
+                ? tr(" from {{value0}}", { value0: savedLabel })
+                : "",
+            }}
+          />
+        </p>
       </div>
-    </div>
+      {confirmDiscard && (
+        <p className="px-6 pt-3 text-[13px] text-destructive">
+          {tr("This removes all progress from this session.")}
+        </p>
+      )}
+      {error && (
+        <p role="alert" className="px-6 pt-3 text-[13px] text-destructive">
+          {error}
+        </p>
+      )}
+      <div className="flex flex-col gap-2 px-6 pt-4">
+        <button
+          type="button"
+          onClick={onResume}
+          disabled={discarding}
+          className="h-[52px] w-full rounded-[20px] bg-foreground text-[15px] font-semibold tracking-tight text-background transition-opacity active:opacity-80 disabled:opacity-60"
+        >
+          {tr("Resume workout")}
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            confirmDiscard ? void discard() : setConfirmDiscard(true)
+          }
+          disabled={discarding}
+          aria-busy={discarding}
+          className="h-[52px] w-full rounded-[20px] bg-destructive/10 text-[14px] font-bold text-destructive transition-colors active:bg-destructive/15 disabled:opacity-50"
+        >
+          {discarding
+            ? tr("Discarding...")
+            : confirmDiscard
+              ? tr("Confirm discard")
+              : tr("Discard workout")}
+        </button>
+      </div>
+    </MobileSheet>
   )
 }
 
@@ -384,6 +427,10 @@ export function BrainDumpSheet({
   onSubmit: (text: string) => Promise<void>
 }) {
   const [text, setText] = useState("")
+  const [error, setError] = useState("")
+  const [submitting, setSubmitting] = useState(false)
+  const busy = pending || submitting
+  const submittingRef = useRef(false)
   const dictation = useCoachDictation({
     value: text,
     onChange: setText,
@@ -391,17 +438,36 @@ export function BrainDumpSheet({
   })
 
   async function submit() {
-    // Stopping first recovers the tail iOS drops, so the last exercise someone
-    // says before hitting send is not silently lost.
-    const finalText =
-      dictation.status === "listening" ? await dictation.stop() : text
-    const trimmed = (finalText ?? text).trim()
-    if (trimmed.length < 4) return
-    await onSubmit(trimmed)
+    if (pending || submittingRef.current) return
+    submittingRef.current = true
+    setSubmitting(true)
+    setError("")
+    try {
+      // Stopping first recovers the tail iOS drops, so the last exercise someone
+      // says before hitting send is not silently lost.
+      const finalText =
+        dictation.status === "listening" ? await dictation.stop() : text
+      const trimmed = (finalText ?? text).trim()
+      if (trimmed.length < 4) return
+      await onSubmit(trimmed)
+    } catch {
+      setError(
+        tr(
+          "Could not add these exercises. Your description is still here. Try again."
+        )
+      )
+    } finally {
+      submittingRef.current = false
+      setSubmitting(false)
+    }
   }
 
   return (
-    <MobileSheet onClose={onClose} ariaLabel={tr("Describe your workout")}>
+    <MobileSheet
+      onClose={onClose}
+      dismissible={!busy}
+      ariaLabel={tr("Describe your workout")}
+    >
       <div className="px-6 pt-2 pb-6">
         {/* The paragraph here said three times over what the placeholder
             already demonstrates. The one thing it carried that nothing else
@@ -424,11 +490,16 @@ export function BrainDumpSheet({
           value={text}
           onChange={(event) => setText(event.target.value)}
           rows={3}
-          disabled={pending}
+          disabled={busy}
           aria-label={tr("Workout description")}
           placeholder={tr("Bench 3x8 at 185, then rows 3x10 at 60")}
-          className="mt-3.5 w-full resize-none rounded-[20px] bg-muted/40 px-4 py-3.5 text-[15px] leading-relaxed outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-60"
+          className="mt-3.5 w-full resize-none rounded-[20px] bg-muted/40 px-4 py-3.5 text-[16px] leading-relaxed outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-60"
         />
+        {error && (
+          <p role="alert" className="mt-2 text-[13px] text-destructive">
+            {error}
+          </p>
+        )}
         {dictation.interim && (
           <p className="mt-2 px-1 text-[13px] text-muted-foreground">
             … · {dictation.interim}
@@ -449,7 +520,7 @@ export function BrainDumpSheet({
                   : tr("Dictate your workout")
               }
               aria-pressed={dictation.status === "listening"}
-              disabled={pending}
+              disabled={busy}
               onClick={() =>
                 dictation.status === "listening"
                   ? void dictation.stop()
@@ -468,11 +539,11 @@ export function BrainDumpSheet({
           <button
             type="button"
             onClick={() => void submit()}
-            disabled={pending || text.trim().length < 4}
-            aria-busy={pending}
+            disabled={busy || text.trim().length < 4}
+            aria-busy={busy}
             className="h-[52px] flex-1 rounded-[20px] bg-foreground text-[15px] font-semibold tracking-tight text-background transition-opacity active:opacity-80 disabled:opacity-50"
           >
-            {pending ? tr("Reading…") : tr("Add exercises")}
+            {busy ? tr("Reading…") : tr("Add exercises")}
           </button>
         </div>
       </div>
@@ -512,6 +583,8 @@ export function RetroSaveSheet({
   onCancel: () => void
 }) {
   const [saving, setSaving] = useState(false)
+  const pendingRef = useRef(false)
+  const [error, setError] = useState("")
   const { hours, minutes } = splitDurationParts(durationSeconds)
 
   function setParts(nextHours: number, nextMinutes: number) {
@@ -534,17 +607,29 @@ export function RetroSaveSheet({
   })()
 
   async function save() {
-    if (saving) return
+    if (pendingRef.current) return
+    pendingRef.current = true
     setSaving(true)
+    setError("")
     try {
       await onSave()
     } catch {
+      setError(
+        tr(
+          "Could not save this workout. Try again. Your entries are still here."
+        )
+      )
+      pendingRef.current = false
       setSaving(false)
     }
   }
 
   return (
-    <MobileSheet onClose={onCancel} ariaLabel={tr("Save this workout")}>
+    <MobileSheet
+      onClose={onCancel}
+      dismissible={!saving}
+      ariaLabel={tr("Save this workout")}
+    >
       <div className="px-6 pt-2 pb-6">
         <h2 className="text-[20px] font-semibold tracking-tight">
           {mode === "edit" ? tr("Save changes") : tr("Log this workout")}
@@ -568,21 +653,23 @@ export function RetroSaveSheet({
           </span>
           <input
             type="date"
+            disabled={saving}
             value={date}
             max={todayIso()}
             onChange={(event) => onDateChange(event.target.value)}
             aria-label={tr("Workout date")}
-            className="h-[52px] rounded-[20px] bg-muted/40 px-4 text-[15px] outline-none focus:ring-2 focus:ring-primary/40"
+            className="h-[52px] rounded-[20px] bg-muted/40 min-w-0 px-4 text-[16px] outline-none focus:ring-2 focus:ring-primary/40"
           />
         </label>
 
-        <div className="mt-4 flex gap-3">
-          <label className="flex flex-1 flex-col gap-1.5">
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <label className="flex min-w-0 flex-1 flex-col gap-1.5">
             <span className="px-1 text-[13px] font-bold text-muted-foreground">
               {tr("Hours")}
             </span>
             <input
               type="number"
+              disabled={saving}
               inputMode="numeric"
               min="0"
               max="6"
@@ -591,15 +678,16 @@ export function RetroSaveSheet({
                 setParts(Number(event.target.value) || 0, minutes)
               }
               aria-label={tr("Workout duration hours")}
-              className="h-[52px] rounded-[20px] bg-muted/40 px-4 text-[15px] tabular-nums outline-none focus:ring-2 focus:ring-primary/40"
+              className="h-[52px] rounded-[20px] bg-muted/40 min-w-0 px-4 text-[16px] tabular-nums outline-none focus:ring-2 focus:ring-primary/40"
             />
           </label>
-          <label className="flex flex-1 flex-col gap-1.5">
+          <label className="flex min-w-0 flex-1 flex-col gap-1.5">
             <span className="px-1 text-[13px] font-bold text-muted-foreground">
               {tr("Minutes")}
             </span>
             <input
               type="number"
+              disabled={saving}
               inputMode="numeric"
               min="0"
               max="59"
@@ -608,15 +696,16 @@ export function RetroSaveSheet({
                 setParts(hours, Number(event.target.value) || 0)
               }
               aria-label={tr("Workout duration minutes")}
-              className="h-[52px] rounded-[20px] bg-muted/40 px-4 text-[15px] tabular-nums outline-none focus:ring-2 focus:ring-primary/40"
+              className="h-[52px] rounded-[20px] bg-muted/40 min-w-0 px-4 text-[16px] tabular-nums outline-none focus:ring-2 focus:ring-primary/40"
             />
           </label>
-          <label className="flex flex-1 flex-col gap-1.5">
+          <label className="col-span-2 flex min-w-0 flex-col gap-1.5">
             <span className="px-1 text-[13px] font-bold text-muted-foreground">
               {tr("Finished")}
             </span>
             <input
               type="time"
+              disabled={saving}
               value={timeValue}
               onChange={(event) => {
                 const [h, m] = event.target.value.split(":").map(Number)
@@ -626,11 +715,16 @@ export function RetroSaveSheet({
                 onCompletedAtChange(next.getTime())
               }}
               aria-label={tr("Time the workout finished")}
-              className="h-[52px] rounded-[20px] bg-muted/40 px-4 text-[15px] tabular-nums outline-none focus:ring-2 focus:ring-primary/40"
+              className="h-[52px] rounded-[20px] bg-muted/40 min-w-0 px-4 text-[16px] tabular-nums outline-none focus:ring-2 focus:ring-primary/40"
             />
           </label>
         </div>
 
+        {error && (
+          <p role="alert" className="mt-3 text-[13px] text-destructive">
+            {error}
+          </p>
+        )}
         <div className="mt-5 flex flex-col gap-2">
           <button
             type="button"
@@ -672,15 +766,25 @@ export function FinishSheet({
   onFinish: () => Promise<void>
   onCancel: () => void
 }) {
-  const allDone = doneSets >= totalSets
+  const allDone = totalSets > 0 && doneSets >= totalSets
   const [finishing, setFinishing] = useState(false)
+  const pendingRef = useRef(false)
+  const [error, setError] = useState("")
 
   async function confirmFinish() {
-    if (finishing) return
+    if (pendingRef.current) return
+    pendingRef.current = true
     setFinishing(true)
+    setError("")
     try {
       await onFinish()
     } catch {
+      setError(
+        tr(
+          "Could not finish this workout. Try again. Your progress is still here."
+        )
+      )
+      pendingRef.current = false
       setFinishing(false)
     }
   }
@@ -692,11 +796,12 @@ export function FinishSheet({
 
   return (
     <MobileSheet
+      dismissible={!finishing}
       onClose={requestClose}
       closeOnBackdrop={!finishing}
       ariaLabel={tr("Finish workout?")}
       overlayClassName="bg-black/50"
-      panelClassName="w-full max-w-sm overflow-hidden rounded-t-3xl bg-card shadow-[0_-12px_60px_rgba(0,0,0,0.22)]"
+      panelClassName="w-full max-w-sm overflow-hidden rounded-t-3xl bg-card sm:rounded-3xl shadow-[0_-12px_60px_rgba(0,0,0,0.22)]"
       panelStyle={{
         paddingBottom: "max(2rem, env(safe-area-inset-bottom, 2rem))",
       }}
@@ -716,9 +821,13 @@ export function FinishSheet({
           id="finish-workout-title"
           className="text-[20px] font-semibold tracking-tight"
         >
-          {allDone ? tr("Workout complete") : tr("Finish early?")}
+          {allDone
+            ? tr("Workout complete")
+            : doneSets === 0
+              ? tr("No activity logged yet")
+              : tr("Finish early?")}
         </h2>
-        <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground/70">
+        <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
           <Message
             text={"{{value0}}Total time: {{value1}}"}
             values={{
@@ -736,7 +845,7 @@ export function FinishSheet({
             }}
           />
         </p>
-        <div className="mt-4 flex gap-3">
+        <div className="mt-4 grid grid-cols-2 gap-3">
           {[
             { label: tr("Complete"), value: `${doneSets}/${totalSets}` },
             { label: tr("Duration"), value: formatElapsed(elapsed) },
@@ -755,11 +864,19 @@ export function FinishSheet({
           ))}
         </div>
       </div>
+      {error && (
+        <p role="alert" className="px-6 pt-3 text-[13px] text-destructive">
+          {error}
+        </p>
+      )}
+      <p className="px-6 pt-3 text-[13px] leading-relaxed text-muted-foreground">
+        {tr("Only completed sets and logged cardio will be saved.")}
+      </p>
       <div className="flex flex-col gap-2 px-6 pt-4">
         <button
           type="button"
           onClick={() => void confirmFinish()}
-          disabled={finishing}
+          disabled={finishing || doneSets === 0}
           aria-busy={finishing}
           className="h-[52px] w-full rounded-[20px] bg-foreground text-[15px] font-semibold tracking-tight text-background transition-opacity active:opacity-80 disabled:opacity-60"
         >
@@ -781,18 +898,28 @@ export function FinishSheet({
 export function AbortSheet({
   onConfirm,
   onCancel,
+  onLeave,
+  onFinish,
 }: {
   onConfirm: () => Promise<void>
   onCancel: () => void
+  onLeave?: () => void
+  onFinish?: () => void
 }) {
   const [aborting, setAborting] = useState(false)
+  const pendingRef = useRef(false)
+  const [error, setError] = useState("")
 
   async function confirmAbort() {
-    if (aborting) return
+    if (pendingRef.current) return
+    pendingRef.current = true
     setAborting(true)
+    setError("")
     try {
       await onConfirm()
     } catch {
+      setError(tr("Could not discard this workout. Try again or keep going."))
+      pendingRef.current = false
       setAborting(false)
     }
   }
@@ -804,11 +931,12 @@ export function AbortSheet({
 
   return (
     <MobileSheet
+      dismissible={!aborting}
       onClose={requestClose}
       closeOnBackdrop={!aborting}
-      ariaLabel={tr("Abort workout?")}
+      ariaLabel={onLeave ? tr("Leave workout?") : tr("Abort workout?")}
       overlayClassName="bg-black/50"
-      panelClassName="w-full max-w-sm overflow-hidden rounded-t-3xl bg-card shadow-[0_-12px_60px_rgba(0,0,0,0.22)]"
+      panelClassName="w-full max-w-sm overflow-hidden rounded-t-3xl bg-card sm:rounded-3xl shadow-[0_-12px_60px_rgba(0,0,0,0.22)]"
       panelStyle={{
         paddingBottom: "max(2rem, env(safe-area-inset-bottom, 2rem))",
       }}
@@ -818,21 +946,61 @@ export function AbortSheet({
           id="abort-workout-title"
           className="text-[20px] font-semibold tracking-tight"
         >
-          {tr("Abort workout?")}
+          {onLeave ? tr("Leave workout?") : tr("Abort workout?")}
         </h2>
-        <p className="mt-1.5 text-[13px] text-muted-foreground/70">
-          {tr("Your progress won't be saved.")}
+        <p className="mt-1.5 text-[13px] text-muted-foreground">
+          {onLeave
+            ? tr(
+                "Leave and resume later, or finish to save completed activity. Discarding removes this session's progress."
+              )
+            : tr("Your progress won't be saved.")}
         </p>
       </div>
+      {error && (
+        <p role="alert" className="px-6 pt-3 text-[13px] text-destructive">
+          {error}
+        </p>
+      )}
       <div className="flex flex-col gap-2 px-6 pt-4">
+        {onLeave && (
+          <button
+            type="button"
+            disabled={aborting}
+            onClick={onLeave}
+            className="min-h-[52px] rounded-[20px] bg-foreground px-3 text-[15px] font-semibold text-background"
+          >
+            {tr("Leave and resume later")}
+          </button>
+        )}
+        {onFinish && (
+          <button
+            type="button"
+            disabled={aborting}
+            onClick={onFinish}
+            className="min-h-[52px] rounded-[20px] bg-muted px-3 text-[15px] font-semibold"
+          >
+            {tr("Finish workout")}
+          </button>
+        )}
         <button
           type="button"
           onClick={() => void confirmAbort()}
           disabled={aborting}
           aria-busy={aborting}
-          className="h-[52px] w-full rounded-[20px] bg-destructive text-[15px] font-semibold tracking-tight text-white transition-opacity active:opacity-80 disabled:opacity-60"
+          className={cn(
+            "h-[52px] w-full rounded-[20px] text-[15px] font-semibold tracking-tight transition-opacity active:opacity-80 disabled:opacity-60",
+            onLeave
+              ? "bg-destructive/10 text-destructive"
+              : "bg-destructive text-white"
+          )}
         >
-          {aborting ? tr("Aborting...") : tr("Abort workout")}
+          {onLeave
+            ? aborting
+              ? tr("Discarding...")
+              : tr("Discard workout")
+            : aborting
+              ? tr("Aborting...")
+              : tr("Abort workout")}
         </button>
         <button
           type="button"
@@ -861,7 +1029,7 @@ export function RemoveExerciseSheet({
       onClose={onCancel}
       ariaLabel={tr("Remove {{value0}}?", { value0: exerciseName })}
       overlayClassName="bg-black/50"
-      panelClassName="w-full max-w-sm overflow-hidden rounded-t-3xl bg-card shadow-[0_-12px_60px_rgba(0,0,0,0.22)]"
+      panelClassName="w-full max-w-sm overflow-hidden rounded-t-3xl bg-card sm:rounded-3xl shadow-[0_-12px_60px_rgba(0,0,0,0.22)]"
       panelStyle={{
         paddingBottom: "max(2rem, env(safe-area-inset-bottom, 2rem))",
       }}
@@ -876,7 +1044,7 @@ export function RemoveExerciseSheet({
             values={{ value0: exerciseName }}
           />
         </h2>
-        <p className="mt-1.5 text-[13px] text-muted-foreground/70">
+        <p className="mt-1.5 text-[13px] text-muted-foreground">
           {tr(
             "Its sets in this session go with it. Past workouts are untouched."
           )}

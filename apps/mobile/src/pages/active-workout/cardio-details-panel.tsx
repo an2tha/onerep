@@ -236,7 +236,7 @@ export function CardioDetailsPanel({
                 healthLoading ? undefined : setShowHealthWorkouts(false)
               }
               disabled={healthLoading}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted/45 text-muted-foreground/60 active:bg-muted disabled:opacity-40"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-muted/45 text-muted-foreground/60 active:bg-muted disabled:opacity-40"
               aria-label={tr("Close {{value0}} workouts", {
                 value0: healthProviderLabel(),
               })}
@@ -287,13 +287,15 @@ export function CardioDetailsPanel({
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <label className="flex min-w-0 flex-col gap-1.5">
           <span className={labelCls}>{tr("Distance")}</span>
           <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-1.5">
             <input
               type="number"
               inputMode="decimal"
+              aria-label={tr("Distance")}
+              min="0"
               value={cardio.distance}
               onChange={(event) => update({ distance: event.target.value })}
               placeholder="0"
@@ -305,8 +307,9 @@ export function CardioDetailsPanel({
                   key={unit}
                   type="button"
                   onClick={() => setDistanceUnit(unit)}
+                  aria-pressed={cardio.distanceUnit === unit}
                   className={cn(
-                    "min-w-10 px-2 transition-colors",
+                    "min-w-11 px-2 transition-colors",
                     cardio.distanceUnit === unit
                       ? "bg-foreground text-background"
                       : "text-muted-foreground/65 active:bg-muted/60"
@@ -332,6 +335,13 @@ export function CardioDetailsPanel({
                   type="number"
                   inputMode="numeric"
                   min="0"
+                  aria-label={
+                    key === "durationHours"
+                      ? tr("Workout duration hours")
+                      : key === "durationMinutes"
+                        ? tr("Workout duration minutes")
+                        : tr("Workout duration seconds")
+                  }
                   value={cardio[key as keyof CardioExerciseState] as string}
                   onChange={(event) =>
                     update({
@@ -349,152 +359,169 @@ export function CardioDetailsPanel({
           </div>
         </div>
 
-        <div className="col-span-2 flex min-w-0 flex-col gap-1.5 md:col-span-1">
+        <div className="flex min-w-0 flex-col gap-1.5 sm:col-span-2 lg:col-span-1">
           <span className={labelCls}>{tr("Pace")}</span>
-          <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-1.5">
-            <label className="relative min-w-0">
-              <input
-                type="number"
-                inputMode="numeric"
-                min="0"
-                value={cardio.paceMinutes}
-                onChange={(event) =>
-                  update({ paceMinutes: event.target.value })
-                }
-                placeholder="0"
-                className={cn(fieldCls, "pr-9")}
-              />
-              <span className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 text-[13px] font-semibold text-muted-foreground">
-                {tr("min")}
-              </span>
-            </label>
-            <label className="relative min-w-0">
-              <input
-                type="number"
-                inputMode="numeric"
-                min="0"
-                value={cardio.paceSeconds}
-                onChange={(event) =>
-                  update({ paceSeconds: event.target.value })
-                }
-                placeholder="0"
-                className={cn(fieldCls, "pr-9")}
-              />
-              <span className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 text-[13px] font-semibold text-muted-foreground">
-                {tr("sec")}
-              </span>
-            </label>
+          {calculatedPace ? (
+            <div className="flex min-h-12 flex-col justify-center px-1">
+              <p className="text-[18px] font-semibold tabular-nums">
+                {paceLabel}
+              </p>
+              <p className="mt-1 text-[13px] text-muted-foreground">
+                {tr("Calculated from distance and duration")}
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-1.5">
+              <label className="relative min-w-0">
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min="0"
+                  aria-label={tr("Pace minutes")}
+                  value={cardio.paceMinutes}
+                  onChange={(event) =>
+                    update({ paceMinutes: event.target.value })
+                  }
+                  placeholder="0"
+                  className={cn(fieldCls, "pr-9")}
+                />
+                <span className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 text-[13px] font-semibold text-muted-foreground">
+                  {tr("min")}
+                </span>
+              </label>
+              <label className="relative min-w-0">
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min="0"
+                  aria-label={tr("Pace seconds")}
+                  value={cardio.paceSeconds}
+                  onChange={(event) =>
+                    update({ paceSeconds: event.target.value })
+                  }
+                  placeholder="0"
+                  className={cn(fieldCls, "pr-9")}
+                />
+                <span className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 text-[13px] font-semibold text-muted-foreground">
+                  {tr("sec")}
+                </span>
+              </label>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <details className="mt-3 border-t border-border/50">
+        <summary className="min-h-11 cursor-pointer py-3 text-[14px] font-semibold text-muted-foreground">
+          {tr("More details")}
+        </summary>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <label className="flex min-w-0 flex-col gap-1.5">
+            <span className={labelCls}>{tr("Avg HR")}</span>
+            <input
+              type="number"
+              inputMode="numeric"
+              value={cardio.avgHeartRate}
+              onChange={(event) => update({ avgHeartRate: event.target.value })}
+              placeholder={tr("bpm")}
+              className={fieldCls}
+            />
+          </label>
+          <label className="flex min-w-0 flex-col gap-1.5">
+            <span className={labelCls}>{tr("Max HR")}</span>
+            <input
+              type="number"
+              inputMode="numeric"
+              value={cardio.maxHeartRate}
+              onChange={(event) => update({ maxHeartRate: event.target.value })}
+              placeholder={tr("bpm")}
+              className={fieldCls}
+            />
+          </label>
+        </div>
+
+        <div className="mt-3">
+          <p className={labelCls}>{tr("Heart-rate zones")}</p>
+          <div className="mt-1.5 grid grid-cols-5 gap-1.5">
+            {HEART_RATE_ZONES.map(({ key, label }) => (
+              <label key={key} className="min-w-0">
+                <span className="mb-1 block text-center text-[13px] font-semibold text-muted-foreground">
+                  {label}
+                </span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  value={cardio.zones[key]}
+                  onChange={(event) => updateZone(key, event.target.value)}
+                  placeholder={tr("m")}
+                  className="h-10 w-full [appearance:textfield] rounded-[16px] border border-border/40 bg-muted/20 px-1.5 text-center text-[16px] font-semibold tabular-nums outline-none placeholder:text-muted-foreground focus:border-foreground/30 focus:bg-card/80 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                />
+              </label>
+            ))}
           </div>
         </div>
-      </div>
 
-      <div className="mt-3 grid grid-cols-2 gap-2">
-        <label className="flex min-w-0 flex-col gap-1.5">
-          <span className={labelCls}>{tr("Avg HR")}</span>
-          <input
-            type="number"
-            inputMode="numeric"
-            value={cardio.avgHeartRate}
-            onChange={(event) => update({ avgHeartRate: event.target.value })}
-            placeholder={tr("bpm")}
-            className={fieldCls}
-          />
-        </label>
-        <label className="flex min-w-0 flex-col gap-1.5">
-          <span className={labelCls}>{tr("Max HR")}</span>
-          <input
-            type="number"
-            inputMode="numeric"
-            value={cardio.maxHeartRate}
-            onChange={(event) => update({ maxHeartRate: event.target.value })}
-            placeholder={tr("bpm")}
-            className={fieldCls}
-          />
-        </label>
-      </div>
-
-      <div className="mt-3">
-        <p className={labelCls}>{tr("Heart-rate zones")}</p>
-        <div className="mt-1.5 grid grid-cols-5 gap-1.5">
-          {HEART_RATE_ZONES.map(({ key, label }) => (
-            <label key={key} className="min-w-0">
-              <span className="mb-1 block text-center text-[13px] font-semibold text-muted-foreground">
-                {label}
-              </span>
-              <input
-                type="number"
-                inputMode="decimal"
-                min="0"
-                value={cardio.zones[key]}
-                onChange={(event) => updateZone(key, event.target.value)}
-                placeholder={tr("m")}
-                className="h-10 w-full [appearance:textfield] rounded-[16px] border border-border/40 bg-muted/20 px-1.5 text-center text-[13px] font-semibold tabular-nums outline-none placeholder:text-muted-foreground focus:border-foreground/30 focus:bg-card/80 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-              />
-            </label>
-          ))}
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <label className="flex min-w-0 flex-col gap-1.5">
+            <span className={labelCls}>{tr("Source")}</span>
+            <select
+              value={cardio.sourceProvider}
+              onChange={(event) =>
+                update({
+                  sourceProvider: event.target.value as CardioSourceProvider,
+                })
+              }
+              className="h-12 rounded-[20px] border border-border/45 bg-muted/20 px-3 text-[16px] font-semibold outline-none focus:border-foreground/30 focus:bg-card/80"
+            >
+              {CARDIO_SOURCE_OPTIONS.map((option) => (
+                <option key={option.provider} value={option.provider}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex min-w-0 flex-col gap-1.5">
+            <span className={labelCls}>{tr("Source name")}</span>
+            <input
+              value={cardio.sourceName}
+              onChange={(event) => update({ sourceName: event.target.value })}
+              placeholder={tr("Morning run")}
+              className="h-12 rounded-[20px] border border-border/45 bg-muted/20 px-3 text-[16px] font-semibold outline-none placeholder:text-muted-foreground focus:border-foreground/30 focus:bg-card/80"
+            />
+          </label>
+          <label className="flex min-w-0 flex-col gap-1.5">
+            <span className={labelCls}>{tr("Activity ID")}</span>
+            <input
+              value={cardio.sourceExternalId}
+              onChange={(event) =>
+                update({ sourceExternalId: event.target.value })
+              }
+              placeholder={tr("Import ID")}
+              className="h-12 rounded-[20px] border border-border/45 bg-muted/20 px-3 text-[16px] font-semibold outline-none placeholder:text-muted-foreground focus:border-foreground/30 focus:bg-card/80"
+            />
+          </label>
+          <label className="flex min-w-0 flex-col gap-1.5">
+            <span className={labelCls}>{tr("Route")}</span>
+            <input
+              value={cardio.routeName}
+              onChange={(event) => update({ routeName: event.target.value })}
+              placeholder={tr("Route name")}
+              className="h-12 rounded-[20px] border border-border/45 bg-muted/20 px-3 text-[16px] font-semibold outline-none placeholder:text-muted-foreground focus:border-foreground/30 focus:bg-card/80"
+            />
+          </label>
+          <label className="flex min-w-0 flex-col gap-1.5">
+            <span className={labelCls}>{tr("Route URL")}</span>
+            <input
+              type="url"
+              value={cardio.routeUrl}
+              onChange={(event) => update({ routeUrl: event.target.value })}
+              placeholder="https://"
+              className="h-12 rounded-[20px] border border-border/45 bg-muted/20 px-3 text-[16px] font-semibold outline-none placeholder:text-muted-foreground focus:border-foreground/30 focus:bg-card/80"
+            />
+          </label>
         </div>
-      </div>
-
-      <div className="mt-3 grid grid-cols-2 gap-2">
-        <label className="flex min-w-0 flex-col gap-1.5">
-          <span className={labelCls}>{tr("Source")}</span>
-          <select
-            value={cardio.sourceProvider}
-            onChange={(event) =>
-              update({
-                sourceProvider: event.target.value as CardioSourceProvider,
-              })
-            }
-            className="h-12 rounded-[20px] border border-border/45 bg-muted/20 px-3 text-[13px] font-semibold outline-none focus:border-foreground/30 focus:bg-card/80"
-          >
-            {CARDIO_SOURCE_OPTIONS.map((option) => (
-              <option key={option.provider} value={option.provider}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex min-w-0 flex-col gap-1.5">
-          <span className={labelCls}>{tr("Source name")}</span>
-          <input
-            value={cardio.sourceName}
-            onChange={(event) => update({ sourceName: event.target.value })}
-            placeholder={tr("Morning run")}
-            className="h-12 rounded-[20px] border border-border/45 bg-muted/20 px-3 text-[13px] font-semibold outline-none placeholder:text-muted-foreground focus:border-foreground/30 focus:bg-card/80"
-          />
-        </label>
-        <label className="flex min-w-0 flex-col gap-1.5">
-          <span className={labelCls}>{tr("Activity ID")}</span>
-          <input
-            value={cardio.sourceExternalId}
-            onChange={(event) =>
-              update({ sourceExternalId: event.target.value })
-            }
-            placeholder={tr("Import ID")}
-            className="h-12 rounded-[20px] border border-border/45 bg-muted/20 px-3 text-[13px] font-semibold outline-none placeholder:text-muted-foreground focus:border-foreground/30 focus:bg-card/80"
-          />
-        </label>
-        <label className="flex min-w-0 flex-col gap-1.5">
-          <span className={labelCls}>{tr("Route")}</span>
-          <input
-            value={cardio.routeName}
-            onChange={(event) => update({ routeName: event.target.value })}
-            placeholder={tr("Route name")}
-            className="h-12 rounded-[20px] border border-border/45 bg-muted/20 px-3 text-[13px] font-semibold outline-none placeholder:text-muted-foreground focus:border-foreground/30 focus:bg-card/80"
-          />
-        </label>
-        <label className="flex min-w-0 flex-col gap-1.5">
-          <span className={labelCls}>{tr("Route URL")}</span>
-          <input
-            type="url"
-            value={cardio.routeUrl}
-            onChange={(event) => update({ routeUrl: event.target.value })}
-            placeholder="https://"
-            className="h-12 rounded-[20px] border border-border/45 bg-muted/20 px-3 text-[13px] font-semibold outline-none placeholder:text-muted-foreground focus:border-foreground/30 focus:bg-card/80"
-          />
-        </label>
-      </div>
-
+      </details>
       <div className="mt-3 flex items-center justify-between text-[13px] font-semibold text-muted-foreground">
         <span>{durationLabel}</span>
         <span>{sourceLabel}</span>

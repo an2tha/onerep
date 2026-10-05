@@ -1438,7 +1438,7 @@ public class WorkoutLiveActivityPlugin: CAPPlugin, CAPBridgedPlugin {
         let state = contentState(call)
         Task {
             for activity in Activity<WorkoutActivityAttributes>.activities {
-                await activity.end(ActivityContent(state: state, staleDate: nil), dismissalPolicy: .default)
+                await activity.end(ActivityContent(state: state, staleDate: nil), dismissalPolicy: .immediate)
             }
             call.resolve()
         }

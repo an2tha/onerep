@@ -22,11 +22,11 @@ export function AiSharingDisclosure({
       <div className="space-y-4 text-sm leading-relaxed text-muted-foreground">
         <div className="rounded-xl bg-muted/55 px-4 py-3">
           <p className="font-semibold text-foreground">
-            {tr("Zero-data retention is enabled")}
+            {tr("You control AI data sharing")}
           </p>
           <p className="mt-1">
             {tr(
-              "Your privacy is protected. AI providers can process your request, but they cannot store it or use it to train their models."
+              "Guided workouts use TypeSafe AI to select questions and OpenRouter to evaluate your answers and generate the final preset. Each provider has its own retention policy."
             )}
           </p>
         </div>
@@ -48,7 +48,7 @@ export function AiSharingDisclosure({
           <p>
             <Message
               text={
-                "{{value0}} OpenRouter securely routes it to Microsoft Azure or Venice."
+                "{{value0}} TypeSafe AI for guided questions; OpenRouter routes final workout generation and other AI requests to Microsoft Azure or Venice."
               }
               values={{
                 value0: (

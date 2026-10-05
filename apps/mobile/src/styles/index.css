@@ -15,6 +15,10 @@
  * systems already; stacking another backdrop-filter over them is both visually
  * muddy and expensive on a phone GPU. */
 @media (max-width: 767px) {
+  .settings-page .native-group {
+    margin-inline: var(--app-page-x);
+  }
+
   .app-route-frame:not([data-route-path="/"]):not(
       [data-route-path="/camera"]
     ):not([data-route-path="/onboarding"]):not(

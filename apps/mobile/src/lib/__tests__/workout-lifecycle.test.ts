@@ -1,9 +1,14 @@
 import { describe, expect, test } from "bun:test"
-import { abortWorkoutAfterPendingWrites } from "../workout-lifecycle"
+import {
+  abortWorkoutAfterPendingWrites,
+  shouldResumeDeviceDraft,
+} from "../workout-lifecycle"
 
 function deferred() {
   let resolve!: () => void
-  const promise = new Promise<void>((done) => { resolve = done })
+  const promise = new Promise<void>((done) => {
+    resolve = done
+  })
   return { promise, resolve }
 }
 
@@ -13,9 +18,17 @@ describe("discarding a workout with writes in flight", () => {
     const save = deferred()
     const events: string[] = []
     const discard = abortWorkoutAfterPendingWrites(
-      [create.promise.then(() => { events.push("created") }),
-        save.promise.then(() => { events.push("saved") })],
-      async () => { events.push("deleted") }
+      [
+        create.promise.then(() => {
+          events.push("created")
+        }),
+        save.promise.then(() => {
+          events.push("saved")
+        }),
+      ],
+      async () => {
+        events.push("deleted")
+      }
     )
     save.resolve()
     await save.promise
@@ -29,7 +42,9 @@ describe("discarding a workout with writes in flight", () => {
     let deleted = false
     await abortWorkoutAfterPendingWrites(
       [null, Promise.reject(new Error("save failed"))],
-      async () => { deleted = true }
+      async () => {
+        deleted = true
+      }
     )
     expect(deleted).toBe(true)
   })
@@ -37,16 +52,56 @@ describe("discarding a workout with writes in flight", () => {
   test("failed deletion rejects so the prompt and local draft remain recoverable", async () => {
     const failure = new Error("offline")
     let cleared = false
-    await expect((async () => {
-      await abortWorkoutAfterPendingWrites([], async () => { throw failure })
-      cleared = true
-    })()).rejects.toBe(failure)
+    await expect(
+      (async () => {
+        await abortWorkoutAfterPendingWrites([], async () => {
+          throw failure
+        })
+        cleared = true
+      })()
+    ).rejects.toBe(failure)
     expect(cleared).toBe(false)
   })
 
   test("local-only sessions can be discarded without pending writes", async () => {
     let calls = 0
-    await abortWorkoutAfterPendingWrites([null, null], async () => { calls += 1 })
+    await abortWorkoutAfterPendingWrites([null, null], async () => {
+      calls += 1
+    })
     expect(calls).toBe(1)
+  })
+})
+
+describe("choosing a recoverable workout draft", () => {
+  const remote = { startedAt: 1000, elapsedSeconds: 60 }
+  test("recovers this device's unsaved edits from the same session", () => {
+    expect(
+      shouldResumeDeviceDraft({ ...remote, hasUnsyncedChanges: true }, remote)
+    ).toBe(true)
+    expect(
+      shouldResumeDeviceDraft(
+        { ...remote, elapsedSeconds: 75, hasUnsyncedChanges: true },
+        remote
+      )
+    ).toBe(true)
+  })
+  test("uses remote data when local data is clean, old, or from another session", () => {
+    expect(shouldResumeDeviceDraft(null, remote)).toBe(false)
+    expect(shouldResumeDeviceDraft({ ...remote }, remote)).toBe(false)
+    expect(
+      shouldResumeDeviceDraft({ ...remote, hasUnsyncedChanges: false }, remote)
+    ).toBe(false)
+    expect(
+      shouldResumeDeviceDraft(
+        { ...remote, elapsedSeconds: 30, hasUnsyncedChanges: true },
+        remote
+      )
+    ).toBe(false)
+    expect(
+      shouldResumeDeviceDraft(
+        { ...remote, startedAt: 500, hasUnsyncedChanges: true },
+        remote
+      )
+    ).toBe(false)
   })
 })

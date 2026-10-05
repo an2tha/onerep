@@ -124,6 +124,7 @@ export type WorkoutItem =
   | { kind: "superset"; id: string; color: string; exerciseIds: string[] }
 
 export type LocalActiveWorkoutDraft = {
+  hasUnsyncedChanges?: boolean
   elapsedSeconds: number
   exerciseData: Record<string, ExerciseState>
   items: WorkoutItem[]
@@ -685,7 +686,7 @@ export function normalizeExerciseState(
       type: s.type || "working",
       weight: s.weight || "",
       reps: s.reps || "",
-      restSeconds: s.restSeconds || 120,
+      restSeconds: s.restSeconds ?? 120,
       completed: !!s.completed,
     })),
     trackRpe: false,
@@ -872,6 +873,7 @@ export function readActiveWorkoutDraft(
     }
 
     return {
+      hasUnsyncedChanges: parsed.hasUnsyncedChanges === true,
       elapsedSeconds:
         typeof parsed.elapsedSeconds === "number" ? parsed.elapsedSeconds : 0,
       exerciseData: parsed.exerciseData as Record<string, ExerciseState>,

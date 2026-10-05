@@ -1,0 +1,730 @@
+/** Adaptive follow-ups. Select a relevant subset; never send the whole bank. */
+export const EXTRA_GUIDE_QUESTIONS = [
+  // Equipment and setup.
+  {
+    id: "bench_access",
+    title: "Is a bench available?",
+    options: ["Adjustable bench", "Flat bench", "No bench"],
+    tags: ["equipment", "home", "upper"],
+  },
+  {
+    id: "rack_access",
+    title: "Can you use a squat rack?",
+    options: ["Rack with safety bars", "Rack without safety bars", "No rack"],
+    tags: ["equipment", "strength", "lower"],
+  },
+  {
+    id: "cable_access",
+    title: "What cable setup is available?",
+    options: [
+      "Adjustable cable station",
+      "Fixed pulldown station",
+      "No cables",
+    ],
+    tags: ["equipment", "upper"],
+  },
+  {
+    id: "pullup_access",
+    title: "Is there a pull-up station?",
+    options: [
+      "Bar with assistance machine",
+      "Bar with bands",
+      "Unassisted bar only",
+      "No pull-up bar",
+    ],
+    tags: ["equipment", "upper"],
+  },
+  {
+    id: "leg_machine_access",
+    title: "Which leg machines are available?",
+    options: [
+      "Leg press and leg curl",
+      "Leg press only",
+      "Leg curl only",
+      "Neither",
+    ],
+    tags: ["equipment", "lower"],
+  },
+  {
+    id: "band_access",
+    title: "What resistance bands do you have?",
+    options: ["Long bands", "Mini bands", "Both types", "No bands"],
+    tags: ["equipment", "home"],
+  },
+  {
+    id: "dumbbell_range",
+    title: "How much choice do your dumbbells offer?",
+    options: ["Several weights", "One light pair", "One challenging pair"],
+    tags: ["equipment", "home"],
+  },
+  {
+    id: "barbell_access",
+    title: "Which barbell setup is available?",
+    options: ["Straight barbell", "Trap bar", "Both", "Neither"],
+    tags: ["equipment", "strength"],
+  },
+  {
+    id: "kettlebell_access",
+    title: "Are kettlebells available?",
+    options: ["One kettlebell", "Several weights", "No kettlebells"],
+    tags: ["equipment", "home"],
+  },
+  {
+    id: "rowing_setup",
+    title: "What can you use for supported rows?",
+    options: [
+      "Chest-supported machine",
+      "Incline bench and dumbbells",
+      "Neither",
+    ],
+    tags: ["equipment", "upper"],
+  },
+  {
+    id: "cardio_access",
+    title: "What is available for conditioning?",
+    options: ["Bike", "Rower", "Treadmill", "No cardio equipment"],
+    tags: ["equipment", "general"],
+  },
+  {
+    id: "landmine_access",
+    title: "Is a landmine attachment available?",
+    options: ["Yes, with handles", "Yes, without handles", "No"],
+    tags: ["equipment", "upper"],
+  },
+  {
+    id: "calf_setup",
+    title: "What can you use for calf work?",
+    options: ["Calf machine", "Step and dumbbells", "Flat floor only"],
+    tags: ["equipment", "lower"],
+  },
+  {
+    id: "floor_surface",
+    title: "What floor space can you use?",
+    options: ["Exercise mat", "Soft gym flooring", "Hard floor only"],
+    tags: ["equipment", "home", "core"],
+  },
+  {
+    id: "safe_support",
+    title: "Is there stable support for bodyweight work?",
+    options: ["Fixed bench", "Sturdy counter", "Neither"],
+    tags: ["equipment", "home", "beginner"],
+  },
+  {
+    id: "load_increments",
+    title: "How small are your weight changes?",
+    options: [
+      "Small increments available",
+      "Only large jumps",
+      "Fixed resistance",
+    ],
+    tags: ["equipment", "strength", "experienced"],
+  },
+  // Upper body exercise choices.
+  {
+    id: "chest_angle",
+    title: "Which chest angle would you like to emphasize?",
+    options: ["Incline pressing", "Flat pressing", "A mix of angles"],
+    tags: ["upper", "muscle"],
+  },
+  {
+    id: "press_implement",
+    title: "What feels most familiar for chest presses?",
+    options: ["Dumbbells", "Barbell", "Chest press machine", "No preference"],
+    tags: ["upper", "preference"],
+  },
+  {
+    id: "press_spotter",
+    title: "Will someone spot your barbell presses?",
+    options: [
+      "A spotter is available",
+      "I will use safety bars",
+      "Choose another press",
+    ],
+    tags: ["upper", "strength", "equipment"],
+  },
+  {
+    id: "pushup_level",
+    title: "Which push-up variation is manageable?",
+    options: [
+      "Hands elevated",
+      "From knees",
+      "Standard push-ups",
+      "Choose another chest exercise",
+    ],
+    tags: ["upper", "beginner", "home"],
+  },
+  {
+    id: "pullup_level",
+    title: "How would you like to approach pull-ups?",
+    options: [
+      "Assisted repetitions",
+      "Unassisted repetitions",
+      "Use pulldowns instead",
+    ],
+    tags: ["upper", "strength"],
+  },
+  {
+    id: "back_direction",
+    title: "Which pulling direction should lead?",
+    options: ["Vertical pulls", "Horizontal rows", "Give both equal time"],
+    tags: ["upper", "muscle"],
+  },
+  {
+    id: "row_support",
+    title: "How would you prefer to row?",
+    options: [
+      "Chest supported",
+      "One hand supported",
+      "Unsupported",
+      "No preference",
+    ],
+    tags: ["upper", "preference"],
+  },
+  {
+    id: "shoulder_emphasis",
+    title: "Which shoulder work deserves more time?",
+    options: ["Side raises", "Rear delt work", "Overhead presses"],
+    tags: ["upper", "muscle"],
+  },
+  {
+    id: "overhead_implement",
+    title: "What would you use for overhead presses?",
+    options: ["Dumbbells", "Barbell", "Machine", "No preference"],
+    tags: ["upper", "equipment"],
+  },
+  {
+    id: "biceps_setup",
+    title: "How would you like to train biceps?",
+    options: [
+      "Standing curls",
+      "Supported curls",
+      "Cable curls",
+      "No preference",
+    ],
+    tags: ["upper", "muscle"],
+  },
+  {
+    id: "triceps_setup",
+    title: "Which triceps exercise style do you prefer?",
+    options: [
+      "Cable pressdowns",
+      "Lying extensions",
+      "Close-grip presses",
+      "No preference",
+    ],
+    tags: ["upper", "muscle"],
+  },
+  {
+    id: "arm_allocation",
+    title: "How much direct arm work fits today?",
+    options: [
+      "One biceps and one triceps exercise",
+      "One arm exercise total",
+      "Compound exercises only",
+    ],
+    tags: ["upper", "muscle", "time"],
+  },
+  {
+    id: "grip_training",
+    title: "Should this session include direct grip work?",
+    options: ["Loaded holds", "Wrist and forearm work", "No direct grip work"],
+    tags: ["upper", "strength"],
+  },
+  {
+    id: "press_position",
+    title: "Would you rather press seated or standing?",
+    options: ["Seated", "Standing", "No preference"],
+    tags: ["upper", "preference"],
+  },
+  {
+    id: "pull_grip",
+    title: "Which pulling grip do you prefer?",
+    options: [
+      "Palms facing each other",
+      "Palms facing away",
+      "Palms facing you",
+      "No preference",
+    ],
+    tags: ["upper", "preference"],
+  },
+  {
+    id: "upper_unilateral",
+    title: "Should upper body work include single-arm sets?",
+    options: [
+      "One single-arm exercise",
+      "Several single-arm exercises",
+      "Both arms together",
+    ],
+    tags: ["upper", "preference"],
+  },
+  // Lower body exercise choices.
+  {
+    id: "squat_implement",
+    title: "Which squat setup do you prefer?",
+    options: [
+      "Goblet squat",
+      "Barbell squat",
+      "Squat machine",
+      "No preference",
+    ],
+    tags: ["lower", "strength"],
+  },
+  {
+    id: "hinge_choice",
+    title: "Which hip hinge is familiar?",
+    options: [
+      "Romanian deadlift",
+      "Trap bar deadlift",
+      "Cable pull-through",
+      "None yet",
+    ],
+    tags: ["lower", "strength"],
+  },
+  {
+    id: "single_leg_choice",
+    title: "Which single-leg movement would you choose?",
+    options: [
+      "Split squat",
+      "Step-up",
+      "Reverse lunge",
+      "Keep both feet planted",
+    ],
+    tags: ["lower", "preference"],
+  },
+  {
+    id: "single_leg_support",
+    title: "Would you like support for single-leg work?",
+    options: [
+      "Use a rail or rack",
+      "Use bodyweight without support",
+      "Skip single-leg work",
+    ],
+    tags: ["lower", "beginner"],
+  },
+  {
+    id: "hamstring_pattern",
+    title: "How should hamstring work be split?",
+    options: ["More leg curls", "More hip hinges", "Equal time for both"],
+    tags: ["lower", "muscle"],
+  },
+  {
+    id: "hip_thrust_setup",
+    title: "What glute bridge setup can you use?",
+    options: ["Hip thrust machine", "Bench and weights", "Floor bridge only"],
+    tags: ["lower", "equipment"],
+  },
+  {
+    id: "calf_emphasis",
+    title: "Which calf work would you like?",
+    options: ["Straight-leg raises", "Bent-knee raises", "Both"],
+    tags: ["lower", "muscle"],
+  },
+  {
+    id: "squat_familiarity",
+    title: "How familiar are barbell squats?",
+    options: [
+      "Comfortable with the setup",
+      "Still learning the setup",
+      "Use a simpler alternative",
+    ],
+    tags: ["lower", "beginner", "strength"],
+  },
+  {
+    id: "deadlift_start",
+    title: "Where would you prefer to start your deadlifts?",
+    options: [
+      "From the floor",
+      "From raised blocks",
+      "Use a Romanian deadlift instead",
+    ],
+    tags: ["lower", "experienced"],
+  },
+  {
+    id: "glute_accessory",
+    title: "Which glute accessory appeals to you?",
+    options: [
+      "Hip abduction",
+      "Cable kickbacks",
+      "Glute bridges",
+      "No extra glute exercise",
+    ],
+    tags: ["lower", "muscle"],
+  },
+  {
+    id: "leg_extension_access",
+    title: "Can you use a leg extension machine?",
+    options: [
+      "Yes, both legs together",
+      "Yes, one leg at a time",
+      "No machine available",
+    ],
+    tags: ["lower", "equipment"],
+  },
+  {
+    id: "leg_order",
+    title: "How should lower body work begin?",
+    options: [
+      "Knee-dominant movement",
+      "Hip-dominant movement",
+      "Single-leg movement",
+    ],
+    tags: ["lower", "preference"],
+  },
+  // Core and carries.
+  {
+    id: "core_pattern",
+    title: "What kind of core work would you like?",
+    options: [
+      "Resist arching",
+      "Resist rotation",
+      "Controlled trunk curls",
+      "A mix",
+    ],
+    tags: ["core", "preference"],
+  },
+  {
+    id: "core_format",
+    title: "How do you prefer core sets?",
+    options: ["Timed holds", "Counted repetitions", "A mix of both"],
+    tags: ["core", "preference"],
+  },
+  {
+    id: "core_position",
+    title: "Which position suits your core work?",
+    options: ["Standing", "On the floor", "Hanging", "No preference"],
+    tags: ["core", "equipment"],
+  },
+  {
+    id: "plank_level",
+    title: "Which plank variation suits you?",
+    options: [
+      "Hands elevated",
+      "Knees down",
+      "Full plank",
+      "Choose another exercise",
+    ],
+    tags: ["core", "beginner"],
+  },
+  {
+    id: "rotation_choice",
+    title: "Should core work include rotation?",
+    options: [
+      "Controlled rotation",
+      "Resist rotation only",
+      "No rotational work",
+    ],
+    tags: ["core", "preference"],
+  },
+  {
+    id: "carry_space",
+    title: "Do you have room for loaded carries?",
+    options: [
+      "A clear walking lane",
+      "Room to march in place",
+      "Use stationary holds",
+    ],
+    tags: ["core", "equipment"],
+  },
+  {
+    id: "carry_style",
+    title: "What kind of carry would you prefer?",
+    options: [
+      "Weights in both hands",
+      "Weight on one side",
+      "Weights at the chest",
+      "No carries",
+    ],
+    tags: ["core", "strength"],
+  },
+  {
+    id: "core_order",
+    title: "Where should core work sit?",
+    options: [
+      "Brief work near the start",
+      "Between accessory exercises",
+      "At the end",
+    ],
+    tags: ["core", "time"],
+  },
+  // Sets, repetitions and session structure.
+  {
+    id: "rep_preference",
+    title: "What repetition range do you enjoy?",
+    options: [
+      "Lower reps with longer rests",
+      "Moderate reps",
+      "Higher reps with lighter loads",
+      "Choose for my goal",
+    ],
+    tags: ["strength", "muscle", "preference"],
+  },
+  {
+    id: "set_distribution",
+    title: "How should the work be distributed?",
+    options: [
+      "More sets on fewer exercises",
+      "Fewer sets across more exercises",
+      "A balance",
+    ],
+    tags: ["general", "time"],
+  },
+  {
+    id: "superset_preference",
+    title: "Would you like paired exercises?",
+    options: [
+      "Pair different muscle groups",
+      "Pair only small accessories",
+      "Keep all exercises separate",
+    ],
+    tags: ["time", "experienced"],
+  },
+  {
+    id: "warmup_status",
+    title: "Have you warmed up already?",
+    options: [
+      "Not yet",
+      "General warm-up done",
+      "Ready for exercise-specific warm-ups",
+    ],
+    tags: ["general", "time"],
+  },
+  {
+    id: "warmup_style",
+    title: "How would you like to warm up?",
+    options: [
+      "Easy cardio then ramp-up sets",
+      "Movement practice then ramp-up sets",
+      "Ramp-up sets only",
+    ],
+    tags: ["general", "preference"],
+  },
+  {
+    id: "ramp_sets",
+    title: "How much ramp-up work do you prefer?",
+    options: [
+      "Several gradual warm-up sets",
+      "A couple of warm-up sets",
+      "Choose for the first lift",
+    ],
+    tags: ["strength", "experienced"],
+  },
+  {
+    id: "accessory_complexity",
+    title: "How much setup should accessories need?",
+    options: [
+      "Very little setup",
+      "Some setup is fine",
+      "Choose for the target muscles",
+    ],
+    tags: ["beginner", "time"],
+  },
+  {
+    id: "exercise_count",
+    title: "How many exercises feel manageable?",
+    options: ["Three or four", "Five or six", "Choose to fit my time"],
+    tags: ["general", "time"],
+  },
+  {
+    id: "tempo_preference",
+    title: "Would you like tempo instructions?",
+    options: [
+      "Simple controlled repetitions",
+      "A slower lowering phase",
+      "Brief pauses on selected exercises",
+    ],
+    tags: ["experienced", "preference"],
+  },
+  {
+    id: "rep_tracking",
+    title: "How would you like repetition targets?",
+    options: [
+      "One target per set",
+      "A small target range",
+      "Timed sets where appropriate",
+    ],
+    tags: ["general", "preference"],
+  },
+  {
+    id: "primary_sets",
+    title: "How should the main exercise be organized?",
+    options: [
+      "Same rep target each set",
+      "One main set then lighter sets",
+      "Technique-focused sets",
+    ],
+    tags: ["strength", "experienced"],
+  },
+  {
+    id: "isolation_balance",
+    title: "How much isolation work would you like?",
+    options: [
+      "Mostly compound movements",
+      "A balanced mix",
+      "More targeted accessories",
+    ],
+    tags: ["muscle", "preference"],
+  },
+  // Practical constraints.
+  {
+    id: "gym_traffic",
+    title: "How busy is the gym?",
+    options: [
+      "Plenty of equipment free",
+      "Some stations may be taken",
+      "Keep me at one station",
+    ],
+    tags: ["equipment", "time"],
+  },
+  {
+    id: "station_changes",
+    title: "How often would you like to change stations?",
+    options: [
+      "As little as possible",
+      "A few changes are fine",
+      "No preference",
+    ],
+    tags: ["equipment", "time"],
+  },
+  {
+    id: "floor_transitions",
+    title: "How often do you want to get onto the floor?",
+    options: [
+      "Keep all work standing or seated",
+      "Group floor exercises together",
+      "No preference",
+    ],
+    tags: ["home", "preference"],
+  },
+  {
+    id: "noise_limit",
+    title: "Does the session need to stay quiet?",
+    options: [
+      "Yes, quiet movements only",
+      "Some noise is fine",
+      "No noise limit",
+    ],
+    tags: ["home", "preference"],
+  },
+  {
+    id: "training_space",
+    title: "How much room do you have?",
+    options: [
+      "Enough for a mat",
+      "Room to step and lunge",
+      "A full training area",
+    ],
+    tags: ["home", "equipment"],
+  },
+  {
+    id: "shared_equipment",
+    title: "Are you sharing equipment today?",
+    options: [
+      "Training alone",
+      "Alternating sets with one person",
+      "Sharing with a group",
+    ],
+    tags: ["equipment", "time"],
+  },
+  {
+    id: "weight_changes",
+    title: "How much weight changing is practical?",
+    options: [
+      "Keep one setup where possible",
+      "Occasional changes",
+      "Change freely",
+    ],
+    tags: ["equipment", "time"],
+  },
+  {
+    id: "timer_access",
+    title: "Can you follow timed sets and rests?",
+    options: ["I can use a timer", "I prefer rep counts", "Either works"],
+    tags: ["home", "preference"],
+  },
+  // Recent training and session fit.
+  {
+    id: "recent_upper",
+    title: "What upper body work did you do last time?",
+    options: [
+      "Mostly pressing",
+      "Mostly pulling",
+      "Both",
+      "No recent upper body work",
+    ],
+    tags: ["upper", "recovery"],
+  },
+  {
+    id: "recent_lower",
+    title: "What lower body work did you do last time?",
+    options: [
+      "Mostly squats or lunges",
+      "Mostly hinges or curls",
+      "Both",
+      "No recent lower body work",
+    ],
+    tags: ["lower", "recovery"],
+  },
+  {
+    id: "next_session",
+    title: "When do you expect to train again?",
+    options: [
+      "Tomorrow",
+      "In two or three days",
+      "Later in the week",
+      "Not sure",
+    ],
+    tags: ["general", "recovery"],
+  },
+  {
+    id: "returning_break",
+    title: "Are you returning after a training break?",
+    options: [
+      "No, training consistently",
+      "After a short break",
+      "After a longer break",
+    ],
+    tags: ["beginner", "recovery"],
+  },
+  {
+    id: "other_training",
+    title: "Is this alongside another session today?",
+    options: [
+      "Strength only today",
+      "Before cardio or sport",
+      "After cardio or sport",
+    ],
+    tags: ["general", "recovery"],
+  },
+  {
+    id: "repeat_session",
+    title: "Is this workout meant to be repeated?",
+    options: [
+      "A regular repeatable session",
+      "A one-off workout",
+      "Not decided",
+    ],
+    tags: ["general", "preference"],
+  },
+  {
+    id: "progression_focus",
+    title: "What should be easiest to compare next time?",
+    options: [
+      "Main lift repetitions",
+      "Main lift load",
+      "Total completed sets",
+      "No tracking preference",
+    ],
+    tags: ["strength", "experienced"],
+  },
+  {
+    id: "technique_practice",
+    title: "Would you like extra practice on one pattern?",
+    options: [
+      "Squat technique",
+      "Hip hinge technique",
+      "Pressing technique",
+      "No extra practice",
+    ],
+    tags: ["beginner", "strength"],
+  },
+] as const;

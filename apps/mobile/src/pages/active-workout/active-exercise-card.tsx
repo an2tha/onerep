@@ -190,7 +190,7 @@ export function ActiveExerciseCard({
   }
 
   const iconActionCls =
-    "flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground active:bg-muted active:text-foreground"
+    "flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground active:bg-muted active:text-foreground"
 
   return (
     <div
@@ -327,7 +327,7 @@ export function ActiveExerciseCard({
                   value0: exercise.name,
                 })}
                 title={tr("Move out of superset")}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors active:bg-muted active:text-foreground"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors active:bg-muted active:text-foreground"
               >
                 <ArrowsOutSimple size={15} weight="bold" />
               </button>
@@ -337,7 +337,7 @@ export function ActiveExerciseCard({
               aria-label={
                 collapsed ? tr("Expand exercise") : tr("Collapse exercise")
               }
-              className="flex h-9 w-9 shrink-0 items-center justify-center text-muted-foreground transition-colors active:bg-muted/30 active:text-foreground"
+              className="flex h-11 w-11 shrink-0 items-center justify-center text-muted-foreground transition-colors active:bg-muted/30 active:text-foreground"
             >
               {collapsed ? (
                 <CaretDown size={14} weight="bold" />
@@ -349,7 +349,7 @@ export function ActiveExerciseCard({
         </div>
         <div
           className={cn(
-            "items-center gap-1 px-3 pb-2 text-[13px] font-medium",
+            "flex-wrap items-center gap-1 px-3 pb-2 text-[13px] font-medium",
             collapsed ? "hidden" : "flex"
           )}
         >
@@ -403,13 +403,15 @@ export function ActiveExerciseCard({
           )}
           <button
             onClick={onRemove}
-            className="ml-auto flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground active:bg-destructive/10 active:text-destructive"
+            className="ml-auto flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground active:bg-destructive/10 active:text-destructive"
             aria-label={tr("Remove {{value0}}", { value0: exercise.name })}
           >
             <X size={16} weight="bold" />
           </button>
         </div>
         <div
+          inert={collapsed}
+          aria-hidden={collapsed}
           className={cn(
             "grid transition-[grid-template-rows,opacity] duration-300 ease-out",
             collapsed

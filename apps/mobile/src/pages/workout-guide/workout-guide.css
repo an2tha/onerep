@@ -1,0 +1,615 @@
+.workout-guide {
+  --studio-ink: #f5f3ee;
+  --studio-muted: #c0c2c0;
+  --studio-metal: #dfc89e;
+  --studio-ground: #0b0e10;
+  position: relative;
+  isolation: isolate;
+  min-height: 100svh;
+  color: var(--studio-ink);
+  background: var(--studio-ground);
+  color-scheme: dark;
+  font-family: var(--font-sans);
+  caret-color: var(--studio-metal);
+  scrollbar-color: #5e6264 #131619;
+  padding: max(18px, env(safe-area-inset-top)) 5vw
+    max(24px, env(safe-area-inset-bottom));
+}
+.workout-guide ::selection {
+  background: var(--studio-metal);
+  color: #171919;
+}
+.workout-guide button,
+.workout-guide textarea {
+  font: inherit;
+}
+.workout-guide button {
+  cursor: pointer;
+}
+.workout-guide button:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+.workout-guide :is(button, textarea, summary):focus-visible {
+  outline: 2px solid var(--studio-metal);
+  outline-offset: 5px;
+}
+.workout-guide h1:focus {
+  outline: none;
+}
+.studio-background,
+.studio-scrim {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -2;
+}
+.studio-background {
+  background: #111619;
+}
+.studio-poster,
+.studio-canvas,
+.studio-canvas canvas {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+.studio-poster {
+  object-fit: cover;
+  object-position: center 45%;
+}
+.studio-canvas {
+  opacity: 0;
+  transition: opacity 900ms ease;
+}
+.studio-canvas.is-ready {
+  opacity: 1;
+}
+.studio-scrim {
+  z-index: -1;
+  background: linear-gradient(
+    180deg,
+    #05080b38 0%,
+    #05080b45 29%,
+    #05080b00 43%,
+    #05080b45 65%,
+    #05080bb8 87%,
+    #05080bf5 100%
+  );
+}
+.guide-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  max-width: 1400px;
+  margin: auto;
+  height: 48px;
+}
+.guide-quiet {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  gap: 8px;
+  padding: 8px;
+  color: var(--studio-ink);
+  background: transparent;
+  border: none;
+}
+.guide-workspace {
+  position: relative;
+  max-width: 1400px;
+  margin: 26px auto 0;
+  min-height: calc(100svh - 144px);
+  display: flex;
+  flex-direction: column;
+}
+.guide-foreground {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  transition: opacity 220ms ease;
+}
+.guide-workspace h1 {
+  font-size: clamp(40px, 5.3vw, 76px);
+  line-height: 1.04;
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  max-width: 10ch;
+  text-wrap: balance;
+  margin: 28px 0 0;
+  text-shadow: 0 3px 20px #00000035;
+}
+.guide-choices {
+  width: min(470px, 100%);
+  display: flex;
+  flex-direction: column;
+  margin-top: auto;
+  padding-top: clamp(100px, 18svh, 250px);
+}
+.guide-choice {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 17px 2px;
+  min-height: 60px;
+  text-align: left;
+  color: var(--studio-ink);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid #ffffff35;
+  transition: color 160ms ease;
+}
+.guide-choice > span:first-child {
+  font-size: 18px;
+  font-weight: 450;
+}
+.guide-choice-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+}
+.guide-radio {
+  width: 17px;
+  height: 17px;
+  border: 1px solid #f5f3ee90;
+  border-radius: 50%;
+}
+.guide-choice[aria-pressed="true"] {
+  color: var(--studio-metal);
+  border-bottom-color: var(--studio-metal);
+}
+.guide-actions {
+  width: min(470px, 100%);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-top: 24px;
+  transition: opacity 220ms ease;
+}
+.guide-actions .guide-quiet {
+  font-size: 14px;
+}
+.guide-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  min-height: 44px;
+  padding: 10px;
+  border: 0;
+  border-radius: 50%;
+  background: #f5f3ee12;
+  color: var(--studio-ink);
+}
+.guide-primary:disabled {
+  opacity: 0.3;
+}
+.guide-cost {
+  color: var(--studio-muted);
+  font-size: 11px;
+  line-height: 1.5;
+  margin: 16px 0 0;
+  width: min(470px, 100%);
+  text-align: right;
+}
+.is-busy .guide-cost {
+  opacity: 0;
+}
+.guide-loading {
+  position: absolute;
+  top: 28px;
+  left: 0;
+  max-width: 600px;
+  animation: studio-status 220ms ease-out 220ms both;
+}
+.guide-loading h2 {
+  font-size: clamp(40px, 5.3vw, 76px);
+  font-weight: 550;
+  letter-spacing: -0.035em;
+  line-height: 1.04;
+  text-wrap: balance;
+  max-width: 11ch;
+  margin: 0;
+}
+.is-busy .guide-foreground,
+.is-busy .guide-actions {
+  opacity: 0;
+  pointer-events: none;
+}
+@keyframes studio-status {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+/* The final question keeps a compact column over the room. */
+.guide-workspace.is-review {
+  width: min(560px, 100%);
+  max-width: 560px;
+  min-height: 0;
+  margin-left: 0;
+  padding: 0;
+}
+.guide-workspace.is-review::before {
+  content: none;
+}
+.is-review .guide-foreground {
+  flex: none;
+}
+.is-review h1 {
+  font-size: clamp(36px, 4vw, 54px);
+  max-width: 15ch;
+  margin-top: 20px;
+}
+.is-review .guide-actions {
+  width: 100%;
+}
+.guide-review {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 22px;
+  margin: 32px 0;
+}
+.guide-review button {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  text-align: left;
+  gap: 14px;
+  min-height: 56px;
+  padding: 14px 0;
+  color: var(--studio-ink);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid #ffffff35;
+}
+.guide-review strong {
+  font-size: 14px;
+  font-weight: 450;
+}
+.guide-review svg {
+  flex-shrink: 0;
+  color: var(--studio-muted);
+}
+.guide-notes-label {
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+.workout-guide textarea {
+  width: 100%;
+  padding: 14px;
+  border: 1px solid #ffffff40;
+  border-radius: 8px;
+  background: #0d1114b8;
+  color: var(--studio-ink);
+  font-size: 16px;
+  line-height: 1.5;
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+  resize: vertical;
+}
+.workout-guide textarea::placeholder {
+  color: var(--studio-muted);
+}
+.guide-field-help,
+.guide-description {
+  font-size: 13px;
+  color: var(--studio-muted);
+  line-height: 1.5;
+  margin: 12px 0;
+}
+.guide-field-help:empty {
+  display: none;
+}
+.guide-rationale {
+  color: var(--studio-muted);
+  font-size: 14px;
+  line-height: 1.6;
+  margin-top: 22px;
+}
+.guide-rationale summary {
+  cursor: pointer;
+  min-height: 44px;
+  padding: 10px 0;
+  color: var(--studio-ink);
+}
+.guide-exercise-preview {
+  list-style: none;
+  padding: 0;
+  margin: 20px 0;
+}
+.guide-exercise-preview li {
+  display: flex;
+  gap: 18px;
+  padding: 20px 0;
+  border-bottom: 1px solid #ffffff35;
+}
+.guide-exercise-number {
+  color: var(--studio-metal);
+  font-size: 12px;
+  padding-top: 3px;
+  font-variant-numeric: tabular-nums;
+}
+.guide-exercise-preview h2 {
+  font-size: 17px;
+  font-weight: 550;
+  margin: 0 0 7px;
+}
+.guide-exercise-preview p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--studio-muted);
+  line-height: 1.5;
+}
+.guide-exercise-preview p span {
+  margin: 0 4px;
+}
+.guide-error {
+  width: min(470px, 100%);
+  background: #39211fe8;
+  color: #ffc4b6;
+  padding: 14px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+  margin-top: 16px;
+}
+@media (hover: hover) {
+  .guide-choice:not(:disabled):hover {
+    color: var(--studio-metal);
+  }
+  .guide-primary:not(:disabled):hover {
+    background: #f5f3ee24;
+  }
+}
+@media (max-width: 760px) {
+  .workout-guide {
+    padding: max(12px, env(safe-area-inset-top)) 26px
+      max(22px, env(safe-area-inset-bottom));
+  }
+  .guide-header {
+    height: 44px;
+  }
+  .guide-workspace {
+    margin-top: 22px;
+    min-height: calc(100svh - 126px);
+  }
+  .guide-workspace h1 {
+    font-size: clamp(38px, 11.8vw, 58px);
+    margin-top: 20px;
+    max-width: 11ch;
+  }
+  .guide-choices {
+    padding-top: clamp(90px, 17svh, 170px);
+  }
+  .guide-choice {
+    min-height: 56px;
+    padding: 15px 2px;
+  }
+  .guide-choice > span:first-child {
+    font-size: 17px;
+  }
+  .guide-actions {
+    margin-top: 24px;
+  }
+  .guide-primary {
+    gap: 20px;
+  }
+  .guide-workspace.is-review {
+    padding: 0;
+    margin-left: auto;
+  }
+  .guide-workspace.is-review::before {
+    inset: -14px -26px -24px;
+    background: #080d10db;
+  }
+  .is-review h1 {
+    font-size: 38px;
+    max-width: 15ch;
+  }
+  .guide-loading {
+    top: 20px;
+  }
+  .guide-loading h2 {
+    font-size: clamp(38px, 11.8vw, 58px);
+  }
+  .guide-review {
+    gap: 0 16px;
+    margin-top: 25px;
+  }
+  .guide-review strong {
+    font-size: 13px;
+  }
+}
+@media (max-height: 680px) {
+  .guide-choices {
+    padding-top: 105px;
+  }
+  .guide-workspace h1 {
+    font-size: 38px;
+  }
+}
+@media (max-width: 350px) {
+  .workout-guide {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+  .guide-review {
+    grid-template-columns: 1fr;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .workout-guide *,
+  .workout-guide *::before,
+  .workout-guide *::after {
+    animation: none !important;
+    transition-duration: 100ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+.guide-workspace.is-review::before {
+  transition: opacity 180ms ease;
+}
+.guide-workspace.is-review.is-busy::before {
+  opacity: 0;
+}
+
+/* Keep the final question as quiet as the interview itself. */
+.is-review .guide-notes-label {
+  margin-top: 32px;
+  padding-top: 0;
+}
+.guide-choices textarea {
+  margin-top: 14px;
+}
+.guide-review strong {
+  overflow-wrap: anywhere;
+}
+
+/* One recessed control surface, with tactile selection and restrained depth. */
+.guide-option-surface {
+  background: #171c20f2;
+  border-radius: 18px;
+  padding: 7px;
+  box-shadow:
+    0 18px 42px #00000066,
+    inset 0 1px 0 #ffffff12;
+}
+.guide-option-surface .guide-choice {
+  min-height: 49px;
+  padding: 12px 14px;
+  border: 0;
+  border-radius: 11px;
+}
+.guide-option-surface .guide-choice > span:first-child {
+  font-size: 16px;
+}
+.guide-option-surface .guide-choice[aria-pressed="true"] {
+  color: #f5f3ee;
+  background: #30383e;
+  box-shadow:
+    0 3px 8px #00000030,
+    inset 0 1px 0 #ffffff10;
+}
+.guide-option-surface .guide-choice-mark {
+  color: #c5ddef;
+}
+.guide-muscle-picker {
+  padding: 0 7px 6px;
+}
+.guide-muscle-picker details {
+  border-bottom: 1px solid #ffffff12;
+}
+.guide-muscle-picker summary {
+  cursor: pointer;
+  min-height: 44px;
+  padding: 12px 0;
+  color: #d7dce0;
+  font-size: 13px;
+}
+.guide-muscle-picker summary span {
+  float: right;
+  color: #c5ddef;
+}
+.guide-muscle-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+  padding-bottom: 10px;
+}
+.guide-muscle {
+  min-height: 44px;
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  text-align: left;
+  background: #20272c;
+  color: #f5f3ee;
+  border: 0;
+  border-radius: 8px;
+  box-shadow:
+    0 2px 5px #00000020,
+    inset 0 1px 0 #ffffff08;
+  font-size: 13px !important;
+}
+.guide-muscle[aria-pressed="true"] {
+  background: #354753;
+}
+.guide-muscle-check {
+  display: grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 4px;
+  border: 1px solid #96a4ae70;
+  flex: 0 0 auto;
+}
+.guide-muscle[aria-pressed="true"] .guide-muscle-check {
+  background: #bcd9ed;
+  border-color: #bcd9ed;
+  color: #14212a;
+}
+.guide-choices.is-muscles {
+  padding-top: 80px;
+}
+.guide-custom-reveal {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transform: translateY(24px);
+  transition:
+    grid-template-rows 650ms cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 650ms ease,
+    transform 650ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.guide-custom-reveal[data-open="true"] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transform: translateY(0);
+}
+.guide-custom-reveal > div {
+  min-height: 0;
+  overflow: hidden;
+}
+.guide-custom-answer {
+  box-shadow: 0 16px 35px #00000040;
+  display: block;
+}
+@media (hover: hover) {
+  .guide-option-surface .guide-choice:not(:disabled):hover,
+  .guide-muscle:not(:disabled):hover {
+    background: #2b343b;
+  }
+}
+.guide-regions > summary {
+  padding: 12px 14px;
+  min-height: 44px;
+  font-size: 13px;
+  color: #d7dce0;
+  cursor: pointer;
+}
+
+.guide-muscle {
+  background: transparent;
+  box-shadow: none;
+  border-radius: 6px;
+}
+.guide-muscle-grid {
+  gap: 2px 14px;
+}

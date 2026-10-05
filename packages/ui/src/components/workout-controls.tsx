@@ -1,7 +1,7 @@
 import { choice, tr } from "@repo/ui/i18n"
 import { MagnifyingGlass, Timer, X } from "@phosphor-icons/react"
 import { useEffect, useState } from "react"
-import { createPortal } from "react-dom"
+import { MobileSheet } from "./mobile-sheet"
 
 import { cn } from "../lib/utils"
 
@@ -159,11 +159,13 @@ export function RestTimerSheet({
   onSelect,
   onClose,
   variant = "workout",
+  onDelete,
 }: {
   current: number
   onSelect: (seconds: number) => void
   onClose: () => void
   variant?: "workout" | "preset"
+  onDelete?: () => void
 }) {
   const initial = splitRestDuration(current)
   const [minutes, setMinutes] = useState(initial.minutes)
@@ -176,141 +178,127 @@ export function RestTimerSheet({
     setSeconds(next.seconds)
   }, [current])
 
-  // Portaled because the sheet opens from inside exercise cards whose enter
-  // animations leave a transform behind — a transformed ancestor becomes the
-  // containing block for `fixed` and clips the overlay to the card.
-  return createPortal(
-    <div
-      className={cn(
-        "sheet-overlay fixed inset-0 z-50 flex items-end justify-center",
-        workout
-          ? "bg-black/60 backdrop-blur-[6px]"
-          : "bg-black/50 backdrop-blur-[3px]"
-      )}
-      onClick={onClose}
+  return (
+    <MobileSheet
+      onClose={onClose}
+      ariaLabel={tr("Rest timer")}
+      panelClassName="w-full max-w-sm rounded-t-3xl bg-card shadow-2xl sm:rounded-3xl"
+      panelStyle={{
+        paddingBottom: "max(1rem, env(safe-area-inset-bottom, 1rem))",
+      }}
+      showHandle={workout}
     >
       <div
         className={cn(
-          "sheet-panel w-full max-w-sm overflow-hidden",
-          workout ? "app-sheet-panel" : "rounded-t-3xl bg-card shadow-2xl"
+          "flex items-center justify-between px-5",
+          workout ? "py-3" : "border-b border-border/60 py-4"
         )}
-        style={{
-          paddingBottom: "max(1.5rem, env(safe-area-inset-bottom, 1.5rem))",
-        }}
-        onClick={(event) => event.stopPropagation()}
       >
-        {workout && (
-          <div className="flex justify-center pt-3 pb-1">
-            <div className="app-sheet-handle" />
-          </div>
-        )}
-        <div
-          className={cn(
-            "flex items-center justify-between px-5",
-            workout ? "py-3" : "border-b border-border/60 py-4"
-          )}
-        >
-          <div className="flex items-center gap-2">
-            <Timer size={14} className="text-muted-foreground" />
-            <span
-              className={
-                workout ? "text-[14px] font-bold" : "text-[13px] font-semibold"
-              }
-            >
-              {tr("Rest timer")}
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label={tr("Close rest timer")}
+        <div className="flex items-center gap-2">
+          <Timer size={14} className="text-muted-foreground" />
+          <span
             className={
-              workout
-                ? "app-icon-button"
-                : "flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground/60 transition-colors active:bg-muted/60 active:text-foreground"
+              workout ? "text-[14px] font-bold" : "text-[13px] font-semibold"
             }
           >
-            <X size={workout ? 13 : 16} weight="bold" />
-          </button>
+            {tr("Rest timer")}
+          </span>
         </div>
-        <div
-          className={cn(
-            "grid grid-cols-3 gap-2",
-            workout ? "px-4 pb-3" : "p-4"
-          )}
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label={tr("Close rest timer")}
+          className={
+            workout
+              ? "app-icon-button"
+              : "flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground/60 transition-colors active:bg-muted/60 active:text-foreground"
+          }
         >
-          {REST_TIMER_OPTIONS.map((option) => (
-            <button
-              key={option}
-              type="button"
-              onClick={() => onSelect(option)}
-              aria-pressed={option === current}
-              aria-label={tr("Set rest to {{value0}}", {
-                value0: formatRestDuration(option),
-              })}
-              className={cn(
-                workout
-                  ? "h-[52px] rounded-[10px] text-[14px] font-semibold tabular-nums transition-all"
-                  : "h-12 rounded-xl text-[13px] font-semibold tracking-tight transition-all active:scale-[0.985]",
-                option === current
-                  ? "bg-foreground text-background shadow-sm"
-                  : workout
-                    ? "bg-muted/50 text-muted-foreground/80 active:bg-muted"
-                    : "bg-muted/60 text-foreground/80 active:bg-muted"
-              )}
-            >
-              {formatRestDuration(option)}
-            </button>
-          ))}
-        </div>
-        <div
-          className={cn(
-            "border-t border-border/50 px-4 pt-3",
-            workout ? "pb-2" : "pb-4"
-          )}
-        >
-          <p
+          <X size={workout ? 13 : 16} weight="bold" />
+        </button>
+      </div>
+      <div
+        className={cn("grid grid-cols-3 gap-2", workout ? "px-4 pb-3" : "p-4")}
+      >
+        {REST_TIMER_OPTIONS.map((option) => (
+          <button
+            key={option}
+            type="button"
+            onClick={() => onSelect(option)}
+            aria-pressed={option === current}
+            aria-label={tr("Set rest to {{value0}}", {
+              value0: formatRestDuration(option),
+            })}
             className={cn(
-              "mb-3 text-[13px] text-muted-foreground",
-              workout ? "font-medium" : "font-bold tracking-[0.18em] uppercase"
+              workout
+                ? "h-[52px] rounded-[10px] text-[14px] font-semibold tabular-nums transition-all"
+                : "h-12 rounded-xl text-[13px] font-semibold tracking-tight transition-all active:scale-[0.985]",
+              option === current
+                ? "bg-foreground text-background shadow-sm"
+                : workout
+                  ? "bg-muted/50 text-muted-foreground/80 active:bg-muted"
+                  : "bg-muted/60 text-foreground/80 active:bg-muted"
             )}
           >
-            {workout ? tr("Custom") : tr("Custom rest")}
-          </p>
-          <div className="flex items-end gap-2">
-            <RestTimerInput
-              label={tr("Min")}
-              value={minutes}
-              onChange={setMinutes}
-              workout={workout}
-            />
-            {workout && (
-              <span className="mb-3 text-[18px] font-light text-muted-foreground">
-                :
-              </span>
+            {formatRestDuration(option)}
+          </button>
+        ))}
+      </div>
+      <div
+        className={cn(
+          "border-t border-border/50 px-4 pt-3",
+          workout ? "pb-2" : "pb-4"
+        )}
+      >
+        <p
+          className={cn(
+            "mb-3 text-[13px] text-muted-foreground",
+            workout ? "font-medium" : "font-bold tracking-[0.18em] uppercase"
+          )}
+        >
+          {workout ? tr("Custom") : tr("Custom rest")}
+        </p>
+        <div className="flex items-end gap-2">
+          <RestTimerInput
+            label={tr("Min")}
+            value={minutes}
+            onChange={setMinutes}
+            workout={workout}
+          />
+          {workout && (
+            <span className="mb-3 text-[18px] font-light text-muted-foreground">
+              :
+            </span>
+          )}
+          <RestTimerInput
+            label={tr("Sec")}
+            value={seconds}
+            onChange={setSeconds}
+            workout={workout}
+            max={59}
+          />
+          <button
+            type="button"
+            onClick={() => onSelect(parseRestDuration(minutes, seconds))}
+            className={cn(
+              "shrink-0 bg-foreground text-[13px] font-bold text-background transition-opacity active:opacity-80",
+              workout ? "h-12 rounded-[10px] px-5" : "h-11 rounded-xl px-4"
             )}
-            <RestTimerInput
-              label={tr("Sec")}
-              value={seconds}
-              onChange={setSeconds}
-              workout={workout}
-              max={59}
-            />
-            <button
-              type="button"
-              onClick={() => onSelect(parseRestDuration(minutes, seconds))}
-              className={cn(
-                "shrink-0 bg-foreground text-[13px] font-bold text-background transition-opacity active:opacity-80",
-                workout ? "h-12 rounded-[10px] px-5" : "h-11 rounded-xl px-4"
-              )}
-            >
-              {workout ? tr("Set") : tr("Apply")}
-            </button>
-          </div>
+          >
+            {workout ? tr("Set") : tr("Apply")}
+          </button>
         </div>
       </div>
-    </div>,
-    document.body
+      {onDelete && (
+        <button
+          type="button"
+          onClick={onDelete}
+          className="mx-4 mt-4 min-h-11 rounded-xl bg-destructive/10 px-3 text-[14px] font-semibold text-destructive"
+        >
+          {tr("Delete this set")}
+        </button>
+      )}
+    </MobileSheet>
   )
 }
 
@@ -351,7 +339,7 @@ function RestTimerInput({
           "outline-none",
           workout
             ? "h-12 [appearance:textfield] rounded-[10px] border border-border/45 bg-muted/25 px-3 text-center text-[18px] font-semibold tabular-nums focus:border-foreground/35 focus:bg-background/70 [&::-webkit-inner-spin-button]:appearance-none"
-            : "h-11 rounded-xl border border-border/60 bg-background px-3 text-[15px] font-semibold tabular-nums focus:border-foreground/25"
+            : "h-11 rounded-xl border border-border/60 bg-background px-3 text-[16px] font-semibold tabular-nums focus:border-foreground/25"
         )}
       />
     </label>
