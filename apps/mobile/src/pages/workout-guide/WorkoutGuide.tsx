@@ -34,6 +34,7 @@ import "./workout-guide.css"
    FINISH: Validate camera continuity, minimal text, loading and full handoff. */
 type Props = {
   editing: boolean
+  quickEdit?: boolean
   storageKey: string
   existingName?: string
   onClose: () => void
@@ -84,6 +85,7 @@ function restore(key: string): Session {
 }
 export function WorkoutGuide({
   editing,
+  quickEdit = false,
   storageKey,
   existingName,
   onClose,
@@ -109,7 +111,7 @@ export function WorkoutGuide({
   const transitionTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const transitionAnimation = useRef<Animation | null>(null)
   const copy = guideCopy()
-  const ids: GuideQuestionId[] = [
+  const ids: GuideQuestionId[] = quickEdit ? [] : [
     "focus",
     editing ? "change" : "goal",
     ...CORE_GUIDE_IDS.filter((id) => id !== "focus"),
@@ -120,7 +122,7 @@ export function WorkoutGuide({
   const review = !question
   const { answers, draft } = session
   const muscles = selectedMuscles(answers.focus)
-  const totalQuestions = Math.min(MAX_GUIDE_QUESTIONS, 9)
+  const totalQuestions = quickEdit ? 1 : Math.min(MAX_GUIDE_QUESTIONS, 9)
   const progress =
     draft || busy === "generating" || busy === "applying"
       ? 1
@@ -343,17 +345,17 @@ export function WorkoutGuide({
           ) : review ? (
             <>
               <h1 ref={heading} tabIndex={-1}>
-                {tr("Any additional notes?")}
+                {quickEdit ? tr("Describe your changes") : tr("Any additional notes?")}
               </h1>
               <label className="guide-notes-label" htmlFor="guide-notes">
-                {specific
+                {quickEdit ? existingName : specific
                   ? tr("Which movements should we avoid?")
                   : tr("Optional")}
               </label>
               <textarea
                 id="guide-notes"
-                aria-label={tr("Any additional notes?")}
-                required={specific}
+                aria-label={quickEdit ? tr("Describe your changes") : tr("Any additional notes?")}
+                required={specific || quickEdit}
                 maxLength={500}
                 rows={3}
                 value={session.notes}
@@ -364,7 +366,7 @@ export function WorkoutGuide({
                     notes: event.target.value,
                   }))
                 }
-                placeholder={tr("Anything else to include?")}
+                placeholder={quickEdit ? tr("e.g. Swap squats for leg press and shorten the workout") : tr("Anything else to include?")}
                 aria-describedby="guide-notes-help"
               />
               <p id="guide-notes-help" className="guide-field-help">
@@ -372,7 +374,7 @@ export function WorkoutGuide({
                   ? tr("Add the movements to avoid before continuing.")
                   : ""}
               </p>
-              <details className="guide-rationale">
+              {!quickEdit && <details className="guide-rationale">
                 <summary>{tr("Review answers")}</summary>
                 <div className="guide-review">
                   {ids.map((id, index) => (
@@ -392,7 +394,7 @@ export function WorkoutGuide({
                     </button>
                   ))}
                 </div>
-              </details>
+              </details>}
             </>
           ) : (
             question && (
@@ -553,7 +555,7 @@ export function WorkoutGuide({
               {busy === "planning"
                 ? tr("Finding your rhythm.")
                 : busy === "generating"
-                  ? tr("Building your workout.")
+                  ? quickEdit ? tr("Updating your workout.") : tr("Building your workout.")
                   : tr("Getting things ready.")}
             </h2>
           </div>
@@ -563,8 +565,9 @@ export function WorkoutGuide({
             className="guide-quiet"
             aria-label={tr("Back")}
             title={tr("Back")}
-            disabled={Boolean(busy) || moving || (!draft && session.step === 0)}
+            disabled={Boolean(busy) || moving || (!draft && !quickEdit && session.step === 0)}
             onClick={() => {
+              if (quickEdit && !draft) { onClose(); return }
               setError("")
               travel((current) => ({
                 ...current,
@@ -581,7 +584,7 @@ export function WorkoutGuide({
               draft
                 ? tr("Open in editor")
                 : review
-                  ? tr("Build with AI")
+                  ? quickEdit ? tr("Edit with AI") : tr("Build with AI")
                   : error
                     ? tr("Try again")
                     : tr("Continue")
@@ -590,7 +593,7 @@ export function WorkoutGuide({
               draft
                 ? tr("Open in editor")
                 : review
-                  ? tr("Build with AI")
+                  ? quickEdit ? tr("Edit with AI") : tr("Build with AI")
                   : error
                     ? tr("Try again")
                     : tr("Continue")
@@ -601,7 +604,7 @@ export function WorkoutGuide({
               (!draft && !review && !answers[question!.id]) ||
               (!draft &&
                 review &&
-                specific &&
+                (specific || quickEdit) &&
                 session.notes.trim().length === 0)
             }
             onClick={() => {
@@ -628,7 +631,7 @@ export function WorkoutGuide({
         </footer>
         {!draft && (
           <p className="guide-cost">
-            {tr("Uses 2 AI requests. Rebuilding uses 1 more.")}
+            {quickEdit ? tr("Uses 1 AI request") : tr("Uses 2 AI requests. Rebuilding uses 1 more.")}
           </p>
         )}
       </section>

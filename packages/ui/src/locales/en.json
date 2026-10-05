@@ -6294,5 +6294,9 @@
   "Tell Jev what works for you": "Tell Jev what works for you",
   "Which muscles do you want to train?": "Which muscles do you want to train?",
   "Guided workouts send your answers and relevant safety constraints to TypeSafe AI. Other AI features use OpenRouter. Each provider has its own retention policy.": "Guided workouts send your answers and relevant safety constraints to TypeSafe AI. Other AI features use OpenRouter. Each provider has its own retention policy.",
-  "{{value0}} TypeSafe AI for guided workouts; OpenRouter routes other AI requests to Microsoft Azure or Venice.": "{{value0}} TypeSafe AI for guided workouts; OpenRouter routes other AI requests to Microsoft Azure or Venice."
+  "{{value0}} TypeSafe AI for guided workouts; OpenRouter routes other AI requests to Microsoft Azure or Venice.": "{{value0}} TypeSafe AI for guided workouts; OpenRouter routes other AI requests to Microsoft Azure or Venice.",
+  "Describe your changes": "Describe your changes",
+  "Edit with AI": "Edit with AI",
+  "Updating your workout.": "Updating your workout.",
+  "e.g. Swap squats for leg press and shorten the workout": "e.g. Swap squats for leg press and shorten the workout"
 }

@@ -168,3 +168,7 @@ The latest shadow/material revision measures approximately 60fps (16.73ms mean, 
 Jev selects the two adaptive follow-up questions. A single LLM request through the existing OpenRouter provider evaluates all answers, final notes, a bounded compatible exercise catalog and relevant safety constraints. The result is validated against catalog IDs and bounded set/rep/rest values, then opened as an editable preset. A needs-details response preserves answers; failed generation is refunded. The completed flow still uses two AI requests.
 
 The notes step is a compact 560px maximum column without a full-height backdrop or automatic vertical spacer. Textareas include their padding in the available width. Expected errors are short structured messages; raw Convex errors, request IDs and stack traces never render in the form.
+
+## Single-field workout editing
+
+When the editor contains exercises, the AI entry becomes “Edit with AI”. It opens the same gym with only a required “Describe your changes” textarea and the current workout name. No interview or Jev call runs. One LLM request receives the current exercise IDs, set details, weight unit, a bounded relevant catalog and safety constraints. Unchanged sets are returned by reference and copied exactly; invalid exercise selections fail atomically and refund the request. The revised workout is previewed before applying. Existing exercise settings and contiguous supersets are retained; the saved workout changes only after Save. The edit draft uses separate session storage from guided creation.

@@ -9,7 +9,8 @@ function Fixture() {
   const [requests, setRequests] = useState(0)
   return open ? (
     <WorkoutGuide
-      editing={scenario === "edit"}
+      editing={scenario === "edit" || scenario === "quick-edit"}
+      quickEdit={scenario === "quick-edit"}
       existingName="Upper body A"
       storageKey="test-workout-guide"
       onClose={() => setOpen(false)}

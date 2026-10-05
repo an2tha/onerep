@@ -99,6 +99,7 @@ import type * as lib_trailGeometry from "../lib/trailGeometry.js";
 import type * as lib_uploads from "../lib/uploads.js";
 import type * as lib_userDataRegistry from "../lib/userDataRegistry.js";
 import type * as lib_waterLogs from "../lib/waterLogs.js";
+import type * as lib_workoutEdit from "../lib/workoutEdit.js";
 import type * as lib_workoutGuide from "../lib/workoutGuide.js";
 import type * as lib_workoutGuideLlm from "../lib/workoutGuideLlm.js";
 import type * as lib_workoutGuideQuestions from "../lib/workoutGuideQuestions.js";
@@ -263,6 +264,7 @@ declare const fullApi: ApiFromModules<{
   "lib/uploads": typeof lib_uploads;
   "lib/userDataRegistry": typeof lib_userDataRegistry;
   "lib/waterLogs": typeof lib_waterLogs;
+  "lib/workoutEdit": typeof lib_workoutEdit;
   "lib/workoutGuide": typeof lib_workoutGuide;
   "lib/workoutGuideLlm": typeof lib_workoutGuideLlm;
   "lib/workoutGuideQuestions": typeof lib_workoutGuideQuestions;

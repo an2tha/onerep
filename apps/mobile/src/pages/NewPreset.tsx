@@ -1314,6 +1314,7 @@ export default function NewPreset() {
   const [guideOpen, setGuideOpen] = useState(false)
   const planGuide = useAction(api.logs.presetAgent.planGuidedFollowups)
   const generateGuide = useAction(api.logs.presetAgent.createGuidedDraft)
+  const editWithAi = useAction(api.logs.presetAgent.editWithAi)
   const guideButton = useRef<HTMLButtonElement>(null)
   const [confirming, setConfirming] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
@@ -1586,6 +1587,8 @@ export default function NewPreset() {
     // must not silently remove an exercise from a reviewed workout.
     const resolved = await Promise.all(
       draft.exercises.map(async (entry) => {
+        const originalId = "id" in entry && typeof entry.id === "string" ? entry.id : null
+        if (originalId && exerciseLookup[originalId]) return { entry, exercise: exerciseLookup[originalId] }
         const candidates = await searchExercises({
           query: entry.name,
           limit: 6,
@@ -1615,17 +1618,27 @@ export default function NewPreset() {
         )
       )
     }
-    setItems(
-      resolved.map(({ exercise }) => ({
-        kind: "solo",
-        exerciseId: exercise.id,
-      }))
-    )
+    const nextIds = resolved.map(({ exercise }) => exercise.id)
+    const nextItems: PresetItem[] = []
+    for (let index = 0; index < nextIds.length;) {
+      const id = nextIds[index]
+      const group = items.find(item => item.kind === "superset" && item.exerciseIds.includes(id))
+      const members = group?.kind === "superset" ? group.exerciseIds.filter(member => nextIds.includes(member)) : []
+      if (group?.kind === "superset" && members.length > 1 && members.every((member, offset) => nextIds[index + offset] === member)) {
+        nextItems.push({ ...group, exerciseIds: members })
+        index += members.length
+      } else { nextItems.push({ kind: "solo", exerciseId: id }); index++ }
+    }
+    setItems(nextItems)
     setExData(
       Object.fromEntries(
         resolved.map(({ exercise, entry }) => [
           exercise.id,
-          makeExerciseStateFromAgentDraft(exercise, entry),
+          exData[exercise.id] && addedIds.length
+            ? { ...exData[exercise.id], sets: entry.sets!.map((set, index) => ({
+                ...normalizeAgentSet(set), id: exData[exercise.id].sets[index]?.id ?? crypto.randomUUID(),
+              })) }
+            : makeExerciseStateFromAgentDraft(exercise, entry),
         ])
       )
     )
@@ -2019,8 +2032,9 @@ export default function NewPreset() {
       <>
         <WorkoutGuide
           key={`${userId}:${presetId ?? "new"}`}
-          storageKey={`onerep:workout-guide:v1:${userId}:${presetId ?? "new"}:${addedIds.length ? "edit" : "create"}`}
+          storageKey={`onerep:workout-guide:v1:${userId}:${presetId ?? "new"}:${addedIds.length ? "quick-edit" : "create"}`}
           editing={addedIds.length > 0}
+          quickEdit={addedIds.length > 0}
           existingName={presetName}
           onClose={() => {
             setGuideOpen(false)
@@ -2039,6 +2053,17 @@ export default function NewPreset() {
               throw new Error(
                 tr("Enable AI access, then try again. Your answers are kept.")
               )
+            if (addedIds.length) return await editWithAi({
+              changes: notes,
+              unit,
+              existing: {
+                name: presetName.trim() || tr("Untitled Preset"),
+                exercises: addedIds.map(id => ({
+                  id,
+                  sets: exData[id].sets.map(({ type, weight, reps, restSeconds }) => ({ type, weight, reps, restSeconds })),
+                })),
+              },
+            })
             return await generateGuide({
               answers,
               notes,
@@ -2118,10 +2143,10 @@ export default function NewPreset() {
           >
             <span>
               <span className="block text-base font-semibold">
-                {tr("Build with AI")}
+                {addedIds.length ? tr("Edit with AI") : tr("Build with AI")}
               </span>
               <span className="mt-1 block text-[13px] text-[#bfc1c2]">
-                {tr("Uses 2 AI requests")}
+                {addedIds.length ? tr("Uses 1 AI request") : tr("Uses 2 AI requests")}
               </span>
             </span>
             <Barbell size={28} className="shrink-0 text-[#d9c49b]" />

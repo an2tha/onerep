@@ -6388,5 +6388,9 @@
   "Couldn’t build this workout. Your answers are saved. Try again.": "Couldn’t build this workout. Your answers are saved. Try again.",
   "Guided workouts use TypeSafe AI to select questions and OpenRouter to evaluate your answers and generate the final preset. Each provider has its own retention policy.": "Guided workouts use TypeSafe AI to select questions and OpenRouter to evaluate your answers and generate the final preset. Each provider has its own retention policy.",
   "{{value0}} TypeSafe AI for guided questions; OpenRouter routes final workout generation and other AI requests to Microsoft Azure or Venice.": "{{value0}} TypeSafe AI for guided questions; OpenRouter routes final workout generation and other AI requests to Microsoft Azure or Venice.",
-  "Connection lost. Your answers are kept. Try again.": "Connection lost. Your answers are kept. Try again."
+  "Connection lost. Your answers are kept. Try again.": "Connection lost. Your answers are kept. Try again.",
+  "Describe your changes": "Describe your changes",
+  "Edit with AI": "Edit with AI",
+  "Updating your workout.": "Updating your workout.",
+  "e.g. Swap squats for leg press and shorten the workout": "e.g. Swap squats for leg press and shorten the workout"
 }

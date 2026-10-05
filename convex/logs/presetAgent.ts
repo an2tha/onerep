@@ -368,3 +368,54 @@ export const createGuidedDraft = action({
     }
   },
 });
+
+import type { ClientExercise } from "../lib/exerciseShape";
+import { editWorkoutSchema, parseWorkoutEdit } from "../lib/workoutEdit";
+
+export const editWithAi = action({
+  args: {
+    changes: v.string(),
+    unit: v.union(v.literal("kg"), v.literal("lbs")),
+    existing: v.object({
+      name: v.string(),
+      exercises: v.array(v.object({
+        id: v.string(),
+        sets: v.array(v.object({ type: v.string(), weight: v.string(), reps: v.string(), restSeconds: v.number() })),
+      })),
+    }),
+  },
+  handler: async (ctx, args): Promise<ReturnType<typeof parseWorkoutEdit>> => {
+    const user = await getAuthUser(ctx);
+    const changes = args.changes.trim();
+    if (!changes || changes.length > 500) throw new ConvexError({ code: "GUIDE_DETAILS", message: "Describe your changes in 500 characters or fewer." });
+    const existing = editWorkoutSchema.parse(args.existing);
+    const resolved: Record<string, ClientExercise> = await ctx.runQuery(api.exercises.resolve, { ids: existing.exercises.map(exercise => exercise.id) });
+    if (existing.exercises.some(exercise => !resolved[exercise.id])) throw new ConvexError({ code: "GUIDE_DETAILS", message: "An exercise is no longer available. Update the workout and try again." });
+    const catalog = await ctx.runQuery(api.exercises.catalog, {});
+    const profile = await ctx.runQuery(api.users.onboarding.get, {});
+    const muscles = new Set(Object.values(resolved).flatMap(exercise => exercise.primaryMuscles ?? []));
+    const words = changes.toLowerCase().split(/\W+/).filter(word => word.length > 3);
+    const score = (exercise: typeof catalog[number]) =>
+      words.filter(word => `${exercise.name} ${exercise.equipment} ${exercise.primaryMuscles.join(" ")}`.toLowerCase().includes(word)).length * 3 +
+      exercise.primaryMuscles.filter(muscle => muscles.has(muscle)).length;
+    const candidates = [...catalog].sort((a,b) => score(b)-score(a)).slice(0, 48);
+    const available = [...new Map([...Object.values(resolved), ...candidates].map(exercise => [exercise.id, exercise])).values()];
+    const quota = await consumeAiUsageOrThrow(ctx, user._id, "workout_preset");
+    try {
+      const content = await requestOpenAiJson({
+        apiKey: quota.apiKey, label: "workout-edit", maxTokens: 2200, temperature: 0.2,
+        system: renderSystemPrompt("workout_edit", {}),
+        user: JSON.stringify({ changes, unit: args.unit, existing,
+          catalog: available.map(exercise => ({ id: exercise.id, name: exercise.name, equipment: exercise.equipment, muscles: exercise.primaryMuscles })),
+          ...(profile?.safetyMode ? { safetyMode: profile.safetyMode } : {}),
+          ...(profile?.safetyFlags?.length ? { safetyFlags: profile.safetyFlags } : {}),
+        }),
+      });
+      return parseWorkoutEdit(content, existing, available);
+    } catch (error) {
+      await refundAiUsage(ctx, user._id, "workout_preset", quota.month);
+      console.warn("Workout edit failed", error);
+      throw new ConvexError({ code: "GUIDE_GENERATION", message: "Couldn’t update this workout. Your changes are saved. Try again." });
+    }
+  },
+});

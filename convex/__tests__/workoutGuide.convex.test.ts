@@ -269,3 +269,27 @@ test("LLM can ask for missing restriction details without losing or billing a dr
   await expect(user.action(api.logs.presetAgent.createGuidedDraft, { answers, notes: "" })).rejects.toThrow("Which movements");
   expect(await user.query(api.ai.usage.getMonthlyUsage, {})).toMatchObject({ count: 0 });
 });
+
+const editOriginal = {name: "My session", exercises: [{id:"Dumbbell Squat",sets:[{type:"warmup",weight:"15",reps:"10",restSeconds:60},{type:"working",weight:"25",reps:"8",restSeconds:120}]}]};
+test("single-field edit preserves untouched set details and charges one LLM request", async () => {
+  const {t,user}=await setup(); await seedCatalog(t);
+  vi.mocked(requestOpenAiJson).mockResolvedValue(JSON.stringify({name:"My session",notes:"Added rows",exercises:[{id:"Dumbbell Squat",sets:null},{id:"Dumbbell Row",sets:[{type:"working",weight:"",reps:"10",restSeconds:90}]}]}));
+  const draft=await user.action(api.logs.presetAgent.editWithAi,{changes:"Add rows",unit:"kg",existing:editOriginal});
+  expect(draft.exercises[0].sets).toEqual(editOriginal.exercises[0].sets);
+  expect(draft.exercises[1].name).toBe("Dumbbell Row");
+  expect(requestJev).not.toHaveBeenCalled();
+  const payload=JSON.parse(vi.mocked(requestOpenAiJson).mock.calls[0][0].user);
+  expect(payload.changes).toBe("Add rows"); expect(payload.existing).toEqual(editOriginal);
+  expect(await user.query(api.ai.usage.getMonthlyUsage,{})).toMatchObject({count:1});
+});
+test("single-field edit rejects blank changes before calling the provider", async () => {
+  const {user}=await setup();
+  await expect(user.action(api.logs.presetAgent.editWithAi,{changes:"   ",unit:"kg",existing:editOriginal})).rejects.toThrow("Describe your changes");
+  expect(requestOpenAiJson).not.toHaveBeenCalled();
+});
+test("invalid edit selection refunds and never returns a partial workout", async () => {
+  const {t,user}=await setup(); await seedCatalog(t);
+  vi.mocked(requestOpenAiJson).mockResolvedValue(JSON.stringify({name:"Session",notes:"",exercises:[{id:"invented",sets:null}]}));
+  await expect(user.action(api.logs.presetAgent.editWithAi,{changes:"Add rows",unit:"kg",existing:editOriginal})).rejects.toThrow("Couldn’t update");
+  expect(await user.query(api.ai.usage.getMonthlyUsage,{})).toMatchObject({count:0});
+});
