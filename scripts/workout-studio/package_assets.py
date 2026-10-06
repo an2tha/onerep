@@ -19,7 +19,9 @@ for index,view in enumerate(doc['bufferViews']):
    limit=512 if 'rough' in image.get('name','').lower() else 1024
    im.thumbnail((limit,limit),Image.Resampling.LANCZOS)
   elif small_map and max(im.size)>1024:im.thumbnail((1024,1024),Image.Resampling.LANCZOS)
-  im.save(stream,format='WEBP',quality=98 if is_normal else 92,method=6)
+  # The pavilion must stay below Cloudflare Pages' 25 MiB per-file limit.
+  quality=85 if 'pavilion' in asset else (98 if is_normal else 92)
+  im.save(stream,format='WEBP',quality=quality,method=6)
   chunk=stream.getvalue();image['mimeType']='image/webp'
  while len(packed)%4:packed.append(0)
  view['byteOffset']=len(packed);view['byteLength']=len(chunk);packed.extend(chunk)

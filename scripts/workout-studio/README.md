@@ -48,9 +48,10 @@ python3 scripts/workout-studio/package_assets.py ../onboarding-pavilion/pavilion
 ```
 
 The local source is saved as `pavilion.blend`. Source downloads and Blender
-files are ignored and regenerated from these scripts. The public GLB is about
-29.3 MB and the HDR is 7.3 MB. Packaging preserves foliage alpha, uses WebP,
-and caps color/normal maps at 1024px and roughness maps at 512px.
+files are ignored and regenerated from these scripts. The public GLB stays below
+Cloudflare Pages' 25 MiB per-file limit, and the HDR is 7.3 MB. Packaging
+preserves foliage alpha, uses WebP, and caps color/normal maps at 1024px and
+roughness maps at 512px.
 
 Four floor AO maps are baked in Cycles and exported in native glTF occlusion
 slots with their own UV coordinates. Runtime adds cached 2048px directional
