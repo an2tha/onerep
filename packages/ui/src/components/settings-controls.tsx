@@ -133,20 +133,32 @@ export function CompactSwitch({
   }
 
   return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      aria-label={label}
-      disabled={disabled}
-      className="inline-flex h-11 w-14 shrink-0 items-center justify-center rounded-[0.65rem] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground disabled:cursor-not-allowed"
-      onClick={() => {
-        onInteract?.()
-        onChange(!checked)
-      }}
-    >
-      {track}
-    </button>
+    <span className="relative inline-flex h-11 w-14 shrink-0 items-center justify-center">
+      <input
+        type="checkbox"
+        role="switch"
+        checked={checked}
+        aria-label={label}
+        disabled={disabled}
+        className={cn(
+          "h-11 w-14 cursor-pointer appearance-none rounded-full border-x-2 border-y-[6px] border-transparent bg-clip-padding transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground disabled:cursor-not-allowed",
+          checked ? "bg-foreground" : "bg-muted",
+          disabled && "opacity-40"
+        )}
+        onChange={(event) => {
+          onInteract?.()
+          onChange(event.currentTarget.checked)
+        }}
+      />
+      <span
+        aria-hidden="true"
+        className={cn(
+          "pointer-events-none absolute top-2.5 left-1.5 size-6 rounded-full bg-background shadow-sm transition-transform",
+          checked && "translate-x-6",
+          disabled && "opacity-40"
+        )}
+      />
+    </span>
   )
 }
 

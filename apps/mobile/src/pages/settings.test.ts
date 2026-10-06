@@ -365,7 +365,8 @@ describe("Settings – production feature visibility", () => {
     assert.match(combinedSource, /<GroupedList/)
     assert.match(combinedSource, /<DisclosureRow/)
     assert.match(combinedSource, /role="switch"/)
-    assert.match(combinedSource, /aria-checked=\{checked\}/)
+    assert.match(combinedSource, /type="checkbox"/)
+    assert.match(combinedSource, /checked=\{checked\}/)
     assert.match(combinedSource, /role="progressbar"/)
     assert.match(
       combinedSource,
