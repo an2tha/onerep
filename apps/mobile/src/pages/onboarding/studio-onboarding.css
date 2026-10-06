@@ -1,0 +1,316 @@
+/* The pavilion inherits the selected app identity and resolved appearance. */
+.studio-onboarding {
+  position: relative;
+  isolation: isolate;
+  color: var(--foreground);
+  background: var(--background);
+  display: block;
+}
+.studio-onboarding .onboarding-pavilion,
+.studio-onboarding .setup-scene-shade {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -2;
+}
+.studio-onboarding .onboarding-pavilion {
+  background: var(--background);
+}
+.studio-onboarding .studio-poster,
+.studio-onboarding .studio-canvas,
+.studio-onboarding .studio-canvas canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.studio-onboarding .studio-poster {
+  object-fit: cover;
+}
+.studio-onboarding .studio-canvas {
+  opacity: 0;
+  transition: opacity 900ms ease;
+}
+.studio-onboarding .studio-canvas[data-ready="true"] {
+  opacity: 1;
+}
+.studio-onboarding .setup-scene-shade {
+  z-index: -1;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--background) 96%, transparent),
+    color-mix(in srgb, var(--background) 88%, transparent) 27%,
+    color-mix(in srgb, var(--background) 0%, transparent) 53%,
+    transparent
+  );
+}
+.studio-onboarding .setup-main {
+  height: 100svh;
+}
+.studio-onboarding .setup-topbar {
+  background: linear-gradient(
+    var(--background),
+    color-mix(in srgb, var(--background) 82%, transparent)
+  );
+  color: var(--foreground);
+  padding: calc(env(safe-area-inset-top) + 20px) clamp(20px, 5vw, 80px) 12px;
+  gap: 20px;
+}
+.studio-onboarding .setup-topbar > button {
+  padding: 0 8px;
+}
+.studio-onboarding .setup-topbar > span {
+  margin-left: auto;
+  color: var(--foreground);
+  font-size: 12px;
+}
+.studio-onboarding .setup-topbar > button:first-child {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  margin-left: -8px;
+}
+.studio-onboarding .setup-content {
+  overflow-y: auto;
+  overflow-x: clip;
+}
+.studio-onboarding .setup-page {
+  width: min(100%, 690px);
+  max-width: none;
+  margin: 0;
+  padding: clamp(32px, 6vh, 72px) 32px calc(env(safe-area-inset-bottom) + 64px)
+    clamp(28px, 5vw, 80px);
+  animation: setup-arrive 650ms ease both;
+}
+.studio-onboarding .setup-page h1 {
+  font-size: clamp(36px, 4.4vw, 64px);
+  font-weight: 560;
+  max-width: 16ch;
+  line-height: 1.04;
+  letter-spacing: -0.04em;
+  text-wrap: balance;
+  text-shadow: none;
+}
+.studio-onboarding .setup-description {
+  font-size: 14px;
+  line-height: 1.65;
+  margin: 22px 0 32px;
+  max-width: 48ch;
+}
+.studio-onboarding .setup-page[data-stage="intro"] {
+  padding-top: clamp(80px, 19vh, 200px);
+}
+.studio-onboarding .setup-page[data-stage="intro"] h1 {
+  font-size: clamp(52px, 5.6vw, 80px);
+  max-width: 12ch;
+}
+.studio-onboarding .setup-page[data-stage="intro"] .setup-controls {
+  margin-top: 42px;
+  max-width: 220px;
+}
+.studio-onboarding .setup-choices {
+  gap: 8px;
+}
+.studio-onboarding .setup-choices button {
+  background: color-mix(in srgb, var(--background) 94%, transparent);
+  border-radius: 6px;
+}
+.studio-onboarding .setup-choices button[aria-pressed="true"] {
+  background: var(--foreground);
+  color: var(--background);
+  border-color: var(--foreground);
+}
+.studio-onboarding .setup-field {
+  font-size: 14px;
+}
+.studio-onboarding .setup-preferences {
+  gap: 32px;
+}
+.studio-onboarding .setup-field select {
+  background: var(--surface-panel);
+  border-radius: 6px;
+}
+.studio-onboarding .onboarding-chat-chip {
+  background: var(--surface-panel);
+  border-radius: 8px;
+}
+.studio-onboarding .onboarding-chat-chip[data-selected="true"] {
+  background: var(--foreground);
+  color: var(--background);
+}
+.studio-onboarding .onboarding-primary-button {
+  border-radius: 7px;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 18%);
+}
+.studio-onboarding .setup-review-list {
+  background: color-mix(in srgb, var(--background) 94%, transparent);
+  padding: 0 20px;
+  border-radius: 8px;
+}
+.studio-onboarding .setup-sidebar {
+  position: absolute;
+  z-index: 5;
+  left: clamp(20px, 5vw, 80px);
+  top: calc(env(safe-area-inset-top) + 74px);
+  width: min(320px, calc(100vw - 40px));
+  padding: 24px;
+  max-height: calc(100svh - 100px);
+  overflow-y: auto;
+  background: var(--surface-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 16px 64px rgb(0 0 0 / 55%);
+}
+.studio-onboarding .setup-sidebar[hidden] {
+  display: none;
+}
+.studio-onboarding .setup-sidebar nav {
+  overflow: visible;
+}
+.studio-onboarding .setup-sidebar ol {
+  display: grid;
+  width: auto;
+  padding: 0;
+}
+.studio-onboarding .setup-sidebar button {
+  width: 100%;
+}
+.studio-onboarding .setup-brand {
+  margin-bottom: 20px;
+}
+.studio-onboarding .setup-sidebar > p {
+  display: block;
+  margin-top: 20px;
+}
+.studio-onboarding button:focus-visible,
+.studio-onboarding input:focus-visible,
+.studio-onboarding select:focus-visible,
+.studio-onboarding textarea:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 4px;
+}
+@keyframes setup-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (max-width: 700px) {
+  .studio-onboarding .setup-main {
+    height: auto;
+    min-height: 100svh;
+  }
+  .studio-onboarding .setup-content {
+    overflow: visible;
+  }
+  .studio-onboarding .studio-canvas {
+    height: 44svh;
+  }
+  .studio-onboarding .setup-scene-shade {
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--background) 20%, transparent),
+      transparent 12svh,
+      transparent 28svh,
+      color-mix(in srgb, var(--background) 92%, transparent) 40svh,
+      var(--background) 47svh
+    );
+  }
+  .studio-onboarding .setup-topbar {
+    padding: calc(env(safe-area-inset-top) + 12px) 24px 8px;
+    gap: 8px;
+  }
+  .studio-onboarding .setup-topbar > span {
+    max-width: 50%;
+    text-align: right;
+  }
+  .studio-onboarding .setup-page {
+    padding: 29vh 24px calc(env(safe-area-inset-bottom) + 40px);
+  }
+  .studio-onboarding .setup-page h1 {
+    font-size: 42px;
+    max-width: 14ch;
+  }
+  .studio-onboarding .setup-page[data-stage="intro"] {
+    padding-top: 34vh;
+  }
+  .studio-onboarding .setup-page[data-stage="intro"] h1 {
+    font-size: 54px;
+  }
+  .studio-onboarding .setup-page[data-stage="intro"] .setup-controls {
+    max-width: none;
+    margin-top: 32px;
+  }
+  .studio-onboarding .setup-description {
+    margin: 18px 0 28px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .studio-onboarding .setup-page {
+    animation: none;
+  }
+  .studio-onboarding .studio-canvas {
+    transition: none;
+  }
+}
+
+/* Frosted surfaces stay local to the form, preserving the clear room view. */
+.studio-onboarding.setup-shell {
+  --setup-glass: color-mix(in srgb, var(--background) 72%, transparent);
+  --setup-glass-edge: color-mix(in srgb, var(--foreground) 16%, transparent);
+}
+.studio-onboarding.setup-shell .onboarding-chat-card,
+.studio-onboarding.setup-shell .onboarding-review-card,
+.studio-onboarding.setup-shell .setup-review-list,
+.studio-onboarding.setup-shell .setup-sidebar {
+  background: linear-gradient(135deg, rgb(255 255 255 / 9%), transparent 58%), var(--setup-glass);
+  -webkit-backdrop-filter: blur(20px) saturate(115%);
+  backdrop-filter: blur(20px) saturate(115%);
+  border: 1px solid var(--setup-glass-edge);
+  border-radius: 18px;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 15%), 0 16px 40px rgb(0 0 0 / 12%);
+}
+.studio-onboarding.setup-shell .setup-choices button,
+.studio-onboarding.setup-shell .onboarding-chat-chip,
+.studio-onboarding.setup-shell .setup-field select {
+  background: color-mix(in srgb, var(--background) 64%, transparent);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--setup-glass-edge);
+  border-radius: 12px;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 12%), 0 4px 14px rgb(0 0 0 / 6%);
+}
+.studio-onboarding.setup-shell .setup-choices button[aria-pressed="true"],
+.studio-onboarding.setup-shell .onboarding-chat-chip[data-selected="true"] {
+  background: var(--foreground);
+  color: var(--background);
+  border-color: var(--foreground);
+}
+.studio-onboarding.setup-shell .onboarding-primary-button { border-radius: 12px; }
+@media (prefers-reduced-transparency: reduce) {
+  .studio-onboarding.setup-shell { --setup-glass: var(--background); }
+  .studio-onboarding.setup-shell .onboarding-chat-card,
+  .studio-onboarding.setup-shell .onboarding-review-card,
+  .studio-onboarding.setup-shell .setup-review-list,
+  .studio-onboarding.setup-shell .setup-sidebar,
+  .studio-onboarding.setup-shell .setup-choices button,
+  .studio-onboarding.setup-shell .onboarding-chat-chip,
+  .studio-onboarding.setup-shell .setup-field select {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background: var(--background);
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .studio-onboarding.setup-shell .setup-choices button[aria-pressed="true"],
+  .studio-onboarding.setup-shell .onboarding-chat-chip[data-selected="true"] {
+    background: var(--foreground);
+    color: var(--background);
+  }
+}

@@ -8,9 +8,11 @@ export const goalFocusValidator = v.union(
 );
 export const goalPlanValidator = v.object({
   focus: goalFocusValidator,
-  muscle: v.string(),
-  minimumSets: v.number(),
-  maximumSets: v.number(),
+  // Older saved plans may still have these fields. New goals use the whole-body
+  // assessment and never ask for a single muscle target.
+  muscle: v.optional(v.string()),
+  minimumSets: v.optional(v.number()),
+  maximumSets: v.optional(v.number()),
 });
 
 export function validateGoalRange(minimum: number, maximum: number) {

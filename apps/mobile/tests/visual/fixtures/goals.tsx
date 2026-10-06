@@ -9,7 +9,7 @@ import "../../../src/styles/index.css"
 
 document.documentElement.classList.toggle(
   "dark",
-  window.matchMedia("(prefers-color-scheme: dark)").matches
+  window.matchMedia("(prefers-color-scheme: dark)").matches,
 )
 
 function Fixture() {
@@ -32,9 +32,11 @@ function Fixture() {
   }>(
     mode === "poor" || mode === "empty"
       ? { goalsIntroducedAt: 1, goalPlan: data.plan }
-      : {}
+      : {},
   )
-  const [failSave, setFailSave] = useState(false)
+  const [failSave, setFailSave] = useState(
+    new URLSearchParams(window.location.search).get("fail") === "1",
+  )
   return (
     <MemoryRouter>
       <main style={{ maxWidth: 760, padding: "24px 20px", margin: "auto" }}>
@@ -54,7 +56,6 @@ function Fixture() {
               : null
           }
           preferences={preferences}
-          history={[]}
           today="2026-09-25"
           save={async ({ plan }) => {
             if (failSave) throw new Error("Offline")

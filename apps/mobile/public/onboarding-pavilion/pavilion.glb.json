@@ -1,0 +1,49 @@
+{
+  "asset": "pavilion.glb",
+  "origin": "OneRep pavilion authored and baked through live Blender MCP. Scanned materials and foliage from Poly Haven.",
+  "source": "scripts/workout-studio/build_pavilion.py",
+  "authoringFile": "scripts/workout-studio/pavilion.blend",
+  "sources": [
+    {
+      "url": "https://polyhaven.com/a/concrete_floor_02",
+      "license": "CC0"
+    },
+    {
+      "url": "https://polyhaven.com/a/grey_plaster",
+      "license": "CC0"
+    },
+    {
+      "url": "https://polyhaven.com/a/gravel_floor",
+      "license": "CC0"
+    },
+    {
+      "url": "https://polyhaven.com/a/rubber_tiles",
+      "license": "CC0"
+    },
+    {
+      "url": "https://polyhaven.com/a/fine_grained_wood",
+      "license": "CC0"
+    },
+    {
+      "url": "https://polyhaven.com/a/poly_wool_herringbone",
+      "license": "CC0"
+    },
+    {
+      "url": "https://polyhaven.com/a/potted_plant_02",
+      "license": "CC0"
+    },
+    {
+      "url": "https://polyhaven.com/a/modular_street_seating",
+      "license": "CC0"
+    },
+    {
+      "url": "https://polyhaven.com/a/modern_arm_chair_01",
+      "license": "CC0"
+    },
+    {
+      "url": "https://polyhaven.com/a/mid_century_lounge_chair",
+      "license": "CC0"
+    }
+  ],
+  "contactShading": "Four baked ambient occlusion maps in native glTF occlusion slots. Runtime cast shadows are cached separately."
+}

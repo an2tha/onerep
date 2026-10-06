@@ -128,3 +128,7 @@ apps/mobile/tests/visual/fixtures/*.generated.html
 scripts/workout-studio/baked/
 scripts/workout-studio/textures/
 scripts/workout-studio/studio.blend
+
+# Reproducible onboarding Blender sources and downloaded scans.
+scripts/workout-studio/pavilion-assets/
+scripts/workout-studio/pavilion.blend*

@@ -1,3 +1,5 @@
+import { OnboardingScene, type OnboardingRoom } from "./onboarding/onboarding-scene"
+import "./onboarding/studio-onboarding.css"
 import { GoalsArt } from "@/components/goals-art"
 import "@/components/goals.css"
 import { Message, choice, tr, translateError, uiLocale } from "@repo/ui/i18n"
@@ -16,6 +18,7 @@ import {
 import { cacheEnergyUnit } from "@/lib/use-energy-unit"
 import { useLocation } from "react-router"
 import {
+  ArrowLeft,
   ArrowRight,
   Barbell,
   Check,
@@ -730,6 +733,7 @@ export function OnboardingMobile() {
   const { context: coachContext } = useCoachContext()
 
   const [settingsView, setSettingsView] = useState<SettingsView | null>(null)
+  const [stepsOpen, setStepsOpen] = useState(false)
   const [initialized, setInitialized] = useState(false)
   const [stage, setStage] = useState(() => (coachReplay ? coachStageIndex : 0))
   // Where to jump back to after editing an earlier answer, so a correction
@@ -2616,6 +2620,10 @@ export function OnboardingMobile() {
     review: tr("Ready for your first day."),
     next: tr("What’s next?"),
   }
+  const room: OnboardingRoom =
+    ["nutrition", "lifestyle"].includes(activeStage.id) ? "nutrition" :
+    ["sex", "measurements", "safety"].includes(activeStage.id) ? "recovery" :
+    ["preferences", "connections", "import", "coach", "assistant", "review"].includes(activeStage.id) ? "planning" : "overview"
   if (settingsView)
     return (
       <Suspense
@@ -2639,7 +2647,9 @@ export function OnboardingMobile() {
       </Suspense>
     )
   return (
-    <main className="setup-shell bg-background text-foreground">
+    <main className="setup-shell studio-onboarding" data-room={room}>
+      <OnboardingScene room={room} busy={saving || setupBusy} progress={(stage + 1) / stages.length} />
+      <div className="setup-scene-shade" aria-hidden="true" />
       {complete && (
         <div
           className="onboarding-complete"
@@ -2650,7 +2660,7 @@ export function OnboardingMobile() {
           <p>{tr("Your plan is ready")}</p>
         </div>
       )}
-      <aside className="setup-sidebar">
+      <aside className="setup-sidebar" hidden={!stepsOpen} id="setup-step-menu">
         <div className="setup-brand">
           <img src="/app-icon.svg" alt="" width="32" height="32" />
           <strong
@@ -2668,7 +2678,7 @@ export function OnboardingMobile() {
                   type="button"
                   aria-current={index === stage ? "step" : undefined}
                   disabled={index > Math.max(stage, returnStage ?? 0)}
-                  onClick={() => rewindTo(index)}
+                  onClick={() => { rewindTo(index); setStepsOpen(false) }}
                 >
                   <span className="setup-step-number">
                     {index < stage ? (
@@ -2697,12 +2707,16 @@ export function OnboardingMobile() {
           <button
             type="button"
             disabled={stage === 0 || saving}
+            aria-label={tr("Back")}
             onClick={() => {
               setReturnStage(null)
               setStage((current) => Math.max(0, current - 1))
             }}
           >
-            {tr("Back")}
+            <ArrowLeft size={22} aria-hidden="true" />
+          </button>
+          <button type="button" aria-expanded={stepsOpen} aria-controls="setup-step-menu" onClick={() => setStepsOpen(!stepsOpen)}>
+            {tr("Setup steps")}
           </button>
           <span>
             {coachReplay
@@ -2723,7 +2737,7 @@ export function OnboardingMobile() {
           )}
         </header>
         <div
-          className="setup-progress"
+          className="setup-progress sr-only"
           role="progressbar"
           aria-label={tr("Profile setup progress")}
           aria-valuemin={1}
@@ -2735,46 +2749,15 @@ export function OnboardingMobile() {
           />
         </div>
         <div id="setup-content" className="setup-content">
-          <div className="setup-page" data-stage={activeStage.id}>
+          <div className="setup-page" data-stage={activeStage.id} key={activeStage.id}>
             <h1 id="setup-heading" tabIndex={-1}>
               {titles[activeStage.id]}
             </h1>
             <div className="setup-description">
-              {stageMessages[activeStage.id].map((message) => (
+              {(activeStage.id === "intro" ? [tr("Training, nutrition, recovery. Let’s make it yours.")] : stageMessages[activeStage.id]).map((message) => (
                 <p key={message}>{message}</p>
               ))}
             </div>
-            {activeStage.id === "intro" && (
-              <div className="setup-feature-list">
-                {[
-                  [
-                    "Train",
-                    "Log sets, build routines, schedule workouts, and follow your strength over time.",
-                  ],
-                  [
-                    "Eat",
-                    "Track meals with search, barcodes or photos. Save recipes, plan meals, and build grocery lists.",
-                  ],
-                  [
-                    "Recover",
-                    "Track water, body measurements, fasting, and health trends. Connect supported health sources from Settings.",
-                  ],
-                  [
-                    "Progress",
-                    "Bring your history, follow your goals, and customize your dashboard and progress trackers.",
-                  ],
-                  [
-                    "Coach",
-                    "Ask questions with your own context, create plans, and review proposed changes. AI is optional.",
-                  ],
-                ].map(([title, description]) => (
-                  <div key={title}>
-                    <h2>{title}</h2>
-                    <p>{description}</p>
-                  </div>
-                ))}
-              </div>
-            )}
             {error && activeStage.id !== "review" && (
               <p role="alert" className="text-destructive">
                 {error}

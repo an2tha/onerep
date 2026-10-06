@@ -1,5 +1,5 @@
 import { Message, choice, tr, translateError, uiLocale } from "@repo/ui/i18n"
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useMutation, useQuery } from "convex/react"
 import {
   ArrowUpRight,
@@ -74,7 +74,47 @@ export default function Journal() {
   const [quickAction, setQuickAction] = useState<QuickActionId | null>(null)
   const [filter, setFilter] = useState("all")
   const [search, setSearch] = useState("")
+  const [activeSection, setActiveSection] = useState(0)
+  const bodyRef = useRef<HTMLDivElement>(null)
   const loaded = entries !== undefined && metrics !== undefined
+  useEffect(() => {
+    const body = bodyRef.current
+    if (!body) return
+    const panels = Array.from(body.querySelectorAll<HTMLElement>(".journal-panel"))
+    const mobile = window.matchMedia("(max-width: 767px)")
+    const measure = () => {
+      panels.forEach((panel, index) => {
+        panel.inert = mobile.matches && index !== activeSection
+      })
+      if (!mobile.matches) return
+      body.style.setProperty(
+        "--journal-active-height",
+        `${panels[activeSection]?.scrollHeight}px`
+      )
+    }
+    const observer = new ResizeObserver(measure)
+    panels.forEach((panel) => observer.observe(panel))
+    mobile.addEventListener("change", measure)
+    measure()
+    body.dataset.carouselReady = "true"
+    return () => {
+      observer.disconnect()
+      mobile.removeEventListener("change", measure)
+    }
+  }, [activeSection])
+  function showSection(index: number) {
+    const body = bodyRef.current
+    if (!body || !window.matchMedia("(max-width: 767px)").matches) {
+      setActiveSection(index)
+      return
+    }
+    body.scrollTo({
+      left: index * body.clientWidth,
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        ? "instant"
+        : "smooth",
+    })
+  }
   function openMetric(metric: JournalMetric, readingDate = date) {
     setDraft(
       metric.entries
@@ -234,17 +274,20 @@ export default function Journal() {
                 )
                 if (next) openMetric(next)
                 else if (!metrics?.length) setStudio(true)
-                else
-                  document
-                    .getElementById("journal-trackers-title")
-                    ?.scrollIntoView({
-                      behavior: window.matchMedia(
-                        "(prefers-reduced-motion: reduce)"
-                      ).matches
-                        ? "instant"
-                        : "smooth",
-                      block: "start",
-                    })
+                else {
+                  showSection(1)
+                  if (!window.matchMedia("(max-width: 767px)").matches)
+                    document
+                      .getElementById("journal-trackers-title")
+                      ?.scrollIntoView({
+                        behavior: window.matchMedia(
+                          "(prefers-reduced-motion: reduce)"
+                        ).matches
+                          ? "instant"
+                          : "smooth",
+                        block: "start",
+                      })
+                }
               }}
             >
               <Plus size={20} />
@@ -294,6 +337,9 @@ export default function Journal() {
         </div>
         <div className="journal-week" aria-label={tr("Journal dates")}>
           {days.map((day) => {
+            const dayRecorded = metrics?.filter((metric) =>
+              metric.entries.some((item) => item.date === day)
+            ).length ?? 0
             const hasEntry = entries?.some(
               (item) =>
                 item.date === day &&
@@ -304,9 +350,7 @@ export default function Journal() {
                   item.lowCarb != null ||
                   item.addedSugar != null)
             )
-            const hasMetric = metrics?.some((metric) =>
-              metric.entries.some((item) => item.date === day)
-            )
+            const hasMetric = dayRecorded > 0
             return (
               <button
                 key={day}
@@ -320,6 +364,7 @@ export default function Journal() {
                   }),
                   value1: choice(hasEntry || hasMetric ? ", has entries" : ""),
                 })}
+                aria-description={`${dayRecorded} ${tr("of {{value0}} trackers logged", { value0: metrics?.length ?? 0 })}`}
                 disabled={day > today}
                 onClick={() => setSelected(day)}
               >
@@ -329,6 +374,15 @@ export default function Journal() {
                   })}
                 </span>
                 <span>{calendarDate(day).getDate()}</span>
+                <span className="journal-week-bar" aria-hidden="true">
+                  <span
+                    style={
+                      {
+                        "--week-fill": `${metrics?.length ? (dayRecorded / metrics.length) * 100 : 0}%`,
+                      } as React.CSSProperties
+                    }
+                  />
+                </span>
                 <span
                   className="journal-day-dot"
                   data-logged={Boolean(hasEntry || hasMetric)}
@@ -337,8 +391,38 @@ export default function Journal() {
             )
           })}
         </div>
-        <div className="journal-body">
-          <section aria-label={tr("Quick log")}>
+        <nav className="journal-section-nav" aria-label={tr("Journal")}>
+          {[tr("Quick log"), tr("Your trackers"), tr("Daily reflection")].map(
+            (label, index) => (
+              <button
+                key={label}
+                type="button"
+                aria-pressed={activeSection === index}
+                aria-controls={`journal-panel-${index}`}
+                onClick={() => showSection(index)}
+              >
+                {label}
+              </button>
+            )
+          )}
+        </nav>
+        <div
+          ref={bodyRef}
+          className="journal-body"
+          data-horizontal-swipe
+          onScroll={(event) => {
+            if (!window.matchMedia("(max-width: 767px)").matches) return
+            const body = event.currentTarget
+            const index = Math.round(body.scrollLeft / body.clientWidth)
+            if (index >= 0 && index <= 2) setActiveSection(index)
+          }}
+        >
+          <section
+            id="journal-panel-0"
+            className="journal-panel"
+            data-active={activeSection === 0}
+            aria-label={tr("Quick log")}
+          >
             <div className="journal-section-heading">
               <h2>{tr("Quick log")}</h2>
             </div>
@@ -353,13 +437,19 @@ export default function Journal() {
                     <Icon size={25} weight="duotone" />
                   </span>
                   <strong>{title}</strong>
-                  <small>{detail}</small>
+                  {id !== "supplements" && <small>{detail}</small>}
                   <Plus className="journal-quick-plus" size={15} />
                 </button>
               ))}
             </div>
           </section>
-          <section aria-busy={!loaded} aria-labelledby="journal-trackers-title">
+          <section
+            id="journal-panel-1"
+            className="journal-panel"
+            data-active={activeSection === 1}
+            aria-busy={!loaded}
+            aria-labelledby="journal-trackers-title"
+          >
             <div className="journal-section-heading">
               <div>
                 <h2 id="journal-trackers-title">{tr("Your trackers")}</h2>
@@ -464,15 +554,7 @@ export default function Journal() {
                       </span>
                       <span>
                         <strong>{metric.title}</strong>
-                        <small>
-                          {metric.tab === "body"
-                            ? tr("Wellbeing")
-                            : metric.tab === "training"
-                              ? tr("Training")
-                              : tr("Nutrition")}
-                        </small>
                       </span>
-                      <PencilSimple size={17} />
                     </button>
                     <div className="journal-tracker-reading">
                       <button
@@ -605,93 +687,86 @@ export default function Journal() {
                           values={{ value0: <ArrowUpRight size={14} /> }}
                         />
                       </button>
-                      <span>
-                        {
-                          history.filter((item) => item.value !== undefined)
-                            .length
-                        }{" "}
-                        {history.filter((item) => item.value !== undefined)
-                          .length === 1
-                          ? tr("day logged in 7 days")
-                          : tr("days logged in 7 days")}
-                      </span>
                     </div>
                   </article>
                 )
               })}
             </div>
           </section>
-          <section
-            className="journal-reflection app-surface"
-            aria-label={tr("Daily reflection")}
+          <div
+            id="journal-panel-2"
+            className="journal-panel"
+            data-active={activeSection === 2}
           >
-            <div className="journal-section-heading">
-              <div>
-                <h2>{tr("How did it feel?")}</h2>
+            <section
+              className="journal-reflection app-surface"
+              aria-label={tr("Daily reflection")}
+            >
+              <div className="journal-section-heading">
+                <div>
+                  <h2>{tr("How did it feel?")}</h2>
+                </div>
+                <Smiley size={26} weight="duotone" />
               </div>
-              <Smiley size={26} weight="duotone" />
-            </div>
-            <div
-              className="journal-mood-scale"
-              role="group"
-              aria-label={tr("Daily mood")}
-            >
-              {moods.map((mood, i) => (
-                <button
-                  key={mood}
-                  aria-pressed={entry?.mood === i + 1}
-                  disabled={!loaded || pending}
-                  onClick={() =>
-                    void act(() => save({ date, values: { mood: i + 1 } }))
-                  }
-                >
-                  <span>{i + 1}</span>
-                  {mood}
-                </button>
-              ))}
-            </div>
-            <button
-              className="journal-note"
-              onClick={() => {
-                setDraft(entry?.notes ?? "")
-                setError(translateError(""))
-                setNotesOpen(true)
-              }}
-              disabled={!loaded}
-            >
-              <NotePencil size={22} />
-              <span>
-                {entry?.notes ||
-                  tr("A win, a tough session, something to remember…")}
-              </span>
-              <PencilSimple size={17} />
-            </button>
-          </section>
-          {entry &&
-            (entry.caffeine !== undefined ||
-              entry.alcohol !== undefined ||
-              entry.lowCarb != null ||
-              entry.addedSugar != null) && (
-              <details className="journal-legacy">
-                <summary>{tr("Earlier journal entries")}</summary>
-                <p>
-                  {entry.caffeine !== undefined &&
-                    tr("Caffeine: {{value0}} mg. ", { value0: entry.caffeine })}
-                  {entry.alcohol !== undefined &&
-                    tr("Alcohol: {{value0}} drinks. ", {
-                      value0: entry.alcohol,
-                    })}
-                  {entry.lowCarb != null &&
-                    tr("Low carb: {{value0}}. ", {
-                      value0: entry.lowCarb ? tr("yes") : tr("no"),
-                    })}
-                  {entry.addedSugar != null &&
-                    tr("Added sugar: {{value0}}.", {
-                      value0: entry.addedSugar ? tr("yes") : tr("no"),
-                    })}
-                </p>
-              </details>
-            )}
+              <div
+                className="journal-mood-scale"
+                role="group"
+                aria-label={tr("Daily mood")}
+              >
+                {moods.map((mood, i) => (
+                  <button
+                    key={mood}
+                    aria-pressed={entry?.mood === i + 1}
+                    disabled={!loaded || pending}
+                    onClick={() =>
+                      void act(() => save({ date, values: { mood: i + 1 } }))
+                    }
+                  >
+                    <span>{i + 1}</span>
+                    {mood}
+                  </button>
+                ))}
+              </div>
+              <button
+                className="journal-note"
+                onClick={() => {
+                  setDraft(entry?.notes ?? "")
+                  setError(translateError(""))
+                  setNotesOpen(true)
+                }}
+                disabled={!loaded}
+              >
+                <NotePencil size={22} />
+                <span>{entry?.notes || tr("Write a note")}</span>
+                <PencilSimple size={17} />
+              </button>
+            </section>
+            {entry &&
+              (entry.caffeine !== undefined ||
+                entry.alcohol !== undefined ||
+                entry.lowCarb != null ||
+                entry.addedSugar != null) && (
+                <details className="journal-legacy">
+                  <summary>{tr("Earlier journal entries")}</summary>
+                  <p>
+                    {entry.caffeine !== undefined &&
+                      tr("Caffeine: {{value0}} mg. ", { value0: entry.caffeine })}
+                    {entry.alcohol !== undefined &&
+                      tr("Alcohol: {{value0}} drinks. ", {
+                        value0: entry.alcohol,
+                      })}
+                    {entry.lowCarb != null &&
+                      tr("Low carb: {{value0}}. ", {
+                        value0: entry.lowCarb ? tr("yes") : tr("no"),
+                      })}
+                    {entry.addedSugar != null &&
+                      tr("Added sugar: {{value0}}.", {
+                        value0: entry.addedSugar ? tr("yes") : tr("no"),
+                      })}
+                  </p>
+                </details>
+              )}
+          </div>
         </div>
       </div>
       {historyMetric && (

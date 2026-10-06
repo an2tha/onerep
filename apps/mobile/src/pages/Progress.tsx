@@ -593,7 +593,6 @@ export default function Progress() {
 
         <GoalsHub
           preferences={preferences}
-          history={workoutHistory}
           today={today}
         />
 

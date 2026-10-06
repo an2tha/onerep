@@ -83,4 +83,44 @@ test.describe("journal layout regression", () => {
       fullPage: true,
     })
   })
+  test("swipe panels fit the phone viewport", async ({ page }) => {
+    test.skip(page.viewportSize()!.width >= 768)
+    for (const index of [1, 2]) {
+      await page.goto("/tests/visual/fixtures/journal.generated.html")
+      await page.waitForFunction(
+        () => document.documentElement.dataset.stylesReady === "true"
+      )
+      await page.evaluate(() =>
+        document.documentElement.classList.toggle(
+          "dark",
+          matchMedia("(prefers-color-scheme: dark)").matches
+        )
+      )
+      await page.evaluate((next) => {
+        const body = document.querySelector<HTMLElement>(".journal-body")!
+        const panel = document.querySelector<HTMLElement>(`#journal-panel-${next}`)!
+        body.dataset.carouselReady = "true"
+        body.style.setProperty("--journal-active-height", `${panel.scrollHeight}px`)
+        body.scrollLeft = next * body.clientWidth
+        document.querySelectorAll(".journal-section-nav button").forEach((button, i) =>
+          button.setAttribute("aria-pressed", String(i === next))
+        )
+      }, index)
+      await page.waitForTimeout(350)
+      const geometry = await page.evaluate((next) => {
+        const panel = document.querySelector<HTMLElement>(`#journal-panel-${next}`)!
+        return {
+          left: panel.getBoundingClientRect().left,
+          right: panel.getBoundingClientRect().right,
+          overflow: document.documentElement.scrollWidth > innerWidth,
+        }
+      }, index)
+      expect(geometry.left).toBeGreaterThanOrEqual(-1)
+      expect(geometry.right).toBeLessThanOrEqual(page.viewportSize()!.width + 1)
+      expect(geometry.overflow).toBe(false)
+      await page.screenshot({
+        path: `test-results/journal-panel-${index}-${test.info().project.name}.png`,
+      })
+    }
+  })
 })

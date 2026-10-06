@@ -88,9 +88,6 @@ export type AssessmentInput = {
   today: string;
   plan: {
     focus: GoalFocus;
-    muscle: string;
-    minimumSets: number;
-    maximumSets: number;
   };
   workouts: {
     date: string;
@@ -252,7 +249,7 @@ export function buildGoalAssessment(input: AssessmentInput) {
       >;
     }
   >();
-  for (const muscle of [...MUSCLE_GROUPS, assessmentMuscle(plan.muscle)])
+  for (const muscle of MUSCLE_GROUPS)
     muscles.set(muscle, { days: new Map() });
   let workingSets = 0,
     mappedSets = 0;
@@ -377,19 +374,9 @@ export function buildGoalAssessment(input: AssessmentInput) {
       );
       const baseline =
         weekly.filter((n) => n > 0).length >= 2 ? median(weekly) : null;
-      const chosen =
-        muscle === assessmentMuscle(plan.muscle) && plan.focus !== "endurance";
-      const min = chosen
-        ? plan.minimumSets
-        : baseline !== null
-          ? Math.max(1, round(baseline * 0.8))
-          : null;
-      const max = chosen
-        ? plan.maximumSets
-        : baseline !== null
-          ? Math.max(2, round(baseline * 1.2))
-          : null;
-      const measured = chosen ? direct : direct + indirect * 0.5;
+      const min = baseline !== null ? Math.max(1, round(baseline * 0.8)) : null;
+      const max = baseline !== null ? Math.max(2, round(baseline * 1.2)) : null;
+      const measured = direct + indirect * 0.5;
       const score =
         workingSets > 0 && min !== null && max !== null
           ? round(
@@ -425,11 +412,7 @@ export function buildGoalAssessment(input: AssessmentInput) {
         sessions: recent.length,
         min,
         max,
-        basis: chosen
-          ? ("chosen" as const)
-          : baseline !== null
-            ? ("history" as const)
-            : ("none" as const),
+        basis: baseline !== null ? ("history" as const) : ("none" as const),
         score,
         closeSpacing,
         effortReadings: recent.reduce((s, [, v]) => s + v.effort, 0),

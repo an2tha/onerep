@@ -1,22 +1,16 @@
 export type GoalFocus = "hypertrophy" | "deficit" | "recomp" | "endurance"
 export type GoalPlan = {
   focus: GoalFocus
-  muscle: string
-  minimumSets: number
-  maximumSets: number
 }
 export const DEFAULT_GOAL_PLAN: GoalPlan = {
   focus: "hypertrophy",
-  muscle: "chest",
-  minimumSets: 8,
-  maximumSets: 12,
 }
 
 /** Distance from a chosen plan, not an estimate of growth or recovery. */
 export function goalRangePosition(
   value: number,
   minimum: number,
-  maximum: number
+  maximum: number,
 ) {
   const scale = Math.max(maximum * 1.5, value, 20)
   return {

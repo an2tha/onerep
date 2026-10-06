@@ -9,9 +9,6 @@ export function assessmentFixture(): AssessmentInput {
     today,
     plan: {
       focus: "hypertrophy",
-      muscle: "chest",
-      minimumSets: 8,
-      maximumSets: 12,
     },
     catalog: {
       press: {

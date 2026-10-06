@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { goalPlanValidator, validateGoalRange } from "../lib/goalPlan";
+import { goalPlanValidator } from "../lib/goalPlan";
 import { localProgrammeTime, programmeDay, programmeNeedsCare, validDate } from "../lib/nutritionProgramme";
 import { internal } from "../_generated/api";
 import { internalMutation, mutation, query } from "../_generated/server";
@@ -54,15 +54,11 @@ export const saveGoalPlan = mutation({
   args: { plan: v.optional(goalPlanValidator) },
   handler: async (ctx, { plan }) => {
     const user = await requireUser(ctx);
-    if (plan) {
-      validateGoalRange(plan.minimumSets, plan.maximumSets);
-      if (!plan.muscle.trim() || plan.muscle.length > 60) throw new Error("Choose a muscle group.");
-    }
     const existing = await ctx.db.query("userPreferences")
       .withIndex("by_userId", (q) => q.eq("userId", user._id)).unique();
     const changes = {
       goalsIntroducedAt: existing?.goalsIntroducedAt ?? Date.now(),
-      ...(plan ? { goalPlan: plan } : {}),
+      ...(plan ? { goalPlan: { focus: plan.focus } } : {}),
       updatedAt: Date.now(),
     };
     if (existing) await ctx.db.patch("userPreferences", existing._id, changes);

@@ -72,13 +72,9 @@ describe("Onboarding production contract", () => {
     assert.match(pageSource, /resolvedIdentity\.label/)
     assert.match(flavourCarouselSource, /<Carousel/)
     assert.match(flavourCarouselSource, /className="flavour-preview"/)
-    assert.match(flavourCarouselSource, /profile\.description/)
-    assert.match(flavourCarouselSource, /const FLAVOUR_PROFILES/)
-    assert.match(flavourCarouselSource, /preview: "today"/)
-    assert.match(flavourCarouselSource, /preview: "training"/)
-    assert.match(flavourCarouselSource, /preview: "nutrition"/)
-    assert.match(flavourCarouselSource, /preview: "progress"/)
-    assert.match(flavourCarouselSource, /PreviewSceneContent/)
+    assert.match(flavourCarouselSource, /aria-pressed=/)
+    assert.match(flavourCarouselSource, /api\?\.scrollTo\(index\)/)
+    assert.doesNotMatch(flavourCarouselSource, /PreviewSceneContent/)
   })
 
   test("reuses the real Coach chat backend", () => {

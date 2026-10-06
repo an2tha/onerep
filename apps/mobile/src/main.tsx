@@ -576,12 +576,11 @@ function NavSync() {
 
   function handleTouchStart(event: React.TouchEvent<HTMLDivElement>) {
     const touch = event.touches[0]
-    // A leftward drag on a slide-to-delete row near the right edge is a
-    // delete, not a forward navigation; let the row own it.
-    // Maps also own edge drags so panning cannot navigate away from a hike.
+    // Interactive horizontal surfaces own swipes that start inside them.
+    // This also keeps map panning from navigating away from a hike.
     if (
       (event.target as HTMLElement).closest?.(
-        "[data-slide-delete], .leaflet-container"
+        "[data-slide-delete], [data-horizontal-swipe], .leaflet-container"
       )
     ) {
       touchStartX.current = null
