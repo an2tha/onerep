@@ -1,0 +1,5 @@
+Generated with the built-in imagegen tool, then compressed to WebP.
+
+Use case: stylized-concept
+Asset type: high-resolution galaxy environment texture for a full-screen immersive mobile app, square composition also cropped to portrait.
+Primary request: hyperrealistic cinematic deep space, as if floating INSIDE the Milky Way, a vast luminous galactic dust river running diagonally from lower left to upper right, ivory starlight, faint amber hydrogen clouds and cold blue scattered light, extremely intricate dark interstellar dust filaments and countless fine pinpoint stars at varying depths. Physically convincing astrophotography, extraordinary scale and photographic detail, rich near-black voids. The galactic ridge is concentrated in the upper half and along the right edge, leaving a darker central lower area for a white greeting overlay. Full bleed environment, no planet, no horizon, no spacecraft, no people, no UI, no text, no logo. Restrained natural astronomical colors, not oversaturated purple fantasy, no large lens flares. 2048x2048.

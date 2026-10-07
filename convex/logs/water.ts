@@ -140,3 +140,40 @@ export const removeEntry = mutation({
     return { ok: true };
   },
 });
+
+export const updateEntry = mutation({
+  args: {
+    date: v.string(),
+    id: v.string(),
+    loggedAt: v.string(),
+    amountMl: v.number(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const user = await getAuthUser(ctx);
+    if (
+      !Number.isFinite(Date.parse(args.loggedAt)) ||
+      !Number.isFinite(args.amountMl) ||
+      args.amountMl <= 0 ||
+      args.amountMl > 10000
+    )
+      throw new Error("Choose a valid time and water amount (1 to 10000 ml).");
+    const doc = await ctx.db
+      .query("waterLogs")
+      .withIndex("by_userId_date", (q) =>
+        q.eq("userId", user._id).eq("date", args.date),
+      )
+      .unique();
+    if (!doc?.entries.some((entry) => entry.id === args.id))
+      throw new Error("Entry not found. Refresh and try again.");
+    await ctx.db.patch(doc._id, {
+      entries: doc.entries.map((entry) =>
+        entry.id === args.id
+          ? { ...entry, amountMl: args.amountMl, loggedAt: args.loggedAt }
+          : entry,
+      ),
+      updatedAt: Date.now(),
+    });
+    return null;
+  },
+});

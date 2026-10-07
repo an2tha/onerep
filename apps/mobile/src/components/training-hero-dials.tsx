@@ -1,8 +1,7 @@
-import { tr } from "@repo/ui/i18n"
-import { useCallback, useEffect, useRef, useState } from "react"
 import type { CSSProperties, ReactNode } from "react"
+import { tr } from "@repo/ui/i18n"
 import { cn } from "@/lib/utils"
-import { hapticHeavy, hapticSelection, hapticTap } from "@/lib/haptics"
+import { hapticSelection } from "@/lib/haptics"
 
 // ─── The training hero, as three dials ────────────────────────────────────
 // Same instrument as the nutrition hero — one large ring flanked by two
@@ -11,10 +10,6 @@ import { hapticHeavy, hapticSelection, hapticTap } from "@/lib/haptics"
 // differs: nutrition reports, training asks you to commit.
 const DIAL_RADIUS = 44
 const DIAL_CIRCUMFERENCE = 2 * Math.PI * DIAL_RADIUS
-
-/** How long the finger has to stay down. Long enough to be a decision,
-    short enough that it never feels like a punishment. */
-export const HOLD_TO_START_MS = 2000
 
 function glassInset(stroke: number) {
   return `${50 - (DIAL_RADIUS - stroke / 2)}%`
@@ -139,17 +134,11 @@ export function TrainingStatDial({
   )
 }
 
-/**
- * The centre dial: held, not swiped. Progress climbs for two seconds and the
- * haptics tighten as it goes — the phone counts down in the hand, so the
- * commitment is felt before the screen changes. Let go early and it falls
- * back, which is the whole point of putting it here.
- */
-export function HoldToStartDial({
+/** A standard button shared by the training and endurance heroes. */
+export function StartWorkoutDial({
   label,
   detail,
   onComplete,
-  onShortPress,
   size,
   stroke,
   color,
@@ -160,8 +149,6 @@ export function HoldToStartDial({
   label: string
   detail?: string
   onComplete: () => void
-  /** Called when the control is released before its hold completes. */
-  onShortPress?: () => void
   size: number
   stroke: number
   color: string
@@ -171,188 +158,32 @@ export function HoldToStartDial({
   icon?: ReactNode
   className?: string
 }) {
-  const [progress, setProgress] = useState(0)
-  const [holding, setHolding] = useState(false)
-  const frame = useRef<number | null>(null)
-  const buzz = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const startedAt = useRef(0)
-  const done = useRef(false)
-
-  const stop = useCallback(() => {
-    if (frame.current !== null) cancelAnimationFrame(frame.current)
-    if (buzz.current !== null) clearTimeout(buzz.current)
-    frame.current = null
-    buzz.current = null
-  }, [])
-
-  useEffect(() => stop, [stop])
-
-  const cancel = useCallback(() => {
-    if (done.current) return
-    stop()
-    setHolding(false)
-    setProgress(0)
-  }, [stop])
-
-  const finishAttempt = useCallback(() => {
-    const wasHolding = frame.current !== null
-    const completed = done.current
-    cancel()
-    if (wasHolding && !completed) onShortPress?.()
-  }, [cancel, onShortPress])
-
-  const begin = useCallback(() => {
-    if (done.current || frame.current !== null) return
-    startedAt.current = performance.now()
-    setHolding(true)
-    setProgress(0)
-    hapticSelection()
-
-    const tick = () => {
-      const elapsed = performance.now() - startedAt.current
-      const next = Math.min(1, elapsed / HOLD_TO_START_MS)
-      setProgress(next)
-      if (next >= 1) {
-        done.current = true
-        stop()
-        hapticHeavy()
-        onComplete()
-        // The page normally leaves under us; if it doesn't, the dial should
-        // not be dead for the rest of the session.
-        setTimeout(() => {
-          done.current = false
-          setHolding(false)
-          setProgress(0)
-        }, 900)
-        return
-      }
-      frame.current = requestAnimationFrame(tick)
-    }
-    frame.current = requestAnimationFrame(tick)
-
-    // Haptics on their own clock: a slow pulse that closes to a near-hum by
-    // the end, so the last second is unmistakable without a countdown label.
-    const pulse = () => {
-      const elapsed = performance.now() - startedAt.current
-      const ratio = Math.min(1, elapsed / HOLD_TO_START_MS)
-      if (ratio > 0.72) hapticTap()
-      else hapticSelection()
-      buzz.current = setTimeout(pulse, 220 - 175 * ratio)
-    }
-    buzz.current = setTimeout(pulse, 220)
-  }, [onComplete, stop])
-
-  const remaining = Math.max(
-    1,
-    Math.ceil((1 - progress) * (HOLD_TO_START_MS / 1000))
-  )
-
   return (
     <button
       type="button"
+      onClick={() => {
+        hapticSelection()
+        onComplete()
+      }}
+      aria-label={label}
       className={cn(
-        "motion-tactile relative shrink-0 touch-none rounded-full shadow-[0_0_0_4px_var(--background)] outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "motion-tactile relative shrink-0 rounded-full border-2 outline-none focus-visible:ring-2 focus-visible:ring-ring",
         className
       )}
-      style={
-        {
-          width: size,
-          height: size,
-          "--hold-color": color,
-        } as CSSProperties
-      }
-      onPointerDown={(event) => {
-        event.currentTarget.setPointerCapture(event.pointerId)
-        begin()
-      }}
-      onPointerUp={finishAttempt}
-      onPointerCancel={cancel}
-      onKeyDown={(event) => {
-        if (event.key !== " " && event.key !== "Enter") return
-        event.preventDefault()
-        begin()
-      }}
-      onKeyUp={(event) => {
-        if (event.key !== " " && event.key !== "Enter") return
-        finishAttempt()
-      }}
-      onContextMenu={(event) => event.preventDefault()}
-      aria-label={tr("{{value0}}. Press and hold for two seconds to start.", {
-        value0: label,
-      })}
+      style={{ width: size, height: size, borderColor: color } as CSSProperties}
     >
       <span
         className="macro-dial-glass"
         style={{ inset: glassInset(stroke) }}
         aria-hidden="true"
       />
-      <span
-        className={cn("hold-dial-charge", holding && "is-holding")}
-        style={{ inset: glassInset(stroke) }}
-        aria-hidden="true"
-      />
-      <svg
-        viewBox="0 0 100 100"
-        className="h-full w-full"
-        style={{ transform: "rotate(-90deg)" }}
-        aria-hidden="true"
-      >
-        <circle
-          cx="50"
-          cy="50"
-          r={DIAL_RADIUS}
-          fill="none"
-          stroke="var(--foreground)"
-          strokeOpacity={0.08}
-          strokeWidth={stroke}
-        />
-        <circle
-          cx="50"
-          cy="50"
-          r={DIAL_RADIUS}
-          fill="none"
-          stroke={color}
-          strokeWidth={stroke}
-          strokeLinecap="round"
-          strokeDasharray={DIAL_CIRCUMFERENCE}
-          strokeDashoffset={DIAL_CIRCUMFERENCE * (1 - progress)}
-          className="hold-dial-arc"
-          data-holding={holding ? "true" : "false"}
-        />
-      </svg>
-      <span className="absolute inset-[16%] flex flex-col items-center justify-center overflow-hidden">
-        {!holding && primaryIcon ? (
-          <span className="flex flex-col items-center gap-1" aria-hidden="true">
-            <span className="flex items-center justify-center text-foreground">
-              {primaryIcon}
-            </span>
-            {icon && (
-              <span className="flex items-center justify-center text-muted-foreground/75">
-                {icon}
-              </span>
-            )}
-          </span>
-        ) : (
-          <>
-            <span
-              className="text-[1.05rem] leading-tight font-extrabold tracking-tight"
-              aria-hidden="true"
-            >
-              {holding ? remaining : tr("Hold")}
-            </span>
-            <span
-              className="mt-1 line-clamp-2 px-1 text-center text-[11px] leading-tight text-muted-foreground"
-              aria-hidden="true"
-            >
-              {holding ? tr("keep holding") : label}
-            </span>
-          </>
-        )}
-        {!holding && detail && (
-          <span
-            className="mt-0.5 text-[11px] leading-tight text-muted-foreground/80"
-            aria-hidden="true"
-          >
+      <span className="absolute inset-[12%] flex flex-col items-center justify-center gap-1">
+        <span aria-hidden="true">{primaryIcon ?? icon}</span>
+        <span className="text-center text-xs leading-tight font-semibold">
+          {label}
+        </span>
+        {detail && (
+          <span className="text-center text-[11px] text-muted-foreground">
             {detail}
           </span>
         )}

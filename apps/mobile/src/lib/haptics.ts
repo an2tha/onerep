@@ -111,6 +111,12 @@ export function hapticHeavy() {}
 export function hapticSelection() {}
 export function hapticRain() {}
 
+// The immersive welcome explicitly uses tactile cues. Keep this separate from
+// routine navigation and honor the same opt-out and strength ceiling.
+export function hapticOnboardingCue(cue: "arrival" | "type" | "continue") {
+  impact(cue === "arrival" ? "medium" : "light")
+}
+
 let lastConfirmation = -Infinity
 export function hapticConfirm() {
   if (!isNative() || !hapticsEnabled()) return

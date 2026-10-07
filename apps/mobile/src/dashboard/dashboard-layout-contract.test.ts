@@ -24,7 +24,7 @@ describe("responsive dashboard layout", () => {
     expect(app).toContain('className="dashboard-today-body')
   })
 
-  test("uses one date control and no summary rail below desktop", () => {
+  test("uses one date control and a compact phone summary", () => {
     expect(app).toContain("dashboard-day-rail mx-auto hidden")
     expect(app).toContain("<MobileDateSelector")
     expect(app).toContain("lg:hidden")
@@ -61,17 +61,19 @@ describe("responsive dashboard layout", () => {
     expect(weekStrip).toContain("prefers-reduced-motion: reduce")
   })
 
-  test("uses larger icon-led dials and a desktop-only widget action", () => {
-    expect(dials).toContain("const DIAL = 80")
-    expect(dials).toContain("const HOLD = 112")
+  test("uses labeled readings, direct workout start, and a desktop widget action", () => {
+    expect(dials).toContain("Start workout")
+    expect(dials).toContain("No reading")
+    expect(dials).toContain("Daily energy")
     expect(dials).toContain("<ForkKnife")
     expect(dials).toContain("<Heartbeat")
     expect(dials).toContain("<Barbell")
-    expect(dials).toContain("<Play")
-    expect(dials).toContain("onShortPress={onStartWorkoutTip}")
+    expect(dials).toContain("onClick={onStartWorkout}")
+    expect(app).toContain("Daily summary")
     expect(app).toContain("Add widget")
     expect(app).toContain("hidden min-h-12")
     expect(app).toContain("lg:flex")
-    expect(app).toContain("Press and hold to start an open workout.")
+    expect(app).not.toContain("nutritionPercent: 62")
+    expect(app).not.toContain("recoveryScore: 78")
   })
 })

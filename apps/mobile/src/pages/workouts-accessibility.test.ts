@@ -43,17 +43,18 @@ describe("Workouts page production contract", () => {
     expect(WORKOUTS_SOURCE).toContain("animate-spin")
   })
 
-  test("training uses the icon-led hold-to-start interaction", () => {
+  test("training uses the labeled tap-to-start interaction", () => {
     expect(WORKOUTS_SOURCE).toContain(
       'primaryIcon={<Play size={36} weight="fill" />}'
     )
     expect(WORKOUTS_SOURCE).toContain(
       'icon={<Barbell size={18} weight="bold" />}'
     )
-    expect(WORKOUTS_SOURCE).toContain("onShortPress={() =>")
+    expect(WORKOUTS_SOURCE).toContain("StartWorkoutDial")
+    expect(WORKOUTS_SOURCE).toContain("label={nextWorkoutAction}")
     expect(WORKOUTS_SOURCE).toContain(
-      "Press and hold to start an open workout."
+      "onComplete={() => navigate(nextWorkoutHref)}"
     )
-    expect(WORKOUTS_SOURCE).toContain('id: "training-workout-hold-tip"')
+    expect(WORKOUTS_SOURCE).not.toContain("onShortPress={() =>")
   })
 })

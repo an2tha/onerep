@@ -1,0 +1,174 @@
+.galaxy-welcome {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  min-height: 100svh;
+  background: #03060e;
+  color: #f7f8fc;
+  font-family: "Instrument Sans Variable", sans-serif;
+}
+.galaxy-scene,
+.galaxy-vignette,
+.galaxy-canvas,
+.galaxy-canvas canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.galaxy-scene {
+  z-index: -2;
+  background: #03060e url("/onboarding-galaxy/deep-space.webp") center / cover
+    no-repeat;
+}
+.galaxy-canvas {
+  opacity: 0;
+  transition: opacity 800ms ease;
+}
+.galaxy-canvas[data-ready="true"] {
+  opacity: 1;
+}
+.galaxy-vignette {
+  z-index: -1;
+  background:
+    linear-gradient(
+      180deg,
+      rgb(2 5 12 / 25%),
+      transparent 25%,
+      rgb(2 5 12 / 20%) 45%,
+      rgb(2 5 12 / 65%) 80%,
+      #03060e
+    ),
+    radial-gradient(ellipse at 50% 50%, transparent 25%, rgb(2 5 12 / 35%));
+}
+.galaxy-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: calc(env(safe-area-inset-top) + 24px) clamp(24px, 5vw, 64px) 0;
+}
+.galaxy-wordmark {
+  font-size: 19px;
+  font-weight: 650;
+  letter-spacing: -0.055em;
+}
+.galaxy-motion {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-right: -12px;
+  border: 0;
+  background: transparent;
+  color: #d2d9e6;
+  cursor: pointer;
+}
+.galaxy-greeting {
+  display: grid;
+  flex: 1;
+  align-items: center;
+  text-align: center;
+  padding: 120px 28px 72px;
+}
+.galaxy-greeting h1 {
+  margin: 0 auto;
+  width: min(100%, 760px);
+  font-weight: 450;
+  letter-spacing: -0.045em;
+  text-shadow: 0 2px 30px rgb(0 0 0 / 45%);
+  outline: none;
+}
+.galaxy-hello {
+  display: block;
+  font-size: clamp(64px, 8vw, 112px);
+  line-height: 1.2;
+  margin-bottom: 20px;
+}
+.galaxy-invitation {
+  display: block;
+  max-width: 21ch;
+  margin: 0 auto;
+  font-size: clamp(30px, 4.2vw, 54px);
+  line-height: 1.16;
+  text-wrap: balance;
+}
+.galaxy-type-space {
+  visibility: hidden;
+}
+.galaxy-footer {
+  padding: 24px 28px calc(env(safe-area-inset-bottom) + 48px);
+  display: flex;
+  justify-content: center;
+}
+.galaxy-continue {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #a8b4c8;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 450;
+  cursor: pointer;
+  transition:
+    color 160ms ease,
+    transform 160ms ease;
+}
+.galaxy-continue:hover {
+  color: #f7f8fc;
+}
+.galaxy-continue:active {
+  transform: scale(0.98);
+}
+.galaxy-welcome button:focus-visible {
+  outline: 2px solid #e1ebff;
+  outline-offset: 5px;
+}
+.galaxy-welcome:focus-visible {
+  outline: 1px solid #a8b4c8;
+  outline-offset: -6px;
+}
+@media (max-height: 600px) {
+  .galaxy-greeting {
+    padding-top: 48px;
+    padding-bottom: 32px;
+  }
+  .galaxy-footer {
+    padding-bottom: calc(env(safe-area-inset-bottom) + 24px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .galaxy-welcome *,
+  .galaxy-welcome *::before,
+  .galaxy-welcome *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+.galaxy-welcome {
+  touch-action: none;
+  outline: none;
+}
+.galaxy-greeting {
+  pointer-events: none;
+  user-select: none;
+}
+
+.galaxy-welcome[data-leaving="true"] {
+  animation: galaxy-welcome-depart 480ms ease both;
+}
+@keyframes galaxy-welcome-depart {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}

@@ -839,3 +839,60 @@ export const removeEntry = mutation({
     return { ok: true };
   },
 });
+
+export const updateEntry = mutation({
+  args: {
+    date: v.string(),
+    id: v.string(),
+    loggedAt: v.string(),
+    amount: v.number(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const user = await getAuthUser(ctx);
+    if (
+      !Number.isFinite(Date.parse(args.loggedAt)) ||
+      !Number.isFinite(args.amount) ||
+      args.amount <= 0
+    )
+      throw new Error("Choose a valid time and positive dose.");
+    const logs = await ctx.db
+      .query("supplementIntakeLogs")
+      .withIndex("by_userId_and_date", (q) =>
+        q.eq("userId", user._id).eq("date", args.date),
+      )
+      .take(200);
+    const log = logs.find(
+      (row) => row._id === args.id || row.clientId === args.id,
+    );
+    if (log) {
+      const previous = legacyLogFromIntake(log).amount;
+      if (previous <= 0) throw new Error("This entry cannot be edited.");
+      const ratio = args.amount / previous;
+      await ctx.db.patch(log._id, {
+        loggedAt: args.loggedAt,
+        servingMultiplier: log.servingMultiplier * ratio,
+        nutrients: scaleNutrients(log.nutrients, ratio),
+        updatedAt: Date.now(),
+      });
+      return null;
+    }
+    const doc = await ctx.db
+      .query("supplementLogs")
+      .withIndex("by_userId_date", (q) =>
+        q.eq("userId", user._id).eq("date", args.date),
+      )
+      .unique();
+    if (!doc?.entries.some((entry) => entry.id === args.id))
+      throw new Error("Entry not found. Refresh and try again.");
+    await ctx.db.patch(doc._id, {
+      entries: doc.entries.map((entry) =>
+        entry.id === args.id
+          ? { ...entry, amount: args.amount, loggedAt: args.loggedAt }
+          : entry,
+      ),
+      updatedAt: Date.now(),
+    });
+    return null;
+  },
+});

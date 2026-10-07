@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		7C41A0402D09000000000040 /* NeedlePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C41A0412D09000000000041 /* NeedlePlugin.swift */; };
 		184AF324302395AE009D4737 /* MotionBERT.mlpackage in Sources */ = {isa = PBXBuildFile; fileRef = 184AF323302395AE009D4737 /* MotionBERT.mlpackage */; };
 		184AF326302395B8009D4737 /* Yolo11nPose.mlpackage in Sources */ = {isa = PBXBuildFile; fileRef = 184AF325302395B8009D4737 /* Yolo11nPose.mlpackage */; };
 		184AF328302395EA009D4737 /* NativePoseEstimation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 184AF327302395E5009D4737 /* NativePoseEstimation.swift */; };
@@ -36,6 +35,9 @@
 		EAD100000000000000000001 /* EnduranceLocationPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAD000000000000000000001 /* EnduranceLocationPlugin.swift */; };
 		1A1800000000000000000001 /* InfoPlist.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 1A1800000000000000000002 /* InfoPlist.xcstrings */; };
 		1A1800000000000000000003 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 1A1800000000000000000004 /* Localizable.xcstrings */; };
+		012F1079E15A6AF9CDC10953 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2D4F6605B44B12044B59AB0A /* Foundation.framework */; };
+		7646843938BB2B45E725AE03 /* SnapshotHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44C8F82BBE7E791E68EF5518 /* SnapshotHelper.swift */; };
+		D72D6F67780AD1C87A80C941 /* OneRepScreenshots.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA0B62A5942D614F25B72F27 /* OneRepScreenshots.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -52,6 +54,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = A1B2C0060000000000000006;
 			remoteInfo = OneRepWatch;
+		};
+		42EAC20B0E670BE134673A7A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 504EC2FC1FED79650016851F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 504EC3031FED79650016851F;
+			remoteInfo = App;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -81,8 +90,6 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		7C41A0412D09000000000041 /* NeedlePlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Needle/NeedlePlugin.swift; sourceTree = "<group>"; };
-		7C41A0422D09000000000042 /* Needle.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = ../Needle.xcconfig; sourceTree = SOURCE_ROOT; };
 		184AF323302395AE009D4737 /* MotionBERT.mlpackage */ = {isa = PBXFileReference; lastKnownFileType = folder.mlpackage; path = MotionBERT.mlpackage; sourceTree = "<group>"; };
 		184AF325302395B8009D4737 /* Yolo11nPose.mlpackage */ = {isa = PBXFileReference; lastKnownFileType = folder.mlpackage; path = Yolo11nPose.mlpackage; sourceTree = "<group>"; };
 		184AF327302395E5009D4737 /* NativePoseEstimation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativePoseEstimation.swift; sourceTree = "<group>"; };
@@ -114,6 +121,10 @@
 		EAD000000000000000000001 /* EnduranceLocationPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnduranceLocationPlugin.swift; sourceTree = "<group>"; };
 		1A1800000000000000000002 /* InfoPlist.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = InfoPlist.xcstrings; sourceTree = "<group>"; };
 		1A1800000000000000000004 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
+		262A4A3BC8D793032DF15251 /* AppScreenshots.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AppScreenshots.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		2D4F6605B44B12044B59AB0A /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
+		44C8F82BBE7E791E68EF5518 /* SnapshotHelper.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SnapshotHelper.swift; sourceTree = "<group>"; };
+		FA0B62A5942D614F25B72F27 /* OneRepScreenshots.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = OneRepScreenshots.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -163,6 +174,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		B1609EC9CBF6D6D1E5605A39 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				012F1079E15A6AF9CDC10953 /* Foundation.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -171,6 +190,7 @@
 			children = (
 				18D26E043008F1C400483600 /* WidgetKit.framework */,
 				18D26E063008F1C500483600 /* SwiftUI.framework */,
+				BF086EB38C78BA82B597043A /* iOS */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -184,6 +204,7 @@
 				18D26E083008F1C500483600 /* OneRep */,
 				18D26E033008F1C400483600 /* Frameworks */,
 				504EC3051FED79650016851F /* Products */,
+				2A7600CB3B0C16D93B899B2A /* AppScreenshots */,
 			);
 			sourceTree = "<group>";
 		};
@@ -193,6 +214,7 @@
 				A1B2C0020000000000000002 /* OneRep Watch App.app */,
 				504EC3041FED79650016851F /* App.app */,
 				18D26E023008F1C400483600 /* OneRepExtension.appex */,
+				262A4A3BC8D793032DF15251 /* AppScreenshots.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -211,8 +233,6 @@
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
 				7C41A0042D09000000000004 /* BridgeViewController.swift */,
-				7C41A0412D09000000000041 /* NeedlePlugin.swift */,
-				7C41A0422D09000000000042 /* Needle.xcconfig */,
 				7C41A0022D09000000000002 /* AppleHealthPlugin.swift */,
 				7C41A0102D09000000000010 /* NativeTabBarPlugin.swift */,
 				7C41A0122D09000000000012 /* OAuthSessionPlugin.swift */,
@@ -229,6 +249,24 @@
 				50B271D01FEDC1A000F3C39B /* public */,
 			);
 			path = App;
+			sourceTree = "<group>";
+		};
+		2A7600CB3B0C16D93B899B2A /* AppScreenshots */ = {
+			isa = PBXGroup;
+			children = (
+				FA0B62A5942D614F25B72F27 /* OneRepScreenshots.swift */,
+				44C8F82BBE7E791E68EF5518 /* SnapshotHelper.swift */,
+			);
+			name = AppScreenshots;
+			path = AppScreenshots;
+			sourceTree = "<group>";
+		};
+		BF086EB38C78BA82B597043A /* iOS */ = {
+			isa = PBXGroup;
+			children = (
+				2D4F6605B44B12044B59AB0A /* Foundation.framework */,
+			);
+			name = iOS;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -302,6 +340,24 @@
 			productReference = A1B2C0020000000000000002 /* OneRep Watch App.app */;
 			productType = "com.apple.product-type.application";
 		};
+		68D9DCF462C6AF5DCBEB5A2A /* AppScreenshots */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F82547E2E06D4F17E85A1C6D /* Build configuration list for PBXNativeTarget "AppScreenshots" */;
+			buildPhases = (
+				0E24EC5B194C8DCA8CDE2CC2 /* Sources */,
+				B1609EC9CBF6D6D1E5605A39 /* Frameworks */,
+				4357A3ABB2C0461DDC789ED1 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				55A07BC61AEE6DF85104177C /* PBXTargetDependency */,
+			);
+			name = AppScreenshots;
+			productName = AppScreenshots;
+			productReference = 262A4A3BC8D793032DF15251 /* AppScreenshots.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -329,14 +385,18 @@
 							};
 						};
 					};
+					68D9DCF462C6AF5DCBEB5A2A = {
+						CreatedOnToolsVersion = 27.0;
+						TestTargetID = 504EC3031FED79650016851F;
+					};
 					A1B2C0060000000000000006 = {
 						CreatedOnToolsVersion = 27.0;
+						ProvisioningStyle = Automatic;
 						SystemCapabilities = {
 							com.apple.HealthKit = {
 								enabled = 1;
 							};
 						};
-						ProvisioningStyle = Automatic;
 					};
 				};
 			};
@@ -364,6 +424,7 @@
 				504EC3031FED79650016851F /* App */,
 				A1B2C0060000000000000006 /* OneRepWatch */,
 				18D26E013008F1C400483600 /* OneRepExtension */,
+				68D9DCF462C6AF5DCBEB5A2A /* AppScreenshots */,
 			);
 		};
 /* End PBXProject section */
@@ -399,6 +460,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		4357A3ABB2C0461DDC789ED1 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -422,7 +490,6 @@
 				184AF324302395AE009D4737 /* MotionBERT.mlpackage in Sources */,
 				184AF326302395B8009D4737 /* Yolo11nPose.mlpackage in Sources */,
 				7C41A0032D09000000000003 /* BridgeViewController.swift in Sources */,
-				7C41A0402D09000000000040 /* NeedlePlugin.swift in Sources */,
 				7C41A0012D09000000000001 /* AppleHealthPlugin.swift in Sources */,
 				7C41A0112D09000000000011 /* NativeTabBarPlugin.swift in Sources */,
 				7C41A0132D09000000000013 /* OAuthSessionPlugin.swift in Sources */,
@@ -438,6 +505,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		0E24EC5B194C8DCA8CDE2CC2 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D72D6F67780AD1C87A80C941 /* OneRepScreenshots.swift in Sources */,
+				7646843938BB2B45E725AE03 /* SnapshotHelper.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -450,6 +526,12 @@
 			isa = PBXTargetDependency;
 			target = A1B2C0060000000000000006 /* OneRepWatch */;
 			targetProxy = A1B2C0120000000000000012 /* PBXContainerItemProxy */;
+		};
+		55A07BC61AEE6DF85104177C /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = App;
+			target = 504EC3031FED79650016851F /* App */;
+			targetProxy = 42EAC20B0E670BE134673A7A /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -680,7 +762,6 @@
 		};
 		504EC3171FED79650016851F /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 7C41A0422D09000000000042 /* Needle.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
@@ -705,7 +786,6 @@
 		};
 		504EC3181FED79650016851F /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 7C41A0422D09000000000042 /* Needle.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
@@ -788,6 +868,41 @@
 			};
 			name = Release;
 		};
+		17E095B03FD0B8B00DDC05E4 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 4DURGSKS8J;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ananthh.onerep.screenshots;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_TARGET_NAME = App;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		9814FEA0696AC266B0295F30 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 4DURGSKS8J;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ananthh.onerep.screenshots;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_TARGET_NAME = App;
+			};
+			name = Debug;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -823,6 +938,15 @@
 			buildConfigurations = (
 				A1B2C0070000000000000007 /* Debug */,
 				A1B2C0080000000000000008 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		F82547E2E06D4F17E85A1C6D /* Build configuration list for PBXNativeTarget "AppScreenshots" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				17E095B03FD0B8B00DDC05E4 /* Release */,
+				9814FEA0696AC266B0295F30 /* Debug */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

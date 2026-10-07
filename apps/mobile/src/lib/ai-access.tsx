@@ -1,6 +1,6 @@
 import { tr, translateError } from "@repo/ui/i18n"
 import { AiSharingConsentSheet } from "@/components/ai-sharing-consent"
-import { hasAiSharingConsent } from "../../../../convex/lib/aiSharing"
+import { isAiSharingEnabled } from "../../../../convex/lib/aiSharing"
 import { useCallback, useState } from "react"
 import { useQuery } from "convex/react"
 import { toast } from "@repo/ui"
@@ -45,12 +45,13 @@ export function useAiFeatureGate(provider?: "typesafe") {
   // server enforces the real limit, so this only decides when to interrupt.
   const freeRequestsLeft = usage && !usage.isPro ? usage.remaining : 0
   const hasAiAccess = hasPro || hasByok || freeRequestsLeft > 0
+  const preferences = useQuery(api.users.users.getPreferences)
   const isLoading =
     billing.status === "loading" ||
     billing.status === "idle" ||
-    usage === undefined
-  const preferences = useQuery(api.users.users.getPreferences)
-  const sharingAllowed = hasAiSharingConsent(preferences?.aiSharingConsent)
+    usage === undefined ||
+    preferences === undefined
+  const sharingAllowed = isAiSharingEnabled(preferences?.aiSharingConsent)
   const [consentOpen, setConsentOpen] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [paywallBusy, setPaywallBusy] = useState(false)
@@ -64,6 +65,11 @@ export function useAiFeatureGate(provider?: "typesafe") {
    */
   const requireAiAccess = useCallback(
     (cost = 1, feature = "unknown") => {
+      // Never assume the default while a saved opt-out is still loading.
+      if (preferences === undefined) {
+        toast.message(tr("Checking your access…"))
+        return false
+      }
       if (!sharingAllowed) {
         setConsentOpen(true)
         return false
@@ -97,6 +103,7 @@ export function useAiFeatureGate(provider?: "typesafe") {
       hasByok,
       isLoading,
       sharingAllowed,
+      preferences,
       usage?.count,
       usage?.limit,
     ]

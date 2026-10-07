@@ -31,9 +31,13 @@ describe("logs.logAgent.draftLogFromText", () => {
     ).rejects.toThrow(/at least one exercise/i);
   });
 
-  test("requires sharing consent without spending a request", async () => {
+  test("respects an AI opt-out without spending a request", async () => {
     const t = convexTest(schema, modules);
     const user = t.withIdentity({ tokenIdentifier: "test|log-agent-consent" });
+    await user.mutation(api.ai.usage.setSharingConsent, {
+      granted: false,
+      version: AI_SHARING_VERSION,
+    });
     await expect(
       user.action(api.logs.logAgent.draftLogFromText, {
         text: "muscle ups and deadlifts, increasing from 1 to 16 in 16 mins",

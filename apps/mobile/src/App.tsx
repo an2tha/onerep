@@ -1,3 +1,4 @@
+import { HomeProgrammes } from "@/components/home-programmes"
 import { RestartNudge } from "@/components/restart/restart-nudge"
 import { Message, tr, uiLocale } from "@repo/ui/i18n"
 import { ProfileAvatar } from "@/components/profile-avatar"
@@ -6,26 +7,14 @@ import { useRecovery } from "@/lib/use-recovery"
 import { useMemo, useState, type CSSProperties } from "react"
 import { useMutation, useQuery } from "convex/react"
 import {
-  Barbell,
-  CookingPot,
   ChatCircleDots,
-  ForkKnife,
-  MagnifyingGlass,
-  PintGlass,
-  Pill,
   Plus,
-  Timer,
 } from "@phosphor-icons/react"
 
 import { api } from "../../../convex/_generated/api"
 import { useAppAuth } from "@/lib/auth-client"
 import { useSmoothNavigate } from "@/lib/navigation"
-import { currentDateKey, mealLabel, type FoodLogEntry } from "@/lib/food-log"
-import { QuickAddFab, type QuickAddOption } from "@/dashboard/quick-add-fab"
-import {
-  rankQuickActions,
-  recordQuickActionUse,
-} from "@/lib/quick-add-rank"
+import { mealLabel, type FoodLogEntry } from "@/lib/food-log"
 import { RepeatChips } from "@/dashboard/repeat-chips"
 import { VoiceLogButton } from "@/dashboard/voice-log-button"
 import {
@@ -47,6 +36,8 @@ import {
   hourInTimeZone,
 } from "@/dashboard/helpers"
 import { DayTimeline, type TimelineEntry } from "@/dashboard/timeline"
+import { EntrySheet, type EntrySelection } from "@/dashboard/entry-sheet"
+import { useDiaryClock, diaryTime, diaryTimestamp } from "@/lib/diary-clock"
 import { DashboardDials } from "@/dashboard/dials"
 import { ReactiveOrbField } from "@/components/reactive-orb-field"
 import { announceOrbActivity } from "@/lib/orb-activity"
@@ -75,10 +66,7 @@ function Dashboard() {
   const preferences = useQuery(api.users.users.getPreferences, {})
   const waterUnit = useWaterUnit()
   const activeTimezone = preferences?.lastActiveTimezone || "UTC"
-  const todayKey = useMemo(
-    () => currentDateKey(activeTimezone),
-    [activeTimezone]
-  )
+  const { todayKey, now, nowMinutes } = useDiaryClock(activeTimezone)
   // Which day the wheel is showing. Null is today — held separately rather
   // than defaulting the state to a date string, so that a session left open
   // past midnight rolls over with the clock instead of pinning yesterday.
@@ -105,10 +93,17 @@ function Dashboard() {
   const goals = useQuery(api.users.users.getEffectiveGoals, {
     date: dateKey,
   })
+  const nutritionPlan = useQuery(api.users.users.getNutritionPlan, {
+    date: dateKey,
+  })
   const supplementOverview = useQuery(api.logs.supplements.getOverview, {
     date: dateKey,
   })
 
+  const showNutritionMetric =
+    (nutritionPlan?.visibleMetrics.calories ||
+      preferences?.showCalorieNumbers === true) &&
+    !recovery?.active?.simpleFood
   const timelineEntries = useMemo(
     () =>
       buildTimelineEntries({
@@ -117,13 +112,19 @@ function Dashboard() {
         supplements: supplementEntries,
         workouts: workoutLogs,
         waterUnit,
+        timeZone: activeTimezone,
+        showFoodNumbers: showNutritionMetric,
       }),
-    [foodEntries, waterEntries, supplementEntries, waterUnit, workoutLogs]
+    [
+      foodEntries,
+      waterEntries,
+      supplementEntries,
+      waterUnit,
+      workoutLogs,
+      activeTimezone,
+      showNutritionMetric,
+    ]
   )
-  const [timelineOverrides, setTimelineOverrides] = useState<
-    Record<string, string>
-  >({})
-
   // The night window: their average nightly sleep from the health store,
   // centred on the middle of the night. No data, no shading — a guessed
   // bedtime would be worse than none.
@@ -168,9 +169,14 @@ function Dashboard() {
           carbs: acc.carbs + entry.carbs,
           fat: acc.fat + entry.fat,
         }),
-        { calories: 0, protein: 0, carbs: 0, fat: 0 }
+        {
+          calories: supplementOverview?.nutritionTotals.calories ?? 0,
+          protein: supplementOverview?.nutritionTotals.protein ?? 0,
+          carbs: supplementOverview?.nutritionTotals.carbs ?? 0,
+          fat: supplementOverview?.nutritionTotals.fat ?? 0,
+        }
       ),
-    [foodEntries]
+    [foodEntries, supplementOverview]
   )
   // Today only. The push is keyed on the day's totals and Health Connect
   // merges records by summing, so browsing back through the week would
@@ -195,42 +201,80 @@ function Dashboard() {
     return bySupplement
   }, [supplementOverview])
 
-  const now = useMemo(() => new Date(), [])
   const firstName = user?.name?.trim().split(/\s+/)[0] ?? user?.email ?? "there"
 
-  // Row actions on the wheel. Deletes go straight at the owning log's own
-  // mutation; edits hand off to the page that owns the kind, because every
-  // one of those pages already has the real editing UI; adds open the
-  // matching drawer.
+  // Capture the entry and diary context before opening its correction sheet.
   const removeFoodEntry = useMutation(api.logs.foodLogs.removeEntry)
   const removeWaterEntry = useMutation(api.logs.water.removeEntry)
   const removeSupplementEntry = useMutation(api.logs.supplements.removeEntry)
   const removeWorkoutLog = useMutation(api.logs.workouts.remove)
 
-  const handleDeleteTimelineEntry = (entry: TimelineEntry) => {
-    const separator = entry.id.indexOf(":")
-    if (separator === -1) return
-    const kind = entry.id.slice(0, separator)
-    const id = entry.id.slice(separator + 1)
-    announceOrbActivity("delete")
-    if (kind === "food") {
-      void removeFoodEntry({ date: dateKey, entryId: id })
-    } else if (kind === "water") {
-      void removeWaterEntry({ date: dateKey, id })
-    } else if (kind === "supplement") {
-      void removeSupplementEntry({ date: dateKey, id })
-    } else if (kind === "workout" && id !== "unknown") {
-      void removeWorkoutLog({
+  const updateFoodTime = useMutation(api.logs.foodLogs.updateTime)
+  const updateWater = useMutation(api.logs.water.updateEntry)
+  const updateSupplement = useMutation(api.logs.supplements.updateEntry)
+  const updateWorkoutTime = useMutation(api.logs.workouts.updateTime)
+  const [selection, setSelection] = useState<EntrySelection | null>(null)
+  const selectEntry = (entry: TimelineEntry, deleting = false) => {
+    const id = entry.id.slice(entry.id.indexOf(":") + 1)
+    const water = waterEntries?.find((row) => row.id === id)
+    const supplement = supplementEntries?.find((row) => row.id === id)
+    const workout = workoutLogs?.find((row) => row._id === id)
+    setSelection({
+      entry,
+      date: dateKey,
+      deleting,
+      timeZone: activeTimezone,
+      amount:
+        entry.kind === "water"
+          ? water?.amountMl
+          : entry.kind === "supplement"
+            ? supplement?.amount
+            : undefined,
+      unit: entry.kind === "water" ? "ml" : supplement?.unit,
+      duration: workout ? workout.durationSeconds / 60 : undefined,
+    })
+  }
+  const deleteSelected = async () => {
+    if (!selection) return
+    const { entry, date } = selection
+    const id = entry.id.slice(entry.id.indexOf(":") + 1)
+    if (entry.kind === "food") await removeFoodEntry({ date, entryId: id })
+    else if (entry.kind === "water") await removeWaterEntry({ date, id })
+    else if (entry.kind === "supplement")
+      await removeSupplementEntry({ date, id })
+    else
+      await removeWorkoutLog({
         id: id as Parameters<typeof removeWorkoutLog>[0]["id"],
       })
-    }
+    announceOrbActivity("delete")
+    toast.success(tr("Entry deleted."))
   }
-
-  const TIMELINE_EDIT_ROUTES: Record<TimelineEntry["kind"], string> = {
-    food: "/nutrition",
-    water: "/water",
-    supplement: "/supplements",
-    workout: "/workouts",
+  const saveSelected = async (
+    time: string,
+    amount: number,
+    duration: number
+  ) => {
+    if (!selection) return
+    const { entry, date } = selection
+    const id = entry.id.slice(entry.id.indexOf(":") + 1)
+    const loggedAt = diaryTimestamp(
+      date,
+      time,
+      selection.timeZone ?? activeTimezone
+    )
+    if (entry.kind === "food") await updateFoodTime({ date, id, loggedAt })
+    else if (entry.kind === "water")
+      await updateWater({ date, id, loggedAt, amountMl: amount })
+    else if (entry.kind === "supplement")
+      await updateSupplement({ date, id, loggedAt, amount })
+    else
+      await updateWorkoutTime({
+        date,
+        id: id as Parameters<typeof updateWorkoutTime>[0]["id"],
+        completedAt: Date.parse(loggedAt),
+        durationSeconds: duration * 60,
+      })
+    toast.success(tr("Changes saved."))
   }
 
   const TIMELINE_ADD_ACTIONS: Record<TimelineEntry["kind"], QuickActionId> = {
@@ -239,12 +283,7 @@ function Dashboard() {
     supplement: "supplements",
     workout: "workout",
   }
-  // The fan opens drawers, not pages: the common interaction happens in the
-  // drawer itself, and the full page stays one row away inside it.
-  // The fan opens drawers, not pages: the common interaction happens in the
-  // drawer itself, and the full page stays one row away inside it. The
-  // drawer carries its own date — today from the fan, or a past day when
-  // retro-logging from the week bar.
+  // Diary entries open a logging drawer for the selected date and time.
   const [quickAction, setQuickAction] = useState<{
     id: QuickActionId
     dateKey: string
@@ -258,7 +297,6 @@ function Dashboard() {
     forDateKey = dateKey,
     atMinutes?: number
   ) => {
-    recordQuickActionUse(id)
     setQuickAction({ id, dateKey: forDateKey, atMinutes })
   }
   const [editFoodEntry, setEditFoodEntry] = useState<FoodLogEntry | null>(null)
@@ -266,15 +304,24 @@ function Dashboard() {
     useState<ScheduleEntryRequest | null>(null)
   const salutation = greeting(hourInTimeZone(now, activeTimezone))
   const dialProps = {
-    nutritionPercent: 62,
-    recoveryScore: 78,
-    // No confirmation step and no picker: the hold *is* the confirmation,
-    // so it drops straight into an empty session.
+    showNutritionMetric,
+    nutritionPercent:
+      foodEntries !== undefined &&
+      supplementOverview !== undefined &&
+      goals?.effective.calories &&
+      showNutritionMetric
+        ? (dayTotals.calories / goals.effective.calories) * 100
+        : null,
+    recoveryStatus: healthDashboard?.recovery?.status ?? null,
+    loading:
+      preferences === undefined ||
+      foodEntries === undefined ||
+      healthDashboard === undefined ||
+      goals === undefined ||
+      supplementOverview === undefined ||
+      nutritionPlan === undefined,
+
     onStartWorkout: () => navigate("/workout/active", { motion: "forward" }),
-    onStartWorkoutTip: () =>
-      toast.info(tr("Press and hold to start an open workout."), {
-        id: "dashboard-open-workout-hold-tip",
-      }),
     onOpenNutrition: () => navigate("/nutrition", { motion: "switch" }),
     onOpenRecovery: () => navigate("/health", { motion: "switch" }),
   }
@@ -291,7 +338,7 @@ function Dashboard() {
   // without the bottom padding the week strip lives underneath it. Reserve the
   // bar's own height plus the home indicator; the desk has no bar to clear.
   return (
-    <div className="dashboard-home dashboard-today desktop-canvas relative flex h-svh flex-col overflow-hidden bg-background pb-[calc(env(safe-area-inset-bottom,0px)+4.25rem)] lg:pr-8 lg:pb-0 lg:pl-72">
+    <div className="dashboard-home dashboard-today desktop-canvas relative flex min-h-svh flex-col bg-background pb-[calc(env(safe-area-inset-bottom,0px)+4.25rem)] lg:pr-8 lg:pb-0 lg:pl-72">
       <ReactiveOrbField className="dashboard-home-wash" />
       <div
         className="relative z-10 shrink-0"
@@ -335,6 +382,7 @@ function Dashboard() {
           }
         >
           <div className="px-[var(--app-page-x)]">
+            <HomeProgrammes />
             {viewingToday && <RestartNudge />}
             {viewingToday && <RecoveryBanner />}
             {viewingToday && (
@@ -367,9 +415,53 @@ function Dashboard() {
       </div>
       {/* The phone is only the wheel and one date control. Desktop has room
           for the day's supporting totals in a separate right-hand rail. */}
+      <div
+        className="relative z-10 mx-auto flex w-full max-w-sm flex-wrap justify-center gap-x-4 gap-y-1 px-4 py-2 text-sm lg:hidden"
+        aria-label={tr("Daily summary")}
+      >
+        {foodEntries === undefined ||
+        waterEntries === undefined ||
+        supplementOverview === undefined ||
+        goals === undefined ||
+        nutritionPlan === undefined ? (
+          <p role="status">{tr("Loading your day…")}</p>
+        ) : (
+          <>
+            {showNutritionMetric && (
+              <span>
+                {Math.round(dayTotals.calories)} /{" "}
+                {goals?.effective.calories ?? "?"} kcal
+              </span>
+            )}
+            {nutritionPlan?.visibleMetrics.protein &&
+              !recovery?.active?.simpleFood && (
+                <span>
+                  {Math.round(dayTotals.protein)} g {tr("protein")}
+                </span>
+              )}
+            <span>
+              {formatWater(
+                waterEntries.reduce((sum, row) => sum + row.amountMl, 0),
+                waterUnit
+              )}{" "}
+              {tr("water")}
+            </span>
+          </>
+        )}
+      </div>
       <div className="dashboard-today-body relative z-10 flex min-h-0 flex-1 flex-col">
         <div
-          style={recovery?.active ? { display: "none" } : undefined}
+          style={
+            recovery?.active ||
+            !nutritionPlan?.visibleMetrics.calories ||
+            preferences === undefined ||
+            goals === undefined ||
+            supplementOverview === undefined ||
+            foodEntries === undefined ||
+            waterEntries === undefined
+              ? { display: "none" }
+              : undefined
+          }
           className="dashboard-day-rail mx-auto hidden w-full max-w-6xl shrink-0 px-[var(--app-page-x)] pt-1 md:px-8 lg:block"
         >
           <DayRail
@@ -380,10 +472,14 @@ function Dashboard() {
             protein={dayTotals.protein}
             carbs={dayTotals.carbs}
             fat={dayTotals.fat}
-            calorieGoal={goals?.calories}
-            proteinGoal={goals?.protein}
-            carbsGoal={goals?.carbs}
-            fatGoal={goals?.fat}
+            calorieGoal={
+              nutritionPlan?.visibleMetrics.calories
+                ? goals?.effective.calories
+                : undefined
+            }
+            proteinGoal={goals?.effective.protein}
+            carbsGoal={goals?.effective.carbs}
+            fatGoal={goals?.effective.fat}
             waterTotalMl={(waterEntries ?? []).reduce(
               (sum, entry) => sum + entry.amountMl,
               0
@@ -421,44 +517,25 @@ function Dashboard() {
         {/* The ruler is taller than the screen on purpose — scrolling it pans
             through the hours in place rather than carrying the hero away. */}
         <div className="dashboard-timeline-stage flex min-h-0 flex-1 justify-center">
-          <div className="min-h-0 w-full max-w-sm">
+          <div className="h-[max(22rem,calc(100svh-24rem))] min-h-0 w-full max-w-sm lg:h-[60svh]">
             <DayTimeline
               // Keyed on the day so switching days re-parks the wheel
               // instead of holding the hour the last day was left on.
               key={dateKey}
               isToday={viewingToday}
               loading={
+                preferences === undefined ||
+                nutritionPlan === undefined ||
                 foodEntries === undefined ||
                 waterEntries === undefined ||
                 supplementEntries === undefined ||
                 workoutLogs === undefined
               }
-              entries={timelineEntries.map((entry) => ({
-                ...entry,
-                time: timelineOverrides[entry.id] ?? entry.time,
-              }))}
-              onEntryTimeChange={(id, time) =>
-                setTimelineOverrides((prev) => ({ ...prev, [id]: time }))
-              }
+              entries={timelineEntries}
+              nowMinutes={nowMinutes}
               sleepWindow={sleepWindow}
-              onEditEntry={(entry) => {
-                const separator = entry.id.indexOf(":")
-                if (separator === -1) return
-                const kind = entry.id.slice(0, separator)
-                const id = entry.id.slice(separator + 1)
-                if (kind === "food") {
-                  setEditFoodEntry(
-                    (foodEntries ?? []).find((food) => food.id === id) ?? null
-                  )
-                  openQuickAction("food", dateKey)
-                } else {
-                  navigate(
-                    TIMELINE_EDIT_ROUTES[kind as TimelineEntry["kind"]],
-                    { motion: "switch" }
-                  )
-                }
-              }}
-              onDeleteEntry={handleDeleteTimelineEntry}
+              onEditEntry={(entry) => selectEntry(entry)}
+              onDeleteEntry={(entry) => selectEntry(entry, true)}
               onAddEntry={(kind) => openQuickAction(TIMELINE_ADD_ACTIONS[kind])}
               // The anchor-edge buttons ask before they act: the sheet lets
               // the user pick workout or food, then either opens that
@@ -479,10 +556,44 @@ function Dashboard() {
           className="dashboard-week-strip mt-1 hidden shrink-0 border-t border-border/60 pt-2 pb-3 lg:flex"
         />
       </div>
-      <QuickAddFab
-        options={rankQuickActions(QUICK_ADD_OPTIONS)}
-        onChoose={(action) => openQuickAction(action)}
-      />
+      {selection && (
+        <EntrySheet
+          key={`${selection.date}:${selection.entry.id}:${selection.deleting}`}
+          selection={selection}
+          onClose={() => setSelection(null)}
+          onSave={saveSelected}
+          onDelete={deleteSelected}
+          onDetails={
+            !selection.deleting &&
+            (selection.entry.kind === "food" ||
+              (selection.entry.kind === "workout" &&
+                workoutLogs?.some(
+                  (log) =>
+                    `workout:${log._id}` === selection.entry.id && log.sessionId
+                )))
+              ? () => {
+                  const id = selection.entry.id.slice(
+                    selection.entry.id.indexOf(":") + 1
+                  )
+                  if (selection.entry.kind === "food") {
+                    setEditFoodEntry(
+                      foodEntries?.find((row) => row.id === id) ?? null
+                    )
+                    openQuickAction("food", selection.date)
+                  } else {
+                    const log = workoutLogs?.find((row) => row._id === id)
+                    if (log?.sessionId)
+                      navigate(
+                        `/workout/log/${selection.date}?sessionId=${encodeURIComponent(log.sessionId)}`,
+                        { motion: "forward" }
+                      )
+                  }
+                  setSelection(null)
+                }
+              : undefined
+          }
+        />
+      )}
       <QuickActionDrawer
         id={quickAction?.id ?? null}
         dateKey={quickAction?.dateKey ?? dateKey}
@@ -501,19 +612,6 @@ function Dashboard() {
     </div>
   )
 }
-
-// The fan of things the round black button can start. Same corner, same
-// bubble as the active workout page — each one opens its own drawer instead
-// of a page, so logging never costs a navigation.
-const QUICK_ADD_OPTIONS: QuickAddOption[] = [
-  { action: "workout", label: tr("Log a workout"), icon: Barbell },
-  { action: "food", label: tr("Log Food"), icon: ForkKnife },
-  { action: "recipe-create", label: tr("Create a recipe"), icon: CookingPot },
-  { action: "recipes", label: tr("Find Recipes"), icon: MagnifyingGlass },
-  { action: "water", label: tr("Log water"), icon: PintGlass },
-  { action: "fasting", label: tr("Start a fast"), icon: Timer },
-  { action: "supplements", label: tr("Take supplements"), icon: Pill },
-]
 
 // ─── Today, from the logs ──────────────────────────────────────────────────
 
@@ -559,13 +657,10 @@ const SUPPLEMENT_KIND_LABELS: Record<TimelineSupplementEntry["kind"], string> =
     caffeine: tr("Caffeine"),
   }
 
-function formatLoggedTime(value: string | number): string {
+function formatLoggedTime(value: string | number, timeZone: string): string {
   const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return "—"
-  return date.toLocaleTimeString(uiLocale(), {
-    hour: "numeric",
-    minute: "2-digit",
-  })
+  if (Number.isNaN(date.getTime())) return tr("Unknown")
+  return diaryTime(date, timeZone)
 }
 
 function round(n: number): number {
@@ -578,9 +673,13 @@ function buildTimelineEntries({
   supplements,
   workouts,
   waterUnit,
+  timeZone,
+  showFoodNumbers,
 }: {
   food?: TimelineFoodEntry[]
   water?: TimelineWaterEntry[]
+  timeZone: string
+  showFoodNumbers: boolean
   waterUnit?: WaterUnit
   supplements?: TimelineSupplementEntry[]
   workouts?: TimelineWorkoutLog[]
@@ -590,18 +689,24 @@ function buildTimelineEntries({
   for (const entry of food ?? []) {
     entries.push({
       id: `food:${entry.id}`,
-      time: formatLoggedTime(entry.loggedAt),
+      time: formatLoggedTime(entry.loggedAt, timeZone),
       title: entry.name,
-      detail: tr("{{value0}} · {{value1}} cal", {
-        value0: mealLabel(entry.meal as Parameters<typeof mealLabel>[0]),
-        value1: round(entry.calories),
-      }),
+      detail: showFoodNumbers
+        ? tr("{{value0}} · {{value1}} cal", {
+            value0: mealLabel(entry.meal as Parameters<typeof mealLabel>[0]),
+            value1: round(entry.calories),
+          })
+        : mealLabel(entry.meal as Parameters<typeof mealLabel>[0]),
       kind: "food",
       facts: [
-        { label: tr("Calories"), value: `${round(entry.calories)} kcal` },
-        { label: tr("Protein"), value: `${round(entry.protein)} g` },
-        { label: tr("Carbs"), value: `${round(entry.carbs)} g` },
-        { label: tr("Fat"), value: `${round(entry.fat)} g` },
+        ...(showFoodNumbers
+          ? [
+              { label: tr("Calories"), value: `${round(entry.calories)} kcal` },
+              { label: tr("Protein"), value: `${round(entry.protein)} g` },
+              { label: tr("Carbs"), value: `${round(entry.carbs)} g` },
+              { label: tr("Fat"), value: `${round(entry.fat)} g` },
+            ]
+          : []),
         ...(entry.servingLabel
           ? [{ label: tr("Serving"), value: entry.servingLabel }]
           : []),
@@ -612,7 +717,7 @@ function buildTimelineEntries({
   for (const entry of water ?? []) {
     entries.push({
       id: `water:${entry.id}`,
-      time: formatLoggedTime(entry.loggedAt),
+      time: formatLoggedTime(entry.loggedAt, timeZone),
       title: tr("Water"),
       detail: formatWater(entry.amountMl, waterUnit ?? "ml"),
       kind: "water",
@@ -628,7 +733,7 @@ function buildTimelineEntries({
   for (const entry of supplements ?? []) {
     entries.push({
       id: `supplement:${entry.id}`,
-      time: formatLoggedTime(entry.loggedAt),
+      time: formatLoggedTime(entry.loggedAt, timeZone),
       title:
         entry.name ??
         entry.note ??
@@ -654,7 +759,9 @@ function buildTimelineEntries({
     )
     entries.push({
       id: `workout:${log._id ?? log.completedAt ?? "unknown"}`,
-      time: log.completedAt ? formatLoggedTime(log.completedAt) : "—",
+      time: log.completedAt
+        ? formatLoggedTime(log.completedAt, timeZone)
+        : tr("Unknown"),
       title: log.exercises[0]?.name
         ? tr("{{value0}}{{value1}}", {
             value0: log.exercises[0].name,

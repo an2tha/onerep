@@ -68,6 +68,7 @@ import QuickLogPreset from "./pages/QuickLogPreset.tsx"
 import SnapAndLog from "./pages/SnapAndLog.tsx"
 import SearchFoods from "./pages/SearchFoods.tsx"
 import FoodReview from "./pages/FoodReview.tsx"
+import Programmes from "./pages/Programmes.tsx"
 import Nutrition from "./pages/Nutrition.tsx"
 import MealPrep from "./pages/MealPrep.tsx"
 import NutritionReport from "./pages/NutritionReport.tsx"
@@ -82,6 +83,7 @@ import RecipesHub from "./pages/RecipesHub.tsx"
 import Supplements from "./pages/Supplements.tsx"
 import NewRecipe from "./pages/NewRecipe.tsx"
 import RoutinesHub from "./pages/RoutinesHub.tsx"
+import More from "./pages/More.tsx"
 import Progress from "./pages/Progress.tsx"
 import Health from "./pages/Health.tsx"
 import HealthSleep from "./pages/health/Sleep.tsx"
@@ -793,6 +795,14 @@ const router = createBrowserRouter([
     element: <NavSync />,
     children: [
       {
+        path: "/more",
+        element: (
+          <AuthGuard>
+            <More />
+          </AuthGuard>
+        ),
+      },
+      {
         path: "/journal",
         element: (
           <AuthGuard>
@@ -966,6 +976,14 @@ const router = createBrowserRouter([
         element: (
           <AuthGuard>
             <LegacyNutritionRedirect />
+          </AuthGuard>
+        ),
+      },
+      {
+        path: "/programmes",
+        element: (
+          <AuthGuard>
+            <ErrorBoundary label={tr("Programmes")}><Programmes /></ErrorBoundary>
           </AuthGuard>
         ),
       },

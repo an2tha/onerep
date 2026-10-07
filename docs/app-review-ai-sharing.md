@@ -1,27 +1,19 @@
-# AI sharing review fix
+# AI sharing behavior
 
-The app now asks for separate, optional permission before AI sharing. The sheet names OpenRouter and the two model recipients (OpenAI for Default, Venice for Uncensored), lists the data categories, explains the purpose, links the privacy policy, and offers **Allow AI data sharing** and **Not now**. Allowing saves the current disclosure version to the authenticated account; the user then retries their chosen feature. Dismissing does not start a request.
+AI features are on by default for accounts without an explicit opt-out. Existing opt-outs remain off, regardless of disclosure version. The default is evaluated without creating a record that claims the user granted permission.
 
-Existing accounts are not opted in. General onboarding consent, Pro access, and a personal API key do not count as AI sharing permission. Settings → Privacy & sync → AI data sharing lets users review the disclosure and withdraw permission. Server quota checks reject requests without current consent before charging usage; scheduled weekly reviews also check consent. Already-started requests cannot be recalled.
+Settings → Privacy & sync → AI data sharing shows the current setting, describes the providers and shared data, and lets users turn sharing off or back on directly. The providers are TypeSafe AI for guided workout questions, and OpenRouter routing to Microsoft Azure or Venice for other AI requests. The disabled-feature sheet appears only after a user has turned AI off. Dismissing it keeps AI off and does not start a request.
 
-OpenRouter requests restrict routing to the named provider for the selected model, disable provider fallbacks, and request `data_collection: "deny"` and `zdr: true`. Unrecognized model providers are disabled. These constraints apply to personal API keys too.
+The server blocks new AI requests and scheduled reviews after an opt-out, before charging usage. Subscription access and personal API keys do not bypass an opt-out. Already-started requests cannot be recalled. Manual tracking stays available.
 
-## Release requirements
+## Release checks
 
-Deploy the additive schema and backend changes before the mobile bundle. Publish the updated public privacy policy with the release. Confirm that the actual OpenRouter account settings, provider agreements, and selected endpoints satisfy the policy before enabling `AI_PROCESSOR_APPROVED`; code cannot establish that contractual fact. Verify both configured models accept the enforced privacy options. A route that cannot meet them fails closed.
+Ship the backend, updated mobile bundle, onboarding disclosure, and public privacy page together. Older installed bundles may still show their original permission sheet until updated, but their on/off mutations remain supported. Existing provider configuration and routing protections are unchanged.
 
 ## Device verification
 
-On a fresh account and an existing account, on iPhone and iPad:
-
-1. Open Coach, send a message, and verify the disclosure appears before an AI request. Tap Not now: no request or quota charge; manual tracking remains usable.
-2. Repeat and allow sharing. Retry the message and verify a response. Check food-photo analysis, form analysis, setup Coach, and setup import.
-3. Open Settings → Privacy & sync, turn AI sharing off, and verify a new AI request asks again. Verify scheduled AI reviews do not send requests for the revoked account.
-4. Sign in as a different account and verify consent does not carry over. Verify existing accounts must consent even if onboarding data consent or Pro was already enabled.
-5. Check the policy link, phone sheet scrolling, iPad layout, screen-reader button names, and dismissal.
-
-## Suggested App Review response after deployment and device verification
-
-We added a separate AI data-sharing permission before using AI features. It explains what data is shared, names OpenRouter and the receiving providers (OpenAI or Venice, according to the selected model), explains the purpose, and links to our updated privacy policy. Reviewers can decline and continue manual tracking. Existing users must also opt in. Permission can be withdrawn under Settings → Privacy & sync → AI data sharing. The server blocks AI requests, including scheduled reviews, without current permission.
-
-References: [Apple review guidelines](https://developer.apple.com/app-store/review/guidelines/), [OpenRouter provider routing](https://openrouter.ai/docs/guides/routing/provider-selection), [OpenRouter zero data retention](https://openrouter.ai/docs/guides/features/zdr).
+1. On a fresh account and an existing account without an AI choice, confirm an AI feature runs without an initial permission sheet, subject to its normal allowance.
+2. Turn AI sharing off in Settings and confirm new requests and scheduled reviews stop without spending quota. Manual tracking must remain usable.
+3. Tap an AI feature while it is off. Dismiss the re-enable sheet and confirm it remains off. Turn AI back on and retry the feature.
+4. Sign in on a second device and confirm the saved choice follows the account. Sign in as a different account and confirm the first account's opt-out does not carry over.
+5. While preferences load, verify AI requests wait for the saved setting. Check failed saves, retry, keyboard access, phone and tablet layouts, and the privacy link.

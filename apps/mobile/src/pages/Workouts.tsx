@@ -40,7 +40,7 @@ import { ReactiveOrbField } from "@/components/reactive-orb-field"
 import { LogPastWorkoutSheet } from "@/components/log-past-workout-sheet"
 import { SwipeToStart, toast } from "@repo/ui"
 import {
-  HoldToStartDial,
+  StartWorkoutDial,
   TrainingStatDial,
 } from "@/components/training-hero-dials"
 import { TourAnchor, useTourAnchor } from "@/components/walkthrough/tour-anchor"
@@ -1459,6 +1459,14 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
             </div>
           </PageBarActions>
         </header>
+        <button
+          type="button"
+          onClick={() => navigate("/programmes?track=training")}
+          className="mb-3 flex min-h-11 w-full items-center justify-between gap-3 border-b border-border/50 py-3 text-sm text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <span>{tr("Guided workout programmes")}</span>
+          <span aria-hidden="true">↗</span>
+        </button>
         {dateKey >= todayKey && <RecoveryBanner surface="training" />}
 
         {!isToday && (
@@ -1663,21 +1671,11 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
                   style={{ left: 140 - 84, top: 0 }}
                 >
                   {workoutLogs.length < 2 ? (
-                    <HoldToStartDial
+                    <StartWorkoutDial
                       label={nextWorkoutAction}
                       primaryIcon={<Play size={36} weight="fill" />}
                       icon={<Barbell size={18} weight="bold" />}
                       onComplete={() => navigate(nextWorkoutHref)}
-                      onShortPress={() =>
-                        toast.info(
-                          nextWorkoutPreset
-                            ? tr("Press and hold to start {{value0}}.", {
-                                value0: nextWorkoutPreset.name,
-                              })
-                            : tr("Press and hold to start an open workout."),
-                          { id: "training-workout-hold-tip" }
-                        )
-                      }
                       size={168}
                       stroke={9}
                       color="var(--accent-training-hero)"

@@ -3,7 +3,7 @@ import { Message } from "@repo/ui/i18n"
 import { Microphone, StopCircle } from "@phosphor-icons/react"
 import { useDashboardVoiceLog } from "@/lib/use-dashboard-voice-log"
 
-/** Voice capture uses the dashboard row, clear of the draggable quick-add control. */
+/** Voice capture uses the dashboard row. */
 export function VoiceLogButton() {
   const voice = useDashboardVoiceLog()
 

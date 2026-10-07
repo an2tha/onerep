@@ -34,7 +34,7 @@ import { MobileSheet } from "@/components/mobile-sheet"
 import { EnduranceHeartRateChart } from "@/components/endurance-heart-rate-chart"
 import { ReactiveOrbField } from "@/components/reactive-orb-field"
 import {
-  HoldToStartDial,
+  StartWorkoutDial,
   TrainingStatDial,
 } from "@/components/training-hero-dials"
 import { cn } from "@/lib/utils"
@@ -438,10 +438,10 @@ export default function Endurance({
             </h2>
             <p className="mt-1.5 text-[13px] text-muted-foreground">
               {activeSport
-                ? tr("Hold to resume your workout.")
+                ? tr("Tap to resume your workout.")
                 : environment === "outdoor"
-                  ? tr("Hold to start GPS tracking.")
-                  : tr("Hold to start an indoor workout.")}
+                  ? tr("Tap to start GPS tracking.")
+                  : tr("Tap to start an indoor workout.")}
             </p>
 
             <div
@@ -474,7 +474,7 @@ export default function Endurance({
                 )
               })}
               <div className="absolute z-10" style={{ left: 140 - 84, top: 0 }}>
-                <HoldToStartDial
+                <StartWorkoutDial
                   label={
                     activeSport
                       ? tr("Resume {{value0}}", {
@@ -490,18 +490,6 @@ export default function Endurance({
                     navigate(
                       `/endurance/active?sport=${sport}&environment=${environment}`,
                       { motion: "forward" }
-                    )
-                  }
-                  onShortPress={() =>
-                    toast.info(
-                      tr("Press and hold to {{value0}}.", {
-                        value0: activeSport
-                          ? "resume your active workout"
-                          : tr("start {{value0}}", {
-                              value0: SPORT_META[sport].label.toLowerCase(),
-                            }),
-                      }),
-                      { id: "endurance-workout-hold-tip" }
                     )
                   }
                   size={168}

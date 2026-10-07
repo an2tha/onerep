@@ -21,6 +21,7 @@ import {
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import {
   ArrowLeft,
+  ArrowsClockwise,
   ArrowsOutSimple,
   Barbell,
   CaretDown,
@@ -69,6 +70,11 @@ import {
 import { useAiFeatureGate } from "@/lib/ai-access"
 import { AppleFitnessSetRow } from "@repo/ui"
 import { MobileSheet } from "@/components/mobile-sheet"
+import {
+  SwapExerciseSheet,
+  type SwapPrescription,
+} from "@/components/swap-exercise-sheet"
+import { swapExercisePlan } from "@/lib/exercise-swap"
 import {
   WeightSelectorSheet,
   type WeightSelectorChange,
@@ -530,6 +536,7 @@ function PresetExerciseCard({
   unit,
   onUpdate,
   onRemove,
+  onSwap,
   isDragging,
   showLineBefore,
   showLineAfter,
@@ -547,6 +554,7 @@ function PresetExerciseCard({
   unit: WeightUnit
   onUpdate: (d: ExerciseState) => void
   onRemove: () => void
+  onSwap: () => void
   isDragging: boolean
   showLineBefore: boolean
   showLineAfter: boolean
@@ -669,6 +677,17 @@ function PresetExerciseCard({
                 <ArrowsOutSimple size={15} weight="bold" />
               </button>
             )}
+            <button
+              type="button"
+              onClick={onSwap}
+              aria-label={tr("Swap {{value0}} for another exercise", {
+                value0: exercise.name,
+              })}
+              title={tr("Swap exercise")}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground active:bg-muted"
+            >
+              <ArrowsClockwise size={16} />
+            </button>
             <button
               onClick={onRemove}
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors active:bg-destructive/10 active:text-destructive"
@@ -1300,6 +1319,7 @@ export default function NewPreset() {
   const guideGate = useAiFeatureGate("typesafe")
 
   const presets = useQuery(api.logs.presets.list, {})
+  const loadedPresetVersion = useRef<number | undefined>(undefined)
   const createPreset = useOfflineMutation(
     api.logs.presets.create,
     "logs.presets.create"
@@ -1318,6 +1338,12 @@ export default function NewPreset() {
   const guideButton = useRef<HTMLButtonElement>(null)
   const [confirming, setConfirming] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
+  const [swapTarget, setSwapTarget] = useState<string | null>(null)
+  const [swapUndo, setSwapUndo] = useState<{
+    beforeItems: PresetItem[]
+    beforeData: Record<string, ExerciseState>
+    after: string
+  } | null>(null)
   const [pasteOpen, setPasteOpen] = useState(false)
   const [presetName, setPresetName] = useState("")
   const [modalExercise, setModalExercise] = useState<Exercise | null>(null)
@@ -1384,6 +1410,7 @@ export default function NewPreset() {
       // once per preset so in-progress edits are not clobbered.
       if (loadedPresetIdRef.current === presetId) return
       loadedPresetIdRef.current = presetId
+      loadedPresetVersion.current = match.updatedAt
       const loadedItems = (match.items as PresetItem[]) ?? []
       setPresetName(match.name)
       setItems(loadedItems)
@@ -1449,7 +1476,11 @@ export default function NewPreset() {
     setSaving(true)
     try {
       if (presetId) {
-        await updatePreset({ id: presetId as Id<"presets">, ...input })
+        await updatePreset({
+          id: presetId as Id<"presets">,
+          expectedUpdatedAt: loadedPresetVersion.current,
+          ...input,
+        })
       } else {
         await createPreset(input)
       }
@@ -1587,8 +1618,10 @@ export default function NewPreset() {
     // must not silently remove an exercise from a reviewed workout.
     const resolved = await Promise.all(
       draft.exercises.map(async (entry) => {
-        const originalId = "id" in entry && typeof entry.id === "string" ? entry.id : null
-        if (originalId && exerciseLookup[originalId]) return { entry, exercise: exerciseLookup[originalId] }
+        const originalId =
+          "id" in entry && typeof entry.id === "string" ? entry.id : null
+        if (originalId && exerciseLookup[originalId])
+          return { entry, exercise: exerciseLookup[originalId] }
         const candidates = await searchExercises({
           query: entry.name,
           limit: 6,
@@ -1622,12 +1655,24 @@ export default function NewPreset() {
     const nextItems: PresetItem[] = []
     for (let index = 0; index < nextIds.length;) {
       const id = nextIds[index]
-      const group = items.find(item => item.kind === "superset" && item.exerciseIds.includes(id))
-      const members = group?.kind === "superset" ? group.exerciseIds.filter(member => nextIds.includes(member)) : []
-      if (group?.kind === "superset" && members.length > 1 && members.every((member, offset) => nextIds[index + offset] === member)) {
+      const group = items.find(
+        (item) => item.kind === "superset" && item.exerciseIds.includes(id)
+      )
+      const members =
+        group?.kind === "superset"
+          ? group.exerciseIds.filter((member) => nextIds.includes(member))
+          : []
+      if (
+        group?.kind === "superset" &&
+        members.length > 1 &&
+        members.every((member, offset) => nextIds[index + offset] === member)
+      ) {
         nextItems.push({ ...group, exerciseIds: members })
         index += members.length
-      } else { nextItems.push({ kind: "solo", exerciseId: id }); index++ }
+      } else {
+        nextItems.push({ kind: "solo", exerciseId: id })
+        index++
+      }
     }
     setItems(nextItems)
     setExData(
@@ -1635,9 +1680,14 @@ export default function NewPreset() {
         resolved.map(({ exercise, entry }) => [
           exercise.id,
           exData[exercise.id] && addedIds.length
-            ? { ...exData[exercise.id], sets: entry.sets!.map((set, index) => ({
-                ...normalizeAgentSet(set), id: exData[exercise.id].sets[index]?.id ?? crypto.randomUUID(),
-              })) }
+            ? {
+                ...exData[exercise.id],
+                sets: entry.sets!.map((set, index) => ({
+                  ...normalizeAgentSet(set),
+                  id:
+                    exData[exercise.id].sets[index]?.id ?? crypto.randomUUID(),
+                })),
+              }
             : makeExerciseStateFromAgentDraft(exercise, entry),
         ])
       )
@@ -1654,6 +1704,39 @@ export default function NewPreset() {
   }
 
   // ── Add / remove ──────────────────────────────────────────
+
+  function swapExercise(
+    targetId: string,
+    exercise: Exercise,
+    prescription: SwapPrescription
+  ) {
+    const replacement = makeExerciseState(exercise)
+    replacement.barType = "custom"
+    replacement.sets =
+      exercise.category === "cardio"
+        ? []
+        : Array.from({ length: prescription.sets }, () => ({
+            ...makeSet(),
+            reps: prescription.reps,
+            restSeconds: prescription.restSeconds,
+          }))
+    const next = swapExercisePlan(
+      items,
+      exData,
+      targetId,
+      exercise.id,
+      replacement
+    )
+    setExerciseLookup((prev) => ({ ...prev, [exercise.id]: exercise }))
+    setItems(next.items)
+    setExData(next.exerciseData)
+    setSwapUndo({
+      beforeItems: items,
+      beforeData: exData,
+      after: JSON.stringify([next.items, next.exerciseData]),
+    })
+    setSwapTarget(null)
+  }
 
   function removeExercise(id: string) {
     setItems((prev) => removeExFromItems(prev, id))
@@ -1907,6 +1990,7 @@ export default function NewPreset() {
         unit={unit}
         onUpdate={(d) => updateExData(exerciseId, d)}
         onRemove={() => removeExercise(exerciseId)}
+        onSwap={() => setSwapTarget(exerciseId)}
         isDragging={drag?.exerciseId === exerciseId && drag.active}
         {...cardProps(exerciseId)}
         collapsed={Boolean(collapsed[exerciseId])}
@@ -1997,6 +2081,7 @@ export default function NewPreset() {
                 unit={unit}
                 onUpdate={(d) => updateExData(exId, d)}
                 onRemove={() => removeExercise(exId)}
+                onSwap={() => setSwapTarget(exId)}
                 isDragging={drag?.exerciseId === exId && drag.active}
                 {...cardProps(exId, true)}
                 inSuperset
@@ -2053,17 +2138,25 @@ export default function NewPreset() {
               throw new Error(
                 tr("Enable AI access, then try again. Your answers are kept.")
               )
-            if (addedIds.length) return await editWithAi({
-              changes: notes,
-              unit,
-              existing: {
-                name: presetName.trim() || tr("Untitled Preset"),
-                exercises: addedIds.map(id => ({
-                  id,
-                  sets: exData[id].sets.map(({ type, weight, reps, restSeconds }) => ({ type, weight, reps, restSeconds })),
-                })),
-              },
-            })
+            if (addedIds.length)
+              return await editWithAi({
+                changes: notes,
+                unit,
+                existing: {
+                  name: presetName.trim() || tr("Untitled Preset"),
+                  exercises: addedIds.map((id) => ({
+                    id,
+                    sets: exData[id].sets.map(
+                      ({ type, weight, reps, restSeconds }) => ({
+                        type,
+                        weight,
+                        reps,
+                        restSeconds,
+                      })
+                    ),
+                  })),
+                },
+              })
             return await generateGuide({
               answers,
               notes,
@@ -2129,6 +2222,15 @@ export default function NewPreset() {
           </button>
         </div>
 
+        {presets?.find((row) => (row.id ?? row._id) === presetId)
+          ?.guidedProgrammeId && (
+          <p className="px-[var(--app-page-x)] pt-3 text-sm leading-relaxed text-muted-foreground md:px-8">
+            {tr(
+              "Part of your guided programme. Saving also updates its planned session. Use individual exercises with matching working-set rep and rest targets; duplicate as a standalone preset for supersets or mixed sets."
+            )}
+          </p>
+        )}
+
         <div className="px-[var(--app-page-x)] pt-3 md:px-8">
           <button
             ref={guideButton}
@@ -2146,7 +2248,9 @@ export default function NewPreset() {
                 {addedIds.length ? tr("Edit with AI") : tr("Build with AI")}
               </span>
               <span className="mt-1 block text-[13px] text-[#bfc1c2]">
-                {addedIds.length ? tr("Uses 1 AI request") : tr("Uses 2 AI requests")}
+                {addedIds.length
+                  ? tr("Uses 1 AI request")
+                  : tr("Uses 2 AI requests")}
               </span>
             </span>
             <Barbell size={28} className="shrink-0 text-[#d9c49b]" />
@@ -2330,6 +2434,43 @@ export default function NewPreset() {
           loading={generatingPreset}
           onGenerate={handleGenerateFromText}
           onClose={() => setPasteOpen(false)}
+        />
+      )}
+
+      {swapUndo && swapUndo.after === JSON.stringify([items, exData]) && (
+        <div
+          role="status"
+          className="fixed right-4 bottom-24 left-4 z-40 mx-auto flex max-w-md items-center justify-between gap-4 rounded-2xl bg-card px-4 py-2 shadow-lg"
+        >
+          <span className="text-sm">{tr("Exercise swapped")}</span>
+          <button
+            type="button"
+            className="min-h-11 text-sm font-medium"
+            onClick={() => {
+              setItems(swapUndo.beforeItems)
+              setExData(swapUndo.beforeData)
+              setSwapUndo(null)
+            }}
+          >
+            {tr("Undo")}
+          </button>
+        </div>
+      )}
+      {swapTarget && exerciseLookup[swapTarget] && exData[swapTarget] && (
+        <SwapExerciseSheet
+          exercise={exerciseLookup[swapTarget]}
+          excludedIds={addedIds}
+          sessionNames={addedIds.map((id) => exerciseLookup[id]?.name ?? id)}
+          currentPrescription={{
+            sets: Math.max(1, exData[swapTarget].sets.length),
+            reps: exData[swapTarget].sets[0]?.reps || "8-12",
+            restSeconds: exData[swapTarget].sets[0]?.restSeconds ?? 90,
+          }}
+          editingPreset
+          onApply={(exercise, prescription) =>
+            swapExercise(swapTarget, exercise, prescription)
+          }
+          onClose={() => setSwapTarget(null)}
         />
       )}
 

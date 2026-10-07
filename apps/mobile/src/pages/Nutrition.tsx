@@ -1,4 +1,6 @@
+import { ProgrammeEntry } from "@/components/programme-entry"
 import { Message, choice, tr, translateError, uiLocale } from "@repo/ui/i18n"
+import { useDiaryClock } from "@/lib/diary-clock"
 import { PageBarActions } from "@/components/page-bar-actions"
 import { useRecovery } from "@/lib/use-recovery"
 import { RecoveryBanner } from "@/components/recovery/recovery-banner"
@@ -11,6 +13,7 @@ import {
   isFoodLogTime,
 } from "@/lib/food-log-context"
 import {
+  useId,
   useCallback,
   useEffect,
   useMemo,
@@ -64,7 +67,6 @@ import { useNutritionHealthWriteBack } from "@/lib/nutrition-writeback"
 import { energyDisplay } from "@repo/ui"
 import {
   FOOD_MICRONUTRIENT_KEYS,
-  currentDateKey,
   defaultMeal,
   findSmartMealPresetSuggestion,
   foodLogEntriesFromMealPreset,
@@ -999,7 +1001,7 @@ function MealBudgetPanel({
   )
 }
 
-function GoalsCardWrapper({
+export function GoalsCardWrapper({
   goals,
   apiGoals,
   onSave,
@@ -1011,19 +1013,54 @@ function GoalsCardWrapper({
   carbMode: CarbDisplayMode
 }) {
   const energyUnit = useEnergyUnit()
+  const editorId = useId()
+  const toggleRef = useRef<HTMLButtonElement>(null)
+  const savingRef = useRef(false)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState("")
+  const persist = async (value: GoalOverride) => {
+    if (savingRef.current) return
+    savingRef.current = true
+    setSaving(true)
+    setError("")
+    try {
+      await onSave(value)
+      setEditing(false)
+      requestAnimationFrame(() => toggleRef.current?.focus())
+    } catch {
+      setError(
+        tr("Could not save your goals. Your changes are kept here. Try again.")
+      )
+    } finally {
+      savingRef.current = false
+      setSaving(false)
+    }
+  }
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState<GoalOverride>(goals)
+  const [raw, setRaw] = useState<Record<GoalField, string>>(
+    () =>
+      Object.fromEntries(
+        GOAL_FIELDS.map((field) => [field.key, String(goals[field.key])])
+      ) as Record<GoalField, string>
+  )
 
   useEffect(() => {
-    setDraft(goals)
-  }, [goals])
+    if (!editing) {
+      setDraft(goals)
+      setRaw(
+        Object.fromEntries(
+          GOAL_FIELDS.map((field) => [field.key, String(goals[field.key])])
+        ) as Record<GoalField, string>
+      )
+    }
+  }, [goals, editing])
 
   function adjust(key: GoalField, delta: number) {
     const field = GOAL_FIELDS.find((item) => item.key === key)!
-    setDraft((current) => ({
-      ...current,
-      [key]: Math.max(field.min, current[key] + delta),
-    }))
+    const next = Math.max(field.min, (Number(raw[key]) || draft[key]) + delta)
+    setRaw((current) => ({ ...current, [key]: String(next) }))
+    setDraft((current) => ({ ...current, [key]: next }))
   }
 
   return (
@@ -1032,6 +1069,9 @@ function GoalsCardWrapper({
         type="button"
         onClick={() => setEditing((open) => !open)}
         className="flex min-h-10 w-full items-center justify-between gap-3 text-left"
+        ref={toggleRef}
+        disabled={saving}
+        aria-controls={editorId}
         aria-expanded={editing}
       >
         <span className="text-[15px] font-semibold">{tr("Daily goals")}</span>
@@ -1046,6 +1086,10 @@ function GoalsCardWrapper({
       </button>
 
       <div
+        id={editorId}
+        hidden={!editing}
+        inert={!editing}
+        aria-busy={saving}
         className={cn(
           "grid transition-all duration-200 ease-out",
           editing
@@ -1069,6 +1113,7 @@ function GoalsCardWrapper({
                 <div className="flex items-center rounded-[10px] bg-muted/50 p-0.5">
                   <button
                     type="button"
+                    disabled={saving}
                     onClick={() => adjust(key, -step)}
                     aria-label={tr("Decrease {{value0}} goal", {
                       value0: label.toLowerCase(),
@@ -1079,22 +1124,22 @@ function GoalsCardWrapper({
                   </button>
                   <input
                     type="number"
+                    min={min}
+                    disabled={saving}
                     name={`food-goal-${key}`}
                     aria-label={tr("{{value0}} goal", { value0: label })}
-                    value={draft[key]}
-                    onChange={(event) => {
-                      const value = Number.parseInt(event.target.value)
-                      if (!Number.isNaN(value)) {
-                        setDraft((current) => ({
-                          ...current,
-                          [key]: Math.max(min, value),
-                        }))
-                      }
-                    }}
+                    value={raw[key]}
+                    onChange={(event) =>
+                      setRaw((current) => ({
+                        ...current,
+                        [key]: event.target.value,
+                      }))
+                    }
                     className="h-10 w-16 bg-transparent text-center text-[13px] font-semibold tabular-nums outline-none"
                   />
                   <button
                     type="button"
+                    disabled={saving}
                     onClick={() => adjust(key, step)}
                     aria-label={tr("Increase {{value0}} goal", {
                       value0: label.toLowerCase(),
@@ -1114,25 +1159,49 @@ function GoalsCardWrapper({
               )}
             </p>
           )}
+          {error && (
+            <p role="alert" className="mt-3 text-sm text-destructive">
+              {error}
+            </p>
+          )}
           <div className="mt-3 flex items-center gap-2">
             <button
               type="button"
+              disabled={saving}
               onClick={() => {
-                void onSave(draft)
-                setEditing(false)
+                if (
+                  GOAL_FIELDS.some(
+                    (field) =>
+                      raw[field.key].trim() === "" ||
+                      !Number.isFinite(Number(raw[field.key])) ||
+                      Number(raw[field.key]) < field.min
+                  )
+                ) {
+                  setError(
+                    tr(
+                      "Enter a valid target in each field. Calories must be at least 500; macro targets cannot be negative."
+                    )
+                  )
+                  return
+                }
+                void persist(
+                  Object.fromEntries(
+                    GOAL_FIELDS.map((field) => [
+                      field.key,
+                      Number(raw[field.key]),
+                    ])
+                  ) as GoalOverride
+                )
               }}
               className="app-button flex-1 justify-center bg-foreground text-background"
             >
-              {tr("Save")}
+              {saving ? tr("Saving…") : tr("Save")}
             </button>
             {apiGoals && (
               <button
                 type="button"
-                onClick={() => {
-                  setDraft(apiGoals)
-                  void onSave(apiGoals)
-                  setEditing(false)
-                }}
+                disabled={saving}
+                onClick={() => void persist(apiGoals)}
                 className="app-button app-button-secondary"
               >
                 {tr("Reset")}
@@ -2384,7 +2453,7 @@ export default function Nutrition() {
     ? "net"
     : "total"
   const timeZone = preferences?.lastActiveTimezone || "UTC"
-  const todayKey = currentDateKey(timeZone)
+  const { todayKey } = useDiaryClock(timeZone)
   const requestedDate = searchParams.get("date")
   const dateKey = isFoodLogDate(requestedDate) ? requestedDate : todayKey
   function setDateKey(date: string) {
@@ -2505,10 +2574,10 @@ export default function Nutrition() {
   // record server-side, but an adult who asks for their numbers back gets them.
   const showCalorieNumbers = preferences?.showCalorieNumbers === true
   const planMetrics = nutritionPlan?.visibleMetrics ?? {
-    calories: true,
-    macros: true,
-    protein: true,
-    micros: true,
+    calories: false,
+    macros: false,
+    protein: false,
+    micros: false,
     habits: false,
     water: true,
     streaks: true,
@@ -2616,7 +2685,11 @@ export default function Nutrition() {
   // Whatever lands in the day's log also flows out to Apple Health /
   // Health Connect (opt-in), so the health store's nutrition picture is
   // complete even when meals were logged here rather than scanned there.
-  useNutritionHealthWriteBack(dateKey, entries, waterTotal)
+  useNutritionHealthWriteBack(
+    dateKey,
+    foodLogs === undefined ? undefined : entries,
+    waterTotal
+  )
   const waterGoal = preferences?.waterGoalMl ?? 2500
 
   const supplementPlan = useMemo(
@@ -3324,6 +3397,38 @@ export default function Nutrition() {
     </div>
   )
 
+  if (
+    preferences === undefined ||
+    foodLogs === undefined ||
+    effectiveGoals === undefined ||
+    nutritionPlanRaw === undefined ||
+    waterLogs === undefined ||
+    supplementOverviewRaw === undefined
+  ) {
+    return (
+      <main className="desktop-canvas min-h-svh p-6 lg:pl-72" aria-busy="true">
+        <h1 className="text-2xl font-semibold">{tr("Nutrition")}</h1>
+        <p role="status" className="mt-4">
+          {tr("Loading your diary and nutrition preferences…")}
+        </p>
+      </main>
+    )
+  }
+  if (!effectiveGoals || !nutritionPlanRaw) {
+    return (
+      <main className="desktop-canvas min-h-svh p-6 lg:pl-72">
+        <h1 className="text-2xl font-semibold">{tr("Nutrition")}</h1>
+        <p role="status" className="my-4">
+          {tr(
+            "Your nutrition plan is unavailable. Check your settings and try again."
+          )}
+        </p>
+        <button className="app-button" onClick={() => navigate("/settings")}>
+          {tr("Open settings")}
+        </button>
+      </main>
+    )
+  }
   return (
     <div
       className={cn(
@@ -3406,6 +3511,7 @@ export default function Nutrition() {
             </div>
           </PageBarActions>
         </header>
+        <ProgrammeEntry track="nutrition" />
         {isToday && <RecoveryBanner surface="nutrition" />}
         {recoverySimple && activeFast && (
           <button
@@ -4128,7 +4234,14 @@ export default function Nutrition() {
                     goals={customGoalTargets}
                     apiGoals={apiGoals}
                     onSave={async (nextGoals) => {
-                      await saveCustomGoals(nextGoals)
+                      const result = await saveCustomGoals(nextGoals)
+                      toast.success(
+                        result && "ownerId" in result
+                          ? tr(
+                              "Goals saved on this device. They will sync when you are online."
+                            )
+                          : tr("Goals saved.")
+                      )
                     }}
                     carbMode={carbMode}
                   />

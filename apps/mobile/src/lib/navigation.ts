@@ -73,6 +73,7 @@ export function shouldShowPageBar(pathname: string, isAuthenticated: boolean) {
     isAuthenticated &&
     pathname !== "/" &&
     pathname !== "/restart" &&
+    pathname !== "/programmes" &&
     pathname !== "/camera" &&
     !pathname.startsWith("/workout/active") &&
     !/^\/workout\/log\/[^/]+$/.test(pathname) &&

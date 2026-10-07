@@ -10,6 +10,7 @@ import {
 import { useLocation } from "react-router"
 import { useTranslation } from "react-i18next"
 import {
+  DotsThree,
   BookOpen,
   Barbell,
   ChartLine,
@@ -76,6 +77,13 @@ const BASE_TABS: TabDef[] = [
   { path: "/coach", Icon: RocketLaunchIcon, labelKey: "nav.coach" },
 ]
 
+const MOBILE_TABS: TabDef[] = [
+  { path: "/", Icon: House, labelKey: "nav.today" },
+  { path: "/nutrition", Icon: ForkKnife, labelKey: "nav.nutrition" },
+  { path: "/workouts", Icon: Barbell, labelKey: "nav.training" },
+  { path: "/progress", Icon: ChartLine, labelKey: "nav.progress" },
+  { path: "/more", Icon: DotsThree, labelKey: tr("More") },
+]
 const DESKTOP_TABS = BASE_TABS
 
 function isNutritionPath(pathname: string) {
@@ -112,6 +120,10 @@ function isProgressPath(pathname: string) {
 
 /** Exported for the native iOS tab bar, so both bars share one route model. */
 export function isTabActive(pathname: string, path: string) {
+  if (path === "/more")
+    return ["/more", "/journal", "/health", "/coach", "/settings"].some(
+      (route) => pathname === route || pathname.startsWith(`${route}/`)
+    )
   if (path === "/") return pathname === "/"
   if (path === "/nutrition") return isNutritionPath(pathname)
   if (path === "/workouts") return isTrainingPath(pathname)
@@ -122,7 +134,7 @@ export function isTabActive(pathname: string, path: string) {
 /** The tab that should read as selected for a pathname, if any. */
 export function activeTabPath(
   pathname: string,
-  tabs = BASE_TABS
+  tabs = MOBILE_TABS
 ): string | null {
   return tabs.find((tab) => isTabActive(pathname, tab.path))?.path ?? null
 }
@@ -147,7 +159,7 @@ export function BottomBar({
   const settingsActive = isActive(pathname, "/settings")
   const coachActive = isActive(pathname, "/coach")
   const primaryNavRef = useTourAnchor("bottom-bar")
-  const tabs = BASE_TABS
+  const tabs = MOBILE_TABS
 
   const tabsForNav: NavigationTabView[] = tabs.map(
     ({ path, Icon, labelKey }) => {

@@ -1,7 +1,7 @@
 import { createRoot } from "react-dom/client"
 import { ConvexProvider, type ConvexReactClient } from "convex/react"
 import { getFunctionName } from "convex/server"
-import { MemoryRouter } from "react-router"
+import { MemoryRouter, useLocation } from "react-router"
 import { ThemeProvider, PALETTES } from "@repo/ui"
 import { OnboardingMobile } from "../../../src/pages/OnboardingMobile"
 import "../../../src/styles/index.css"
@@ -13,6 +13,8 @@ localStorage.setItem(
   "onerep:onboarding-draft:v2",
   JSON.stringify({
     stage,
+    ...(stage === 17 ? { programmeMode: "guided" } : {}),
+    measurementsConfirmed: true,
     sex: "male",
     age: 30,
     weightKg: 75,
@@ -74,11 +76,21 @@ const client = {
     throw new Error("AI is unavailable in this isolated fixture")
   },
 }
+function RouteIndicator() {
+  const location = useLocation()
+  return (
+    <output data-testid="destination" hidden>
+      {location.pathname}
+      {location.search}
+    </output>
+  )
+}
 createRoot(document.getElementById("root")!).render(
   <ConvexProvider client={client as unknown as ConvexReactClient}>
     <ThemeProvider identities={PALETTES} defaultTheme="dark">
       <MemoryRouter initialEntries={["/onboarding"]}>
         <OnboardingMobile />
+        <RouteIndicator />
       </MemoryRouter>
     </ThemeProvider>
   </ConvexProvider>

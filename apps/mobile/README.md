@@ -33,6 +33,10 @@ to your dev database.
 
 ## Tests
 
+For native iOS screenshot capture, run `bun run ios:screenshots`. Setup, simulator
+selection, and signed-in capture are documented in
+[the Fastlane screenshot guide](ios/App/fastlane/SCREENSHOTS.md).
+
 Run from `src/` (`cd src && bun test`) to stay under the file-descriptor
 limit, and do not trust a green run on faith — this suite has opinions,
 including source-contract tests that assert the actual words on the screen.

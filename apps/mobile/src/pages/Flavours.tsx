@@ -82,7 +82,7 @@ export function Flavours({
       aria-modal="true"
       aria-labelledby="flavours-title"
       data-state={closing ? "closing" : "open"}
-      className="quick-add-more flavours-overlay fixed inset-0 z-[61] text-foreground"
+      className="flavours-overlay fixed inset-0 z-[61] text-foreground"
     >
       <div className="flavours-page">
         <header className="flavours-header">

@@ -41,7 +41,7 @@ describe("Retro log accessibility contract", () => {
   })
 
   test("in-flight work is announced rather than only shown", () => {
-    expect(RETRO_SOURCE).toContain("aria-busy={pending}")
+    expect(RETRO_SOURCE).toContain("aria-busy={busy}")
     expect(RETRO_SOURCE).toContain("aria-busy={saving}")
   })
 

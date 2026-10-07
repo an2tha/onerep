@@ -42,12 +42,10 @@ const nativeTabBar = registerPlugin<NativeTabBarPlugin>("NativeTabBar")
 /** Ids are the web routes, so a tap event is already a navigation target. */
 const BASE_NATIVE_TAB_ITEMS: NativeTabBarItem[] = [
   { id: "/", symbol: "house.fill", label: tr("Today") },
-  { id: "/journal", symbol: "book.closed.fill", label: tr("Journal") },
   { id: "/nutrition", symbol: "fork.knife", label: tr("Nutrition") },
   { id: "/workouts", symbol: "dumbbell.fill", label: tr("Training") },
   { id: "/progress", symbol: "chart.bar.fill", label: tr("Goals") },
-  { id: "/health", symbol: "heart.text.square.fill", label: tr("Health") },
-  { id: "/coach", symbol: "sparkles", label: tr("Coach") },
+  { id: "/more", symbol: "ellipsis", label: tr("More") },
 ]
 
 /** Settings is reached through the profile avatar, outside primary navigation. */

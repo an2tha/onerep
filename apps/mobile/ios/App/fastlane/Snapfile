@@ -1,0 +1,25 @@
+# Run from apps/mobile/ios/App via `bundle exec fastlane ios screenshots`.
+project "App.xcodeproj"
+scheme "AppScreenshots"
+configuration "Debug"
+devices ENV.fetch("SCREENSHOT_DEVICES", "iPhone 17 Pro Max").split(",").map(&:strip)
+languages ["en-US"]
+ios_version ENV["SCREENSHOT_IOS_VERSION"] if ENV["SCREENSHOT_IOS_VERSION"]
+
+# Keep prepared accounts intact, and avoid cloned simulators losing their login.
+erase_simulator false
+reinstall_app false
+concurrent_simulators false
+override_status_bar true
+override_status_bar_arguments "--time 9:41 --dataNetwork wifi --wifiMode active --wifiBars 3 --batteryState charged --batteryLevel 100"
+stop_after_first_error true
+number_of_retries 0
+clear_previous_screenshots false
+skip_open_summary true
+output_simulator_logs true
+derived_data_path "build/screenshots"
+buildlog_path "build/screenshots/logs"
+xcargs "CODE_SIGNING_ALLOWED=NO"
+
+# Plain `fastlane snapshot` also uses the safe, signed-out flow.
+only_testing ["AppScreenshots/OneRepScreenshots/testAuthentication"]

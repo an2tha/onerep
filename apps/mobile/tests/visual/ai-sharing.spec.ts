@@ -1,0 +1,42 @@
+import { expect, test } from "@playwright/test"
+
+test("AI defaults on and Settings saves both choices directly", async ({ page }) => {
+  await page.goto("/tests/visual/fixtures/ai-sharing.html")
+  await expect(page.getByRole("heading", { name: "AI data sharing · On" })).toBeVisible()
+  await expect(page.getByRole("dialog")).toHaveCount(0)
+  await page.screenshot({ path: `test-results/ai-default-on-${test.info().project.name}.png`, fullPage: true })
+  const off = page.getByRole("button", { name: "Turn off AI data sharing" })
+  await off.focus()
+  await page.keyboard.press("Enter")
+  await expect(page.getByRole("button", { name: "Saving…" })).toBeDisabled()
+  await expect(page.getByRole("heading", { name: "AI data sharing · Off" })).toBeVisible()
+  expect(JSON.parse(await page.evaluate(() => sessionStorage.getItem("ai-sharing-saved")) || "null").granted).toBe(false)
+  await page.getByRole("button", { name: "Turn on AI features" }).click()
+  await expect(page.getByRole("heading", { name: "AI data sharing · On" })).toBeVisible()
+  await expect(page.getByRole("dialog")).toHaveCount(0)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+})
+
+test("loading does not claim AI is on and failed saves preserve an opt-out", async ({ page }) => {
+  await page.goto("/tests/visual/fixtures/ai-sharing.html?loading=1&fail=1")
+  await expect(page.getByRole("heading", { name: "Loading…" })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Turn off AI data sharing" })).toBeDisabled()
+  await page.getByRole("button", { name: "Load saved opt-out" }).click()
+  await expect(page.getByRole("heading", { name: "AI data sharing · Off" })).toBeVisible()
+  await page.getByRole("button", { name: "Turn on AI features" }).click()
+  await expect(page.getByText("Could not update AI sharing. Try again.")).toBeVisible()
+  await expect(page.getByRole("heading", { name: "AI data sharing · Off" })).toBeVisible()
+  await page.getByRole("checkbox", { name: "Simulate failed save" }).uncheck()
+  await page.getByRole("button", { name: "Turn on AI features" }).click()
+  await expect(page.getByRole("heading", { name: "AI data sharing · On" })).toBeVisible()
+})
+
+test("dismissing the re-enable sheet preserves the saved opt-out", async ({ page }) => {
+  await page.goto("/tests/visual/fixtures/ai-sharing.html?off=1&sheet=1")
+  const dialog = page.getByRole("dialog")
+  await expect(dialog.getByText("You turned off AI data sharing. Turn it back on to use AI features.")).toBeVisible()
+  await dialog.getByRole("button", { name: "Not now" }).click()
+  await expect(dialog).toHaveCount(0)
+  await expect(page.getByRole("heading", { name: "AI data sharing · Off" })).toBeVisible()
+  expect(await page.evaluate(() => sessionStorage.getItem("ai-sharing-saved"))).toBeNull()
+})

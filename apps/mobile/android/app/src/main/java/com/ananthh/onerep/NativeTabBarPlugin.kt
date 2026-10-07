@@ -10,6 +10,7 @@ import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import android.widget.TextView
 import android.widget.ImageView
 import android.widget.LinearLayout
 import androidx.core.view.ViewCompat
@@ -39,7 +40,7 @@ class NativeTabBarPlugin : Plugin() {
     private var highlight: View? = null
     /** The chip has no resting position until a slot has been measured. */
     private var chipSeated = false
-    private var buttons: List<Pair<Item, ImageView>> = emptyList()
+    private var buttons: List<Pair<Item, TextView>> = emptyList()
     private var items: List<Item> = emptyList()
     private var expanded = false
     private var toggleButton: ImageView? = null
@@ -163,7 +164,7 @@ class NativeTabBarPlugin : Plugin() {
         buttons = items.map { item ->
             val button = makeButton(item, 48f, 22f).apply {
                 layoutParams = LinearLayout.LayoutParams(0, -1, 1f)
-                setPadding(dp(10f), dp(13f), dp(10f), dp(13f))
+                setPadding(dp(2f), dp(2f), dp(2f), dp(2f))
             }
             strip.addView(button)
             item to button
@@ -241,26 +242,26 @@ class NativeTabBarPlugin : Plugin() {
         ViewCompat.requestApplyInsets(container)
     }
 
-    private fun makeButton(item: Item, slotWidth: Float, iconSize: Float): ImageView =
-        ImageView(activity).apply {
-            setImageResource(iconFor(item.symbol))
-            scaleType = ImageView.ScaleType.FIT_CENTER
-            // Padding, not maxWidth: the glyph then scales to exactly iconSize
-            // no matter how the slot is measured.
-            val inset = dp((slotWidth - iconSize) / 2)
-            val insetY = dp((barHeight - iconSize) / 2)
-            setPadding(inset, insetY, inset, insetY)
+    private fun makeButton(item: Item, slotWidth: Float, iconSize: Float): TextView =
+        TextView(activity).apply {
+            text = item.label
+            textSize = 11f
+            gravity = Gravity.CENTER
+            maxLines = 1
+            val icon = activity.getDrawable(iconFor(item.symbol))?.mutate()
+            icon?.setBounds(0, 0, dp(iconSize), dp(iconSize))
+            setCompoundDrawables(null, icon, null, null)
+            compoundDrawablePadding = dp(4f)
             contentDescription = item.label
             tag = "native-tab-${item.id}"
             isClickable = true
             isFocusable = true
-            setOnClickListener { view ->
-                    didTap(item.id)
-            }
+            setOnClickListener { didTap(item.id) }
         }
 
     /** SF Symbol names in, Android vectors out. */
     private fun iconFor(symbol: String): Int = when (symbol) {
+        "ellipsis" -> android.R.drawable.ic_menu_more
         "house" , "house.fill" -> R.drawable.ic_tab_house
         "book.closed.fill" -> R.drawable.ic_tab_journal
         "fork.knife" -> R.drawable.ic_tab_fork_knife
@@ -299,7 +300,8 @@ class NativeTabBarPlugin : Plugin() {
 
         toggleButton?.setColorFilter(iconTint(dark, true))
         buttons.forEach { (item, button) ->
-            button.setColorFilter(iconTint(dark, active = item.id == selectedId))
+            button.setTextColor(iconTint(dark, active = item.id == selectedId))
+            button.compoundDrawables[1]?.setTint(iconTint(dark, item.id == selectedId))
             button.background = if (item.id == selectedId) capsule(dp(18f).toFloat(), if (dark) Color.argb(115, 0, 0, 0) else Color.argb(26, 0, 0, 0), Color.TRANSPARENT) else null
         }
     }
@@ -327,17 +329,18 @@ class NativeTabBarPlugin : Plugin() {
     private fun applySelection(id: String, animated: Boolean) {
         selectedId = id
         buttons.forEach { (item, button) ->
-            button.setColorFilter(iconTint(isDark(), item.id == id))
+            button.setTextColor(iconTint(isDark(), item.id == id))
+            button.compoundDrawables[1]?.setTint(iconTint(isDark(), item.id == id))
             button.isSelected = item.id == id
             button.background = if (item.id == id) capsule(dp(18f).toFloat(), if (isDark()) Color.argb(115, 0, 0, 0) else Color.argb(26, 0, 0, 0), Color.TRANSPARENT) else null
         }
         toggleButton?.setImageResource(iconFor(items.firstOrNull { it.id == id }?.symbol ?: "house.fill"))
-        setExpanded(false, animated)
+        setExpanded(true, false)
     }
 
     private fun applyVisibility(next: Boolean) {
         visible = next
-        if (!next) setExpanded(false)
+
         val container = container ?: return
         // Alpha alone leaves a fully transparent but still-touchable view on
         // top of the WebView, silently eating taps on whatever it's hiding.

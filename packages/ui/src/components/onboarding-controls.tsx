@@ -24,6 +24,8 @@ export function NumberQuestion({
   step = 1,
   onChange,
   onInteract,
+  empty = false,
+  onValidityChange,
 }: {
   label: string
   value: number
@@ -33,14 +35,20 @@ export function NumberQuestion({
   step?: number
   onChange: (value: number) => void
   onInteract?: () => void
+  empty?: boolean
+  onValidityChange?: (valid: boolean) => void
 }) {
   const inputId = `onboarding-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`
   // Null means "not being edited" — the field mirrors the committed value.
   // While editing we keep the raw text so half-typed numbers survive.
   const [draft, setDraft] = useState<string | null>(null)
 
+  const [error, setError] = useState("")
+
   function update(next: number) {
     setDraft(null)
+    setError("")
+    onValidityChange?.(true)
     onInteract?.()
     onChange(clamp(next, min, max))
   }
@@ -48,13 +56,15 @@ export function NumberQuestion({
   function commitDraft() {
     if (draft === null) return
     const parsed = parseDraft(draft)
-    setDraft(null)
-    if (parsed === null) return
-    const settled = clamp(parsed, min, max)
-    if (settled !== value) {
-      onInteract?.()
-      onChange(settled)
+    if (parsed === null || parsed < min || parsed > max) {
+      setError(tr("Enter a number from {{min}} to {{max}}.", { min, max }))
+      onValidityChange?.(false)
+      return
     }
+    setDraft(null)
+    setError("")
+    onValidityChange?.(true)
+    onChange(parsed)
   }
 
   return (
@@ -80,14 +90,19 @@ export function NumberQuestion({
           type="text"
           inputMode="decimal"
           autoComplete="off"
-          value={draft ?? String(value)}
+          value={draft ?? (empty ? "" : String(value))}
+          aria-invalid={!!error}
+          aria-describedby={`${inputId}-error`}
           onChange={(event) => {
             const raw = event.target.value.replace(/[^\d.,-]/g, "")
             setDraft(raw)
+            setError("")
             const parsed = parseDraft(raw)
             // Commit live only while the number is already in range; anything
             // outside waits for blur so typing "1" toward "170" isn't snapped.
-            if (parsed !== null && parsed >= min && parsed <= max) {
+            const valid = parsed !== null && parsed >= min && parsed <= max
+            onValidityChange?.(valid)
+            if (valid && parsed !== null) {
               onChange(parsed)
             }
           }}
@@ -122,10 +137,17 @@ export function NumberQuestion({
           <Plus size={16} weight="bold" />
         </button>
       </div>
+      <span
+        id={`${inputId}-error`}
+        role={error ? "alert" : undefined}
+        className="text-xs text-destructive"
+      >
+        {error}
+      </span>
       <span className="sr-only">
         <Message
           text={"Current value: {{value0}}"}
-          values={{ value0: display }}
+          values={{ value0: empty ? tr("Not confirmed") : display }}
         />
       </span>
     </div>

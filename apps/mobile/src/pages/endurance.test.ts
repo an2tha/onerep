@@ -43,10 +43,10 @@ describe("endurance tab", () => {
     expect(SOURCE).not.toContain("ExperimentalFeatureGuard")
   })
 
-  test("uses the shared hold-to-start training hero", () => {
-    expect(SOURCE).toContain("HoldToStartDial")
+  test("uses the shared tap-to-start training hero", () => {
+    expect(SOURCE).toContain("StartWorkoutDial")
     expect(SOURCE).toContain("TrainingStatDial")
-    expect(SOURCE).toContain("Hold to start GPS tracking.")
+    expect(SOURCE).toContain("Tap to start GPS tracking.")
     expect(SOURCE).toContain("/endurance/active?sport=")
   })
 

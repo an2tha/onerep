@@ -26,7 +26,6 @@ class MainActivity : BridgeActivity() {
         registerPlugin(NativeTabBarPlugin::class.java)
         registerPlugin(OtaTrustPlugin::class.java)
         registerPlugin(PushSupportPlugin::class.java)
-        registerPlugin(NeedlePlugin::class.java)
         intent = rewriteHealthRationale(intent)
         super.onCreate(savedInstanceState)
     }

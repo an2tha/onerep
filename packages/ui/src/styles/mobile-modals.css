@@ -163,12 +163,6 @@
     background-color: transparent;
   }
 
-  /* Quick Add and Flavours already use a glass reveal. Retain their blur-free
-     full-screen animation, which avoids the documented mobile readback cost. */
-  :root .quick-add-more::before {
-    box-shadow: inset 0 1px 0 var(--mobile-modal-edge);
-  }
-
   @supports not (
     (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
   ) {

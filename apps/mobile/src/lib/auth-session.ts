@@ -42,8 +42,6 @@ const DEVICE_LOCAL_KEY_PREFIXES = [
   "onerep:ota:",
   "onerep:prelogin-onboarding-seen",
   "onerep:preset-superset-tip-hidden",
-  "onerep:quick-add-fab-pos",
-  "onerep:quick-add-hint-seen",
   "onerep:rest-bell-enabled",
   "onerep:rest-vibration-enabled",
   "onerep:server-override",

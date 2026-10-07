@@ -1,0 +1,437 @@
+/* A quiet photographic star field, panning between questions without WebGL. */
+.starry-onboarding.setup-shell {
+  --background: #040812;
+  --foreground: #edf1f8;
+  --muted-foreground: #a8b4c8;
+  --surface-panel: #0c1220;
+  --surface-raised: #111a29;
+  --muted: #182030;
+  --border: rgb(203 220 248 / 15%);
+  --divider: rgb(203 220 248 / 12%);
+  --input: rgb(203 220 248 / 28%);
+  --ring: #c6d6ed;
+  --destructive: #ffaaa5;
+  position: relative;
+  isolation: isolate;
+  overflow-x: clip;
+  display: block;
+  color-scheme: dark;
+  color: var(--foreground);
+  background: var(--background);
+  font-family: "Instrument Sans Variable", sans-serif;
+}
+.starry-onboarding .setup-starry-backdrop {
+  position: fixed;
+  z-index: -1;
+  inset: -18%;
+  transform: translate3d(
+    calc(var(--star-pan-x, 0%) + var(--star-drag, 0px)),
+    var(--star-pan-y, 0%),
+    0
+  );
+  transition: transform 1800ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  pointer-events: none;
+  background:
+    linear-gradient(
+      180deg,
+      rgb(4 8 18 / 55%),
+      rgb(4 8 18 / 83%) 48%,
+      rgb(4 8 18 / 92%)
+    ),
+    url("/onboarding-galaxy/deep-space.webp") center / cover no-repeat;
+}
+.starry-onboarding .setup-main {
+  height: auto;
+  min-height: 100svh;
+}
+.starry-onboarding .setup-topbar {
+  padding: calc(env(safe-area-inset-top) + 16px) clamp(24px, 4vw, 56px) 12px;
+  gap: 12px;
+  color: var(--muted-foreground);
+  background: transparent;
+  font-size: 12px;
+}
+.starry-onboarding .setup-topbar > button {
+  padding: 0 8px;
+  background: transparent;
+  font-weight: 400;
+}
+.starry-onboarding .setup-topbar > button:first-child {
+  margin-left: -12px;
+  width: 44px;
+  display: grid;
+  place-items: center;
+}
+.starry-onboarding .setup-topbar > span {
+  margin-left: auto;
+  text-align: right;
+  font-size: 11px;
+}
+.starry-onboarding .setup-content {
+  display: flex;
+  overflow: visible;
+  touch-action: pan-y pinch-zoom;
+}
+.starry-onboarding .setup-page {
+  width: min(100%, 580px);
+  max-width: none;
+  margin: 0 auto;
+  padding: 64px 28px calc(env(safe-area-inset-bottom) + 80px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-self: stretch;
+  text-align: center;
+  transform: translate3d(var(--question-drag, 0px), 0, 0);
+  transition: transform 500ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+.starry-onboarding .setup-page h1 {
+  margin: 0 auto;
+  max-width: 19ch;
+  font-size: clamp(30px, 3.5vw, 44px);
+  line-height: 1.15;
+  font-weight: 450;
+  letter-spacing: -0.04em;
+  text-wrap: balance;
+}
+.starry-onboarding .setup-description {
+  margin: 20px auto 0;
+  max-width: 40ch;
+  font-size: 13px;
+  line-height: 1.65;
+}
+.starry-onboarding .setup-controls {
+  margin-top: 40px;
+  gap: 24px;
+}
+.starry-onboarding.setup-shell .onboarding-chat-replies {
+  gap: 10px;
+}
+.starry-onboarding.setup-shell .onboarding-chat-chip {
+  position: relative;
+  justify-content: center;
+  min-height: 60px;
+  padding: 12px 28px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  box-shadow: none;
+  color: #c5cedd;
+  text-align: center;
+  font-size: 17px;
+  font-weight: 450;
+  line-height: 1.4;
+  transition:
+    color 180ms ease,
+    transform 180ms ease;
+}
+.starry-onboarding.setup-shell .onboarding-chat-chip[data-selected="true"] {
+  background: transparent;
+  color: var(--foreground);
+}
+.starry-onboarding.setup-shell .onboarding-chat-chip-hint {
+  margin-top: 5px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-weight: 400;
+}
+.starry-onboarding .onboarding-choice-mark {
+  position: absolute;
+  right: 6px;
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+.starry-onboarding
+  .onboarding-chat-chip[data-selected="true"]
+  .onboarding-choice-mark,
+.starry-onboarding .onboarding-chat-chip:hover .onboarding-choice-mark,
+.starry-onboarding .onboarding-chat-chip:focus-visible .onboarding-choice-mark {
+  opacity: 0.85;
+}
+.starry-onboarding.setup-shell .onboarding-chat-card,
+.starry-onboarding.setup-shell .onboarding-review-card,
+.starry-onboarding .onboarding-number-list,
+.starry-onboarding .onboarding-option-list,
+.starry-onboarding .onboarding-multi-list,
+.starry-onboarding .setup-review-list {
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  text-align: left;
+}
+.starry-onboarding .onboarding-question-title {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-weight: 400;
+}
+.starry-onboarding .onboarding-number-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px 12px;
+  padding: 18px 0;
+}
+.starry-onboarding .onboarding-number-row > [id] {
+  grid-column: 1 / -1;
+}
+.starry-onboarding .onboarding-number-row > [id]:empty {
+  display: none;
+}
+.starry-onboarding .onboarding-number-row .native-row-title {
+  font-size: 14px;
+  font-weight: 450;
+}
+.starry-onboarding .onboarding-number-row .native-row-detail {
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+.starry-onboarding .onboarding-number-input {
+  width: 64px;
+  border: 0;
+  border-bottom: 1px solid var(--input);
+  border-radius: 0;
+  background: transparent;
+  font-size: 22px;
+  font-weight: 450;
+}
+.starry-onboarding .onboarding-stepper-button,
+.starry-onboarding .onboarding-unit-button {
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  font-weight: 400;
+  color: var(--muted-foreground);
+}
+.starry-onboarding .onboarding-multi-list {
+  grid-template-columns: 1fr;
+}
+.starry-onboarding .onboarding-multi-option,
+.starry-onboarding .onboarding-option {
+  min-height: 48px;
+  padding: 12px 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  font-size: 14px;
+  font-weight: 400;
+}
+.starry-onboarding .onboarding-multi-option[data-selected="true"],
+.starry-onboarding .onboarding-option[data-selected="true"] {
+  background: transparent;
+  box-shadow: none;
+  color: var(--foreground);
+}
+.starry-onboarding .onboarding-multi-option > span > span > svg {
+  display: none;
+}
+.starry-onboarding .onboarding-multi-option > span > svg {
+  position: absolute;
+  right: 0;
+  top: calc(50% - 7px);
+}
+.starry-onboarding .onboarding-multi-option:not([data-selected="true"])::after {
+  content: "";
+  position: absolute;
+  right: 1px;
+  top: calc(50% - 6px);
+  width: 12px;
+  height: 12px;
+  border: 1px solid #7c899e;
+  border-radius: 3px;
+}
+.starry-onboarding .onboarding-multi-option {
+  position: relative;
+  padding-right: 28px;
+}
+.starry-onboarding.setup-shell .onboarding-primary-button {
+  width: auto;
+  min-height: 44px;
+  margin: 28px auto 0;
+  padding: 8px 16px;
+  justify-content: center;
+  gap: 10px;
+  border: 0;
+  border-radius: 4px;
+  color: #bdc8da;
+  background: transparent;
+  box-shadow: none;
+  font-size: 13px;
+  font-weight: 450;
+}
+.starry-onboarding .onboarding-primary-button:disabled {
+  opacity: 0.4;
+}
+.starry-onboarding .setup-page[data-stage="safety"],
+.starry-onboarding .setup-page[data-stage="review"],
+.starry-onboarding .setup-page[data-stage="assistant"] {
+  justify-content: flex-start;
+  padding-top: 48px;
+}
+.starry-onboarding .setup-review-list button {
+  padding: 18px 0;
+}
+.starry-onboarding .setup-review-list strong {
+  font-weight: 450;
+}
+.starry-onboarding .setup-review-list small {
+  font-size: 12px;
+  line-height: 1.5;
+}
+.starry-onboarding .setup-review-list svg {
+  width: 14px;
+  color: var(--muted-foreground);
+}
+.starry-onboarding .onboarding-review-card {
+  margin-top: 28px;
+}
+.starry-onboarding .onboarding-review-card .native-row-title,
+.starry-onboarding .onboarding-review-card .native-row-value {
+  font-weight: 450;
+  font-size: 14px;
+}
+.starry-onboarding .onboarding-review-hero .native-summary-value {
+  font-size: 32px;
+  font-weight: 450;
+}
+.starry-onboarding .onboarding-chat-review > label {
+  padding: 20px 0;
+  margin-top: 20px;
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  text-align: left;
+}
+.starry-onboarding .setup-choices button {
+  border: 0;
+  background: transparent;
+  color: var(--muted-foreground);
+}
+.starry-onboarding .setup-choices button[aria-pressed="true"] {
+  background: transparent;
+  color: var(--foreground);
+  text-decoration: underline;
+  text-underline-offset: 6px;
+}
+.starry-onboarding .setup-field select {
+  background: var(--surface-panel);
+  border: 0;
+  border-bottom: 1px solid var(--input);
+  border-radius: 0;
+}
+.starry-onboarding .setup-preferences,
+.starry-onboarding .setup-import-guide,
+.starry-onboarding .setup-connections {
+  text-align: left;
+}
+.starry-onboarding .setup-sidebar {
+  position: absolute;
+  z-index: 5;
+  top: calc(env(safe-area-inset-top) + 72px);
+  left: clamp(24px, 4vw, 56px);
+  width: min(310px, calc(100vw - 48px));
+  max-height: calc(100svh - env(safe-area-inset-top) - 100px);
+  overflow-y: auto;
+  padding: 24px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #0b1220;
+  box-shadow: 0 12px 40px rgb(0 0 0 / 30%);
+}
+.starry-onboarding .setup-sidebar[hidden] {
+  display: none;
+}
+.starry-onboarding .setup-sidebar ol {
+  display: grid;
+  width: auto;
+  padding: 0;
+}
+.starry-onboarding .setup-sidebar button {
+  width: 100%;
+  white-space: normal;
+}
+.starry-onboarding .setup-sidebar button[aria-current="step"] {
+  background: rgb(203 220 248 / 7%);
+  color: var(--foreground);
+  font-weight: 500;
+}
+.starry-onboarding .setup-brand {
+  font-size: 18px;
+}
+.starry-onboarding .setup-brand > span {
+  width: 100%;
+  margin: 0;
+  padding-left: 42px;
+}
+.starry-onboarding .setup-sidebar > p {
+  display: block;
+}
+.starry-onboarding button:focus-visible,
+.starry-onboarding input:focus-visible,
+.starry-onboarding select:focus-visible,
+.starry-onboarding textarea:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 4px;
+}
+@media (hover: hover) {
+  .starry-onboarding button:not(:disabled):hover {
+    filter: none;
+    color: #fff;
+  }
+}
+@media (max-width: 360px) {
+  .starry-onboarding .setup-page {
+    padding-inline: 22px;
+  }
+  .starry-onboarding .onboarding-stepper-button {
+    width: 36px;
+  }
+  .starry-onboarding .onboarding-number-input {
+    width: 52px;
+  }
+}
+.starry-onboarding[data-dragging="true"] .setup-page,
+.starry-onboarding[data-dragging="true"] .setup-starry-backdrop {
+  transition: none;
+}
+.starry-onboarding[data-motion="leaving"] .setup-page {
+  animation: starry-question-depart 480ms cubic-bezier(0.4, 0, 0.6, 1) both;
+}
+.starry-onboarding[data-motion="entering"] .setup-page {
+  animation: starry-question-arrive 900ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+@keyframes starry-question-depart {
+  0%,
+  22% {
+    opacity: 1;
+    transform: translate3d(var(--question-leave-from, 0px), 0, 0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(calc(var(--question-direction, 1) * -50px), 0, 0);
+  }
+}
+@keyframes starry-question-arrive {
+  0%,
+  12% {
+    opacity: 0;
+    transform: translate3d(calc(var(--question-direction, 1) * 64px), 0, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .starry-onboarding .setup-page,
+  .starry-onboarding .setup-starry-backdrop {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+}

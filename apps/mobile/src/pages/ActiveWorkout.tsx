@@ -101,7 +101,6 @@ import {
   pickBestExerciseMatch,
   readActiveWorkoutDraft,
   removeExFromItems,
-  replaceExerciseInItems,
   makeSet,
   restTimerKey,
   retroWorkoutDraftKey,
@@ -126,6 +125,11 @@ import type {
 } from "@/lib/workout-logging"
 import type { WeightSelectorChange } from "./active-workout/weight-selector-sheet"
 import { ActiveExerciseCard } from "./active-workout/active-exercise-card"
+import {
+  SwapExerciseSheet,
+  type SwapPrescription,
+} from "@/components/swap-exercise-sheet"
+import { swapExercisePlan } from "@/lib/exercise-swap"
 import { NotchRestTimer } from "./active-workout/notch-rest-timer"
 import { FocusWorkoutView } from "./active-workout/focus-view"
 import { AddExerciseSheet } from "./active-workout/add-exercise-sheet"
@@ -596,6 +600,11 @@ function ActiveWorkoutSession() {
   } | null>(null)
   // When set, the exercise picker replaces this exercise instead of adding.
   const [swapTarget, setSwapTarget] = useState<string | null>(null)
+  const [swapUndo, setSwapUndo] = useState<{
+    beforeItems: WorkoutItem[]
+    beforeData: Record<string, ExerciseState>
+    after: string
+  } | null>(null)
   // Photos and instructions, shown in place so the session is not left behind.
   const [infoSheet, setInfoSheet] = useState<{
     exerciseId: string
@@ -1796,14 +1805,39 @@ function ActiveWorkoutSession() {
           match.draftExercise
         )
 
+        // A Coach swap follows the same history rules as a manual swap.
+        // It must never erase performed sets or transfer a different lift's load.
+        nextState.sets = nextState.sets.map((set) => ({
+          ...set,
+          weight: "",
+          completed: false,
+        }))
+        nextState.barWeight = ""
+        nextState.barType = "custom"
         setExerciseLookup((prev) => ({ ...prev, [exercise.id]: exercise }))
-        setItems((prev) => replaceExerciseInItems(prev, targetId, exercise.id))
-        setExData((prev) => {
-          const next = { ...prev }
-          if (exercise.id !== targetId) delete next[targetId]
-          next[exercise.id] = nextState
-          return next
-        })
+        if (exercise.id === targetId) {
+          const completed =
+            exData[targetId]?.sets.filter((set) => set.completed) ?? []
+          setExData((prev) => ({
+            ...prev,
+            [targetId]: {
+              ...nextState,
+              sets: [...completed, ...nextState.sets],
+            },
+          }))
+        } else {
+          const next = swapExercisePlan(
+            items,
+            exData,
+            targetId,
+            exercise.id,
+            nextState,
+            exerciseLookup[targetId]?.category === "cardio" &&
+              hasCardioStateDetails(exData[targetId]?.cardio)
+          )
+          setItems(next.items)
+          setExData(next.exerciseData)
+        }
         setCollapsed((prev) => {
           if (exercise.id === targetId) return prev
           const next = { ...prev }
@@ -1964,30 +1998,45 @@ function ActiveWorkoutSession() {
       name: exerciseLookup[id]?.name ?? "Exercise",
     })
   }
-  /** Manual counterpart to the AI swap: same slot, fresh sets. */
-  function swapExercise(targetId: string, ex: Exercise) {
-    if (ex.id !== targetId && uniqueExerciseIds.includes(ex.id)) {
-      toast.error(
-        translateError(
-          tr("{{value0}} is already in this workout.", { value0: ex.name })
-        )
-      )
-      return
-    }
+  function swapExercise(
+    targetId: string,
+    ex: Exercise,
+    prescription: SwapPrescription,
+    scope: "session" | "preset" | "block"
+  ) {
+    const replacement = makeDefaultExerciseState(ex, false)
+    replacement.barWeight = ""
+    replacement.barType = "custom"
+    replacement.sets =
+      ex.category === "cardio"
+        ? []
+        : Array.from({ length: prescription.sets }, () => ({
+            ...makeSet(false),
+            reps: prescription.reps,
+            weight: "",
+            restSeconds: prescription.restSeconds,
+          }))
+    const next = swapExercisePlan(
+      items,
+      exData,
+      targetId,
+      ex.id,
+      replacement,
+      exerciseLookup[targetId]?.category === "cardio" &&
+        hasCardioStateDetails(exData[targetId]?.cardio)
+    )
     setExerciseLookup((prev) => ({ ...prev, [ex.id]: ex }))
-    setItems((prev) => replaceExerciseInItems(prev, targetId, ex.id))
-    setExData((prev) => {
-      const next = { ...prev }
-      if (ex.id !== targetId) delete next[targetId]
-      next[ex.id] = makeDefaultExerciseState(ex, isRetro)
-      return next
-    })
-    setCollapsed((prev) => {
-      if (ex.id === targetId) return prev
-      const next = { ...prev }
-      delete next[targetId]
-      return next
-    })
+    setItems(next.items)
+    setExData(next.exerciseData)
+    setSwapUndo(
+      scope === "session"
+        ? {
+            beforeItems: items,
+            beforeData: exData,
+            after: JSON.stringify([next.items, next.exerciseData]),
+          }
+        : null
+    )
     setSwapTarget(null)
     toast.success(tr("Swapped to {{value0}}", { value0: ex.name }))
   }
@@ -3137,13 +3186,56 @@ function ActiveWorkoutSession() {
           onClose={() => setSearchOpen(false)}
         />
       )}
-      {swapTarget !== null && (
-        <AddExerciseSheet
-          addedIds={uniqueExerciseIds}
-          onAdd={(ex) => swapExercise(swapTarget, ex)}
-          onClose={() => setSwapTarget(null)}
-        />
+      {swapUndo && swapUndo.after === JSON.stringify([items, exData]) && (
+        <div
+          role="status"
+          className="fixed right-4 bottom-24 left-4 z-40 mx-auto flex max-w-md items-center justify-between gap-4 rounded-2xl bg-card px-4 py-2 shadow-lg"
+        >
+          <span className="text-sm">{tr("Exercise swapped")}</span>
+          <button
+            type="button"
+            className="min-h-11 text-sm font-medium"
+            onClick={() => {
+              setItems(swapUndo.beforeItems)
+              setExData(swapUndo.beforeData)
+              setSwapUndo(null)
+            }}
+          >
+            {tr("Undo")}
+          </button>
+        </div>
       )}
+      {swapTarget !== null &&
+        exerciseLookup[swapTarget] &&
+        exData[swapTarget] && (
+          <SwapExerciseSheet
+            exercise={exerciseLookup[swapTarget]}
+            excludedIds={uniqueExerciseIds}
+            sessionNames={uniqueExerciseIds.map(
+              (id) => exerciseLookup[id]?.name ?? id
+            )}
+            currentPrescription={{
+              sets: Math.max(
+                1,
+                exData[swapTarget].sets.filter((set) => !set.completed).length
+              ),
+              reps:
+                exData[swapTarget].sets.find((set) => !set.completed)?.reps ||
+                "8-12",
+              restSeconds:
+                exData[swapTarget].sets.find((set) => !set.completed)
+                  ?.restSeconds ?? 90,
+            }}
+            completedSets={
+              exData[swapTarget].sets.filter((set) => set.completed).length
+            }
+            preset={presets?.find((row) => (row.id ?? row._id) === presetId)}
+            onApply={(ex, prescription, scope) =>
+              swapExercise(swapTarget, ex, prescription, scope)
+            }
+            onClose={() => setSwapTarget(null)}
+          />
+        )}
       {confirmRemove && (
         <RemoveExerciseSheet
           exerciseName={confirmRemove.name}

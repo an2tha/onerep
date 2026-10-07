@@ -1023,6 +1023,9 @@ export const exportMyData = query({
       mealPrepBatches,
       fastingSessions,
       nutritionProgrammes,
+      guidedProgrammes,
+      guidedProgrammeGenerations,
+      guidedProgrammeCheckIns,
       groceryLists,
       diaryShares,
       diaryComments,
@@ -1166,6 +1169,9 @@ export const exportMyData = query({
         .withIndex("by_userId", (q) => q.eq("userId", user._id))
         .collect(),
       ctx.db.query("nutritionProgrammes").withIndex("by_userId", q => q.eq("userId", user._id)).collect(),
+      ctx.db.query("guidedProgrammes").withIndex("by_userId", q => q.eq("userId", user._id)).collect(),
+      ctx.db.query("guidedProgrammeGenerations").withIndex("by_userId", q => q.eq("userId", user._id)).collect(),
+      ctx.db.query("guidedProgrammeCheckIns").withIndex("by_userId", q => q.eq("userId", user._id)).collect(),
       ctx.db
         .query("groceryLists")
         .withIndex("by_userId", (q) => q.eq("userId", user._id))
@@ -1231,6 +1237,9 @@ export const exportMyData = query({
         mealPrepBatches,
         fastingSessions,
         nutritionProgrammes,
+        guidedProgrammes,
+        guidedProgrammeGenerations,
+        guidedProgrammeCheckIns,
         groceryLists,
         diaryShares,
         diaryComments,

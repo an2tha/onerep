@@ -1,5 +1,5 @@
 /* The chosen palette owns these task canvases in both appearances. */
-:root .quick-add-more {
+:root .flavours-overlay {
   --task-wash: 7%;
   --task-surface: color-mix(
     in srgb,
@@ -19,13 +19,13 @@
   );
 }
 
-:root:is(.dark, [data-theme="dark"]) .quick-add-more {
+:root:is(.dark, [data-theme="dark"]) .flavours-overlay {
   --task-wash: 4%;
 }
 
 /* No pale scrim, artificial grain or unrelated page leaking through. */
-:root .quick-add-more::before,
-:root .quick-add-more::after {
+:root .flavours-overlay::before,
+:root .flavours-overlay::after {
   content: none;
 }
 

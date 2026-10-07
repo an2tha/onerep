@@ -1,4 +1,4 @@
-import { AI_SHARING_VERSION, hasAiSharingConsent } from "../lib/aiSharing";
+import { isAiSharingEnabled } from "../lib/aiSharing";
 import { ConvexError, v } from "convex/values";
 import { internal } from "../_generated/api";
 import {
@@ -35,6 +35,7 @@ const AI_USAGE_SOURCES = [
   "in_workout",
   "data_import",
   "recipe_generation",
+  "guided_programme",
 ] as const;
 
 export type AiUsageSource = (typeof AI_USAGE_SOURCES)[number];
@@ -57,6 +58,7 @@ export const AI_USAGE_COST: Record<AiUsageSource, number> = {
   // One preview maps up to three files, a model call each.
   data_import: 2,
   recipe_generation: 1,
+  guided_programme: 5,
   in_workout: 1,
 };
 
@@ -161,6 +163,7 @@ export const consumeMonthlyQuota = internalMutation({
       v.literal("in_workout"),
       v.literal("data_import"),
       v.literal("recipe_generation"),
+      v.literal("guided_programme"),
     ),
   },
   handler: async (
@@ -267,6 +270,7 @@ export const refundMonthlyQuota = internalMutation({
       v.literal("in_workout"),
       v.literal("data_import"),
       v.literal("recipe_generation"),
+      v.literal("guided_programme"),
     ),
   },
   handler: async (ctx, args) => {
@@ -432,7 +436,7 @@ export async function aiSharingAllowed(
     .query("userPreferences")
     .withIndex("by_userId", (q) => q.eq("userId", userId))
     .unique();
-  return hasAiSharingConsent(preferences?.aiSharingConsent);
+  return isAiSharingEnabled(preferences?.aiSharingConsent);
 }
 
 export const isSharingAllowed = internalQuery({
@@ -444,11 +448,8 @@ export const setSharingConsent = mutation({
   args: { granted: v.boolean(), version: v.number() },
   handler: async (ctx, args) => {
     const user = await getAuthUser(ctx);
-    if (args.version !== AI_SHARING_VERSION) {
-      throw new ConvexError(
-        "Please update OneRep to review the current AI sharing disclosure.",
-      );
-    }
+    // Keep the legacy API name and version argument for installed clients.
+    // Version records the disclosure shown; it does not override on/off choice.
     const preferences = await ctx.db
       .query("userPreferences")
       .withIndex("by_userId", (q) => q.eq("userId", user._id))
@@ -465,5 +466,49 @@ export const setSharingConsent = mutation({
         updatedAt,
       });
     return null;
+  },
+});
+
+/** Admin-only rollback of a backed-up temporary consent change. */
+export const restoreTemporarySharingConsent = internalMutation({
+  args: {
+    entries: v.array(v.object({
+      preferenceId: v.id("userPreferences"),
+      expectedConsent: v.object({ granted: v.boolean(), version: v.number(), updatedAt: v.number() }),
+      previousConsent: v.optional(v.object({ granted: v.boolean(), version: v.number(), updatedAt: v.number() })),
+      previousUpdatedAt: v.optional(v.number()),
+      createdByRepair: v.boolean(),
+    })),
+  },
+  handler: async (ctx, { entries }) => {
+    if (entries.length > 200) throw new Error("Restore at most 200 permissions per batch.");
+    let restored = 0;
+    let deleted = 0;
+    let skipped = 0;
+    for (const entry of entries) {
+      const row = await ctx.db.get("userPreferences", entry.preferenceId);
+      const consent = row?.aiSharingConsent;
+      // A subsequent opt-in or opt-out always wins over the backup.
+      if (!row || !consent || consent.granted !== entry.expectedConsent.granted ||
+        consent.version !== entry.expectedConsent.version || consent.updatedAt !== entry.expectedConsent.updatedAt) {
+        skipped++;
+        continue;
+      }
+      const otherwiseUnchanged = row.updatedAt === entry.expectedConsent.updatedAt;
+      if (entry.createdByRepair && !entry.previousConsent && otherwiseUnchanged &&
+        row.lastActiveTimezone === "UTC" && Object.keys(row).every(key =>
+          ["_id", "_creationTime", "userId", "lastActiveTimezone", "aiSharingConsent", "updatedAt"].includes(key))) {
+        await ctx.db.delete("userPreferences", row._id);
+        deleted++;
+      } else {
+        await ctx.db.patch("userPreferences", row._id, {
+          aiSharingConsent: entry.previousConsent,
+          ...(otherwiseUnchanged && entry.previousUpdatedAt !== undefined
+            ? { updatedAt: entry.previousUpdatedAt } : {}),
+        });
+      }
+      restored++;
+    }
+    return { restored, deleted, skipped };
   },
 });

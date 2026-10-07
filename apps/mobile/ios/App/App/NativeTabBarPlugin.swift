@@ -235,7 +235,17 @@ public class NativeTabBarPlugin: CAPPlugin, CAPBridgedPlugin {
         // name reaches an older shell.
         let image = UIImage(systemName: item.symbol, withConfiguration: config)
             ?? UIImage(systemName: "sparkles", withConfiguration: config)
-        button.setImage(image, for: .normal)
+        var configuration = UIButton.Configuration.plain()
+        configuration.image = image
+        configuration.title = item.label
+        configuration.imagePlacement = .top
+        configuration.imagePadding = 4
+        configuration.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { attributes in
+            var result = attributes
+            result.font = UIFont.preferredFont(forTextStyle: .caption2)
+            return result
+        }
+        button.configuration = configuration
         button.tintColor = iconTint(active: false)
         // The pill divides the room it has; a button that insists on its
         // intrinsic width would break the layout instead of getting narrower.
@@ -262,12 +272,12 @@ public class NativeTabBarPlugin: CAPPlugin, CAPBridgedPlugin {
             button.backgroundColor = item.id == id ? chipColor : .clear
         }
         toggleButton?.setImage(UIImage(systemName: items.first { $0.id == id }?.symbol ?? "line.3.horizontal", withConfiguration: UIImage.SymbolConfiguration(pointSize: 23, weight: .semibold)), for: .normal)
-        setExpanded(false, animated: animated)
+        setExpanded(true, animated: false)
     }
 
     private func applyVisibility(_ next: Bool) {
         visible = next
-        if !next { setExpanded(false) }
+
         self.container?.isHidden = !next
         guard let container else { return }
         UIView.animate(

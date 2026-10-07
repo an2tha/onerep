@@ -83,7 +83,7 @@ describe("bottom bar accessibility contract", () => {
     expect(nativeTabs).not.toContain("getNativeTabItems")
   })
 
-  test("coach keeps a native-safe icon with an iOS fallback", () => {
+  test("native navigation keeps More visible and uses an iOS symbol fallback", () => {
     const nativeTabs = readFileSync(
       new URL("../lib/native-tab-bar.ts", import.meta.url),
       "utf8"
@@ -94,7 +94,7 @@ describe("bottom bar accessibility contract", () => {
     )
 
     expect(nativeTabs).toContain(
-      '{ id: "/coach", symbol: "sparkles", label: "Coach" }'
+      '{ id: "/more", symbol: "ellipsis", label: "More" }'
     )
     expect(iosPlugin).toContain(
       '?? UIImage(systemName: "sparkles", withConfiguration: config)'

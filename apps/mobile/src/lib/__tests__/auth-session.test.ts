@@ -100,7 +100,6 @@ describe("auth session helpers", () => {
       ["onerep:ui-language", "en"],
       ["onerep:server-override", "{}"],
       ["onerep:ota:pending-bundle", "{}"],
-      ["onerep:quick-add-hint-seen", "1"],
       ["onerep:prelogin-onboarding-seen", "true"],
     ]
     for (const [key, value] of devicePreferences) {

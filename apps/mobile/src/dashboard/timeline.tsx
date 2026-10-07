@@ -1,15 +1,8 @@
 import { Message, tr } from "@repo/ui/i18n"
+import { useEffect, useMemo, useRef, useState } from "react"
 import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type PointerEvent as ReactPointerEvent,
-} from "react"
-import {
-  Barbell,
   CaretDown,
-  CaretUp,
+  Barbell,
   Clock,
   ForkKnife,
   PencilSimple,
@@ -54,8 +47,7 @@ function EntryIcon({ kind, size }: { kind: TimelineEntryKind; size: number }) {
 // into an outlined card holding that entry's full numbers, so selecting
 // something on the wheel and reading it are the same gesture. The ruler underneath fades out inside the
 // lane rather than being hidden behind it — which is why the band can stay
-// this quiet and still be the thing you're obviously pointing with. Every
-// event dot can also be picked off the line and dragged to a new minute.
+// this quiet and still be the thing you're obviously pointing with. Use Edit to save a time correction through the owning log.
 //
 // Letting go of a scroll always settles on the hour underneath (a light tap
 // each time it does), and sliding into an event's morph gets the lighter,
@@ -98,6 +90,8 @@ const STACK_GAP = 6
 const FACT_REVEAL_PX = 150
 
 function parseTimeToMinutes(time: string): number {
+  const canonical = /^(\d{2}):(\d{2})$/.exec(time)
+  if (canonical) return Number(canonical[1]) * 60 + Number(canonical[2])
   const match = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i.exec(time.trim())
   if (!match) return 0
   const isPM = /pm/i.test(match[3])
@@ -109,25 +103,16 @@ function minutesToTime(minutes: number): string {
   const clamped = Math.max(0, Math.min(DAY_MINUTES - 1, Math.round(minutes)))
   const hour24 = Math.floor(clamped / 60)
   const minute = clamped % 60
-  const period = hour24 < 12 ? "AM" : "PM"
-  const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12
-  return `${hour12}:${String(minute).padStart(2, "0")} ${period}`
+  return `${String(hour24).padStart(2, "0")}:${String(minute).padStart(2, "0")}`
 }
 
 function formatHourLabel(minutes: number) {
   const hour = Math.floor(minutes / 60) % 24
-  const period = hour < 12 ? "AM" : "PM"
-  const displayHour = hour % 12 === 0 ? 12 : hour % 12
-  return `${displayHour} ${period}`
+  return `${String(hour).padStart(2, "0")}:00`
 }
 
 function topForMinutes(minutes: number) {
   return (minutes / 60) * HOUR_PX
-}
-
-function nowInMinutes() {
-  const now = new Date()
-  return now.getHours() * 60 + now.getMinutes()
 }
 
 // The wheel's illusion of depth: rows fade and shrink the farther they sit
@@ -141,7 +126,6 @@ function wheelDepth(top: number, scrollTop: number, viewportHeight: number) {
 
 export function DayTimeline({
   entries,
-  onEntryTimeChange,
   sleepWindow,
   onEditEntry,
   onDeleteEntry,
@@ -149,7 +133,9 @@ export function DayTimeline({
   onQuickLog,
   isToday = true,
   loading = false,
+  nowMinutes,
 }: {
+  nowMinutes: number
   entries: TimelineEntry[]
   /**
    * Whether the wheel is showing today.
@@ -168,7 +154,6 @@ export function DayTimeline({
    * screen says about it.
    */
   loading?: boolean
-  onEntryTimeChange?: (id: string, time: string) => void
   /** The user's night, in minutes from midnight — may wrap past 24h into
    * the small hours. Null when there is no sleep data to back it. */
   sleepWindow?: { start: number; end: number } | null
@@ -189,19 +174,10 @@ export function DayTimeline({
     undefined
   )
   const lastSnappedHourRef = useRef<number | null>(null)
-  const [draggingId, setDraggingId] = useState<string | null>(null)
   const [scrollTop, setScrollTop] = useState(0)
   const [viewportHeight, setViewportHeight] = useState(0)
   // The clock, read on an interval rather than during render — the line
   // creeps down the ruler as the day does without re-render impurity.
-  const [nowMinutes, setNowMinutes] = useState(() => nowInMinutes())
-  useEffect(() => {
-    const timer = window.setInterval(
-      () => setNowMinutes(nowInMinutes()),
-      30_000
-    )
-    return () => window.clearInterval(timer)
-  }, [])
   useEffect(
     () => () => {
       if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current)
@@ -336,7 +312,7 @@ export function DayTimeline({
   // The stack outlives its own dismissal by one animation: the items fold
   // away farthest-first, and unmounting them on the tap would skip that.
   const stackGroup = expanded ? nearestGroup : null
-  const actionsWidth = single ? 104 : 44
+  const actionsWidth = single ? 140 : 44
 
   const toggleStack = () => {
     hapticTap()
@@ -388,7 +364,7 @@ export function DayTimeline({
         : Math.round(settledMinutes / 5) * 5
       const restTop = topForMinutes(restMinutes)
 
-      if (draggingId === null && Math.abs(restTop - top) > 0.5) {
+      if (Math.abs(restTop - top) > 0.5) {
         node.scrollTo({ top: restTop, behavior: "smooth" })
       }
 
@@ -407,34 +383,6 @@ export function DayTimeline({
     )
   }
 
-  const handleDotPointerDown = (
-    entry: TimelineEntry,
-    event: ReactPointerEvent<HTMLSpanElement>
-  ) => {
-    if (!onEntryTimeChange) return
-    event.currentTarget.setPointerCapture(event.pointerId)
-    setDraggingId(entry.id)
-  }
-
-  const handleDotPointerMove = (
-    entry: TimelineEntry,
-    event: ReactPointerEvent<HTMLSpanElement>
-  ) => {
-    if (draggingId !== entry.id || !onEntryTimeChange) return
-    const rect = contentRef.current?.getBoundingClientRect()
-    if (!rect) return
-    const minutes = ((event.clientY - rect.top - padding) / HOUR_PX) * 60
-    onEntryTimeChange(
-      entry.id,
-      minutesToTime(Math.max(0, Math.min(DAY_MINUTES - 1, minutes)))
-    )
-  }
-
-  const handleDotPointerUp = (event: ReactPointerEvent<HTMLSpanElement>) => {
-    event.currentTarget.releasePointerCapture(event.pointerId)
-    setDraggingId(null)
-  }
-
   return (
     // The parent keys this on the date so the wheel resets to the right hour.
     // Keep the frame itself still: moving the centered anchor during that
@@ -444,15 +392,17 @@ export function DayTimeline({
         an invitation and on a past day reads as a fault. Say which it is —
         and make the sentence the way out of it, since an empty day is
         precisely when the wheel's own + is hardest to notice. */}
-      {!isToday && !loading && entries.length === 0 && (
+      {!loading && entries.length === 0 && (
         <div className="motion-content-in absolute inset-x-0 top-[30%] z-30 flex flex-col items-center gap-2.5">
           <p className="text-[13px] text-muted-foreground">
-            {tr("Nothing logged this day.")}
+            {isToday
+              ? tr("Nothing logged yet today.")
+              : tr("Nothing logged this day.")}
           </p>
           <button
             type="button"
             onClick={() => onQuickLog?.("past", Math.round(centerMinutes))}
-            className="motion-tactile flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-[12px] font-semibold text-foreground"
+            className="motion-tactile flex min-h-11 items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-[14px] font-semibold text-foreground"
           >
             <Message
               text={"{{value0}}Add to this day"}
@@ -461,8 +411,19 @@ export function DayTimeline({
           </button>
         </div>
       )}
+      {loading && (
+        <p
+          role="status"
+          className="absolute inset-x-0 top-[30%] z-30 text-center"
+        >
+          {tr("Loading your day…")}
+        </p>
+      )}
       <div
         ref={scrollRef}
+        tabIndex={0}
+        role="region"
+        aria-label={tr("Day timeline")}
         className="app-scroll-strip relative h-full overflow-x-hidden overflow-y-auto"
         style={{
           WebkitMaskImage: "linear-gradient(to bottom, transparent, black 18%)",
@@ -828,7 +789,7 @@ export function DayTimeline({
                           })}
                           title={tr("Edit")}
                           onClick={() => onEditEntry(member)}
-                          className="motion-tactile flex size-6 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground"
+                          className="motion-tactile flex size-11 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground"
                         >
                           <PencilSimple size={12} weight="bold" />
                         </button>
@@ -841,7 +802,7 @@ export function DayTimeline({
                           })}
                           title={tr("Delete")}
                           onClick={() => onDeleteEntry(member)}
-                          className="motion-tactile flex size-6 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-destructive"
+                          className="motion-tactile flex size-11 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-destructive"
                         >
                           <Trash size={12} weight="bold" />
                         </button>
@@ -910,7 +871,7 @@ export function DayTimeline({
             const top = topForMinutes(minutes) + padding
             const single = group.members.length === 1
             const entry = group.members[0]
-            const dragging = single && draggingId === entry.id
+            const dragging = false
             const highlighted = nearestGroup?.key === group.key
             const depth = wheelDepth(top, scrollTop, viewportHeight)
             const scale = highlighted ? 1.08 : depth.scale
@@ -960,25 +921,7 @@ export function DayTimeline({
                 }}
               >
                 <span
-                  onPointerDown={(event) =>
-                    single && handleDotPointerDown(entry, event)
-                  }
-                  onPointerMove={(event) =>
-                    single && handleDotPointerMove(entry, event)
-                  }
-                  onPointerUp={handleDotPointerUp}
-                  title={
-                    single && onEntryTimeChange
-                      ? tr("Drag to change time")
-                      : undefined
-                  }
-                  className={`absolute top-0 flex touch-none items-center justify-center rounded-full border-[3px] border-background bg-foreground text-background shadow-[0_0_0_1px_var(--border)] transition-transform select-none ${
-                    single && onEntryTimeChange
-                      ? dragging
-                        ? "scale-125 cursor-grabbing"
-                        : "cursor-grab active:scale-110"
-                      : ""
-                  }`}
+                  className="absolute top-0 flex items-center justify-center rounded-full border-[3px] border-background bg-foreground text-background"
                   style={{ left: LINE_LEFT - 13, width: 28, height: 28 }}
                 >
                   {single ? (
@@ -986,43 +929,6 @@ export function DayTimeline({
                   ) : (
                     <Stack size={13} weight="bold" />
                   )}
-                </span>
-                {/* The drag cue: a pair of chevrons on the axis, above and
-                  below the dot. They fade in as the row approaches the band
-                  — exactly when a drag would be worth starting — and say
-                  "this moves up and down through time" without a word. */}
-                {single && onEntryTimeChange && (
-                  <>
-                    <CaretUp
-                      size={9}
-                      weight="bold"
-                      aria-hidden="true"
-                      className="pointer-events-none absolute text-muted-foreground/70 transition-opacity duration-200"
-                      style={{
-                        left: LINE_LEFT - 4,
-                        top: -13,
-                        opacity: proximityOpacity * 0.9,
-                      }}
-                    />
-                    <CaretDown
-                      size={9}
-                      weight="bold"
-                      aria-hidden="true"
-                      className="pointer-events-none absolute text-muted-foreground/70 transition-opacity duration-200"
-                      style={{
-                        left: LINE_LEFT - 4,
-                        top: 31,
-                        opacity: proximityOpacity * 0.9,
-                      }}
-                    />
-                  </>
-                )}
-                <span
-                  className={`w-16 shrink-0 pt-1 text-[15px] font-semibold tabular-nums transition-colors ${
-                    highlighted ? "text-foreground" : "text-muted-foreground"
-                  }`}
-                >
-                  {minutesToTime(minutes)}
                 </span>
                 <div className="min-w-0">
                   <p className="truncate text-[18px] leading-tight font-semibold text-foreground">
@@ -1089,7 +995,7 @@ function EntryActions({
             event.stopPropagation()
             action.onClick?.()
           }}
-          className="motion-tactile flex size-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className={`motion-tactile flex size-11 items-center justify-center rounded-full transition-colors hover:bg-muted ${action.label === tr("Delete") ? "text-destructive" : "text-muted-foreground hover:text-foreground"}`}
         >
           <action.icon size={14} weight="bold" />
         </button>

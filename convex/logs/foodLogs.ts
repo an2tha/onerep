@@ -408,3 +408,28 @@ export const removeEntries = mutation({
     return { ok: true };
   },
 });
+
+export const updateTime = mutation({
+  args: { date: v.string(), id: v.string(), loggedAt: v.string() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const user = await getAuthUser(ctx);
+    if (!Number.isFinite(Date.parse(args.loggedAt)))
+      throw new Error("Choose a valid time.");
+    const doc = await ctx.db
+      .query("foodLogs")
+      .withIndex("by_userId_date", (q) =>
+        q.eq("userId", user._id).eq("date", args.date),
+      )
+      .unique();
+    if (!doc?.entries.some((entry) => entry.id === args.id))
+      throw new Error("Entry not found. Refresh and try again.");
+    await ctx.db.patch(doc._id, {
+      entries: doc.entries.map((entry) =>
+        entry.id === args.id ? { ...entry, loggedAt: args.loggedAt } : entry,
+      ),
+      updatedAt: Date.now(),
+    });
+    return null;
+  },
+});

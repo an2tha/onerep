@@ -1,4 +1,4 @@
-import { Message, choice, tr, translateError } from "@repo/ui/i18n"
+import { Message, choice, tr } from "@repo/ui/i18n"
 import { useState } from "react"
 import { useMutation, useQuery } from "convex/react"
 import { PrimaryButton, toast } from "@repo/ui"
@@ -8,9 +8,10 @@ import {
   AI_SHARING_RECIPIENTS,
   AI_SHARING_DATA,
   AI_SHARING_PURPOSE,
-  hasAiSharingConsent,
+  isAiSharingEnabled,
 } from "../../../../convex/lib/aiSharing"
 import { MobileSheet } from "./mobile-sheet"
+import { aiSharingErrorMessage } from "@/lib/ai-sharing-error"
 
 export function AiSharingDisclosure({
   concise = false,
@@ -131,7 +132,7 @@ export function AiSharingConsentSheet({ onClose }: { onClose: () => void }) {
           <h2 className="text-xl font-semibold">{tr("Use AI features?")}</h2>
           <p className="text-sm text-muted-foreground">
             {tr(
-              "OneRep needs your permission before sending anything to an AI provider."
+              "You turned off AI data sharing. Turn it back on to use AI features."
             )}
           </p>
         </div>
@@ -151,9 +152,10 @@ export function AiSharingConsentSheet({ onClose }: { onClose: () => void }) {
                 toast.message(tr("AI features are ready to use."))
                 onClose()
               })
-              .catch(() =>
+              .catch((error: unknown) =>
                 setError(
-                  translateError(
+                  aiSharingErrorMessage(
+                    error,
                     tr(
                       "Could not save your permission. No AI request was started. Try again."
                     )
@@ -181,8 +183,7 @@ export function AiSharingConsentSheet({ onClose }: { onClose: () => void }) {
 export function AiSharingSettings() {
   const preferences = useQuery(api.users.users.getPreferences)
   const save = useMutation(api.ai.usage.setSharingConsent)
-  const allowed = hasAiSharingConsent(preferences?.aiSharingConsent)
-  const [open, setOpen] = useState(false)
+  const allowed = isAiSharingEnabled(preferences?.aiSharingConsent)
   const [busy, setBusy] = useState(false)
   return (
     <section
@@ -190,24 +191,24 @@ export function AiSharingSettings() {
       aria-label={tr("AI data sharing")}
     >
       <h3 className="font-semibold">
-        <Message
-          text={"AI data sharing · {{value0}}"}
-          values={{ value0: choice(allowed ? "On" : "Off") }}
-        />
+        {preferences === undefined ? tr("Loading…") : (
+          <Message
+            text={"AI data sharing · {{value0}}"}
+            values={{ value0: choice(allowed ? "On" : "Off") }}
+          />
+        )}
       </h3>
-      <AiSharingDisclosure />
+      <p className="text-sm text-muted-foreground">
+        {tr("AI features are on by default. You can turn them off anytime in Settings → Privacy & sync.")}
+      </p>
       <PrimaryButton
         disabled={busy || preferences === undefined}
         onClick={() => {
-          if (!allowed) {
-            setOpen(true)
-            return
-          }
           setBusy(true)
-          void save({ granted: false, version: AI_SHARING_VERSION })
-            .catch(() =>
+          void save({ granted: !allowed, version: AI_SHARING_VERSION })
+            .catch((error: unknown) =>
               toast.error(
-                translateError(tr("Could not turn off AI sharing. Try again."))
+                aiSharingErrorMessage(error, tr("Could not update AI sharing. Try again."))
               )
             )
             .finally(() => setBusy(false))
@@ -217,9 +218,9 @@ export function AiSharingSettings() {
           ? tr("Saving…")
           : allowed
             ? tr("Turn off AI data sharing")
-            : tr("Review AI permission")}
+            : tr("Turn on AI features")}
       </PrimaryButton>
-      {open && <AiSharingConsentSheet onClose={() => setOpen(false)} />}
+      <AiSharingDisclosure />
     </section>
   )
 }

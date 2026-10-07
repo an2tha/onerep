@@ -1,12 +1,28 @@
-import { OnboardingScene, type OnboardingRoom } from "./onboarding/onboarding-scene"
-import "./onboarding/studio-onboarding.css"
+import {
+  isProgrammeMode,
+  isProgrammeTrack,
+  programmeSetupDestination,
+  type ProgrammeMode,
+  type ProgrammeTrack,
+} from "@/lib/programme-entry"
+import "./onboarding/starry-onboarding.css"
+import { useQuestionMotion } from "./onboarding/use-question-motion"
+import { GalaxyWelcome } from "./onboarding/galaxy-welcome"
 import { GoalsArt } from "@/components/goals-art"
 import "@/components/goals.css"
 import { Message, choice, tr, translateError, uiLocale } from "@repo/ui/i18n"
 import { useAiFeatureGate } from "@/lib/ai-access"
 import { useEnergyUnit } from "@/lib/use-energy-unit"
 import type { SettingsView } from "./Settings"
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react"
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react"
 import { readCachedWeightUnit } from "@/lib/use-weight-unit"
 import { energyDisplay, useTheme } from "@repo/ui"
 import {
@@ -245,6 +261,9 @@ function deriveSafetyMode(
  * value was missing or garbage — keep whatever the server said instead". */
 type OnboardingSnapshot = {
   stage: number
+  programmeMode?: ProgrammeMode
+  programmeTrack?: ProgrammeTrack
+  measurementsConfirmed?: boolean
   nutritionGoal?: NutritionGoal
   experienceLevel?: ExperienceLevel
   sex?: Sex
@@ -283,10 +302,25 @@ function parseOnboardingSnapshot(
   const consent = value.consent as Record<string, unknown> | undefined
 
   return {
-    stage:
-      number(value.stage, 0, stages.length - 1) !== undefined
-        ? Math.round(number(value.stage, 0, stages.length - 1)!)
-        : 0,
+    stage: Math.max(
+      0,
+      coreStages.findIndex(
+        (step) =>
+          step.id ===
+          (typeof value.stageId === "string"
+            ? value.stageId
+            : allStages[
+                typeof value.stage === "number" ? Math.round(value.stage) : 0
+              ]?.id)
+      )
+    ),
+    ...(isProgrammeMode(value.programmeMode)
+      ? { programmeMode: value.programmeMode }
+      : {}),
+    ...(isProgrammeTrack(value.programmeTrack)
+      ? { programmeTrack: value.programmeTrack }
+      : {}),
+    measurementsConfirmed: value.measurementsConfirmed === true,
     ...(isNutritionGoal(value.nutritionGoal)
       ? { nutritionGoal: value.nutritionGoal }
       : {}),
@@ -387,6 +421,8 @@ function CoachPreviewExchange() {
 
 type StageId =
   | "intro"
+  | "programmes"
+  | "programmeTrack"
   | "goal"
   | "experience"
   | "coach"
@@ -403,14 +439,14 @@ type StageId =
   | "connections"
   | "next"
 
-const stages = [
+const allStages = [
   { id: "intro", label: tr("Welcome") },
   { id: "preferences", label: tr("Your app") },
   { id: "goal", label: tr("Goals") },
   { id: "experience", label: tr("Experience") },
   { id: "coach", label: tr("Coach") },
   { id: "sex", label: tr("Baseline") },
-  { id: "measurements", label: tr("Baseline") },
+  { id: "measurements", label: tr("Measurements") },
   { id: "activity", label: tr("Activity") },
   { id: "safety", label: tr("Health") },
   { id: "nutrition", label: tr("Nutrition") },
@@ -420,7 +456,24 @@ const stages = [
   { id: "assistant", label: tr("Coach setup") },
   { id: "review", label: tr("Review") },
   { id: "next", label: tr("What’s next?") },
+  { id: "programmes", label: tr("Programmes") },
+  { id: "programmeTrack", label: tr("Your programme") },
 ] as const satisfies readonly { id: StageId; label: string }[]
+
+const coreStages = (
+  [
+    "intro",
+    "goal",
+    "experience",
+    "sex",
+    "measurements",
+    "activity",
+    "safety",
+    "programmes",
+    "programmeTrack",
+    "review",
+  ] as const
+).map((id) => allStages.find((step) => step.id === id)!)
 
 const IMPORT_MAX_FILES = 3
 const IMPORT_MAX_TOTAL_BYTES = 5 * 1024 * 1024
@@ -514,6 +567,14 @@ function withImportMimeType(file: File): File {
 // Static per stage, so effects can reason about message counts without waiting
 // for a render, and a revisited stage can be shown fully typed in one frame.
 const stageMessages: Record<StageId, string[]> = {
+  programmes: [
+    tr(
+      "Follow a guided plan, build your own, or settle in first. You can change this later."
+    ),
+  ],
+  programmeTrack: [
+    tr("Choose one or both. Each programme has its own plan and schedule."),
+  ],
   next: [
     tr("Open Goals to choose what you want to work on and find a programme."),
   ],
@@ -644,7 +705,6 @@ function QuickReplies<T extends string>({
     <div className="onboarding-chat-replies" role="group">
       {options.map((option) => {
         const selected = value === option.value
-        const OptionIcon = option.icon
         return (
           <button
             key={option.value}
@@ -657,22 +717,15 @@ function QuickReplies<T extends string>({
               onChoose(option.value)
             }}
           >
-            {OptionIcon && (
-              <OptionIcon size={22} weight="regular" aria-hidden="true" />
-            )}
             <span>
               {option.label}
               {option.hint && (
                 <span className="onboarding-chat-chip-hint">{option.hint}</span>
               )}
             </span>
-            {option.hint && (
-              <ArrowRight
-                className="onboarding-choice-arrow"
-                size={18}
-                aria-hidden="true"
-              />
-            )}
+            <span className="onboarding-choice-mark" aria-hidden="true">
+              {selected ? <Check size={14} /> : <ArrowRight size={14} />}
+            </span>
           </button>
         )
       })}
@@ -700,6 +753,7 @@ export function OnboardingMobile() {
   const location = useLocation()
   const coachReplay =
     new URLSearchParams(location.search).get("replay") === "coach"
+  const stages = coachReplay ? allStages : coreStages
   const coachStageIndex = stages.findIndex((item) => item.id === "coach")
   const saveOnboarding = useMutation(api.users.onboarding.save)
   const saveHealthProfile = useMutation(api.logs.calories.setProfile)
@@ -736,6 +790,7 @@ export function OnboardingMobile() {
   const [stepsOpen, setStepsOpen] = useState(false)
   const [initialized, setInitialized] = useState(false)
   const [stage, setStage] = useState(() => (coachReplay ? coachStageIndex : 0))
+  const questionMotion = useQuestionMotion(stage, setStage)
   // Where to jump back to after editing an earlier answer, so a correction
   // costs one tap instead of a forced re-walk through every stage between.
   const [returnStage, setReturnStage] = useState<number | null>(null)
@@ -749,6 +804,13 @@ export function OnboardingMobile() {
     heightCm: 170,
     goal: null,
   })
+  const [measurementValidity, setMeasurementValidity] = useState({
+    age: false,
+    height: false,
+    weight: false,
+  })
+  const measurementsConfirmed =
+    Object.values(measurementValidity).every(Boolean)
   const [profile, setProfile] = useState<HealthProfileDraft>({
     sex: null,
     age: 25,
@@ -766,6 +828,10 @@ export function OnboardingMobile() {
   const [nutritionGoal, setNutritionGoal] = useState<NutritionGoal | null>(null)
   const [experienceLevel, setExperienceLevel] =
     useState<ExperienceLevel | null>(null)
+  const [programmeMode, setProgrammeMode] = useState<ProgrammeMode | null>(null)
+  const [programmeTrack, setProgrammeTrack] = useState<ProgrammeTrack | null>(
+    null
+  )
   const [safetyFlags, setSafetyFlags] = useState<string[]>(["none"])
   const {
     weightTrend,
@@ -898,6 +964,8 @@ export function OnboardingMobile() {
     const mergedHeight = snapshot?.heightCm ?? nextHeight
 
     setDraft({ age: mergedAge, heightCm: mergedHeight, goal: mergedGoal })
+    if (snapshot?.measurementsConfirmed || healthProfile)
+      setMeasurementValidity({ age: true, height: true, weight: true })
     setProfile({
       sex:
         snapshot?.sex ??
@@ -936,6 +1004,8 @@ export function OnboardingMobile() {
           ? onboardingProfile.safetyFlags
           : ["none"]
     )
+    setProgrammeMode(snapshot?.programmeMode ?? null)
+    setProgrammeTrack(snapshot?.programmeTrack ?? null)
     setWeightUnit(snapshot?.weightUnit ?? nextUnit)
     setWaterGoalMl(snapshot?.waterGoalMl ?? preferences?.waterGoalMl ?? 2500)
     if (snapshot && snapshot.stage > 0) {
@@ -972,6 +1042,10 @@ export function OnboardingMobile() {
       ONBOARDING_DRAFT_KEY,
       JSON.stringify({
         stage,
+        stageId: stages[stage]?.id,
+        measurementsConfirmed,
+        programmeMode,
+        programmeTrack,
         nutritionGoal,
         experienceLevel,
         sex: profile.sex,
@@ -992,7 +1066,11 @@ export function OnboardingMobile() {
     experienceLevel,
     initialized,
     nutritionGoal,
+    programmeMode,
+    programmeTrack,
     profile,
+    measurementsConfirmed,
+    stages,
     safetyFlags,
     stage,
     waterGoalMl,
@@ -1011,6 +1089,8 @@ export function OnboardingMobile() {
         ? null
         : parseOnboardingSnapshot(safeLocalStorageGet(ONBOARDING_DRAFT_KEY))
       if (snapshot) {
+        if (snapshot.measurementsConfirmed)
+          setMeasurementValidity({ age: true, height: true, weight: true })
         if (snapshot.nutritionGoal) {
           const goal = nutritionGoalToOnboardingGoal(snapshot.nutritionGoal)
           setNutritionGoal(snapshot.nutritionGoal)
@@ -1030,6 +1110,8 @@ export function OnboardingMobile() {
         if (snapshot.safetyFlags && snapshot.safetyFlags.length > 0) {
           setSafetyFlags(snapshot.safetyFlags)
         }
+        if (snapshot.programmeMode) setProgrammeMode(snapshot.programmeMode)
+        if (snapshot.programmeTrack) setProgrammeTrack(snapshot.programmeTrack)
         if (snapshot.weightUnit) setWeightUnit(snapshot.weightUnit)
         if (snapshot.waterGoalMl !== undefined) {
           setWaterGoalMl(snapshot.waterGoalMl)
@@ -1142,9 +1224,24 @@ export function OnboardingMobile() {
       ? describeImportResult(importResult)
       : tr("Starting fresh"),
     assistant: setupUsed > 0 ? tr("That's all for now") : tr("Skip for now"),
+    programmes:
+      programmeMode === "guided"
+        ? tr("Start a guided programme")
+        : programmeMode === "manual"
+          ? tr("Create my own programme")
+          : tr("Explore first"),
+    programmeTrack:
+      programmeTrack === "both"
+        ? tr("Nutrition and training")
+        : programmeTrack === "nutrition"
+          ? tr("Nutrition")
+          : programmeTrack === "training"
+            ? tr("Training")
+            : tr("Choose later"),
   }
 
   function advance(fromStage: number) {
+    if (questionMotion.locked.current) return
     setError(null)
     hapticMedium()
     // Onboarding is where accounts are won or abandoned, and the only way to
@@ -1154,21 +1251,25 @@ export function OnboardingMobile() {
       index: fromStage,
       total: stages.length,
     })
-    const next = Math.min(fromStage + 1, stages.length - 1)
+    const next =
+      stages[fromStage]?.id === "programmes" && programmeMode === "explore"
+        ? stages.findIndex((step) => step.id === "review")
+        : Math.min(fromStage + 1, stages.length - 1)
     // After editing an earlier answer, one tap puts them back where they
     // were. The stages between still hold their answers; nobody needs to
     // watch themselves re-give them.
     const target =
       returnStage !== null && returnStage > next ? returnStage : next
     if (returnStage !== null && target >= returnStage) setReturnStage(null)
-    setStage(target)
+    questionMotion.goTo(target)
   }
 
   function rewindTo(index: number) {
+    if (questionMotion.locked.current) return
     hapticTap()
     setError(null)
     setReturnStage((current) => Math.max(current ?? stage, stage))
-    setStage(index)
+    questionMotion.goTo(index)
   }
 
   async function handleImportSelection(list: FileList | null) {
@@ -1670,6 +1771,11 @@ export function OnboardingMobile() {
       return
     }
 
+    if (!measurementsConfirmed && !coachReplay) {
+      setStage(stages.findIndex((step) => step.id === "measurements"))
+      setError(tr("Enter and confirm your measurements before saving."))
+      return
+    }
     hapticHeavy()
     savingRef.current = true
     setSaving(true)
@@ -1732,9 +1838,14 @@ export function OnboardingMobile() {
       setComplete(true)
       hapticMedium()
       await new Promise((resolve) => window.setTimeout(resolve, 720))
-      navigate(setupDestination ?? setupPreferences.destination, {
-        replace: true,
-      })
+      navigate(
+        programmeSetupDestination(programmeMode, programmeTrack) ??
+          setupDestination ??
+          setupPreferences.destination,
+        {
+          replace: true,
+        }
+      )
     } catch (saveError) {
       trackUmami("onboarding_save_failed")
       setError(
@@ -1898,6 +2009,64 @@ export function OnboardingMobile() {
         </button>
       )
     }
+    if (stageId === "programmes") {
+      return (
+        <QuickReplies<ProgrammeMode>
+          value={programmeMode}
+          options={[
+            {
+              value: "guided",
+              label: tr("Start a guided programme"),
+              icon: ArrowRight,
+            },
+            {
+              value: "manual",
+              label: tr("Create my own programme"),
+              icon: ArrowRight,
+            },
+            { value: "explore", label: tr("Explore first"), icon: ArrowRight },
+          ]}
+          onChoose={(mode) => {
+            setProgrammeMode(mode)
+            setError(null)
+            hapticSelection()
+            questionMotion.goTo(
+              stages.findIndex(
+                (step) =>
+                  step.id === (mode === "explore" ? "review" : "programmeTrack")
+              )
+            )
+          }}
+        />
+      )
+    }
+    if (stageId === "programmeTrack") {
+      return (
+        <>
+          <QuickReplies<ProgrammeTrack>
+            value={programmeTrack}
+            options={[
+              { value: "nutrition", label: tr("Nutrition"), icon: ArrowRight },
+              { value: "training", label: tr("Training"), icon: ArrowRight },
+              { value: "both", label: tr("Both"), icon: ArrowRight },
+            ]}
+            onChoose={(track) => {
+              setProgrammeTrack(track)
+              advance(stageIndex)
+            }}
+          />
+          <p className="mt-6 text-sm text-muted-foreground">
+            {programmeMode === "guided"
+              ? tr(
+                  "AI generation uses 5 tokens per programme, or 10 for both. You will review the cost before generating."
+                )
+              : tr(
+                  "Creating your own programme is free. AI assistance is optional."
+                )}
+          </p>
+        </>
+      )
+    }
     if (stageId === "goal") {
       return (
         <QuickReplies
@@ -2002,6 +2171,13 @@ export function OnboardingMobile() {
             <NumberQuestion
               onInteract={hapticSelection}
               label={tr("Age")}
+              empty={!measurementValidity.age}
+              onValidityChange={(valid) =>
+                setMeasurementValidity((current) => ({
+                  ...current,
+                  age: valid,
+                }))
+              }
               value={profile.age}
               display={tr("{{value0}} years", { value0: profile.age })}
               min={AGE_MIN}
@@ -2011,6 +2187,13 @@ export function OnboardingMobile() {
             <NumberQuestion
               onInteract={hapticSelection}
               label={tr("Height (cm)")}
+              empty={!measurementValidity.height}
+              onValidityChange={(valid) =>
+                setMeasurementValidity((current) => ({
+                  ...current,
+                  height: valid,
+                }))
+              }
               value={profile.heightCm}
               display={`${profile.heightCm} cm`}
               min={HEIGHT_MIN}
@@ -2022,6 +2205,13 @@ export function OnboardingMobile() {
             <NumberQuestion
               onInteract={hapticSelection}
               label={tr("Weight ({{value0}})", { value0: weightUnit })}
+              empty={!measurementValidity.weight}
+              onValidityChange={(valid) =>
+                setMeasurementValidity((current) => ({
+                  ...current,
+                  weight: valid,
+                }))
+              }
               value={weightValue}
               display={`${weightValue} ${weightUnit}`}
               min={weightMin}
@@ -2037,10 +2227,11 @@ export function OnboardingMobile() {
           <button
             type="button"
             className="onboarding-primary-button mt-4 w-full"
+            disabled={!measurementsConfirmed}
             onClick={() => advance(stageIndex)}
           >
             <Message
-              text={"That's right{{value0}}"}
+              text={"Confirm measurements{{value0}}"}
               values={{ value0: <Check size={16} weight="bold" /> }}
             />
           </button>
@@ -2431,11 +2622,18 @@ export function OnboardingMobile() {
     }
     return (
       <div className="onboarding-chat-review">
+        <p className="mb-4 text-sm text-muted-foreground">
+          {tr(
+            "Appearance, imports, connections, and Coach setup are optional. You can configure them later in Settings."
+          )}
+        </p>
         <div className="setup-review-list">
           {stages
             .filter(
               (item) =>
-                !["intro", "review", "assistant", "next"].includes(item.id)
+                !["intro", "review", "assistant", "next"].includes(item.id) &&
+                (item.id !== "programmeTrack" ||
+                  (programmeMode !== "explore" && programmeMode !== null))
             )
             .map((item) => (
               <button
@@ -2539,7 +2737,7 @@ export function OnboardingMobile() {
           <span>
             <Message
               text={
-                "I explicitly consent to OneRep processing the fitness, nutrition, body, recovery, and related information I provide to deliver personalized tracking and Coach features. Some of this information may qualify as health data. AI sharing requires a separate, optional permission before using an AI feature. Core tracking works without AI. I can withdraw this processing consent for future effect by deleting affected data or my account, or by contacting {{value0}}. See the {{value1}}."
+                "I explicitly consent to OneRep processing the fitness, nutrition, body, recovery, and related information I provide to deliver personalized tracking and Coach features. Some of this information may qualify as health data. AI features are on by default and share relevant data with the AI providers described in our privacy policy. I can turn AI data sharing off in Settings → Privacy & sync. Core tracking works without AI. I can withdraw this processing consent for future effect by deleting affected data or my account, or by contacting {{value0}}. See the {{value1}}."
               }
               values={{
                 value0: (
@@ -2580,7 +2778,8 @@ export function OnboardingMobile() {
               return
             }
             setError("")
-            advance(stageIndex)
+            if (coachReplay) advance(stageIndex)
+            else void finish()
           }}
           disabled={saving}
           aria-busy={saving}
@@ -2590,10 +2789,10 @@ export function OnboardingMobile() {
             tr("Saving...")
           ) : (
             <>
-              <Message
-                text={"What’s next?{{value0}}"}
-                values={{ value0: <Check size={16} weight="bold" /> }}
-              />
+              {programmeSetupDestination(programmeMode, programmeTrack)
+                ? tr("Set up my programme")
+                : tr("Open OneRep")}
+              <Check size={16} weight="bold" aria-hidden="true" />
             </>
           )}
         </button>
@@ -2604,6 +2803,8 @@ export function OnboardingMobile() {
   const activeStage = stages[stage]
   const titles: Record<StageId, string> = {
     intro: tr("Your whole routine. One place."),
+    programmes: tr("How would you like to get started?"),
+    programmeTrack: tr("What would you like help with?"),
     preferences: tr("Make OneRep yours."),
     goal: tr("What are you working toward?"),
     experience: tr("Start where you are."),
@@ -2620,10 +2821,6 @@ export function OnboardingMobile() {
     review: tr("Ready for your first day."),
     next: tr("What’s next?"),
   }
-  const room: OnboardingRoom =
-    ["nutrition", "lifestyle"].includes(activeStage.id) ? "nutrition" :
-    ["sex", "measurements", "safety"].includes(activeStage.id) ? "recovery" :
-    ["preferences", "connections", "import", "coach", "assistant", "review"].includes(activeStage.id) ? "planning" : "overview"
   if (settingsView)
     return (
       <Suspense
@@ -2646,10 +2843,51 @@ export function OnboardingMobile() {
         />
       </Suspense>
     )
+  if (activeStage.id === "intro")
+    return (
+      <GalaxyWelcome
+        leaving={questionMotion.phase === "leaving"}
+        onContinue={() => advance(stage)}
+      />
+    )
+  const swipeForward =
+    !saving &&
+    !setupBusy &&
+    ((activeStage.id === "goal" && !!nutritionGoal) ||
+      (activeStage.id === "experience" && !!experienceLevel) ||
+      (activeStage.id === "sex" && !!profile.sex) ||
+      (activeStage.id === "measurements" && measurementsConfirmed) ||
+      (activeStage.id === "programmes" && !!programmeMode) ||
+      (activeStage.id === "programmeTrack" && !!programmeTrack) ||
+      activeStage.id === "activity" ||
+      activeStage.id === "safety")
+  const goBack = () => {
+    if (saving || setupBusy || questionMotion.locked.current) return
+    setReturnStage(null)
+    questionMotion.goTo(
+      activeStage.id === "review" && programmeMode === "explore"
+        ? stages.findIndex((step) => step.id === "programmes")
+        : Math.max(0, stage - 1)
+    )
+  }
   return (
-    <main className="setup-shell studio-onboarding" data-room={room}>
-      <OnboardingScene room={room} busy={saving || setupBusy} progress={(stage + 1) / stages.length} />
-      <div className="setup-scene-shade" aria-hidden="true" />
+    <main
+      className="setup-shell starry-onboarding"
+      data-motion={questionMotion.phase}
+      data-direction={questionMotion.direction > 0 ? "forward" : "back"}
+      data-dragging={questionMotion.drag !== 0}
+      style={
+        {
+          "--question-direction": questionMotion.direction,
+          "--question-drag": `${questionMotion.drag}px`,
+          "--question-leave-from": `${questionMotion.departureDrag}px`,
+          "--star-pan-x": `${(questionMotion.panStage / Math.max(1, stages.length - 1) - 0.5) * -20}%`,
+          "--star-pan-y": `${(questionMotion.panStage / Math.max(1, stages.length - 1)) * -4}%`,
+          "--star-drag": `${questionMotion.drag * 0.15}px`,
+        } as CSSProperties
+      }
+    >
+      <div className="setup-starry-backdrop" aria-hidden="true" />
       {complete && (
         <div
           className="onboarding-complete"
@@ -2657,7 +2895,11 @@ export function OnboardingMobile() {
           aria-live="assertive"
         >
           <Check size={30} />
-          <p>{tr("Your plan is ready")}</p>
+          <p>
+            {programmeSetupDestination(programmeMode, programmeTrack)
+              ? tr("Your profile is ready")
+              : tr("Your plan is ready")}
+          </p>
         </div>
       )}
       <aside className="setup-sidebar" hidden={!stepsOpen} id="setup-step-menu">
@@ -2678,7 +2920,10 @@ export function OnboardingMobile() {
                   type="button"
                   aria-current={index === stage ? "step" : undefined}
                   disabled={index > Math.max(stage, returnStage ?? 0)}
-                  onClick={() => { rewindTo(index); setStepsOpen(false) }}
+                  onClick={() => {
+                    rewindTo(index)
+                    setStepsOpen(false)
+                  }}
                 >
                   <span className="setup-step-number">
                     {index < stage ? (
@@ -2706,16 +2951,18 @@ export function OnboardingMobile() {
         <header className="setup-topbar">
           <button
             type="button"
-            disabled={stage === 0 || saving}
+            disabled={stage === 0 || saving || questionMotion.phase !== "idle"}
             aria-label={tr("Back")}
-            onClick={() => {
-              setReturnStage(null)
-              setStage((current) => Math.max(0, current - 1))
-            }}
+            onClick={goBack}
           >
             <ArrowLeft size={22} aria-hidden="true" />
           </button>
-          <button type="button" aria-expanded={stepsOpen} aria-controls="setup-step-menu" onClick={() => setStepsOpen(!stepsOpen)}>
+          <button
+            type="button"
+            aria-expanded={stepsOpen}
+            aria-controls="setup-step-menu"
+            onClick={() => setStepsOpen(!stepsOpen)}
+          >
             {tr("Setup steps")}
           </button>
           <span>
@@ -2748,16 +2995,32 @@ export function OnboardingMobile() {
             style={{ transform: `scaleX(${(stage + 1) / stages.length})` }}
           />
         </div>
-        <div id="setup-content" className="setup-content">
-          <div className="setup-page" data-stage={activeStage.id} key={activeStage.id}>
+        <div
+          id="setup-content"
+          className="setup-content"
+          aria-busy={questionMotion.phase !== "idle"}
+          {...questionMotion.swipeHandlers(
+            goBack,
+            swipeForward ? () => advance(stage) : undefined,
+            saving || setupBusy || stepsOpen
+          )}
+        >
+          <div
+            className="setup-page"
+            inert={questionMotion.phase !== "idle"}
+            data-stage={activeStage.id}
+            key={activeStage.id}
+          >
             <h1 id="setup-heading" tabIndex={-1}>
               {titles[activeStage.id]}
             </h1>
-            <div className="setup-description">
-              {(activeStage.id === "intro" ? [tr("Training, nutrition, recovery. Let’s make it yours.")] : stageMessages[activeStage.id]).map((message) => (
-                <p key={message}>{message}</p>
-              ))}
-            </div>
+            {activeStage.id !== "goal" && (
+              <div className="setup-description">
+                {stageMessages[activeStage.id].map((message) => (
+                  <p key={message}>{message}</p>
+                ))}
+              </div>
+            )}
             {error && activeStage.id !== "review" && (
               <p role="alert" className="text-destructive">
                 {error}

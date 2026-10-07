@@ -34,6 +34,7 @@ const {
   hapticStrength,
   setHapticStrength,
   hapticConfirm,
+  hapticOnboardingCue,
   hapticRain,
   hapticHeavy,
   hapticMedium,
@@ -96,6 +97,22 @@ describe("haptic preferences", () => {
     hapticTap(); hapticMedium(); hapticHeavy(); hapticSelection(); hapticRain()
     expect(impactMock).not.toHaveBeenCalled()
     expect(selectionStartMock).not.toHaveBeenCalled()
+  })
+
+  test("galaxy cues honor opt out and the user's strength ceiling", () => {
+    setHapticStrength("off")
+    hapticOnboardingCue("arrival")
+    hapticOnboardingCue("type")
+    expect(impactMock).not.toHaveBeenCalled()
+    setHapticStrength("light")
+    hapticOnboardingCue("arrival")
+    expect(impactMock.mock.calls.at(-1)?.[0]).toEqual({ style: "LIGHT" })
+    setHapticStrength("full")
+    hapticOnboardingCue("arrival")
+    expect(impactMock.mock.calls.at(-1)?.[0]).toEqual({ style: "MEDIUM" })
+    hapticOnboardingCue("type")
+    hapticOnboardingCue("continue")
+    expect(impactMock.mock.calls.at(-1)?.[0]).toEqual({ style: "LIGHT" })
   })
 
   test("defaults to gentle feedback and preserves existing opt out", () => {

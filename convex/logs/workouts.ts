@@ -184,3 +184,31 @@ export const removeBySlot = mutation({
     return { ok: true };
   },
 });
+
+export const updateTime = mutation({
+  args: {
+    date: v.string(),
+    id: v.id("workoutLogs"),
+    completedAt: v.number(),
+    durationSeconds: v.number(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const user = await getAuthUser(ctx);
+    const log = await ctx.db.get(args.id);
+    if (!log || log.userId !== user._id || log.date !== args.date)
+      throw new Error("Entry not found. Refresh and try again.");
+    if (
+      !Number.isFinite(args.completedAt) ||
+      !Number.isFinite(args.durationSeconds) ||
+      args.durationSeconds <= 0 ||
+      args.durationSeconds > 86400
+    )
+      throw new Error("Choose a valid time and duration.");
+    await ctx.db.patch(log._id, {
+      completedAt: args.completedAt,
+      durationSeconds: args.durationSeconds,
+    });
+    return null;
+  },
+});

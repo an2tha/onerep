@@ -7,7 +7,7 @@ const read = (path: string) =>
 const SETTINGS = read("./Settings.tsx")
 const ABOUT = read("../components/about-app.tsx")
 const MAIN = read("../main.tsx")
-const SHEET = read("../../../../packages/ui/src/components/mobile-sheet.tsx")
+const SHEET = read("../../../../packages/ui/src/hooks/use-modal-layer.ts")
 const RECIPE = read("./NewRecipe.tsx")
 const EN = JSON.parse(read("../i18n/locales/en.json"))
 

@@ -4,6 +4,9 @@ App/output
 App/App/public
 DerivedData
 xcuserdata
+App/fastlane/screenshots/
+App/fastlane/test_output/
+App/.bundle/
 
 # Cordova plugins for Capacitor
 capacitor-cordova-ios-plugins

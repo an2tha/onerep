@@ -1,182 +1,78 @@
 import { tr } from "@repo/ui/i18n"
-import {
-  HoldToStartDial,
-  TrainingStatDial,
-} from "@/components/training-hero-dials"
-import { Barbell, ForkKnife, Heartbeat, Play } from "@phosphor-icons/react"
-
-// The same crown the training hero wears, shrunk to sit beside the greeting:
-// the thing you act on holds the middle and the two readings tuck behind its
-// lower edge. Reusing those dials rather than drawing new ones is the point —
-// a reading here and the same reading on Workouts should be the same object.
-
-// The dials draw their text into an `inset-[16%]` box, so the diameter sets
-// the room a label gets — roughly two thirds of it. Under about 60px even
-// "62%" spills over the ring, which is what these were doing at 54.
-const DIAL = 80
-const HOLD = 112
-// Far enough out that the satellites clear the hold ring instead of sliding
-// under it — (HOLD + DIAL) / 2 is the bare minimum, and at 58 they were
-// covering their own numbers.
-const ORBIT = 98
-
-// The phone gets a row instead of a crown. Beside a greeting the crown ate
-// half the width, wrapped the name onto three lines and truncated the date;
-// under it, the three read left to right with the number each was hiding.
-// Kept deliberately small and quiet on phones: the greeting owns the hero,
-// the dials are a secondary glanceable row, not three co-headlines.
-const ROW_SIZE = 68
-
-// Left and right of the hold dial's lower arc. Mirrored so each reading fills
-// away from the centre instead of sweeping underneath it.
-const SATELLITES = [
-  { angle: 148, mirrored: true },
-  { angle: 32, mirrored: false },
-]
+import { Barbell, ForkKnife, Heartbeat } from "@phosphor-icons/react"
 
 export function DashboardDials({
   nutritionPercent,
-  recoveryScore,
+  showNutritionMetric = true,
+  recoveryStatus,
+  loading,
   onStartWorkout,
-  onStartWorkoutTip,
   onOpenNutrition,
   onOpenRecovery,
   layout = "crown",
 }: {
-  /** How much of today's nutrition targets are met, 0-100. */
+  showNutritionMetric?: boolean
   nutritionPercent: number | null
-  /** Today's recovery score, 0-100. */
-  recoveryScore: number | null
+  recoveryStatus: "ready" | "steady" | "compromised" | "unknown" | null
+  loading?: boolean
   onStartWorkout: () => void
   onStartWorkoutTip?: () => void
   onOpenNutrition?: () => void
   onOpenRecovery?: () => void
-  /** `crown` tucks the readings behind the hold dial; `row` lines all three
-   * up, hold first, for screens that have width to give but not beside the
-   * greeting. */
   layout?: "crown" | "row"
 }) {
-  const width = HOLD + ORBIT + DIAL / 2
-  const height = HOLD + ORBIT * 0.62
-  const centreX = width / 2
-
-  const readings = [
-    {
-      name: "Fuel",
-      value: Math.round(nutritionPercent ?? 0),
-      target: 100,
-      suffix: "%",
-      color: "var(--accent-food)",
-      onClick: onOpenNutrition,
-      icon: <ForkKnife size={14} weight="bold" />,
-    },
-    {
-      // "Recovery" is four characters too many for a dial this size; the
-      // reading is the number, and "Ready" says the same thing in the room
-      // available.
-      name: "Ready",
-      value: Math.round(recoveryScore ?? 0),
-      target: 100,
-      suffix: "",
-      color: "var(--accent-training-hero)",
-      onClick: onOpenRecovery,
-      icon: <Heartbeat size={14} weight="bold" />,
-    },
-  ]
-
-  if (layout === "row") {
-    return (
-      <div className="mx-auto flex w-full max-w-xs items-center justify-center gap-6 px-2 opacity-90">
-        <HoldToStartDial
-          label={tr("Open workout")}
-          primaryIcon={<Play size={18} weight="fill" />}
-          icon={<Barbell size={12} weight="bold" />}
-          onComplete={onStartWorkout}
-          onShortPress={onStartWorkoutTip}
-          size={ROW_SIZE}
-          stroke={6}
-          color="var(--accent-training-hero)"
-        />
-        {readings.map((reading) => (
-          <button
-            key={reading.name}
-            type="button"
-            onClick={reading.onClick}
-            disabled={!reading.onClick}
-            aria-label={tr("{{value0}}: {{value1}}{{value2}}", {
-              value0: reading.name,
-              value1: reading.value,
-              value2: reading.suffix,
-            })}
-            className="motion-tactile rounded-full"
-          >
-            <TrainingStatDial
-              name={reading.name}
-              value={reading.value}
-              target={reading.target}
-              suffix={reading.suffix}
-              color={reading.color}
-              icon={reading.icon}
-              size={ROW_SIZE}
-              stroke={6}
-            />
-          </button>
-        ))}
-      </div>
-    )
-  }
-
+  const status =
+    recoveryStatus === "ready"
+      ? tr("Ready")
+      : recoveryStatus === "steady"
+        ? tr("Steady")
+        : recoveryStatus === "compromised"
+          ? tr("Take it easy")
+          : tr("No reading")
   return (
-    <div className="relative" style={{ width, height }}>
-      {SATELLITES.map((satellite, index) => {
-        const reading = readings[index]
-        const radians = (satellite.angle * Math.PI) / 180
-        return (
-          <button
-            key={reading.name}
-            type="button"
-            onClick={reading.onClick}
-            disabled={!reading.onClick}
-            aria-label={tr("{{value0}}: {{value1}}{{value2}}", {
-              value0: reading.name,
-              value1: reading.value,
-              value2: reading.suffix,
-            })}
-            className="motion-tactile absolute z-0 rounded-full"
-            style={{
-              left: centreX + ORBIT * Math.cos(radians) - DIAL / 2,
-              top: HOLD / 2 + ORBIT * Math.sin(radians) - DIAL / 2,
-            }}
-          >
-            <TrainingStatDial
-              name={reading.name}
-              value={reading.value}
-              target={reading.target}
-              suffix={reading.suffix}
-              color={reading.color}
-              icon={reading.icon}
-              size={DIAL}
-              stroke={7}
-              mirrored={satellite.mirrored}
-            />
-          </button>
-        )
-      })}
-      <div
-        className="absolute z-10"
-        style={{ left: centreX - HOLD / 2, top: 0 }}
+    <div
+      className={`mx-auto grid w-full grid-cols-3 gap-2 py-2 ${layout === "crown" ? "min-w-80" : "max-w-sm"}`}
+    >
+      <button
+        type="button"
+        onClick={onStartWorkout}
+        className="motion-tactile flex min-h-20 flex-col items-center justify-center gap-1 rounded-xl bg-foreground px-2 text-background"
       >
-        <HoldToStartDial
-          label={tr("Open workout")}
-          primaryIcon={<Play size={27} weight="fill" />}
-          icon={<Barbell size={15} weight="bold" />}
-          onComplete={onStartWorkout}
-          onShortPress={onStartWorkoutTip}
-          size={HOLD}
-          stroke={9}
-          color="var(--accent-training-hero)"
-        />
-      </div>
+        <Barbell size={22} />
+        <span className="text-center text-xs font-semibold">
+          {tr("Start workout")}
+        </span>
+      </button>
+      <button
+        type="button"
+        onClick={onOpenNutrition}
+        className="motion-tactile flex min-h-20 flex-col items-center justify-center gap-1 rounded-xl border border-border bg-card px-2"
+      >
+        <ForkKnife size={20} />
+        <span className="text-sm font-semibold tabular-nums">
+          {loading
+            ? tr("Loading…")
+            : !showNutritionMetric
+              ? tr("Log food")
+              : nutritionPercent === null
+                ? tr("No target")
+                : `${Math.round(nutritionPercent)}%`}
+        </span>
+        <span className="text-center text-xs text-muted-foreground">
+          {showNutritionMetric ? tr("Daily energy") : tr("Food diary")}
+        </span>
+      </button>
+      <button
+        type="button"
+        onClick={onOpenRecovery}
+        className="motion-tactile flex min-h-20 flex-col items-center justify-center gap-1 rounded-xl border border-border bg-card px-2"
+      >
+        <Heartbeat size={20} />
+        <span className="text-center text-sm font-semibold">
+          {loading ? tr("Loading…") : status}
+        </span>
+        <span className="text-xs text-muted-foreground">{tr("Recovery")}</span>
+      </button>
     </div>
   )
 }

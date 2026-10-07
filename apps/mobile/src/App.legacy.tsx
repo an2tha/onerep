@@ -1,3 +1,4 @@
+import { HomeProgrammes } from "@/components/home-programmes"
 import { ProfileAvatar } from "@/components/profile-avatar"
 import { RecoveryBanner } from "@/components/recovery/recovery-banner"
 import { useRecovery } from "@/lib/use-recovery"
@@ -1380,6 +1381,7 @@ export default function LegacyApp() {
               />
             </div>
           )}
+          <div className="px-[var(--app-page-x)]"><HomeProgrammes /></div>
         </DashboardHero>
       </div>
 

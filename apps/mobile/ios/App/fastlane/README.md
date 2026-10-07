@@ -15,13 +15,29 @@ For _fastlane_ installation instructions, see [Installing _fastlane_](https://do
 
 ## iOS
 
+### ios screenshots
+
+```sh
+[bundle exec] fastlane ios screenshots
+```
+
+Capture iOS screenshots (flow:auth or flow:tabs on a signed-in simulator)
+
 ### ios beta
 
 ```sh
 [bundle exec] fastlane ios beta
 ```
 
-Push a new beta build to TestFlight
+Upload an existing IPA to TestFlight
+
+### ios store
+
+```sh
+[bundle exec] fastlane ios store
+```
+
+Upload an existing IPA to App Store Connect for main App Review
 
 ----
 

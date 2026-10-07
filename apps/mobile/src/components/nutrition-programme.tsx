@@ -52,7 +52,7 @@ export function NutritionProgramme({
     api.nutritionProgrammes.getGoalRecommendation,
     {}
   )
-  const [searchParams, setSearchParams] = useSearchParams()
+  const [searchParams] = useSearchParams()
   const requestedSetup =
     placement === "primary" && searchParams.get("programme") === "setup"
 
@@ -77,11 +77,8 @@ export function NutritionProgramme({
   const invitationId = useId()
   useEffect(() => {
     if (!requestedSetup) return
-    setSetup(true)
-    const next = new URLSearchParams(searchParams)
-    next.delete("programme")
-    setSearchParams(next, { replace: true })
-  }, [requestedSetup, searchParams, setSearchParams])
+    navigate("/programmes?setup=1&track=nutrition", { replace: true })
+  }, [requestedSetup, navigate])
   if (programme === undefined || goalRecommendation === undefined)
     return placement === "secondary" ? null : (
       <div className="programme-loading" role="status">
@@ -136,7 +133,7 @@ export function NutritionProgramme({
         onClick={() =>
           programme?.requiresCare && day?.active
             ? setEnding(true)
-            : setSetup(true)
+            : navigate("/programmes?setup=1&track=nutrition")
         }
       >
         {programme?.requiresCare && day?.active
@@ -189,7 +186,7 @@ export function NutritionProgramme({
                 </p>
                 <button
                   className="programme-secondary"
-                  onClick={() => setSetup(true)}
+                  onClick={() => navigate("/programmes?setup=1&track=nutrition")}
                 >
                   {tr("Review changes")}
                 </button>

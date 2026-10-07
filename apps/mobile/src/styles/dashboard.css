@@ -78,3 +78,17 @@
     margin: 0.25rem 1rem 2rem;
   }
 }
+
+@media (max-width: 1023px) {
+  .dashboard-today .dashboard-hero-frame {
+    gap: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+  .dashboard-today .dashboard-hero-header .app-title {
+    font-size: 1.5rem;
+    line-height: 1.15;
+  }
+  .dashboard-today .dashboard-feedback-hint {
+    display: none;
+  }
+}

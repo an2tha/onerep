@@ -16,6 +16,23 @@
 default_platform(:ios)
 
 platform :ios do
+  desc "Capture iOS screenshots (flow:auth or flow:tabs on a signed-in simulator)"
+  lane :screenshots do |options|
+    flow = options.fetch(:flow, "auth").to_s
+    UI.user_error!("Use flow:auth or flow:tabs") unless %w[auth tabs].include?(flow)
+
+    # Resolve from the Fastfile so the lane works from either the app or repo.
+    root = File.expand_path("../../../../..", __dir__)
+    unless options[:skip_build] == true
+      Dir.chdir(root) { sh("bun", "run", "build:ios") }
+    end
+
+    capture_screenshots(
+      only_testing: ["AppScreenshots/OneRepScreenshots/test#{flow == 'tabs' ? 'MainTabs' : 'Authentication'}"],
+      output_directory: File.expand_path("screenshots/#{flow}", __dir__)
+    )
+  end
+
   desc "Upload an existing IPA to TestFlight"
   lane :beta do |options|
     ipa = options[:ipa]

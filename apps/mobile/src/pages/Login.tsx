@@ -1,12 +1,7 @@
 import { Message, tr, translateError } from "@repo/ui/i18n"
 import { useEffect, useRef, useState, type FormEvent } from "react"
-import {
-  AUTH_CARD_CLASS,
-  AuthLayout,
-  AuthMark,
-  AppleMark,
-  GoogleMark,
-} from "@/components/auth-shell"
+import { AuthLayout, AppleMark, GoogleMark } from "@/components/auth-shell"
+import { LoginLayout } from "@/components/login-layout"
 import { useSearchParams } from "react-router"
 import { useConvexAuth } from "convex/react"
 import { CaretDown, Eye, EyeSlash } from "@phosphor-icons/react"
@@ -79,11 +74,13 @@ function AuthRedirectFallback() {
 }
 
 function ModeTab({
+  mode,
   active,
   disabled,
   onSelect,
   children,
 }: {
+  mode: LoginMode
   active: boolean
   disabled: boolean
   onSelect: () => void
@@ -93,7 +90,10 @@ function ModeTab({
     <button
       type="button"
       role="tab"
+      id={`login-tab-${mode}`}
+      aria-controls="login-mode-panel"
       aria-selected={active}
+      tabIndex={active ? 0 : -1}
       data-active={active}
       disabled={disabled}
       onClick={onSelect}
@@ -512,9 +512,8 @@ export default function Login() {
   }
 
   return (
-    <AuthLayout>
-      <header className="text-center">
-        <AuthMark />
+    <LoginLayout>
+      <header className="login-heading">
         <div
           key={mode}
           data-transition-direction={modeDirection}
@@ -533,14 +532,31 @@ export default function Login() {
 
       <section
         aria-label={mode === "signin" ? tr("Sign in") : tr("Create account")}
-        className={AUTH_CARD_CLASS}
+        className="login-form-section mt-8"
       >
         <div
           role="tablist"
           aria-label={tr("Sign in or create account")}
           className="app-segmented mb-6 grid-cols-2"
+          onKeyDown={(event) => {
+            if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key))
+              return
+            event.preventDefault()
+            if (submitting) return
+            const next =
+              event.key === "Home"
+                ? "signin"
+                : event.key === "End"
+                  ? "signup"
+                  : mode === "signin"
+                    ? "signup"
+                    : "signin"
+            switchMode(next)
+            document.getElementById(`login-tab-${next}`)?.focus()
+          }}
         >
           <ModeTab
+            mode="signin"
             active={mode === "signin"}
             disabled={submitting}
             onSelect={() => switchMode("signin")}
@@ -548,6 +564,7 @@ export default function Login() {
             {tr("Sign in")}
           </ModeTab>
           <ModeTab
+            mode="signup"
             active={mode === "signup"}
             disabled={submitting}
             onSelect={() => switchMode("signup")}
@@ -557,6 +574,9 @@ export default function Login() {
         </div>
 
         <form
+          id="login-mode-panel"
+          role="tabpanel"
+          aria-labelledby={`login-tab-${mode}`}
           key={mode}
           data-transition-direction={modeDirection}
           onSubmit={handleSubmit}
@@ -786,7 +806,7 @@ export default function Login() {
         )}
       </section>
 
-      <footer className="mt-9 border-t border-border pt-2">
+      <footer className="login-footer border-t border-border pt-2">
         <button
           type="button"
           onClick={() => {
@@ -842,6 +862,6 @@ export default function Login() {
           {tr("Your data stays private and is never sold.")}
         </p>
       </footer>
-    </AuthLayout>
+    </LoginLayout>
   )
 }

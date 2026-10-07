@@ -64,7 +64,7 @@ export function AppNavigationChrome({
               type="button"
               onClick={tab.onSelect}
               className={cn(
-                "flex min-w-0 items-center justify-center px-0.5 transition-colors",
+                "flex min-w-0 flex-col items-center justify-center gap-1 px-0.5 transition-colors",
                 coachActive
                   ? tab.active
                     ? "text-foreground dark:text-white"
@@ -75,6 +75,9 @@ export function AppNavigationChrome({
               )}
             >
               <span className="motion-tab-icon">{tab.icon}</span>
+              <span className="w-full truncate text-center text-[11px] font-medium">
+                {tab.label}
+              </span>
             </button>
           ))}
         </nav>

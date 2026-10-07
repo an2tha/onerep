@@ -1,3 +1,4 @@
+import { ProgrammeEntry } from "@/components/programme-entry"
 import { useEffect, useRef, useState } from "react"
 import { PencilSimple, X } from "@phosphor-icons/react"
 import { useMutation, useQuery } from "convex/react"
@@ -6,11 +7,7 @@ import { api } from "../../../../convex/_generated/api"
 import type { GoalAssessment } from "../../../../convex/lib/goalAssessment"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { GoalsAssessment } from "@/components/goals-assessment"
-import {
-  DEFAULT_GOAL_PLAN,
-  type GoalFocus,
-  type GoalPlan,
-} from "@/lib/goal-plan"
+import { type GoalFocus, type GoalPlan } from "@/lib/goal-plan"
 import "./goals.css"
 
 const FOCUSES: { id: GoalFocus; title: string }[] = [
@@ -44,19 +41,16 @@ export function GoalsHubView({
 }) {
   const plan = preferences?.goalPlan
   const [open, setOpen] = useState(false)
-  const [dismissed, setDismissed] = useState(false)
-  const [draft, setDraft] = useState<GoalPlan>(DEFAULT_GOAL_PLAN)
+  const [draft, setDraft] = useState<GoalPlan | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
   const opener = useRef<HTMLElement | null>(null)
-  const sheetOpen =
-    open ||
-    (preferences !== undefined && !preferences?.goalsIntroducedAt && !dismissed)
+  const sheetOpen = open
 
   useEffect(() => {
     if (sheetOpen || !opener.current) return
     const frame = requestAnimationFrame(() =>
-      opener.current?.focus({ preventScroll: true }),
+      opener.current?.focus({ preventScroll: true })
     )
     return () => cancelAnimationFrame(frame)
   }, [sheetOpen])
@@ -66,18 +60,17 @@ export function GoalsHubView({
       document.activeElement instanceof HTMLElement
         ? document.activeElement
         : null
-    setDraft(plan ? { focus: plan.focus } : DEFAULT_GOAL_PLAN)
+    setDraft(plan ? { focus: plan.focus } : null)
     setError("")
     setOpen(true)
   }
 
   async function persist(skip = false) {
-    if (saving) return
+    if (saving || (!skip && !draft)) return
     setSaving(true)
     setError("")
     try {
-      await save(skip ? {} : { plan: { focus: draft.focus } })
-      setDismissed(true)
+      await save(skip ? {} : { plan: { focus: draft!.focus } })
       setOpen(false)
     } catch {
       setError(tr("Could not save your goal. Try again."))
@@ -93,7 +86,7 @@ export function GoalsHubView({
           {plan
             ? tr(
                 FOCUSES.find((focus) => focus.id === plan.focus)?.title ??
-                  "Goals",
+                  "Goals"
               )
             : tr("Choose a goal")}
         </h2>
@@ -112,7 +105,7 @@ export function GoalsHubView({
         <div className="goals-empty">
           <p>
             {tr(
-              "Choose what you are working toward. Your zone will combine training, sleep, recovery and activity.",
+              "Choose what you are working toward. Your zone will combine training, sleep, recovery and activity."
             )}
           </p>
           <button className="goals-primary" onClick={edit}>
@@ -121,6 +114,12 @@ export function GoalsHubView({
         </div>
       )}
 
+      <p className="text-sm text-muted-foreground">
+        {tr(
+          "Optional: choose a training focus to guide your progress. Your nutrition goal stays separate."
+        )}
+      </p>
+      <ProgrammeEntry />
       {sheetOpen && (
         <MobileSheet
           ariaLabel={tr("Set your goal")}
@@ -130,7 +129,6 @@ export function GoalsHubView({
           panelClassName="goals-dialog"
           onClose={() => {
             if (!saving) {
-              setDismissed(true)
               setOpen(false)
               setError("")
             }
@@ -144,7 +142,6 @@ export function GoalsHubView({
                 aria-label={tr("Close goal setup")}
                 disabled={saving}
                 onClick={() => {
-                  setDismissed(true)
                   setOpen(false)
                 }}
               >
@@ -153,7 +150,7 @@ export function GoalsHubView({
             </div>
             <p>
               {tr(
-                "Choose a focus. Your zone uses your logged training and health signals.",
+                "Choose a focus. Your zone uses your logged training and health signals."
               )}
             </p>
             <fieldset className="goals-setup">
@@ -162,12 +159,12 @@ export function GoalsHubView({
                 {FOCUSES.map((focus) => (
                   <label
                     key={focus.id}
-                    data-selected={draft.focus === focus.id}
+                    data-selected={draft?.focus === focus.id}
                   >
                     <input
                       type="radio"
                       name="goal-focus"
-                      checked={draft.focus === focus.id}
+                      checked={draft?.focus === focus.id}
                       onChange={() => setDraft({ focus: focus.id })}
                     />
                     <strong>{tr(focus.title)}</strong>
@@ -190,7 +187,7 @@ export function GoalsHubView({
               </button>
               <button
                 className="goals-primary"
-                disabled={saving}
+                disabled={saving || !draft}
                 onClick={() => void persist()}
               >
                 {saving ? tr("Saving…") : tr("Save goal")}

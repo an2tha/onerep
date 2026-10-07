@@ -177,15 +177,6 @@ export default defineConfig(({ command, mode }) => {
           ]
         : []),
     ],
-    /**
-     * The Needle worker is spawned with `type: "module"`, and Rollup refuses to
-     * code-split an IIFE — which is Vite's default worker format, and which the
-     * worker's own dynamic imports of the wasm runtime immediately violate. So:
-     * ES modules, matching what the Worker constructor was already asking for.
-     */
-    worker: {
-      format: "es" as const,
-    },
     build: {
       rollupOptions: {
         output: {
@@ -252,10 +243,6 @@ export default defineConfig(({ command, mode }) => {
               ),
               "@/lib/ota": path.resolve(appRoot, "lib/ota-ios.ts"),
               "../lib/ota": path.resolve(appRoot, "lib/ota-ios.ts"),
-              "@repo/needle": path.resolve(
-                __dirname,
-                "../../packages/needle/src/index-ios.ts"
-              ),
             }
           : {}),
         "@": appRoot,

@@ -1,3 +1,4 @@
+import { programmePlan, programmeSettings, programmeTrack } from "./lib/guidedProgrammeValidators";
 import { trailPointValidator } from "./lib/trailGeometry";
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
@@ -6,6 +7,28 @@ import { nutrientProfileValidator } from "./lib/nutritionValues";
 import { goalPlanValidator, goalFocusValidator } from "./lib/goalPlan";
 
 export default defineSchema({
+  guidedProgrammes: defineTable({
+    userId: v.string(), track: programmeTrack,
+    status: v.union(v.literal("draft"), v.literal("active"), v.literal("paused"), v.literal("ended")),
+    settings: programmeSettings, plan: v.optional(programmePlan),
+    startDate: v.optional(v.string()), pausedAt: v.optional(v.number()),
+    nutritionProgrammeId: v.optional(v.id("nutritionProgrammes")),
+    generationStatus: v.optional(v.union(v.literal("running"), v.literal("failed"), v.literal("complete"))),
+    generationError: v.optional(v.string()),
+    createdAt: v.number(), updatedAt: v.number(),
+  }).index("by_userId", ["userId"]).index("by_userId_and_track_and_status", ["userId", "track", "status"]),
+  guidedProgrammeGenerations: defineTable({
+    userId: v.string(), programmeId: v.id("guidedProgrammes"), requestId: v.string(),
+    status: v.union(v.literal("running"), v.literal("complete"), v.literal("failed")),
+    month: v.string(), settingsFingerprint: v.string(), attempt: v.number(), createdAt: v.number(), updatedAt: v.number(),
+  }).index("by_userId", ["userId"]).index("by_userId_and_requestId", ["userId", "requestId"]),
+  guidedProgrammeCheckIns: defineTable({
+    userId: v.string(), programmeId: v.id("guidedProgrammes"),
+    adherence: v.number(), difficulty: v.number(), enjoyment: v.number(), scheduleFits: v.boolean(), notes: v.string(),
+    suggestion: v.object({ title: v.string(), reason: v.string(), kind: v.union(v.literal("keep"),v.literal("lighter"),v.literal("simpler_meals"),v.literal("reschedule")) }),
+    status: v.union(v.literal("pending"),v.literal("accepted"),v.literal("dismissed")),
+    planUpdatedAt: v.number(), appliedUpdatedAt: v.optional(v.number()), createdAt: v.number(),
+  }).index("by_userId", ["userId"]).index("by_programmeId", ["programmeId"]),
   restartPlans: defineTable({
     startedAt: v.optional(v.number()),
     userId: v.string(),
@@ -71,7 +94,7 @@ export default defineSchema({
     userId: v.string(), goal: v.union(v.literal("maintain"), v.literal("step_down"), v.literal("step_up")),
     startDate: v.string(), weeks: v.number(), baselineCalories: v.number(), changePercent: v.number(),
     protein: v.number(), fat: v.number(), fastingHours: v.number(), eatingStart: v.string(), timezone: v.string(),
-    endedDate: v.optional(v.string()), createdAt: v.number(),
+    endedDate: v.optional(v.string()), pauses: v.optional(v.array(v.object({ startDate: v.string(), endDate: v.optional(v.string()) }))), createdAt: v.number(),
   }).index("by_userId", ["userId"]).index("by_userId_and_startDate", ["userId", "startDate"]),
   // Each trace is capped at 4,000 points by its mutation, separate from list summaries.
   hikingTrails: defineTable({
@@ -721,6 +744,8 @@ export default defineSchema({
 
   // ── Workout presets (templates) ────────────────────────────────────────────
   presets: defineTable({
+    guidedProgrammeId: v.optional(v.id("guidedProgrammes")),
+    guidedSessionId: v.optional(v.string()),
     userId: v.string(),
     name: v.string(),
     items: v.array(v.any()),
