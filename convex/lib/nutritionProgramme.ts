@@ -2,13 +2,21 @@
 export const PROGRAMME_RULE_VERSION = 1;
 export function programmeNeedsCare(
   profile:
-    | { age?: number; safetyMode?: string; safetyFlags?: string[] }
+    | {
+        age?: number;
+        safetyMode?: string;
+        safetyFlags?: string[];
+        nutritionGoal?: string;
+        trackingMode?: string;
+      }
     | null
     | undefined,
 ) {
   return (
     !!profile &&
     ((profile.age ?? 18) < 18 ||
+      profile.nutritionGoal === "medical" ||
+      ["habit", "recovery"].includes(profile.trackingMode ?? "") ||
       ["recovery", "clinician", "habit"].includes(profile.safetyMode ?? "") ||
       (profile.safetyFlags ?? []).some(
         (flag) => flag.trim() !== "" && flag !== "none",
@@ -45,12 +53,22 @@ export function validDate(date: string) {
 export function programmeDay(programme: Programme, date: string) {
   const pausedDays = (programme.pauses ?? []).reduce((total, pause) => {
     const until = pause.endDate && pause.endDate < date ? pause.endDate : date;
-    return total + Math.max(0, (Date.parse(until) - Date.parse(pause.startDate)) / 86400000);
+    return (
+      total +
+      Math.max(0, (Date.parse(until) - Date.parse(pause.startDate)) / 86400000)
+    );
   }, 0);
-  const paused = (programme.pauses ?? []).some(pause => date >= pause.startDate && (!pause.endDate || date < pause.endDate));
-  const day = Math.floor((Date.parse(date) - Date.parse(programme.startDate)) / 86400000 - pausedDays);
+  const paused = (programme.pauses ?? []).some(
+    (pause) =>
+      date >= pause.startDate && (!pause.endDate || date < pause.endDate),
+  );
+  const day = Math.floor(
+    (Date.parse(date) - Date.parse(programme.startDate)) / 86400000 -
+      pausedDays,
+  );
   const active =
-    !paused && day >= 0 &&
+    !paused &&
+    day >= 0 &&
     day < programme.weeks * 7 &&
     (!programme.endedDate || date < programme.endedDate);
   const week = Math.max(1, Math.min(programme.weeks, Math.floor(day / 7) + 1));

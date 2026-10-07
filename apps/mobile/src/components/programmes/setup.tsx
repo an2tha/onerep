@@ -1,49 +1,58 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { ArrowLeft, ArrowRight } from "@phosphor-icons/react";
-import { tr } from "@repo/ui/i18n";
-import { defaultProgrammeSettings, type ProgrammeSettings } from "@repo/models";
-import { useQuestionMotion } from "@/pages/onboarding/use-question-motion";
-import { hapticOnboardingCue } from "@/lib/haptics";
-import { ProgrammeAccordion, ProgrammeStars } from "./motion";
+import { useEffect, useRef, useState, type CSSProperties } from "react"
+import { ArrowLeft, ArrowRight } from "@phosphor-icons/react"
+import { tr } from "@repo/ui/i18n"
+import { defaultProgrammeSettings, type ProgrammeSettings } from "@repo/models"
+import { useQuestionMotion } from "@/pages/onboarding/use-question-motion"
+import { hapticOnboardingCue } from "@/lib/haptics"
+import { ProgrammeAccordion, ProgrammeStars } from "@repo/ui/programmes"
+import { NutritionProfileEditor } from "./nutrition-profile"
+import type { Doc } from "../../../../../convex/_generated/dataModel"
 import {
   ProgrammeChoices,
   ProgrammeField,
   ProgrammeNumber,
   commaList,
-} from "./fields";
+} from "@repo/ui/programmes"
 
-export type ProgrammeTrackChoice = "nutrition" | "training" | "both";
+export type ProgrammeTrackChoice = "nutrition" | "training" | "both"
 export type SetupDraft = {
-  settings: ProgrammeSettings;
-  targetsSource?: "profile" | "default";
-  track: ProgrammeTrackChoice;
-  step: number;
-  ids?: Partial<Record<"nutrition" | "training", string>>;
-  requestIds?: Partial<Record<"nutrition" | "training", string>>;
-  generationSignature?: string;
-  completedTracks?: ("nutrition" | "training")[];
-};
+  settings: ProgrammeSettings
+  targetsSource?: "profile" | "default"
+  track: ProgrammeTrackChoice
+  step: number
+  ids?: Partial<Record<"nutrition" | "training", string>>
+  requestIds?: Partial<Record<"nutrition" | "training", string>>
+  generationSignature?: string
+  completedTracks?: ("nutrition" | "training")[]
+}
 
 export function ProgrammeSetup({
   initial,
+  nutritionProfile,
+  nutritionEligible,
+  onProfileSaved,
   busy,
   error,
   onSaveDraft,
   onComplete,
   onClose,
 }: {
-  initial: SetupDraft;
-  busy: boolean;
-  error: string;
-  onSaveDraft: (draft: SetupDraft) => void;
-  onComplete: (draft: SetupDraft) => Promise<void>;
-  onClose: () => void;
+  initial: SetupDraft
+  nutritionProfile?: Doc<"onboardingProfiles"> | null
+  nutritionEligible?: boolean
+  onProfileSaved?: () => void
+  busy: boolean
+  error: string
+  onSaveDraft: (draft: SetupDraft) => void
+  onComplete: (draft: SetupDraft) => Promise<void>
+  onClose: () => void
 }) {
-  const [draft, setDraft] = useState(initial);
-  const [step, setStep] = useState(initial.step);
-  const form = useRef<HTMLFormElement>(null);
-  const nutrition = draft.track !== "training";
-  const training = draft.track !== "nutrition";
+  const [draft, setDraft] = useState(initial)
+  const [step, setStep] = useState(initial.step)
+  const [editingProfile, setEditingProfile] = useState(false)
+  const form = useRef<HTMLFormElement>(null)
+  const nutrition = draft.track !== "training"
+  const training = draft.track !== "nutrition"
   const steps = [
     "mode",
     "track",
@@ -51,32 +60,32 @@ export function ProgrammeSetup({
     ...(nutrition ? ["food", "targets"] : []),
     ...(training ? ["training"] : []),
     "review",
-  ];
-  const current = steps[Math.min(step, steps.length - 1)];
-  const motion = useQuestionMotion(step, setStep);
+  ]
+  const current = steps[Math.min(step, steps.length - 1)]
+  const motion = useQuestionMotion(step, setStep)
   useEffect(() => {
-    onSaveDraft({ ...draft, step });
-  }, [draft, step, onSaveDraft]);
+    onSaveDraft({ ...draft, step })
+  }, [draft, step, onSaveDraft])
   function patch(value: Partial<ProgrammeSettings>) {
-    setDraft((d) => ({ ...d, settings: { ...d.settings, ...value } }));
+    setDraft((d) => ({ ...d, settings: { ...d.settings, ...value } }))
   }
   function next() {
-    if (!form.current?.reportValidity()) return;
-    hapticOnboardingCue("continue");
-    motion.goTo(Math.min(step + 1, steps.length - 1));
+    if (!form.current?.reportValidity()) return
+    hapticOnboardingCue("continue")
+    motion.goTo(Math.min(step + 1, steps.length - 1))
   }
-  const s = draft.settings;
+  const s = draft.settings
   const tracks =
-    draft.track === "both" ? ["nutrition", "training"] : [draft.track];
+    draft.track === "both" ? ["nutrition", "training"] : [draft.track]
   const completed =
     draft.generationSignature === JSON.stringify(draft.settings)
       ? (draft.completedTracks ?? [])
-      : [];
+      : []
   const cost =
     5 *
     tracks.filter(
       (track) => !completed.includes(track as "nutrition" | "training"),
-    ).length;
+    ).length
   const headings: Record<string, string> = {
     mode: "How would you like to begin?",
     track: "What would you like help with?",
@@ -85,7 +94,7 @@ export function ProgrammeSetup({
     targets: "Daily targets.",
     training: "Training on your terms.",
     review: "Your programme.",
-  };
+  }
   return (
     <main
       className="programmes-screen"
@@ -132,9 +141,17 @@ export function ProgrammeSetup({
           className="programmes-setup programmes-question"
           inert={motion.phase !== "idle" || undefined}
           onSubmit={(event) => {
-            event.preventDefault();
-            if (current === "review") void onComplete({ ...draft, step });
-            else next();
+            event.preventDefault()
+            if (
+              editingProfile ||
+              (current === "review" &&
+                nutrition &&
+                s.mode === "guided" &&
+                nutritionEligible === false)
+            )
+              return
+            if (current === "review") void onComplete({ ...draft, step })
+            else next()
           }}
         >
           <h1 id="setup-heading" tabIndex={-1}>
@@ -463,6 +480,40 @@ export function ProgrammeSetup({
                     )}
                   </ProgrammeAccordion>
                 )}
+                {nutrition &&
+                  (editingProfile ? (
+                    <NutritionProfileEditor
+                      profile={nutritionProfile}
+                      settings={s}
+                      onCancel={() => setEditingProfile(false)}
+                      onSaved={(profile) => {
+                        patch({
+                          diet: profile.dietType ?? s.diet,
+                          allergies: profile.allergies ?? s.allergies,
+                          mealsPerDay: profile.mealFrequency ?? s.mealsPerDay,
+                        })
+                        setEditingProfile(false)
+                        onProfileSaved?.()
+                      }}
+                    />
+                  ) : (
+                    <button
+                      className="programmes-link"
+                      type="button"
+                      onClick={() => setEditingProfile(true)}
+                    >
+                      {tr("Edit nutrition profile")}
+                    </button>
+                  ))}
+                {nutrition &&
+                  nutritionEligible === false &&
+                  !editingProfile && (
+                    <p className="programmes-error" role="status">
+                      {tr(
+                        "Your profile needs a supervised nutrition plan. Review it if anything is out of date.",
+                      )}
+                    </p>
+                  )}
                 {training && (
                   <ProgrammeAccordion title={tr("Training")}>
                     <p className="programmes-muted">
@@ -486,13 +537,24 @@ export function ProgrammeSetup({
               </>
             )}
           </fieldset>
-          {error && (
+          {error && !editingProfile && (
             <p className="programmes-error" role="alert">
               {error}
             </p>
           )}
           <div className="programmes-actions">
-            <button className="programmes-link" disabled={busy} type="submit">
+            <button
+              className="programmes-link"
+              disabled={
+                busy ||
+                editingProfile ||
+                (current === "review" &&
+                  nutrition &&
+                  s.mode === "guided" &&
+                  nutritionEligible === false)
+              }
+              type="submit"
+            >
               {busy
                 ? tr("Preparing your programme…")
                 : current === "review"
@@ -509,7 +571,7 @@ export function ProgrammeSetup({
         </form>
       </div>
     </main>
-  );
+  )
 }
 
 export function newSetupDraft(
@@ -525,5 +587,5 @@ export function newSetupDraft(
       ),
       mode,
     },
-  };
+  }
 }

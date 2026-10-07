@@ -76,6 +76,12 @@ describe("@repo/ui package boundary", () => {
       "billing/types.ts",
       "billing/_private/payment-ui.tsx",
       "auth-shell.tsx",
+      // Owns the lazy WebGL renderer and its pause, motion-preference, and
+      // disposal lifecycle; the package cannot import the app renderer.
+      "login-glass.tsx",
+      // Composes the app's authentication mark and WebGL adapter around the
+      // sign-in flow, as detail-atmosphere composes app-owned atmospheres.
+      "login-layout.tsx",
       "bottom-bar.tsx",
       // Observes the active app route's scrolling title and binds router actions.
       "collapsing-page-bar.tsx",
@@ -86,6 +92,9 @@ describe("@repo/ui package boundary", () => {
       // Convex writes and haptics behind the shared sheet and button
       // primitives; the catalog it edits is app-side.
       "custom-exercise-sheet.tsx",
+      // Queries the app exercise catalog and coordinates paid Coach actions,
+      // Convex swaps, and preset/session scopes through the shared sheet.
+      "swap-exercise-sheet.tsx",
       // Edits mobile app's custom-food draft model and validation helpers;
       // sheet chrome and action controls come from shared UI package.
       "custom-food-editor-sheet.tsx",
@@ -222,6 +231,15 @@ describe("@repo/ui package boundary", () => {
       // app-domain controllers rendered with shared UI primitives.
       "nutrition-programme.tsx",
       "programme-workout.tsx",
+      // Account programme queries and links into the app's programme route.
+      "home-programmes.tsx",
+      "programme-entry.tsx",
+      // Setup coordinates the app question-motion hook, native haptics, and
+      // resumable drafts; all reusable fields, plan UI, and motion are exposed
+      // by @repo/ui/programmes rather than kept under app components.
+      "programmes/setup.tsx",
+      // Reads and saves the authenticated nutrition profile over Convex.
+      "programmes/nutrition-profile.tsx",
       // Reads and writes the versioned Convex AI-sharing consent record and
       // gates app AI flows; sheet and button chrome come from @repo/ui.
       "ai-sharing-consent.tsx",

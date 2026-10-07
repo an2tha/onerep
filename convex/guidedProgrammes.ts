@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { api, internal } from "./_generated/api";
 import {
   internalMutation,
@@ -833,8 +833,8 @@ export const reserveGeneration = internalMutation({
       row.track === "nutrition" &&
       programmeNeedsCare(await getLatestOnboardingProfile(ctx, row.userId))
     )
-      throw new Error(
-        "Your nutrition profile requires an individual plan with a qualified professional.",
+      throw new ConvexError(
+        "Your nutrition profile requires an individual plan with a qualified professional. You can review your nutrition profile here if any answers are out of date.",
       );
     const quota: AiUsageQuota & { apiKey: string | null } =
       await ctx.runMutation(internal.ai.usage.consumeMonthlyQuota, {

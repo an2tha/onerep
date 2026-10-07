@@ -202,10 +202,29 @@ const results: Record<string, unknown> = {
     },
   ],
 }
+if (mode === "profile") {
+  results["users/onboarding:get"] = {
+    _id: "profile",
+    _creationTime: 1,
+    userId: "guest",
+    age: 30,
+    heightCm: 175,
+    goal: "health",
+    nutritionGoal: "maintain",
+    safetyMode: "habit",
+    safetyFlags: [],
+    trackingMode: "full",
+    dietType: "Balanced",
+    allergies: [],
+    mealFrequency: 3,
+    updatedAt: 1,
+  }
+  results["nutritionProgrammes:getEligibility"] = { eligible: false }
+}
 const listeners = new Set<() => void>()
 const cache = new Map<string, unknown>()
 const generationAttempts: Record<string, number> = {}
-if (mode === "generation") {
+if (["generation", "profile"].includes(mode)) {
   localStorage.setItem(
     "onerep:programme-setup:v1:guest",
     JSON.stringify({
@@ -260,6 +279,23 @@ const client = {
   ) {
     const name = getFunctionName(reference)
     sessionStorage.setItem("programme-mutation", JSON.stringify({ name, args }))
+    if (name === "users/onboarding:saveNutritionProfile") {
+      const profile = {
+        ...(results["users/onboarding:get"] as object),
+        ...args,
+        updatedAt: Date.now(),
+      }
+      results["users/onboarding:get"] = profile
+      results["nutritionProgrammes:getEligibility"] = {
+        eligible:
+          args.safetyMode === "standard" &&
+          args.trackingMode === "full" &&
+          (args.safetyFlags as string[]).length === 0,
+      }
+      sessionStorage.setItem("saved-nutrition-profile", JSON.stringify(profile))
+      notify()
+      return profile
+    }
     if (name === "guidedProgrammes:saveDraft") {
       const id = String(args.id ?? `draft-${args.track}`)
       rows = [
@@ -358,14 +394,13 @@ function RouteIndicator() {
     </output>
   )
 }
-const entry =
-  mode === "generation"
-    ? "/programmes?setup=1&track=both&mode=guided"
-    : mode === "setup"
-      ? "/programmes?setup=1&track=both&mode=manual"
-      : ["nutrition", "training", "draft"].includes(mode)
-        ? `/programmes?programme=${mode === "training" ? "training" : "nutrition"}-plan`
-        : "/programmes"
+const entry = ["generation", "profile"].includes(mode)
+  ? "/programmes?setup=1&track=both&mode=guided"
+  : mode === "setup"
+    ? "/programmes?setup=1&track=both&mode=manual"
+    : ["nutrition", "training", "draft"].includes(mode)
+      ? `/programmes?programme=${mode === "training" ? "training" : "nutrition"}-plan`
+      : "/programmes"
 const previewRoot = createRoot(document.getElementById("root")!)
 import.meta.hot?.dispose(() => previewRoot.unmount())
 previewRoot.render(

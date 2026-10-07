@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Check } from "@phosphor-icons/react";
-import { tr } from "@repo/ui/i18n";
+import { tr } from "../../i18n";
 
 export function ProgrammeField({
   label,

@@ -170,3 +170,62 @@ test("reduced motion suppresses star animation", async ({ page }) => {
       .evaluate((el) => getComputedStyle(el).display),
   ).toBe("none")
 })
+
+test("review edits the saved nutrition profile inline and restores generation eligibility", async ({
+  page,
+}, info) => {
+  await page.goto(`${url}?view=profile`)
+  const generate = page.getByRole("button", {
+    name: "Generate · 10 AI tokens",
+    exact: false,
+  })
+  await expect(generate).toBeDisabled()
+  await page
+    .getByRole("button", { name: "Edit nutrition profile", exact: true })
+    .click()
+  const profile = page.getByRole("region", {
+    name: "Nutrition profile",
+    exact: true,
+  })
+  await expect(
+    profile.getByRole("spinbutton", { name: "Age", exact: true }),
+  ).toHaveValue("30")
+  await profile
+    .getByRole("combobox", { name: "Nutrition guidance", exact: true })
+    .selectOption("standard")
+  await profile
+    .getByRole("textbox", { name: "Dietary preferences", exact: true })
+    .fill("Vegetarian")
+  await page.screenshot({
+    path: `../../.impeccable/review/programme-profile-${info.project.name}.png`,
+    fullPage: true,
+  })
+  await profile
+    .getByRole("button", { name: "Save nutrition profile", exact: true })
+    .click()
+  await expect(profile).toHaveCount(0)
+  await expect(generate).toBeEnabled()
+  const saved = await page.evaluate(() =>
+    JSON.parse(sessionStorage.getItem("saved-nutrition-profile")!),
+  )
+  expect(saved).toMatchObject({
+    age: 30,
+    safetyMode: "standard",
+    dietType: "Vegetarian",
+  })
+  const draft = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("onerep:programme-setup:v1:guest")!),
+  )
+  expect(draft.settings.diet).toBe("Vegetarian")
+  await page
+    .getByRole("button", { name: "Edit nutrition profile", exact: true })
+    .click()
+  await profile.getByRole("spinbutton", { name: "Age", exact: true }).fill("31")
+  await profile.getByRole("button", { name: "Cancel", exact: true }).click()
+  await page
+    .getByRole("button", { name: "Edit nutrition profile", exact: true })
+    .click()
+  await expect(
+    profile.getByRole("spinbutton", { name: "Age", exact: true }),
+  ).toHaveValue("30")
+})

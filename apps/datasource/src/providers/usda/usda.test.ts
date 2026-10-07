@@ -1,6 +1,6 @@
 import { Database } from "bun:sqlite";
 import { afterEach, expect, test } from "bun:test";
-import { mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { BuildContext } from "../../core/provider.ts";
@@ -10,6 +10,7 @@ import { UsdaProvider } from "./index.ts";
 
 const dirs: string[] = [];
 const open: UsdaProvider[] = [];
+const inspectionDatabases: Database[] = [];
 
 function tempDir(): string {
   const dir = mkdtempSync(join(tmpdir(), "datasource-usda-"));
@@ -17,10 +18,15 @@ function tempDir(): string {
   return dir;
 }
 
-afterEach(() => {
+function closeFixtures() {
+  // The inspection handle is independent of the provider's lazy connection.
+  // Closing both before removal also releases Windows' SQLite file locks.
+  for (const db of inspectionDatabases.splice(0)) db.close(true);
   for (const provider of open.splice(0)) provider.close();
   for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
-});
+}
+
+afterEach(closeFixtures);
 
 function context(csvDir: string, dataDir: string): BuildContext {
   return {
@@ -107,13 +113,24 @@ async function importFixture() {
 
   const provider = new UsdaProvider(dataDir);
   open.push(provider);
-  return {
-    dataDir,
-    summary,
-    provider,
-    db: new Database(livePath(dataDir, "usda"), { readonly: true }),
-  };
+  const db = new Database(livePath(dataDir, "usda"), { readonly: true });
+  // Register immediately, including when a test ignores db or throws before
+  // its final assertion. afterEach owns every handle opened by this fixture.
+  inspectionDatabases.push(db);
+  return { dataDir, summary, provider, db };
 }
+
+test("fixture cleanup closes unused inspection handles and releases provider files", async () => {
+  const { provider, db, dataDir } = await importFixture();
+  // Open the provider's separate lazy handle while leaving db unused, which
+  // mirrors the twelve tests that used to leak the inspection connection.
+  expect(provider.byId("1")?.id).toBe("usda:1");
+  closeFixtures();
+  expect(() => db.query("SELECT 1").get()).toThrow();
+  expect(existsSync(dataDir)).toBe(false);
+  // The automatic afterEach will call this again without reopening handles.
+  expect(() => closeFixtures()).not.toThrow();
+});
 
 test("imports only the four catalog data types", async () => {
   const { summary, db } = await importFixture();
@@ -128,7 +145,6 @@ test("imports only the four catalog data types", async () => {
     "Macros Only Bar",
   ]);
   expect(summary.primary).toBe(4);
-  db.close();
 });
 
 test("derives energy from macros when USDA omits it", async () => {
@@ -202,7 +218,6 @@ test("never leaves an alias pointing at a dropped food", async () => {
     )
     .get() as { n: number };
   expect(dangling.n).toBe(0);
-  db.close();
 });
 
 test("ranks the generic food above the branded product", async () => {

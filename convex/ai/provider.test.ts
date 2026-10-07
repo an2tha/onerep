@@ -95,6 +95,8 @@ describe("AI prompt bundle", () => {
       "meal_description",
       "meal_image",
       "metric_selection",
+      "workout_edit",
+      "workout_guide",
       "workout_log",
       "workout_preset",
     ];

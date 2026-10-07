@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { ArrowRight, Plus, Trash } from "@phosphor-icons/react"
-import { tr } from "@repo/ui/i18n"
+import { tr } from "../../i18n"
 import type {
   ProgrammePlan,
   ProgrammeRecipe,

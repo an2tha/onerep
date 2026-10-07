@@ -77,8 +77,12 @@ describe("watch workout signing", () => {
     expect(watchEntitlements).toContain(
       "<key>com.apple.developer.healthkit</key>\n\t<true/>"
     )
-    expect(project).toContain(
-      "A1B2C0060000000000000006 = {\n\t\t\t\t\t\tCreatedOnToolsVersion = 27.0;\n\t\t\t\t\t\tSystemCapabilities = {\n\t\t\t\t\t\t\tcom.apple.HealthKit = {"
+    const watchAttributes = project.match(
+      /A1B2C0060000000000000006\s*=\s*\{[\s\S]*?SystemCapabilities\s*=\s*\{([\s\S]*?)\n\s*\};/
+    )?.[1]
+    expect(watchAttributes).toBeDefined()
+    expect(watchAttributes).toMatch(
+      /com\.apple\.HealthKit\s*=\s*\{\s*enabled\s*=\s*1;/
     )
     expect(
       project.match(

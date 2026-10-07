@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { useSearchParams } from "react-router"
 import { useAction, useMutation, useQuery } from "convex/react"
 import { ArrowLeft, ArrowRight, Plus } from "@phosphor-icons/react"
-import { tr, translateError } from "@repo/ui/i18n"
+import { tr } from "@repo/ui/i18n"
 import { toast } from "@repo/ui"
 import type {
   ProgrammePlan,
@@ -32,23 +32,17 @@ import {
 import {
   ProgrammePlanView,
   type LibraryRecipe,
-} from "@/components/programmes/plan"
-import { ProgrammeField } from "@/components/programmes/fields"
+} from "@repo/ui/programmes"
+import { ProgrammeField } from "@repo/ui/programmes"
 import {
   ProgrammeAccordion,
   ProgrammeTransition,
-} from "@/components/programmes/motion"
+} from "@repo/ui/programmes"
+import { programmeErrorMessage } from "@/lib/programme-errors"
 import "@/components/programmes/programmes.css"
 
 type Programme = Doc<"guidedProgrammes">
-const errorMessage = (error: unknown) =>
-  translateError(
-    error instanceof Error
-      ? error.message
-      : tr(
-          "Something went wrong. Your changes are still here. Please try again.",
-        ),
-  )
+const errorMessage = programmeErrorMessage
 function emptyPlan(track: ProgrammeTrack, weeks: number): ProgrammePlan {
   return track === "nutrition"
     ? { summary: "", nutrition: { recipes: [], meals: [] } }
@@ -81,6 +75,7 @@ export default function Programmes() {
   const programmes = useQuery(api.guidedProgrammes.list, {})
   const legacyNutrition = useQuery(api.nutritionProgrammes.getCurrent, {})
   const preferences = useQuery(api.users.onboarding.get, {})
+  const eligibility = useQuery(api.nutritionProgrammes.getEligibility, {})
   const calorieEstimate = useQuery(api.logs.calories.getGoals, {})
   const recommendation = useQuery(
     api.nutritionProgrammes.getGoalRecommendation,
@@ -344,6 +339,9 @@ export default function Programmes() {
         <ProgrammeSetup
           key={JSON.stringify([setup.ids, setup.completedTracks])}
           initial={setup}
+          nutritionProfile={preferences}
+          nutritionEligible={eligibility?.eligible}
+          onProfileSaved={() => setError("")}
           busy={busy}
           error={error}
           onSaveDraft={persistDraft}
@@ -742,8 +740,9 @@ function ProgrammeDetail({
       )}
       {current.generationStatus === "failed" && (
         <p className="programmes-error" role="alert">
-          {current.generationError ||
-            tr("Generation did not complete. Your tokens were returned.")}
+          {current.generationError
+            ? errorMessage(new Error(current.generationError))
+            : tr("Generation did not complete. Your tokens were returned.")}
         </p>
       )}
       {!plan && current.generationStatus !== "running" && (

@@ -1,4 +1,5 @@
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
+import { nutritionProfileSafetyMode } from "../lib/nutritionProfile";
 import { mutation, query } from "../_generated/server";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { getAuthUser, safeGetAuthUser } from "../lib/auth";
@@ -132,6 +133,91 @@ export const save = mutation({
         shownTooltips: [],
       });
     }
+  },
+});
+
+/** Inline programme setup edits only nutrition intake and preserves other onboarding answers. */
+export const saveNutritionProfile = mutation({
+  args: {
+    age: v.number(),
+    heightCm: v.number(),
+    nutritionGoal: v.union(
+      v.literal("maintain"),
+      v.literal("lose_fat"),
+      v.literal("gain_muscle"),
+      v.literal("performance"),
+      v.literal("macros_only"),
+      v.literal("medical"),
+    ),
+    safetyMode: v.union(
+      v.literal("standard"),
+      v.literal("habit"),
+      v.literal("clinician"),
+      v.literal("recovery"),
+    ),
+    safetyFlags: v.array(v.string()),
+    trackingMode: v.union(
+      v.literal("full"),
+      v.literal("protein_calories"),
+      v.literal("photo_portion"),
+      v.literal("habit"),
+      v.literal("recovery"),
+    ),
+    dietType: v.string(),
+    allergies: v.array(v.string()),
+    mealFrequency: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const user = await requireUser(ctx);
+    if (!Number.isInteger(args.age) || args.age < MINIMUM_AGE || args.age > 120)
+      throw new ConvexError(`Enter an age between ${MINIMUM_AGE} and 120.`);
+    if (
+      !Number.isFinite(args.heightCm) ||
+      args.heightCm < 80 ||
+      args.heightCm > 250
+    )
+      throw new ConvexError("Enter a height between 80 and 250 cm.");
+    if (
+      !Number.isInteger(args.mealFrequency) ||
+      args.mealFrequency < 1 ||
+      args.mealFrequency > 6
+    )
+      throw new ConvexError("Choose between 1 and 6 meals per day.");
+    if (args.dietType.trim().length === 0 || args.dietType.length > 120)
+      throw new ConvexError(
+        "Enter a dietary preference of at most 120 characters.",
+      );
+    for (const values of [args.safetyFlags, args.allergies]) {
+      if (
+        values.length > 30 ||
+        values.some((value) => !value.trim() || value.length > 120)
+      )
+        throw new ConvexError(
+          "Keep each restriction or allergy under 120 characters, with at most 30 entries.",
+        );
+    }
+    const safetyFlags = [
+      ...new Set(args.safetyFlags.map((flag) => flag.trim())),
+    ];
+    const patch = {
+      ...args,
+      safetyFlags,
+      safetyMode: nutritionProfileSafetyMode({ ...args, safetyFlags }),
+      dietType: args.dietType.trim(),
+      allergies: [...new Set(args.allergies.map((allergy) => allergy.trim()))],
+      updatedAt: Date.now(),
+    };
+    const existing = await getLatestOnboardingProfile(ctx, user._id);
+    const id =
+      existing?._id ??
+      (await ctx.db.insert("onboardingProfiles", {
+        userId: user._id,
+        goal: "health",
+        shownTooltips: [],
+        ...patch,
+      }));
+    if (existing) await ctx.db.patch("onboardingProfiles", id, patch);
+    return await ctx.db.get("onboardingProfiles", id);
   },
 });
 

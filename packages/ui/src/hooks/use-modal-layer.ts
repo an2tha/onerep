@@ -70,7 +70,7 @@ export function useModalLayer(
     const frame = requestAnimationFrame(() => {
       if (isTop() && !panel.contains(document.activeElement)) focusFirst()
     })
-    function onKeyDown(event: KeyboardEvent) {
+    const onKeyDown = (event: KeyboardEvent) => {
       if (!isTop() || event.defaultPrevented) return
       if (event.key === "Escape") {
         event.preventDefault()
@@ -95,7 +95,7 @@ export function useModalLayer(
         }
       }
     }
-    function onFocus(event: FocusEvent) {
+    const onFocus = (event: FocusEvent) => {
       if (isTop() && !panel.contains(event.target as Node)) focusFirst()
     }
     const visualViewport = window.visualViewport

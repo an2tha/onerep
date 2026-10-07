@@ -512,3 +512,10 @@
   --star-pan-x: -5%;
   --star-pan-y: -2%;
 }
+.programmes-profile-editor {
+  padding-block: 24px;
+  border-block: 1px solid var(--programme-line);
+}
+.programmes-profile-editor .programmes-check {
+  text-align: left;
+}
