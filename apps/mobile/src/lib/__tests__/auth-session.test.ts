@@ -57,7 +57,11 @@ function setWindowLocation(pathname: string, search = "", hash = "") {
 }
 
 describe("auth session helpers", () => {
+  let clockBase = 0
+
   beforeEach(() => {
+    // Each test advances beyond the previous redirect cooldown, in any order.
+    clockBase += 100_000
     installStorage()
   })
 
@@ -170,7 +174,7 @@ describe("auth session helpers", () => {
   test("signs out the auth client before redirecting to login", async () => {
     const events: string[] = []
     const originalNow = Date.now
-    Date.now = () => 10_000
+    Date.now = () => clockBase + 10_000
 
     try {
       await handleUnauthenticatedSession({
@@ -192,7 +196,7 @@ describe("auth session helpers", () => {
   test("redirects unauthenticated protected routes to login with next path", async () => {
     const events: string[] = []
     const originalNow = Date.now
-    Date.now = () => 12_500
+    Date.now = () => clockBase + 12_500
     setWindowLocation("/water", "?from=widget")
 
     try {
@@ -213,7 +217,7 @@ describe("auth session helpers", () => {
   test("suppresses duplicate unauthenticated redirects during the cooldown", async () => {
     const events: string[] = []
     const originalNow = Date.now
-    Date.now = () => 20_000
+    Date.now = () => clockBase + 20_000
 
     try {
       await handleUnauthenticatedSession({
@@ -224,7 +228,7 @@ describe("auth session helpers", () => {
           events.push("first:navigate")
         },
       })
-      Date.now = () => 20_500
+      Date.now = () => clockBase + 20_500
       await handleUnauthenticatedSession({
         signOut: async () => {
           events.push("second:signOut")
@@ -243,7 +247,7 @@ describe("auth session helpers", () => {
   test("allows changed protected routes during the redirect cooldown", async () => {
     const events: string[] = []
     const originalNow = Date.now
-    Date.now = () => 21_000
+    Date.now = () => clockBase + 21_000
     setWindowLocation("/water")
 
     try {
@@ -252,7 +256,7 @@ describe("auth session helpers", () => {
           events.push(`first:${String(to)}`)
         },
       })
-      Date.now = () => 21_500
+      Date.now = () => clockBase + 21_500
       setWindowLocation("/foods/search", "?q=rice")
       await handleUnauthenticatedSession({
         navigate: (to) => {
@@ -272,7 +276,7 @@ describe("auth session helpers", () => {
   test("allows future unauthenticated recovery after the cooldown", async () => {
     const events: string[] = []
     const originalNow = Date.now
-    Date.now = () => 30_000
+    Date.now = () => clockBase + 30_000
 
     try {
       await handleUnauthenticatedSession({
@@ -283,7 +287,7 @@ describe("auth session helpers", () => {
           events.push("first:navigate")
         },
       })
-      Date.now = () => 32_500
+      Date.now = () => clockBase + 32_500
       await handleUnauthenticatedSession({
         signOut: async () => {
           events.push("second:signOut")
@@ -307,7 +311,7 @@ describe("auth session helpers", () => {
   test("ignores overlapping unauthenticated redirects while sign-out is running", async () => {
     const events: string[] = []
     const originalNow = Date.now
-    Date.now = () => 40_000
+    Date.now = () => clockBase + 40_000
     let releaseSignOut: (() => void) | undefined
 
     try {

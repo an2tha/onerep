@@ -10,7 +10,7 @@
     "lint": "eslint .",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "typecheck": "tsc -b",
-    "test": "bun test --max-concurrency 1 ./src ./capacitor-config.test.ts ./ios-privacy-manifest.test.ts && bun run test:recovery-ui && bun run test:billing-ui && bun run test:logging-ui && bun run test:ux-ui && bun run test:ai-sharing-ui",
+    "test": "bun test --isolate --max-concurrency 1 ./src ./capacitor-config.test.ts ./ios-privacy-manifest.test.ts && bun run test:recovery-ui && bun run test:billing-ui && bun run test:logging-ui && bun run test:ux-ui && bun run test:ai-sharing-ui",
     "test:visual": "playwright test",
     "test:visual:update": "playwright test --update-snapshots",
     "preview": "vite preview",

@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test"
+import { afterEach, beforeEach, describe, expect, test } from "bun:test"
 import {
   MAX_RETRO_DURATION_SECONDS,
   MIN_RETRO_DURATION_SECONDS,
@@ -10,6 +10,29 @@ import {
 } from "../workout-logging"
 import { writeMeasurementSystem } from "../measurement-system"
 import type { ExerciseState, WorkoutItem, WorkoutSet } from "../workout-logging"
+
+const originalStorage = Object.getOwnPropertyDescriptor(globalThis, "localStorage")
+
+beforeEach(() => {
+  const values = new Map<string, string>()
+  Object.defineProperty(globalThis, "localStorage", {
+    configurable: true,
+    value: {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => values.set(key, value),
+    },
+  })
+  writeMeasurementSystem("metric")
+})
+
+afterEach(() => {
+  writeMeasurementSystem("metric")
+  if (originalStorage) {
+    Object.defineProperty(globalThis, "localStorage", originalStorage)
+  } else {
+    Reflect.deleteProperty(globalThis, "localStorage")
+  }
+})
 
 /** The flatten `handleFinish` performs on the way into a saved log. */
 function flatten(state: ExerciseState) {
