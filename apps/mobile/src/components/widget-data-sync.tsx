@@ -13,6 +13,7 @@ import {
 import { updateOneRepWidgets } from "@/lib/home-widgets"
 import { updateWatchToday, onWatchAction } from "@/lib/watch-sync"
 import { useWaterUnit } from "@/lib/use-water-unit"
+import { dayHydrationMl, hydrationEnabledFor } from "@/lib/hydration"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { calcTrailingSessions } from "@/lib/training-consistency"
 import { toast } from "@repo/ui"
@@ -44,6 +45,7 @@ export function WidgetDataSync() {
     api.logs.water.addEntry,
     "logs.water.addEntry"
   )
+  const hydrationOn = hydrationEnabledFor(preferences)
 
   const payload = useMemo(() => {
     if (!user || !goals || !foodLogs || !presetDocs || schedule === undefined) {
@@ -96,8 +98,6 @@ export function WidgetDataSync() {
       )
     }, 0)
 
-    const waterEntries = (waterLogs ?? []) as { amountMl: number }[]
-
     return {
       calories: Math.round(totals.calories),
       calorieGoal: Math.round(target.calories),
@@ -127,19 +127,22 @@ export function WidgetDataSync() {
             })
           : tr("Recovery day"),
       waterUnit,
-      ...(waterLogs !== undefined
-        ? {
-            waterMl: waterEntries.reduce(
-              (sum, entry) => sum + entry.amountMl,
-              0
-            ),
-            waterGoalMl: preferences?.waterGoalMl ?? 2500,
-          }
-        : {}),
+      // A goal of zero is how the phone tells both widgets there is no
+      // hydration to show — the Android and iOS widgets already skip the row
+      // at zero, so nothing new is asked of the native side.
+      ...(waterLogs === undefined
+        ? {}
+        : hydrationOn
+          ? {
+              waterMl: dayHydrationMl(waterLogs, foodLogs),
+              waterGoalMl: preferences?.waterGoalMl ?? 2500,
+            }
+          : { waterMl: 0, waterGoalMl: 0 }),
     }
   }, [
     foodLogs,
     goals,
+    hydrationOn,
     preferences?.lastActiveTimezone,
     preferences?.waterGoalMl,
     presetDocs,
@@ -162,7 +165,6 @@ export function WidgetDataSync() {
     if (!payload || waterLogs === undefined || workoutHistory === undefined) {
       return null
     }
-    const entries = (waterLogs ?? []) as { amountMl: number }[]
     const trainedDates = new Set(
       ((workoutHistory ?? []) as unknown as CachedWorkoutLog[])
         .map((log) => log.date)
@@ -181,15 +183,23 @@ export function WidgetDataSync() {
       carbsGoal: payload.carbsGoal,
       fat: payload.fat,
       fatGoal: payload.fatGoal,
-      waterMl: entries.reduce((sum, entry) => sum + entry.amountMl, 0),
-      waterGoalMl: preferences?.waterGoalMl ?? 2500,
+      waterMl: hydrationOn ? dayHydrationMl(waterLogs, foodLogs) : 0,
+      waterGoalMl: hydrationOn ? (preferences?.waterGoalMl ?? 2500) : 0,
       // The watch renders water in the user's chosen unit; ml is the watch's
       // own default for snapshots from phone builds that predate the choice.
       waterUnit,
       daysLast28: calcTrailingSessions(trainedDates, trailingDate, 28),
       workoutBrief: payload.workoutBrief,
     }
-  }, [payload, preferences?.waterGoalMl, waterLogs, waterUnit, workoutHistory])
+  }, [
+    foodLogs,
+    hydrationOn,
+    payload,
+    preferences?.waterGoalMl,
+    waterLogs,
+    waterUnit,
+    workoutHistory,
+  ])
 
   useEffect(() => {
     if (!watchPayload) return

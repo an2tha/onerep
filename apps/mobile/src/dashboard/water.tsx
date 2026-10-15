@@ -19,8 +19,10 @@ import {
 import { WATER_BG, WATER_COLOR } from "./constants"
 import { formatWater } from "@/lib/measurement-system"
 import { useWaterUnit } from "@/lib/use-water-unit"
+import { dayHydrationMl, useHydrationEnabled } from "@/lib/hydration"
 
 import {
+  pendingWaterMl,
   reconcilePendingWater,
   type PendingWaterEntry,
 } from "@/lib/pending-water"
@@ -30,11 +32,12 @@ type WaterEntry = { id: string; amountMl: number; loggedAt: string }
 /** Keep queued entries by date and reconcile only their own server IDs. */
 function useWaterDay(dateKey: string, rawEntries: WaterEntry[] | undefined) {
   const entries = rawEntries ?? []
+  // Drinks counted toward hydration belong to the same day's figure, so the
+  // widget and the Nutrition card cannot disagree about it.
+  const foodEntries = useQuery(api.logs.foodLogs.getDay, { date: dateKey })
   const [pending, setPending] = useState<PendingWaterEntry[]>([])
   const remaining = reconcilePendingWater(pending, dateKey, entries)
-  const pendingMl = remaining
-    .filter((entry) => entry.date === dateKey)
-    .reduce((sum, entry) => sum + entry.amountMl, 0)
+  const pendingMl = pendingWaterMl(remaining, dateKey)
 
   useEffect(() => {
     if (!rawEntries) return
@@ -48,8 +51,7 @@ function useWaterDay(dateKey: string, rawEntries: WaterEntry[] | undefined) {
     entries,
     loaded: rawEntries !== undefined,
     pendingMl,
-    totalMl:
-      entries.reduce((sum, entry) => sum + entry.amountMl, 0) + pendingMl,
+    totalMl: dayHydrationMl(entries, foodEntries) + pendingMl,
     queuePending: (entry: WaterEntry) =>
       setPending((previous) => [...previous, { ...entry, date: dateKey }]),
     clearPending: (id: string) =>
@@ -86,6 +88,10 @@ export function WaterWidget({ dateKey }: { dateKey: string }) {
   const mlPerGlass = waterGlassTargetMl(goalMl, 1)
   const filledCount = filledWaterGlassCount(totalMl, goalMl)
   const rain = useReplayKey(1100)
+  // Hydration is optional. With the tracker off this tile has nothing to show
+  // and no way to log; the data behind it is untouched.
+  const hydrationOn = useHydrationEnabled()
+  if (!hydrationOn) return null
 
   function addWater(amountMl: number) {
     if (amountMl <= 0) return
@@ -243,6 +249,10 @@ export function WaterSmall({
   function fillToGlass(index: number) {
     addWater(waterAmountNeededForGlass(totalMl, goalMl, index + 1))
   }
+
+  // Hydration is optional — see `WaterWidget` for why this is checked here.
+  const hydrationOn = useHydrationEnabled()
+  if (!hydrationOn) return null
 
   function removeLastGlass() {
     // Same as the row tile: an unsynced entry has no server id to remove.

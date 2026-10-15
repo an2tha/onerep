@@ -55,6 +55,7 @@ const MUTATION_REGISTRY = {
   "users.users.setWeightUnit": api.users.users.setWeightUnit,
   "users.users.setEnergyUnit": api.users.users.setEnergyUnit,
   "users.users.setWaterUnit": api.users.users.setWaterUnit,
+  "users.users.setHydrationEnabled": api.users.users.setHydrationEnabled,
   "users.users.setShowCalorieNumbers": api.users.users.setShowCalorieNumbers,
   "users.users.setFoodSearchLanguage": api.users.users.setFoodSearchLanguage,
   "users.users.setDashboardSettings": api.users.users.setDashboardSettings,

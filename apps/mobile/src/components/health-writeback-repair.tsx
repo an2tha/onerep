@@ -33,6 +33,7 @@ import {
   setHealthSyncPhase,
 } from "@/lib/health-sync-status"
 import { localDateKey } from "@/lib/utils"
+import { dayHydrationMl } from "@/lib/hydration"
 
 /** How far back the repair reaches. */
 const REPAIR_DAYS = 7
@@ -191,6 +192,7 @@ function RepairRunner({
               protein: number
               carbs: number
               fat: number
+              hydrationMl?: number
             }[]
           }[]
         )?.find((doc) => doc.date === date)?.entries ?? []
@@ -203,9 +205,13 @@ function RepairRunner({
         }),
         { calories: 0, protein: 0, carbs: 0, fat: 0 }
       )
-      const waterMl = ((water as { amountMl: number }[]) ?? []).reduce(
-        (sum, e) => sum + e.amountMl,
-        0
+      // The day's hydration as every other surface reads it, drinks included:
+      // a repair that pushed only the water rows would leave health disagreeing
+      // with the app about the same day, which is the whole reason there is one
+      // rule rather than five.
+      const waterMl = dayHydrationMl(
+        water as { amountMl: number }[] | undefined,
+        entries
       )
       return { date, totals, waterMl }
     })

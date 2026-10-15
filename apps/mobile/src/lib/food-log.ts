@@ -69,6 +69,16 @@ export type FoodLogEntry = {
   vitaminB12?: number
   caffeine?: number
   alcohol?: number
+  /**
+   * Millilitres this entry contributes to the day's hydration, when the user
+   * counted it. Absent is the normal case: a drink only counts because it was
+   * ticked, so nothing here is inferred at log time.
+   *
+   * It lives on the entry rather than as a hidden water row so that unticking
+   * or deleting the drink takes its water with it, and no orphan survives in a
+   * separate log.
+   */
+  hydrationMl?: number
 }
 
 export type MealPresetEntry = Omit<
@@ -681,7 +691,14 @@ export function parseFoodPortionLabel(
   }
 }
 
-function looksLikeLiquid(name?: string | null) {
+/**
+ * Does this name read as something people drink?
+ *
+ * Shared with the hydration rule, which uses it to decide whether the "counts
+ * toward hydration" box starts ticked on a food whose portion is not already
+ * measured in volume. "Soup" is here on purpose: it is water by another name.
+ */
+export function looksLikeLiquid(name?: string | null) {
   return /\b(juice|water|milk|soda|drink|beverage|coffee|tea|smoothie|shake|soup|beer|wine)\b/i.test(
     name ?? ""
   )
@@ -1228,8 +1245,15 @@ export function removeMealCategory(id: string): void {
 
 // ─── Default meal by time of day ──────────────────────────────────────────────
 
-export function defaultMeal(): MealType {
-  const h = new Date().getHours()
+/**
+ * The meal the clock is in.
+ *
+ * `at` defaults to now. A caller that already holds the moment an entry belongs
+ * to — a repeat stamped at the tap — passes it, so the meal is read from that
+ * clock rather than from whenever the work happens to run.
+ */
+export function defaultMeal(at: Date = new Date()): MealType {
+  const h = at.getHours()
   if (h >= 5 && h < 11) return "breakfast"
   if (h >= 11 && h < 15) return "lunch"
   if (h >= 15 && h < 21) return "dinner"

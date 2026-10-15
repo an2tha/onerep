@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import {
   foodLogContextParams,
+  foodLogRepeatStamp,
   foodLogTime,
   foodLogTimestamp,
   isFoodLogDate,
@@ -73,5 +74,54 @@ describe("backdated food logging", () => {
       expect(isFoodLogTime(time)).toBe(false)
     expect(foodLogContextParams("2026-09-02", "24:00")).toBe("date=2026-09-02")
     expect(() => foodLogTimestamp("2026-02-30")).toThrow("Choose a valid date")
+  })
+})
+
+describe("logging a repeated food", () => {
+  /** 22:03, after dinner: the meal the tap falls in is not the meal being copied. */
+  const lateEvening = new Date(2026, 8, 9, 22, 3)
+
+  test("takes the meal of the tap, not the one its source entry carried", () => {
+    // The source entry was a breakfast, so inheriting its tag put the repeat at
+    // 08:00. A tap after dinner belongs to the snack that follows it, and that
+    // meal's own time is what a fresh log would have used.
+    const stamp = foodLogRepeatStamp("2026-09-09", null, lateEvening)
+    expect(stamp.meal).toBe("snack-post-dinner")
+    const at = new Date(stamp.loggedAt)
+    expect([at.getDate(), at.getHours(), at.getMinutes()]).toEqual([9, 20, 0])
+  })
+
+  test("keeps an explicit time from the calling route, under the current meal", () => {
+    const stamp = foodLogRepeatStamp("2026-09-09", "14:09", lateEvening)
+    expect(stamp.meal).toBe("snack-post-dinner")
+    const at = new Date(stamp.loggedAt)
+    expect([at.getHours(), at.getMinutes()]).toEqual([14, 9])
+  })
+
+  test("lands on the day being viewed, not the day the source was logged", () => {
+    const at = new Date(
+      foodLogRepeatStamp("2026-08-31", null, lateEvening).loggedAt
+    )
+    expect([at.getFullYear(), at.getMonth() + 1, at.getDate()]).toEqual([
+      2026, 8, 31,
+    ])
+  })
+
+  test("reads the meal off the clock, so every surface agrees on it", () => {
+    const meals = [4, 5, 10, 11, 14, 15, 20, 21].map(
+      (hour) =>
+        foodLogRepeatStamp("2026-09-09", null, new Date(2026, 8, 9, hour, 0))
+          .meal
+    )
+    expect(meals).toEqual([
+      "snack-post-dinner",
+      "breakfast",
+      "breakfast",
+      "lunch",
+      "lunch",
+      "dinner",
+      "dinner",
+      "snack-post-dinner",
+    ])
   })
 })
