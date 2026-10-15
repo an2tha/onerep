@@ -695,6 +695,15 @@ export const applyApproved = action({
             goalId: String(saved.goalId),
             actionId: String(actionId),
           });
+        } else if (operation.type === "set_workout_logging") {
+          const saved = await ctx.runMutation(api.users.users.setRelaxedWorkoutLogging, { enabled: operation.enabled });
+          const actionId = await ctx.runMutation(api.ai.coachState.recordAction, {
+            kind: "set_workout_logging",
+            summary: operation.summary,
+            targetType: "workout_logging",
+            undoPayload: { kind: "restore_workout_logging", enabled: saved.previous },
+          });
+          results.push({ type: operation.type, label: operation.enabled ? "Relaxed workout logging on" : "Relaxed workout logging off", actionId: String(actionId) });
         } else if (operation.type === "set_nutrition_targets") {
           const saved = await ctx.runMutation(
             api.users.users.setNutritionTargets,

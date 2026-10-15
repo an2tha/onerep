@@ -466,6 +466,7 @@ export async function buildCoachWorkspace(
     today: args.today,
     timezone: preferences?.lastActiveTimezone ?? "UTC",
     nutritionTargets,
+    relaxedWorkoutLogging: preferences?.relaxedWorkoutLogging ?? false,
     nutritionProgramme: programmeTargets && nutritionProgramme ? { goal: nutritionProgramme.goal, week: programmePhase!.week, phase: programmePhase!.phase, fastingHours: nutritionProgramme.fastingHours, eatingStart: nutritionProgramme.eatingStart, timezone: nutritionProgramme.timezone, note: "The programme owns calorie and macro targets until it ends. Target-setting operations only change the underlying post-programme defaults." } : null,
     personalized,
     presets: presets.map((preset) => ({

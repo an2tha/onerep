@@ -1,4 +1,5 @@
 import { Message, tr, translateError, uiLocale } from "@repo/ui/i18n"
+import { omitQuickLogMeasurements } from "@/lib/relaxed-workout"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useWeightUnit } from "@/lib/use-weight-unit"
 import { useMutation, useQuery } from "convex/react"
@@ -180,7 +181,9 @@ export function QuickLogStep({
         date,
         sessionId,
         slot,
-        exercises,
+        exercises: preferences?.relaxedWorkoutLogging
+          ? omitQuickLogMeasurements(exercises)
+          : exercises,
         durationSeconds,
         completedAt: new Date(`${date}T12:00:00`).getTime(),
       })

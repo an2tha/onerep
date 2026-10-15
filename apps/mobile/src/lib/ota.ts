@@ -23,11 +23,9 @@ import { tr } from "@repo/ui/i18n"
  * All decision rules live in ./ota-manifest so they are testable in isolation.
  * This file is only the glue: platform guard, network, plugin calls, state.
  *
- * Apple App Review guideline 2.5.2 means this channel is only for content,
- * security repairs, and bug fixes that restore already-reviewed behaviour.
- * It must never introduce a feature or new use of a native capability. The
- * mechanism is enabled in the exact build App Review receives and documented
- * in docs/app-store-review/ota-updates.md; there is no review-only switch.
+ * Retained for historical release tooling and tests only. OTA_ENABLED is
+ * false, and Vite replaces this module with ota-disabled.ts in app bundles.
+ * Mobile updates now require store releases on both platforms.
  */
 
 import { Capacitor, registerPlugin } from "@capacitor/core"
@@ -170,7 +168,11 @@ export function otaBuildVersion(): string {
 }
 
 export function isOtaSupported(): boolean {
-  return Capacitor.isNativePlatform() && Capacitor.isPluginAvailable("OtaTrust")
+  return (
+    OTA_ENABLED &&
+    Capacitor.isNativePlatform() &&
+    Capacitor.isPluginAvailable("OtaTrust")
+  )
 }
 
 function otaPlatform(): OtaPlatform | null {

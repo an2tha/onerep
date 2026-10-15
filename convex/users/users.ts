@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import { setWorkoutLoggingPreference } from "../lib/workoutLoggingPreference";
 import { goalPlanValidator } from "../lib/goalPlan";
 import { localProgrammeTime, programmeDay, programmeNeedsCare, validDate } from "../lib/nutritionProgramme";
 import { internal } from "../_generated/api";
@@ -54,8 +55,10 @@ export const saveGoalPlan = mutation({
   args: { plan: v.optional(goalPlanValidator) },
   handler: async (ctx, { plan }) => {
     const user = await requireUser(ctx);
-    const existing = await ctx.db.query("userPreferences")
-      .withIndex("by_userId", (q) => q.eq("userId", user._id)).unique();
+    const existing = await ctx.db
+      .query("userPreferences")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .unique();
     const changes = {
       goalsIntroducedAt: existing?.goalsIntroducedAt ?? Date.now(),
       ...(plan ? { goalPlan: { focus: plan.focus } } : {}),
@@ -341,6 +344,37 @@ function isValidTimeZone(tz: string): boolean {
     return false;
   }
 }
+
+export const setRelaxedWorkoutLogging = mutation({
+  args: { enabled: v.boolean() },
+  handler: async (ctx, { enabled }) => {
+    const user = await requireUser(ctx);
+    return setWorkoutLoggingPreference(ctx, user._id, enabled);
+  },
+});
+
+export const acknowledgeRelaxedWorkoutLogging = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const user = await requireUser(ctx);
+    const existing = await ctx.db.query("userPreferences")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id)).unique();
+    if (existing?.relaxedWorkoutLoggingIntroducedAt !== undefined) return null;
+    const changes = {
+      relaxedWorkoutLoggingIntroducedAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    if (existing) await ctx.db.patch("userPreferences", existing._id, changes);
+    else {
+      await ctx.db.insert("userPreferences", {
+        userId: user._id,
+        lastActiveTimezone: "UTC",
+        ...changes,
+      });
+    }
+    return null;
+  },
+});
 
 export const setWeightUnit = mutation({
   args: { unit: v.union(v.literal("kg"), v.literal("lbs")) },

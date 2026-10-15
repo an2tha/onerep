@@ -1,3 +1,5 @@
+import { prepareWorkoutSet } from "../../../src/lib/relaxed-workout"
+import { RelaxedWorkoutIntroSheet } from "../../../src/components/relaxed-workout-intro"
 import { useRef, useState } from "react"
 import { createRoot } from "react-dom/client"
 import { MobileSheet, dismissTopmost } from "@repo/ui"
@@ -35,7 +37,13 @@ const delay = () => new Promise((resolve) => setTimeout(resolve, 700))
 document.addEventListener("fixture-device-back", () => dismissTopmost())
 
 function Fixture() {
-  const [sets, setSets] = useState<WorkoutSet[]>(initialSets)
+  const relaxedLogging = new URLSearchParams(location.search).has("relaxed")
+  const [showIntro, setShowIntro] = useState(
+    new URLSearchParams(location.search).has("intro")
+  )
+  const [sets, setSets] = useState<WorkoutSet[]>(() =>
+    initialSets.map((set) => prepareWorkoutSet(set, relaxedLogging))
+  )
   const [simple, setSimple] = useState(true)
   const [rest, setRest] = useState(false)
   const [sheet, setSheet] = useState("")
@@ -70,9 +78,18 @@ function Fixture() {
       className="min-h-svh bg-background text-foreground"
       style={{ transform: "translateZ(0)" }}
     >
+      {showIntro && (
+        <RelaxedWorkoutIntroSheet
+          onClose={() => setShowIntro(false)}
+          onEnable={async () => {
+            setOutcome("relaxed enabled")
+          }}
+        />
+      )}
       <div className="mx-auto max-w-2xl pb-8">
         {simple ? (
           <FocusWorkoutView
+            relaxedLogging={relaxedLogging}
             exerciseName="Single Arm Incline Dumbbell Bench Press"
             set={index < 0 ? null : sets[index]}
             allSets={sets}
@@ -125,9 +142,10 @@ function Fixture() {
               <h2 className="p-4 text-lg font-semibold">
                 Single Arm Incline Dumbbell Bench Press
               </h2>
-              <SetListHeader unit="kg" />
+              <SetListHeader unit="kg" relaxedLogging={relaxedLogging} />
               {sets.map((set, i) => (
                 <ActiveSetRow
+                  relaxedLogging={relaxedLogging}
                   key={set.id}
                   set={set}
                   index={i}

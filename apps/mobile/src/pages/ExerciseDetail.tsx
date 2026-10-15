@@ -349,9 +349,11 @@ function ProgressPane({
         </div>
       ) : (
         <p className="mb-8 text-[14px] text-muted-foreground">
-          {tr(
-            "One session logged. Come back after the next one and there will be a line."
-          )}
+          {series.length === 0
+            ? tr("Weight trends are paused for relaxed sessions.")
+            : tr(
+                "One session logged. Come back after the next one and there will be a line."
+              )}
         </p>
       )}
 
@@ -364,16 +366,24 @@ function ProgressPane({
                 {formatSessionDate(session.date)}
               </p>
               <p className="shrink-0 text-[13px] text-muted-foreground">
-                <Message
-                  text={"{{value0}} volume"}
-                  values={{ value0: formatWeight(session.volume, unit) }}
-                />
+                {session.sets.every((set) => set.loggingMode === "relaxed") ? (
+                  tr("Weight not logged")
+                ) : (
+                  <Message
+                    text={"{{value0}} volume"}
+                    values={{ value0: formatWeight(session.volume, unit) }}
+                  />
+                )}
               </p>
             </div>
             <p className="mt-1 text-[13px] text-muted-foreground">
               {session.sets
-                .map(
-                  (set) => `${formatWeightValue(set.weight, unit)}×${set.reps}`
+                .map((set) =>
+                  set.loggingMode === "relaxed"
+                    ? set.reps > 0
+                      ? tr("{{value0}} reps", { value0: set.reps })
+                      : tr("Completed")
+                    : `${formatWeightValue(set.weight, unit)}×${set.reps}`
                 )
                 .join(", ")}
             </p>

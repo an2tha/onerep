@@ -1295,6 +1295,7 @@ export default function Workouts({ embedded = false }: { embedded?: boolean }) {
           reps: Number(set.reps) || 0,
           weight: Number(set.weight) || 0,
           completed: Boolean(set.completed),
+          ...(set.loggingMode === "relaxed" ? { loggingMode: "relaxed" as const } : {}),
         })),
         ...(exercise.cardio ? { cardio: exercise.cardio } : {}),
       }))

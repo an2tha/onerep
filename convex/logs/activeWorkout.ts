@@ -45,6 +45,7 @@ const cardioDetailsValidator = v.object({
 });
 
 const completedSetValidator = v.object({
+  loggingMode: v.optional(v.literal("relaxed")),
   type: v.string(),
   reps: v.number(),
   weight: v.number(),

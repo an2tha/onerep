@@ -6786,5 +6786,19 @@
   "−{{value1}}%": "−{{value1}}%",
   "−{{value1}}bpm on baseline": "−{{value1}} bpm gegenüber Basiswert",
   "−{{value1}}ms on baseline": "−{{value1}} ms gegenüber Basiswert",
-  "✓ Logged to {{value0}}": "✓ In {{value0}} protokolliert"
+  "✓ Logged to {{value0}}": "✓ In {{value0}} protokolliert",
+  "Relaxed workout logging": "Entspanntes Trainingsprotokoll",
+  "Less tracking, same workout": "Weniger protokollieren, gleich trainieren",
+  "With relaxed logging, skip weights and enter reps only if you want. Tap to complete each set, even with no numbers.": "Keine Gewichte erfassen, Wiederholungen nur auf Wunsch. Markiere jeden Satz als erledigt, auch ohne Zahlen.",
+  "Useful for recovery days or whenever you want less tracking. Turn it on or off in Settings, or ask Coach. It stays on until you switch it off.": "Praktisch an Erholungstagen oder wenn du weniger erfassen möchtest. Aktiviere oder deaktiviere es unter Einstellungen oder frage Coach. Es bleibt aktiv, bis du es ausschaltest.",
+  "Could not save workout logging preference": "Die Einstellung konnte nicht gespeichert werden",
+  "Turn on relaxed logging": "Entspanntes Protokollieren aktivieren",
+  "Keep current logging": "Bisheriges Protokollieren beibehalten",
+  "Relaxed logging: weights off, reps optional": "Entspanntes Protokollieren: ohne Gewichte, Wiederholungen optional",
+  "Weight trends are paused for relaxed sessions.": "Bei entspannt protokollierten Einheiten werden keine Gewichtstrends erfasst.",
+  "Weight not logged": "Gewicht nicht erfasst",
+  "Reps (optional)": "Wdh. (optional)",
+  "Skip weights and make reps optional. Stays on until you switch it off here or ask Coach.": "Keine Gewichte erfassen, Wiederholungen sind optional. Bleibt aktiv, bis du es hier oder über Coach ausschaltest.",
+  "Optional reps": "Wdh. optional",
+  "Reps optional": "Wiederholungen optional"
 }

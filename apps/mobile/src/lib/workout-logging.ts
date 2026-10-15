@@ -56,6 +56,7 @@ export type HeartRateZoneKey =
   | "zone5Seconds"
 
 export type WorkoutSet = {
+  loggingMode?: "relaxed"
   id: string
   type: SetType
   weight: string
@@ -103,6 +104,7 @@ export type PersistedExerciseState = Partial<
 }
 
 export type LoggedWorkoutSet = {
+  loggingMode?: "relaxed"
   weight: number
   reps: number
   completed: boolean
@@ -688,6 +690,7 @@ export function normalizeExerciseState(
       reps: s.reps || "",
       restSeconds: s.restSeconds ?? 120,
       completed: !!s.completed,
+      ...(s.loggingMode === "relaxed" ? { loggingMode: "relaxed" as const } : {}),
     })),
     trackRpe: false,
     trackUnilateral: false,
@@ -1059,6 +1062,7 @@ export function exerciseStateFromLoggedExercise(
       completed?: boolean
       type?: string
       restSeconds?: number
+      loggingMode?: "relaxed"
     }>
     cardio?: Partial<CardioWorkoutDetails> | null
   },
@@ -1079,6 +1083,7 @@ export function exerciseStateFromLoggedExercise(
         : "",
     reps: typeof set.reps === "number" && set.reps > 0 ? String(set.reps) : "",
     restSeconds: typeof set.restSeconds === "number" ? set.restSeconds : 120,
+    ...(set.loggingMode === "relaxed" ? { loggingMode: "relaxed" as const } : {}),
     // A logged set was performed. An incomplete one was never written.
     completed: true,
   }))

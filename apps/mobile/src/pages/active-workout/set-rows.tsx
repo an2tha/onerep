@@ -8,7 +8,12 @@ import { hapticConfirm } from "@/lib/haptics"
  */
 
 import { useEffect, useState } from "react"
-import { ArrowCounterClockwise, Check, Timer } from "@phosphor-icons/react"
+import {
+  ArrowCounterClockwise,
+  Check,
+  Timer,
+  Trash,
+} from "@phosphor-icons/react"
 import { RestTimerSheet, formatRestDuration as formatRest } from "@repo/ui"
 import { cn } from "@/lib/utils"
 import { toDisplay } from "@/lib/workout-logging"
@@ -18,35 +23,49 @@ import {
   type WeightSelectorChange,
 } from "./weight-selector-sheet"
 
-const SET_GRID =
-  "grid grid-cols-[1.25rem_minmax(0,1fr)_minmax(0,0.8fr)_2.75rem_2.75rem] items-center gap-1 px-2 sm:grid-cols-[1.9rem_minmax(0,1.15fr)_minmax(0,0.85fr)_3.4rem_2.75rem] sm:gap-1.5 sm:px-3"
+const RELAXED_SET_GRID =
+  "grid-cols-[2.75rem_minmax(0,1fr)_2.75rem_2.75rem] sm:grid-cols-[2.75rem_minmax(0,1fr)_3.4rem_2.75rem]"
 
-export function SetListHeader({ unit }: { unit: WeightUnit }) {
+const SET_GRID =
+  "grid grid-cols-[2.75rem_minmax(0,1fr)_minmax(0,0.8fr)_2.75rem_2.75rem] items-center gap-1 px-2 sm:grid-cols-[2.75rem_minmax(0,1.15fr)_minmax(0,0.85fr)_3.4rem_2.75rem] sm:gap-1.5 sm:px-3"
+
+export function SetListHeader({
+  unit,
+  relaxedLogging = false,
+}: {
+  unit: WeightUnit
+  relaxedLogging?: boolean
+}) {
   return (
     <div
-      className={cn(SET_GRID, "py-1.5")}
+      className={cn(SET_GRID, relaxedLogging && RELAXED_SET_GRID, "py-1.5")}
       style={{
         borderTop:
           "1px solid color-mix(in srgb, var(--border) 45%, transparent)",
       }}
       aria-hidden="true"
     >
-      {[tr("Set"), unit, tr("Reps"), tr("Rest"), tr("Done")].map(
-        (label, column) => (
-          <span
-            key={column}
-            className="text-center text-[11px] font-bold tracking-[0.08em] text-muted-foreground uppercase"
-          >
-            {label}
-          </span>
-        )
-      )}
+      {[
+        tr("Set"),
+        ...(relaxedLogging ? [] : [unit]),
+        relaxedLogging ? tr("Reps (optional)") : tr("Reps"),
+        tr("Rest"),
+        tr("Done"),
+      ].map((label, column) => (
+        <span
+          key={column}
+          className="text-center text-[11px] font-bold tracking-[0.08em] text-muted-foreground uppercase"
+        >
+          {label}
+        </span>
+      ))}
     </div>
   )
 }
 
 export function ActiveSetRow({
   set,
+  relaxedLogging = false,
   index,
   unit,
   onUpdate,
@@ -61,6 +80,7 @@ export function ActiveSetRow({
   onWeightConfigChange,
 }: {
   set: WorkoutSet
+  relaxedLogging?: boolean
   index: number
   unit: WeightUnit
   onUpdate: (s: WorkoutSet) => void
@@ -117,27 +137,49 @@ export function ActiveSetRow({
           "1px solid color-mix(in srgb, var(--border) 45%, transparent)",
       }}
     >
-      <div className={cn(SET_GRID, "py-1.5")}>
-        <span
-          className={cn(
-            "text-center text-[13px] font-bold tabular-nums",
-            isNext && !set.completed ? "text-primary" : "text-muted-foreground"
-          )}
-        >
-          {index + 1}
-        </span>
-        <button
-          type="button"
-          onClick={() => setShowWeight(true)}
-          disabled={set.completed}
-          aria-label={tr("Set {{value0}} weight in {{value1}}", {
-            value0: index + 1,
-            value1: unit,
-          })}
-          className={cn(fieldCls, "disabled:pointer-events-none")}
-        >
-          <span className="truncate">{weightDisplay || weightPlaceholder}</span>
-        </button>
+      <div
+        className={cn(SET_GRID, relaxedLogging && RELAXED_SET_GRID, "py-1.5")}
+      >
+        {canDelete && !set.completed ? (
+          <button
+            type="button"
+            onClick={onDelete}
+            aria-label={tr("Delete set {{value0}}", { value0: index + 1 })}
+            className="flex h-11 w-11 items-center justify-center gap-1 rounded-lg text-[13px] font-bold text-muted-foreground tabular-nums transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:bg-destructive/10 active:text-destructive"
+          >
+            <span>{index + 1}</span>
+            <Trash size={14} aria-hidden="true" />
+          </button>
+        ) : (
+          <span
+            className={cn(
+              "text-center text-[13px] font-bold tabular-nums",
+              isNext && !set.completed
+                ? "text-primary"
+                : "text-muted-foreground"
+            )}
+          >
+            {index + 1}
+          </span>
+        )}
+        {!relaxedLogging && (
+          <button
+            type="button"
+            onClick={() => setShowWeight(true)}
+            disabled={set.completed || set.loggingMode === "relaxed"}
+            aria-label={tr("Set {{value0}} weight in {{value1}}", {
+              value0: index + 1,
+              value1: unit,
+            })}
+            className={cn(fieldCls, "disabled:pointer-events-none")}
+          >
+            <span className="truncate">
+              {set.loggingMode === "relaxed"
+                ? "–"
+                : weightDisplay || weightPlaceholder}
+            </span>
+          </button>
+        )}
         <input
           type="number"
           name={`set-${index + 1}-reps`}
@@ -147,7 +189,13 @@ export function ActiveSetRow({
           step="1"
           value={set.reps}
           onChange={(event) => onRepsChange(event.target.value)}
-          placeholder={lastSet?.reps ? String(lastSet.reps) : "–"}
+          placeholder={
+            relaxedLogging
+              ? tr("Optional")
+              : lastSet?.reps
+                ? String(lastSet.reps)
+                : "–"
+          }
           disabled={set.completed}
           className={cn(
             fieldCls,
@@ -196,7 +244,7 @@ export function ActiveSetRow({
           onDelete={canDelete && !set.completed ? onDelete : undefined}
         />
       )}
-      {showWeight && (
+      {showWeight && !relaxedLogging && (
         <WeightSelectorSheet
           currentWeight={set.weight}
           barWeight={barWeight}

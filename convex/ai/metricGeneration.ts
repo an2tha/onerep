@@ -260,6 +260,7 @@ type CoachOperation = CoachOperationMeta &
         schedule: SupplementSchedule;
         nutrientsPerServing: SupplementNutrients;
       }
+    | { type: "set_workout_logging"; enabled: boolean; }
     | {
         type: "set_nutrition_targets";
         calories?: number;
@@ -1101,6 +1102,10 @@ function normalizeCoachOperations(value: unknown): CoachOperation[] {
         };
       }
 
+      if (type === "set_workout_logging") {
+        return typeof row.enabled === "boolean" ? { ...meta, type, enabled: row.enabled } : null;
+      }
+
       if (type === "set_nutrition_targets") {
         const target = (field: (typeof NUTRITION_TARGET_FIELDS)[number]) => {
           const value = row[field];
@@ -1819,6 +1824,14 @@ async function generateCoachChatWithOpenAi({
             entryId: "exact workspace food entry id",
             date: "YYYY-MM-DD",
             name: "entry name from workspace",
+          },
+          {
+            type: "set_workout_logging",
+            confirmation: "auto | confirm",
+            summary: "Turn relaxed workout logging on or off",
+            assumptions: [],
+            warnings: [],
+            enabled: true,
           },
           {
             type: "set_nutrition_targets",

@@ -235,16 +235,13 @@ export default defineConfig(({ command, mode }) => {
       ],
       dedupe: ["convex", "react", "react-dom"],
       alias: {
-        ...(ios
-          ? {
-              [path.resolve(appRoot, "lib/ota.ts")]: path.resolve(
-                appRoot,
-                "lib/ota-ios.ts"
-              ),
-              "@/lib/ota": path.resolve(appRoot, "lib/ota-ios.ts"),
-              "../lib/ota": path.resolve(appRoot, "lib/ota-ios.ts"),
-            }
-          : {}),
+        // Exclude executable OTA code from every app bundle.
+        [path.resolve(appRoot, "lib/ota.ts")]: path.resolve(
+          appRoot,
+          "lib/ota-disabled.ts"
+        ),
+        "@/lib/ota": path.resolve(appRoot, "lib/ota-disabled.ts"),
+        "../lib/ota": path.resolve(appRoot, "lib/ota-disabled.ts"),
         "@": appRoot,
         "@repo/ui/styles.css": path.resolve(uiRoot, "index.css"),
         "@repo/ui": uiRoot,

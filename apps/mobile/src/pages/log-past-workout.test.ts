@@ -119,7 +119,7 @@ describe("the abridged preset view", () => {
 
   test("collapses each exercise to sets, reps, and weight", () => {
     expect(QUICK).toContain('label="Sets"')
-    expect(QUICK).toContain('label="Reps"')
+    expect(QUICK).toContain('"Reps (optional)"')
     expect(PRESET_LOG).toContain("setCount: string")
   })
 

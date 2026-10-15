@@ -223,6 +223,8 @@ export default defineSchema({
       ),
     ),
     weightUnit: v.optional(v.string()), // "kg" | "lbs"
+    relaxedWorkoutLogging: v.optional(v.boolean()),
+    relaxedWorkoutLoggingIntroducedAt: v.optional(v.number()),
     /**
      * How to show food energy: "kcal" | "Cal" | "kJ". kcal and Cal are the
      * same number; kJ converts at display time. Stored values stay kcal.

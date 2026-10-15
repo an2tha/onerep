@@ -11,6 +11,7 @@ import { tr } from "@repo/ui/i18n"
 import { estimate1RM } from "./one-rm"
 
 export type HistorySet = {
+  loggingMode?: "relaxed"
   weight: number
   reps: number
   completed: boolean
@@ -69,11 +70,17 @@ export function summariseSessions(
     .map((session, index) => {
       const sets = session.sets.filter(isWorkingSet)
       const volume = sets.reduce(
-        (total, set) => total + (set.weight || 0) * (set.reps || 0),
+        (total, set) =>
+          total +
+          (set.loggingMode === "relaxed"
+            ? 0
+            : (set.weight || 0) * (set.reps || 0)),
         0
       )
       const e1rms = sets.map((set) =>
-        estimate1RM(set.weight || 0, set.reps || 0)
+        set.loggingMode === "relaxed"
+          ? 0
+          : estimate1RM(set.weight || 0, set.reps || 0)
       )
       return {
         id: session.id ?? `${session.date}:${index}`,
@@ -81,7 +88,8 @@ export function summariseSessions(
         sets,
         volume: round(volume),
         heaviestWeight: sets.reduce(
-          (best, set) => Math.max(best, set.weight || 0),
+          (best, set) =>
+            Math.max(best, set.loggingMode === "relaxed" ? 0 : set.weight || 0),
           0
         ),
         bestE1rm: round(
@@ -133,11 +141,15 @@ export function metricSeries(
   sessions: SessionSummary[],
   metric: ProgressMetric
 ): number[] {
-  return sessions.map((session) => {
-    if (metric === "heaviest") return session.heaviestWeight
-    if (metric === "volume") return session.volume
-    return session.bestE1rm
-  })
+  return sessions
+    .filter((session) =>
+      session.sets.some((set) => set.loggingMode !== "relaxed")
+    )
+    .map((session) => {
+      if (metric === "heaviest") return session.heaviestWeight
+      if (metric === "volume") return session.volume
+      return session.bestE1rm
+    })
 }
 
 /**

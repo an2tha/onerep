@@ -246,6 +246,7 @@ export type CoachOperation = CoachOperationMeta &
         schedule: SupplementSchedule;
         nutrientsPerServing: SupplementNutrients;
       }
+    | { type: "set_workout_logging"; enabled: boolean; }
     | {
         type: "set_nutrition_targets";
         calories?: number;
@@ -394,6 +395,8 @@ export function normalizeCoachOperations(value: unknown): CoachOperation[] {
           isRecord(row.schedule) &&
           isRecord(row.nutrientsPerServing)
         );
+      case "set_workout_logging":
+        return typeof row.enabled === "boolean";
       case "set_nutrition_targets":
         return NUTRITION_TARGET_FIELDS.some(
           (field) => typeof row[field] === "number",

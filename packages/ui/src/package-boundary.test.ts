@@ -243,6 +243,9 @@ describe("@repo/ui package boundary", () => {
       // Reads and writes the versioned Convex AI-sharing consent record and
       // gates app AI flows; sheet and button chrome come from @repo/ui.
       "ai-sharing-consent.tsx",
+      // Coordinates the one-time account introduction and Convex logging
+      // preference through the shared MobileSheet and full-screen event queue.
+      "relaxed-workout-intro.tsx",
       // Recovery controllers read Convex state and reconcile native reminders.
       "recovery/recovery-banner.tsx",
       "recovery/recovery-reminder-sync.tsx",
