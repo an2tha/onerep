@@ -27,6 +27,7 @@ import {
   type QuickActionId,
 } from "@/dashboard/quick-action-drawers"
 import { useWaterUnit } from "@/lib/use-water-unit"
+import { dayHydrationMl, useHydrationEnabled } from "@/lib/hydration"
 import { formatWater } from "@/lib/measurement-system"
 import { toast } from "@repo/ui"
 import { TrackerStudio, type JournalMetric } from "./journal/tracker-studio"
@@ -55,6 +56,7 @@ export default function Journal() {
   const metrics = useQuery(api.logs.journal.trackers, { date, days: 28 })
   const water = useQuery(api.logs.water.getDay, { date })
   const food = useQuery(api.logs.foodLogs.getDay, { date })
+  const hydrationOn = useHydrationEnabled()
   const workouts = useQuery(api.logs.workouts.getLog, { date })
   const waterUnit = useWaterUnit()
   const save = useMutation(api.logs.journal.save)
@@ -194,19 +196,23 @@ export default function Journal() {
           : tr("{{value0}} entries", { value0: food.length }),
       tone: "food",
     },
-    {
-      id: "water",
-      title: tr("Water"),
-      Icon: Drop,
-      detail:
-        water === undefined
-          ? tr("Loading…")
-          : formatWater(
-              water.reduce((sum, item) => sum + item.amountMl, 0),
-              waterUnit
-            ),
-      tone: "water",
-    },
+    // Hydration is optional. With the tracker off the journal stops reporting
+    // it, the same rule the dashboard follows — and the figure is the day's
+    // water rows plus any drinks that were counted.
+    ...(hydrationOn
+      ? ([
+          {
+            id: "water",
+            title: tr("Water"),
+            Icon: Drop,
+            detail:
+              water === undefined
+                ? tr("Loading…")
+                : formatWater(dayHydrationMl(water, food), waterUnit),
+            tone: "water",
+          },
+        ] as const)
+      : []),
     {
       id: "workout",
       title: tr("Training"),

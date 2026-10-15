@@ -1,6 +1,7 @@
 import { Message, tr, translateError, uiLocale } from "@repo/ui/i18n"
 import {
   foodLogContextParams,
+  foodLogRepeatStamp,
   foodLogTime,
   foodLogTimestamp,
   foodLogTimestampForMeal,
@@ -67,6 +68,7 @@ import { energyDisplay } from "@repo/ui"
 import { WATER_BG, WATER_COLOR } from "./constants"
 import { formatWater, flOzToMl, mlToFlOz } from "@/lib/measurement-system"
 import { useWaterUnit } from "@/lib/use-water-unit"
+import { dayHydrationMl } from "@/lib/hydration"
 import { oneGlassWaterMl, waterPoursMl } from "@/lib/water-amounts"
 
 export type QuickActionId =
@@ -195,6 +197,9 @@ function WaterDrawer({
   const navigate = useSmoothNavigate()
   const preferences = useQuery(api.users.users.getPreferences)
   const rawEntries = useQuery(api.logs.water.getDay, { date: dateKey })
+  // Drinks counted toward hydration are part of this day's water, so the
+  // drawer's running total agrees with the rail and the Nutrition card.
+  const foodEntries = useQuery(api.logs.foodLogs.getDay, { date: dateKey })
   // Targeted add/remove, not a whole-day setDay rewrite — a rewrite drops any
   // glass logged from a widget or the Nutrition page between read and write.
   const addWaterEntry = useOfflineMutation(
@@ -210,7 +215,7 @@ function WaterDrawer({
   const [custom, setCustom] = useState("")
 
   const entries = (rawEntries ?? []) as WaterEntry[]
-  const totalMl = entries.reduce((sum, entry) => sum + entry.amountMl, 0)
+  const totalMl = dayHydrationMl(entries, foodEntries)
   const goalMl = preferences?.waterGoalMl ?? 2500
   // The custom field speaks the user's chosen water unit; storage stays ml
   // underneath.
@@ -491,6 +496,9 @@ function FoodDrawer({
         name: food.entry.name,
         detail: macroLine(food.entry, energyUnit),
         icon: <ArrowClockwise size={16} weight="bold" />,
+        // The source entry's meal described an earlier meal; a repeat belongs
+        // to now. See foodLogRepeatStamp.
+        repeat: true,
         entries: () => [food.entry],
       })),
       ...(mealPresets ?? []).slice(0, 5).map((preset) => {
@@ -509,6 +517,8 @@ function FoodDrawer({
             value1: macroLine(totals, energyUnit),
           }),
           icon: <BookmarkSimple size={16} weight="bold" />,
+          // A saved meal was authored with its own meal; that one still decides.
+          repeat: false,
           entries: () =>
             foodLogEntriesFromMealPreset({
               entries: preset.entries,
@@ -521,17 +531,22 @@ function FoodDrawer({
 
   async function log(choice: (typeof choices)[number]) {
     if (busy) return
-    const entries = choice.entries().map((entry) => ({
-      ...entry,
-      id: createClientId(),
-      meal: entry.meal ?? defaultMeal(),
-      // The timeline's explicit minute wins; otherwise the meal tag supplies
-      // the default time ("breakfast" lands at the breakfast hour).
-      loggedAt:
-        atMinutes !== undefined
-          ? stampAt(dateKey, atMinutes)
-          : foodLogTimestampForMeal(dateKey, entry.meal ?? defaultMeal()),
-    }))
+    const entries = choice.entries().map((entry) => {
+      const meal = entry.meal ?? defaultMeal()
+      // The timeline's explicit minute wins either way.
+      const atTime = atMinutes === undefined ? null : foodLogTime(atMinutes)
+      return {
+        ...entry,
+        id: createClientId(),
+        // A repeat belongs to now rather than to the meal its source entry was
+        // tagged with; a saved meal keeps the meal it was saved with, and there
+        // the tag still supplies the default time ("breakfast" lands at the
+        // breakfast hour).
+        ...(choice.repeat
+          ? foodLogRepeatStamp(dateKey, atTime)
+          : { meal, loggedAt: foodLogTimestampForMeal(dateKey, meal, atTime) }),
+      }
+    })
     setBusy(true)
     try {
       // Entries carry unique client ids and the server dedupes by id, so the

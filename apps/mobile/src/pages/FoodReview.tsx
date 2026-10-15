@@ -98,7 +98,9 @@ export default function FoodReview() {
     micros: LogMicros = {},
     meal = defaultMeal(),
     detail?: FoodDetail | null,
-    portion?: FoodPortion
+    portion?: FoodPortion,
+    /** Set when the sheet's hydration switch was left on for a drink. */
+    hydrationMl?: number
   ) {
     if (savingRef.current || added) return
     savingRef.current = true
@@ -121,6 +123,7 @@ export default function FoodReview() {
       servingLabel: detail?.servingLabel ?? food.serving,
       imageUrl: detail?.imageUrl ?? food.imageUrl,
       openFoodFacts: product,
+      ...(hydrationMl && hydrationMl > 0 ? { hydrationMl } : {}),
       ...micros,
     })
 
@@ -190,8 +193,8 @@ export default function FoodReview() {
       added={added}
       saving={saving}
       presentation="page"
-      onAdd={(food, grams, micros, meal, detail, portion) => {
-        void handleAdd(food, grams, micros, meal, detail, portion)
+      onAdd={(food, grams, micros, meal, detail, portion, hydrationMl) => {
+        void handleAdd(food, grams, micros, meal, detail, portion, hydrationMl)
       }}
       onClose={() => navigate(-1)}
     />

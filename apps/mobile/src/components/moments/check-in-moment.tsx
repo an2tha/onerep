@@ -11,6 +11,7 @@ import { createClientId, logDevWarn } from "@/lib/utils"
 import { announceOrbActivity } from "@/lib/orb-activity"
 import { formatWater } from "@/lib/measurement-system"
 import { useWaterUnit } from "@/lib/use-water-unit"
+import { useHydrationEnabled } from "@/lib/hydration"
 import { waterPoursMl } from "@/lib/water-amounts"
 import type { FoodLogEntry } from "@/lib/food-log"
 import type { SourceWorkoutLog } from "@/lib/moment-quick-log"
@@ -174,6 +175,9 @@ export function CheckInMoment({
   const navigate = useSmoothNavigate()
   const [step, setStep] = useState<"ask" | "day" | "coach" | "food">("ask")
   const [busy, setBusy] = useState(false)
+  // Hydration is optional: with the tracker off this moment asks nothing about
+  // water rather than offering a glass the app would not count.
+  const hydrationOn = useHydrationEnabled()
   const waterUnit = useWaterUnit()
   const fmtWater = (amountMl: number) => formatWater(amountMl, waterUnit)
   const waterChips = waterPoursMl(waterUnit, WATER_CHIPS_ML, WATER_CHIPS_FL_OZ)
@@ -422,7 +426,7 @@ export function CheckInMoment({
         rapid-log step now, and offering the same three in two places invites
         the user to log one of them twice.
       */}
-      {variant === "missed-log" && (
+      {variant === "missed-log" && hydrationOn && (
         <div className="mt-5">
           <p className="mb-2 px-1 text-[13px] text-muted-foreground">
             {tr("Or drink something, while you are here")}

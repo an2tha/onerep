@@ -254,6 +254,15 @@ export default defineSchema({
     showCalorieNumbers: v.optional(v.boolean()),
     foodSearchLanguage: v.optional(v.string()), // Open Food Facts language code, e.g. "en"
     waterGoalMl: v.optional(v.number()),
+    /**
+     * Whether hydration is tracked at all. Absent means on, so an account that
+     * has never answered keeps the water row it has always had — turning it off
+     * is a choice someone makes, not a default the app imposes.
+     *
+     * Nothing is deleted when this goes false: the day's water entries and the
+     * goal stay put, and the surfaces simply stop asking.
+     */
+    hydrationEnabled: v.optional(v.boolean()),
     /** Display carbs as net (carbs − fiber) everywhere. Purely presentational. */
     netCarbsEnabled: v.optional(v.boolean()),
     customGoals: v.optional(

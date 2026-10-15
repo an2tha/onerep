@@ -17,6 +17,7 @@ import { useEffect, useMemo } from "react"
 import { useQuery } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
 import { saveHealthDailyMetric } from "./health-provider"
+import { hydrationEnabledFor } from "./hydration"
 
 export type NutritionTotals = {
   calories: number
@@ -58,7 +59,10 @@ export function useNutritionHealthWriteBack(
     )
   }, [foodEntries])
 
-  const water = waterTotalMl ?? 0
+  // With the tracker off nothing is written for hydration at all: an absent
+  // metric is the honest record of "not tracked", where a zero would claim the
+  // day was spent drinking nothing.
+  const water = hydrationEnabledFor(preferences) ? (waterTotalMl ?? 0) : 0
   const signature = signatureFor(totals, water)
 
   useEffect(() => {

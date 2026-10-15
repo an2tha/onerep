@@ -13,7 +13,10 @@ import {
   type FoodLogEntry,
 } from "@/lib/food-log"
 import { createClientId } from "@/lib/utils"
-import { foodLogTimestampForMeal } from "@/lib/food-log-context"
+import {
+  foodLogRepeatStamp,
+  foodLogTimestampForMeal,
+} from "@/lib/food-log-context"
 import { buildQuickRepeatFoods } from "@/lib/food-quick-repeat"
 import { useEnergyUnit, type EnergyUnit } from "@/lib/use-energy-unit"
 import { energyDisplay } from "@repo/ui"
@@ -66,6 +69,9 @@ export function RepeatChips({ dateKey }: { dateKey: string }) {
         key: `again:${food.key}`,
         name: food.entry.name,
         detail: macroLine(food.entry, energyUnit),
+        // The source entry's meal described an earlier meal. A repeat belongs
+        // to now; see foodLogRepeatStamp.
+        repeat: true,
         entries: () => [food.entry],
       })),
       ...(mealPresets ?? [])
@@ -89,6 +95,8 @@ export function RepeatChips({ dateKey }: { dateKey: string }) {
               energyUnit,
             ),
           }),
+          // A saved meal was authored with its own meal; that one still decides.
+          repeat: false,
           entries: () =>
             foodLogEntriesFromMealPreset({
               entries: preset.entries,
@@ -109,12 +117,18 @@ export function RepeatChips({ dateKey }: { dateKey: string }) {
     if (pending.current) return
     pending.current = true
     setBusy(true)
-    const entries = choice.entries().map((entry) => ({
-      ...entry,
-      id: createClientId(),
-      meal: entry.meal ?? defaultMeal(),
-      loggedAt: foodLogTimestampForMeal(dateKey, entry.meal ?? defaultMeal()),
-    }))
+    const entries = choice.entries().map((entry) => {
+      const meal = entry.meal ?? defaultMeal()
+      return {
+        ...entry,
+        id: createClientId(),
+        // A repeat belongs to now. A saved meal was authored with its own meal,
+        // so that one keeps it, and there the tag still answers the time.
+        ...(choice.repeat
+          ? foodLogRepeatStamp(dateKey)
+          : { meal, loggedAt: foodLogTimestampForMeal(dateKey, meal) }),
+      }
+    })
     try {
       await addFoods({ date: dateKey, entries })
       announceOrbActivity("log", Math.min(entries.length, 3))

@@ -43,6 +43,7 @@ import { ReactiveOrbField } from "@/components/reactive-orb-field"
 import { announceOrbActivity } from "@/lib/orb-activity"
 import { useWaterUnit } from "@/lib/use-water-unit"
 import { formatWater, type WaterUnit } from "@/lib/measurement-system"
+import { dayHydrationMl, useHydrationEnabled } from "@/lib/hydration"
 
 import LegacyApp from "./App.legacy"
 
@@ -82,6 +83,12 @@ function Dashboard() {
     date: dateKey,
   })
   const workoutLogs = useQuery(api.logs.workouts.getLog, { date: dateKey })
+
+  // The day's hydration is the water rows plus whatever drinks were counted, so
+  // every number below is the same number: rail, phone summary and the health
+  // store. When tracking is off the figure is not asked for at all.
+  const hydrationOn = useHydrationEnabled()
+  const hydrationTotalMl = dayHydrationMl(waterEntries, foodEntries)
 
   // The rails around the wheel: health signals for the night shading,
   // history for the week strip, and today's standing for the day rail.
@@ -184,9 +191,7 @@ function Dashboard() {
   useNutritionHealthWriteBack(
     todayKey,
     viewingToday ? foodEntries : undefined,
-    viewingToday
-      ? (waterEntries ?? []).reduce((sum, entry) => sum + entry.amountMl, 0)
-      : 0
+    viewingToday ? hydrationTotalMl : 0
   )
 
   // Which of the plan's supplements are taken today, as supplement id →
@@ -297,6 +302,11 @@ function Dashboard() {
     forDateKey = dateKey,
     atMinutes?: number
   ) => {
+    // One guard, every door: the timeline's + beside a past glass and the
+    // wheel's own add button both arrive here, and with hydration off there is
+    // no water to log. Rows already logged stay readable — this hides the
+    // offering, not the history.
+    if (id === "water" && !hydrationOn) return
     setQuickAction({ id, dateKey: forDateKey, atMinutes })
   }
   const [editFoodEntry, setEditFoodEntry] = useState<FoodLogEntry | null>(null)
@@ -439,13 +449,11 @@ function Dashboard() {
                   {Math.round(dayTotals.protein)} g {tr("protein")}
                 </span>
               )}
-            <span>
-              {formatWater(
-                waterEntries.reduce((sum, row) => sum + row.amountMl, 0),
-                waterUnit
-              )}{" "}
-              {tr("water")}
-            </span>
+            {hydrationOn && (
+              <span>
+                {formatWater(hydrationTotalMl, waterUnit)} {tr("water")}
+              </span>
+            )}
           </>
         )}
       </div>
@@ -480,11 +488,9 @@ function Dashboard() {
             proteinGoal={goals?.effective.protein}
             carbsGoal={goals?.effective.carbs}
             fatGoal={goals?.effective.fat}
-            waterTotalMl={(waterEntries ?? []).reduce(
-              (sum, entry) => sum + entry.amountMl,
-              0
-            )}
+            waterTotalMl={hydrationTotalMl}
             waterGoalMl={preferences?.waterGoalMl ?? 2500}
+            waterEnabled={hydrationOn}
             supplements={(supplementOverview?.items ?? [])
               .filter((item) => item.active)
               .map((item) => ({

@@ -548,6 +548,40 @@ export const setWaterGoal = mutation({
   },
 });
 
+/**
+ * Turns the hydration tracker on or off.
+ *
+ * Off is not a delete: the water entries and the goal stay in place, the
+ * surfaces stop rendering, and switching back on restores the same day's
+ * figure. Stored as an explicit boolean because `undefined` already means "has
+ * never answered", which reads as on.
+ */
+export const setHydrationEnabled = mutation({
+  args: { enabled: v.boolean() },
+  handler: async (ctx, args) => {
+    const user = await requireUser(ctx);
+
+    const existing = await ctx.db
+      .query("userPreferences")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .unique();
+
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        hydrationEnabled: args.enabled,
+        updatedAt: Date.now(),
+      });
+    } else {
+      await ctx.db.insert("userPreferences", {
+        userId: user._id,
+        lastActiveTimezone: "UTC",
+        hydrationEnabled: args.enabled,
+        updatedAt: Date.now(),
+      });
+    }
+  },
+});
+
 export const setWidgetLayout = mutation({
   args: {
     layout: v.array(

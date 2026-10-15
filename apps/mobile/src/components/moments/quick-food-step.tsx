@@ -23,7 +23,10 @@ import { hapticMedium, hapticSelection } from "@/lib/haptics"
 import { createClientId, logDevWarn } from "@/lib/utils"
 import { announceOrbActivity } from "@/lib/orb-activity"
 import { recipeTotals } from "@/lib/coach-chat"
-import { foodLogTimestampForMeal } from "@/lib/food-log-context"
+import {
+  foodLogRepeatStamp,
+  foodLogTimestampForMeal,
+} from "@/lib/food-log-context"
 import {
   defaultMeal,
   foodLogEntriesFromMealPreset,
@@ -40,6 +43,7 @@ import { buildQuickRepeatFoods } from "@/lib/food-quick-repeat"
 import { searchFoodsAccurate } from "@/lib/openfoodfacts"
 import { foodCardMacros } from "@/lib/food-search-nutrition"
 import { FoodDetailSheet } from "@/components/food-detail-sheet"
+import { withEntryHydration } from "@/lib/hydration"
 import type { FullScreenEventOutcome } from "@/lib/full-screen-events"
 
 /** Enough to cover a day; more turns a shortcut back into a browse. */
@@ -59,6 +63,12 @@ type Choice = {
   name: string
   detail: string
   icon: "again" | "recipe" | "saved"
+  /**
+   * A repeat belongs to *now*: the meal on its source entry described an
+   * earlier meal and must not decide this one. A saved meal or a recipe was
+   * authored with its own meal and keeps it.
+   */
+  repeat?: boolean
   /** Some sources are one entry, a saved meal is several. */
   entries: () => FoodLogEntry[]
 }
@@ -186,6 +196,7 @@ export function QuickFoodStep({
         name: food.entry.name,
         detail: macroLine(food.entry, energyUnit),
         icon: "again",
+        repeat: true,
         entries: () => [food.entry],
       })
     }
@@ -250,14 +261,19 @@ export function QuickFoodStep({
 
   async function log(choice: Choice) {
     if (busy) return
-    const entries = choice.entries().map((entry) => ({
-      ...entry,
-      id: createClientId(),
-      meal: entry.meal ?? defaultMeal(),
-      // The meal tag supplies the default time ("breakfast" logs at the
-      // breakfast hour) rather than the moment of the tap.
-      loggedAt: foodLogTimestampForMeal(todayKey, entry.meal ?? defaultMeal()),
-    }))
+    const entries = choice.entries().map((entry) => {
+      const meal = entry.meal ?? defaultMeal()
+      return {
+        ...entry,
+        id: createClientId(),
+        // A repeat belongs to now. A saved meal or a recipe was authored with
+        // its own meal, so that one keeps it, and there the tag still supplies
+        // the default time ("breakfast" logs at the breakfast hour).
+        ...(choice.repeat
+          ? foodLogRepeatStamp(todayKey)
+          : { meal, loggedAt: foodLogTimestampForMeal(todayKey, meal) }),
+      }
+    })
 
     setBusy(true)
     try {
@@ -298,18 +314,24 @@ export function QuickFoodStep({
     micros: LogMicros,
     meal: MealType,
     detail?: FoodDetail | null,
-    portion?: FoodPortion
+    portion?: FoodPortion,
+    /** Set when the sheet's hydration switch was left on for a drink. */
+    hydrationMl?: number
   ) {
-    const entry = foodLogEntryFromFoodResult(item, {
-      grams,
-      micros,
-      meal,
-      detail,
-      portion,
-      // The sheet's meal tag supplies the default time, same as every
-      // other logging surface.
-      loggedAt: foodLogTimestampForMeal(todayKey, meal),
-    })
+    const entry = withEntryHydration(
+      foodLogEntryFromFoodResult(item, {
+        grams,
+        micros,
+        meal,
+        detail,
+        portion,
+        // The sheet's meal tag supplies the default time, same as every
+        // other logging surface.
+        loggedAt: foodLogTimestampForMeal(todayKey, meal),
+      }),
+      hydrationMl !== undefined && hydrationMl > 0,
+      hydrationMl ?? 0
+    )
 
     setBusy(true)
     try {
@@ -498,8 +520,16 @@ export function QuickFoodStep({
           added={false}
           saving={busy}
           onClose={() => setDetailItem(null)}
-          onAdd={(item, grams, micros, meal, detail, portion) =>
-            void logSearchResult(item, grams, micros, meal, detail, portion)
+          onAdd={(item, grams, micros, meal, detail, portion, hydrationMl) =>
+            void logSearchResult(
+              item,
+              grams,
+              micros,
+              meal,
+              detail,
+              portion,
+              hydrationMl
+            )
           }
         />
       )}
