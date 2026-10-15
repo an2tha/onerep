@@ -53,6 +53,7 @@ import { CardioDetailsPanel } from "./cardio-details-panel"
 
 export function ActiveExerciseCard({
   exercise,
+  relaxedLogging = false,
   data,
   unit,
   onUpdate,
@@ -79,6 +80,7 @@ export function ActiveExerciseCard({
   defaultSetCompleted = false,
 }: {
   exercise: Exercise
+  relaxedLogging?: boolean
   data: ExerciseState
   unit: WeightUnit
   onUpdate: (d: ExerciseState) => void
@@ -100,6 +102,7 @@ export function ActiveExerciseCard({
       reps: number
       completed: boolean
       type: string
+      loggingMode?: "relaxed"
     }>
   } | null
   onShowHistory: () => void
@@ -170,10 +173,10 @@ export function ActiveExerciseCard({
   const selectedBarType = normalizeBarType(data.barType, data.barWeight)
   const progression = useMemo(
     () =>
-      lastSession
+      lastSession && !relaxedLogging
         ? suggestDoubleProgression(lastSession.sets, data.sets.length)
         : null,
-    [data.sets.length, lastSession]
+    [data.sets.length, lastSession, relaxedLogging]
   )
 
   function applyProgression() {
@@ -421,6 +424,7 @@ export function ActiveExerciseCard({
         >
           <div className="min-h-0 overflow-hidden">
             {!isCardio &&
+              !relaxedLogging &&
               lastSession &&
               (() => {
                 const completedSets = lastSession.sets.filter(
@@ -430,7 +434,13 @@ export function ActiveExerciseCard({
                 const fmtW = (kg: number) =>
                   unit === "lbs" ? `${+(kg * 2.20462).toFixed(1)}` : `${kg}`
                 const summary = completedSets
-                  .map((s) => `${fmtW(s.weight)}×${s.reps}`)
+                  .map((s) =>
+                    s.loggingMode === "relaxed"
+                      ? s.reps > 0
+                        ? tr("{{value0}} reps", { value0: s.reps })
+                        : tr("Completed")
+                      : `${fmtW(s.weight)}×${s.reps}`
+                  )
                   .join("  ")
                 return (
                   <div
@@ -483,9 +493,10 @@ export function ActiveExerciseCard({
               />
             ) : (
               <>
-                <SetListHeader unit={unit} />
+                <SetListHeader unit={unit} relaxedLogging={relaxedLogging} />
                 {data.sets.map((s, i) => (
                   <ActiveSetRow
+                    relaxedLogging={relaxedLogging}
                     key={s.id}
                     set={s}
                     index={i}

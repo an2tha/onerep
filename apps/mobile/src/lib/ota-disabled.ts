@@ -1,4 +1,4 @@
-// App Store bundles expose version information only. No update plugin,
+// App bundles expose version information only. No update plugin,
 // manifest fetch, executable download, or activation code is included.
 export type OtaState = { phase: "idle" }
 export type OtaRollback = { version: string }

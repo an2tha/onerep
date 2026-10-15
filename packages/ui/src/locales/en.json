@@ -6693,5 +6693,19 @@
   "−{{value1}}%": "−{{value1}}%",
   "−{{value1}}bpm on baseline": "−{{value1}}bpm on baseline",
   "−{{value1}}ms on baseline": "−{{value1}}ms on baseline",
-  "✓ Logged to {{value0}}": "✓ Logged to {{value0}}"
+  "✓ Logged to {{value0}}": "✓ Logged to {{value0}}",
+  "Relaxed workout logging": "Relaxed workout logging",
+  "Less tracking, same workout": "Less tracking, same workout",
+  "With relaxed logging, skip weights and enter reps only if you want. Tap to complete each set, even with no numbers.": "With relaxed logging, skip weights and enter reps only if you want. Tap to complete each set, even with no numbers.",
+  "Useful for recovery days or whenever you want less tracking. Turn it on or off in Settings, or ask Coach. It stays on until you switch it off.": "Useful for recovery days or whenever you want less tracking. Turn it on or off in Settings, or ask Coach. It stays on until you switch it off.",
+  "Could not save workout logging preference": "Could not save workout logging preference",
+  "Turn on relaxed logging": "Turn on relaxed logging",
+  "Keep current logging": "Keep current logging",
+  "Relaxed logging: weights off, reps optional": "Relaxed logging: weights off, reps optional",
+  "Weight trends are paused for relaxed sessions.": "Weight trends are paused for relaxed sessions.",
+  "Weight not logged": "Weight not logged",
+  "Reps (optional)": "Reps (optional)",
+  "Skip weights and make reps optional. Stays on until you switch it off here or ask Coach.": "Skip weights and make reps optional. Stays on until you switch it off here or ask Coach.",
+  "Optional reps": "Optional reps",
+  "Reps optional": "Reps optional"
 }

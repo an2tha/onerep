@@ -1,16 +1,12 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test"
 
-// Pin the unsupported-shell behavior: without the native OtaTrust plugin
-// (older store builds predating it), every entry point must be a no-op and
-// must never touch the Capgo plugin or the network, even if a future refactor
-// breaks the module's internal guards. Unlike ota.test.ts, this suite does
-// NOT alias ota-config and reports the plugin as unavailable, so it exercises
-// the shipped configuration on a shell without native trust.
+// Exercise the shipped switch even on older shells that have both plugins.
+let platform = "ios"
 mock.module("@capacitor/core", () => ({
   Capacitor: {
-    getPlatform: () => "ios",
+    getPlatform: () => platform,
     isNativePlatform: () => true,
-    isPluginAvailable: () => false,
+    isPluginAvailable: () => true,
   },
   registerPlugin: () => ({}),
   WebPlugin: class {},
@@ -46,8 +42,6 @@ mock.module("@capgo/capacitor-updater", () => ({
   },
 }))
 
-const originalFetch = globalThis.fetch
-
 // Each suite needs its own module instance: ota captures the native plugin
 // at import time, and Bun otherwise reuses the other suite's cached instance.
 const otaModulePath = "../ota.ts?test=disabled"
@@ -56,6 +50,8 @@ const {
   checkForOtaUpdate,
   getOtaState,
   initializeOta,
+  isOtaSupported,
+  otaDiagnostics,
   notifyOtaAppReady,
   resetOtaStateForTests,
 } = (await import(otaModulePath)) as typeof import("../ota")
@@ -100,7 +96,18 @@ beforeEach(() => {
   resetOtaStateForTests()
 })
 
-describe("OTA unavailable without native trust", () => {
+describe.each(["ios", "android"])("OTA disabled on %s", (nativePlatform) => {
+  beforeEach(() => {
+    platform = nativePlatform
+  })
+
+  test("reports OTA disabled even when native plugins are available", async () => {
+    expect(isOtaSupported()).toBe(false)
+    expect(await otaDiagnostics()).toMatchObject({
+      enabled: false,
+      supported: false,
+    })
+  })
   test("checkForOtaUpdate is a no-op that never fetches or touches the plugin", async () => {
     const decision = await checkForOtaUpdate({ force: true })
 

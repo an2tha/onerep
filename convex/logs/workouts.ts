@@ -140,6 +140,7 @@ export const historyForExercise = query({
           id: String(log._id),
           date: log.date as string,
           sets: ex.sets as Array<{
+            loggingMode?: "relaxed";
             weight: number;
             reps: number;
             completed: boolean;

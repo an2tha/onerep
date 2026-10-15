@@ -1,3 +1,4 @@
+import { serializeWorkoutSet } from "./relaxed-workout"
 import { tr } from "@repo/ui/i18n"
 /**
  * Turning a saved plan into a completed session.
@@ -79,11 +80,13 @@ export function expandToExerciseData({
   presetExerciseData,
   lookup,
   unit,
+  relaxedLogging = false,
 }: {
   rows: QuickRow[]
   presetExerciseData: Record<string, ExerciseState>
   lookup: Record<string, Exercise>
   unit: WeightUnit
+  relaxedLogging?: boolean
 }): Record<string, ExerciseState> {
   const expanded: Record<string, ExerciseState> = {}
 
@@ -103,7 +106,8 @@ export function expandToExerciseData({
         id: base.sets[index]?.id ?? createClientId(),
         restSeconds: base.sets[index]?.restSeconds ?? 120,
         reps: row.reps,
-        weight: weightKg,
+        weight: relaxedLogging ? "" : weightKg,
+        ...(relaxedLogging ? { loggingMode: "relaxed" as const } : {}),
       })),
     }
   }
@@ -132,12 +136,7 @@ export function buildCompletionExercises({
       : null
     const sets = isCardioExercise(exercise)
       ? []
-      : data.sets.map((set) => ({
-          type: "normal",
-          weight: parseFloat(String(set.weight)) || 0,
-          reps: parseFloat(String(set.reps)) || 0,
-          completed: true,
-        }))
+      : data.sets.map((set) => serializeWorkoutSet({ ...set, completed: true }))
 
     if (sets.length === 0 && !cardio) return []
 

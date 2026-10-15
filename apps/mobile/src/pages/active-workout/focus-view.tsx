@@ -41,6 +41,7 @@ const GLASS_INSET = CENTER - (RING_RADIUS - RING_STROKE / 2)
 
 export function FocusWorkoutView({
   exerciseName,
+  relaxedLogging = false,
   set,
   allSets,
   setNumber,
@@ -70,6 +71,7 @@ export function FocusWorkoutView({
   isComplete = false,
 }: {
   exerciseName: string
+  relaxedLogging?: boolean
   set: WorkoutSet | null
   allSets?: WorkoutSet[]
   setNumber: number
@@ -314,23 +316,25 @@ export function FocusWorkoutView({
                   </span>
                   {isActive ? (
                     <>
-                      <button
-                        type="button"
-                        onClick={() => setShowWeight(true)}
-                        aria-label={tr(
-                          "Weight: {{value0}} {{value1}}. Change it",
-                          {
-                            value0: toDisplay(row.weight, unit) || "not set",
-                            value1: unit,
-                          }
-                        )}
-                        className="motion-tactile min-h-11 min-w-0 flex-1 rounded-lg bg-background/70 px-3 text-[15px] font-semibold tabular-nums active:bg-background"
-                      >
-                        {toDisplay(row.weight, unit) || "—"}
-                        <span className="ml-1 text-[13px] font-medium text-muted-foreground">
-                          {unit}
-                        </span>
-                      </button>
+                      {!relaxedLogging && (
+                        <button
+                          type="button"
+                          onClick={() => setShowWeight(true)}
+                          aria-label={tr(
+                            "Weight: {{value0}} {{value1}}. Change it",
+                            {
+                              value0: toDisplay(row.weight, unit) || "not set",
+                              value1: unit,
+                            }
+                          )}
+                          className="motion-tactile min-h-11 min-w-0 flex-1 rounded-lg bg-background/70 px-3 text-[15px] font-semibold tabular-nums active:bg-background"
+                        >
+                          {toDisplay(row.weight, unit) || "—"}
+                          <span className="ml-1 text-[13px] font-medium text-muted-foreground">
+                            {unit}
+                          </span>
+                        </button>
+                      )}
                       <div className="flex min-h-11 min-w-0 flex-1 items-center justify-between rounded-lg bg-background/70">
                         <button
                           type="button"
@@ -348,12 +352,15 @@ export function FocusWorkoutView({
                           aria-label={tr("Set {{value0}} reps", {
                             value0: setNumber,
                           })}
+                          placeholder={
+                            relaxedLogging ? tr("Optional reps") : undefined
+                          }
                           value={set?.reps ?? ""}
                           onChange={(event) => {
                             if (set)
                               onUpdateSet({ ...set, reps: event.target.value })
                           }}
-                          className="h-11 w-full min-w-0 bg-transparent text-center text-[16px] font-semibold tabular-nums outline-none focus:ring-2 focus:ring-ring [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
+                          className="h-11 w-full min-w-0 [appearance:textfield] bg-transparent text-center text-[16px] font-semibold tabular-nums outline-none focus:ring-2 focus:ring-ring [&::-webkit-inner-spin-button]:appearance-none"
                         />
                         <button
                           type="button"
@@ -374,8 +381,20 @@ export function FocusWorkoutView({
                           : "text-foreground/80"
                       )}
                     >
-                      {toDisplay(row.weight, unit) || "—"} {unit} ×{" "}
-                      {row.reps || "—"}
+                      {relaxedLogging || row.loggingMode === "relaxed" ? (
+                        row.reps ? (
+                          tr("{{value0}} reps", { value0: row.reps })
+                        ) : row.completed ? (
+                          tr("Completed")
+                        ) : (
+                          tr("Reps optional")
+                        )
+                      ) : (
+                        <>
+                          {toDisplay(row.weight, unit) || "–"} {unit} ×{" "}
+                          {row.reps || "–"}
+                        </>
+                      )}
                     </span>
                   )}
                   {row.completed ? (
@@ -513,7 +532,7 @@ export function FocusWorkoutView({
         />
       </p>
 
-      {showWeight && set && (
+      {showWeight && set && !relaxedLogging && (
         <WeightSelectorSheet
           currentWeight={set.weight}
           barWeight={barWeight}

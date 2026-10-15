@@ -1,5 +1,6 @@
 import { tr } from "@repo/ui/i18n"
 export type ProgressionSet = {
+  loggingMode?: "relaxed"
   completed?: boolean
   reps: number
   weight: number
@@ -22,6 +23,7 @@ export function suggestDoubleProgression(
   const completed = lastSets.filter(
     (set) =>
       set.completed !== false &&
+      set.loggingMode !== "relaxed" &&
       Number.isFinite(set.weight) &&
       set.weight > 0 &&
       Number.isFinite(set.reps) &&

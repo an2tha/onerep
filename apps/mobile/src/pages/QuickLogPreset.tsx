@@ -68,6 +68,7 @@ export default function QuickLogPreset() {
   const sessionId = sessionIdRef.current
 
   const preferences = useQuery(api.users.users.getPreferences)
+  const relaxedLogging = preferences?.relaxedWorkoutLogging ?? false
   const presets = useQuery(api.logs.presets.list)
   const freeSlot = useQuery(
     api.logs.workouts.freeSlot,
@@ -105,8 +106,20 @@ export default function QuickLogPreset() {
   // planned weights converted from the wrong unit.
   useEffect(() => {
     if (!preset || preferences === undefined || rows !== null) return
-    setRows(rowsFromPreset(items, presetExerciseData, unit))
-  }, [preset, preferences, rows, items, presetExerciseData, unit])
+    setRows(
+      rowsFromPreset(items, presetExerciseData, unit).map((row) =>
+        relaxedLogging ? { ...row, weight: "", reps: "" } : row
+      )
+    )
+  }, [
+    preset,
+    preferences,
+    rows,
+    items,
+    presetExerciseData,
+    unit,
+    relaxedLogging,
+  ])
 
   useEffect(() => {
     const ids = flattenItems(items)
@@ -133,8 +146,9 @@ export default function QuickLogPreset() {
         presetExerciseData,
         lookup,
         unit,
+        relaxedLogging,
       }),
-    [rows, presetExerciseData, lookup, unit]
+    [rows, presetExerciseData, lookup, unit, relaxedLogging]
   )
 
   // Cardio is told apart from lifting by the catalog entry, so neither saving
@@ -322,7 +336,9 @@ export default function QuickLogPreset() {
                       ×
                     </span>
                     <QuickField
-                      label={tr("Reps")}
+                      label={
+                        relaxedLogging ? tr("Reps (optional)") : tr("Reps")
+                      }
                       value={row.reps}
                       inputMode="numeric"
                       className="w-[62px] shrink-0"
@@ -330,17 +346,19 @@ export default function QuickLogPreset() {
                         setRow(row.exerciseId, { reps: value })
                       }
                     />
-                    <QuickField
-                      label={
-                        unit === "lbs" ? tr("Weight (lb)") : tr("Weight (kg)")
-                      }
-                      value={row.weight}
-                      inputMode="decimal"
-                      className="min-w-0 flex-1"
-                      onChange={(value) =>
-                        setRow(row.exerciseId, { weight: value })
-                      }
-                    />
+                    {!relaxedLogging && (
+                      <QuickField
+                        label={
+                          unit === "lbs" ? tr("Weight (lb)") : tr("Weight (kg)")
+                        }
+                        value={row.weight}
+                        inputMode="decimal"
+                        className="min-w-0 flex-1"
+                        onChange={(value) =>
+                          setRow(row.exerciseId, { weight: value })
+                        }
+                      />
+                    )}
                   </div>
                 )}
               </div>

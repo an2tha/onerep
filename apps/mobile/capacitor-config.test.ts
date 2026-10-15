@@ -25,40 +25,15 @@ describe("Capacitor production config", () => {
   })
 })
 
-describe("OTA updater config", () => {
-  const updater = () => config.plugins?.CapacitorUpdater
-
-  test("never auto-downloads: the app owns fetch, gating, and apply", () => {
-    expect(updater()?.autoUpdate).toBe(false)
-  })
-
-  test("is fully self-hosted: no request reaches the Capgo service", () => {
-    expect(updater()?.updateUrl).toBe("")
-    expect(updater()?.statsUrl).toBe("")
-  })
-
-  test("gives a cold start room to mount before the rollback timer fires", () => {
-    const timeout = updater()?.appReadyTimeout
-    expect(typeof timeout).toBe("number")
-    expect(timeout).toBeGreaterThanOrEqual(15000)
-  })
-
-  test("drops OTA bundles when a store update replaces the native shell", () => {
-    expect(updater()?.resetWhenUpdate).toBe(true)
-  })
-
-  test("forbids runtime rewrites of the update source", () => {
-    expect(updater()?.allowModifyUrl).toBe(false)
-  })
-})
-
-// Native linking is the release boundary, even when a web build still uses OTA.
-describe("iOS App Review bundle", () => {
-  test("excludes the executable updater from Capacitor sync", () => {
-    expect(config.ios?.includePlugins).not.toContain("@capgo/capacitor-updater")
-    expect(config.ios?.includePlugins).toContain("@capacitor/app")
-    expect(config.ios?.includePlugins).toContain(
-      "@capgo/capacitor-speech-recognition"
-    )
+describe("store-only mobile updates", () => {
+  test("does not configure or link an executable updater on either platform", () => {
+    expect(config.plugins).not.toHaveProperty("CapacitorUpdater")
+    for (const platform of [config.ios, config.android]) {
+      const plugins = platform?.includePlugins ?? config.includePlugins
+      expect(plugins).toBeDefined()
+      expect(plugins).not.toContain("@capgo/capacitor-updater")
+      expect(plugins).toContain("@capacitor/app")
+      expect(plugins).toContain("@capgo/capacitor-speech-recognition")
+    }
   })
 })

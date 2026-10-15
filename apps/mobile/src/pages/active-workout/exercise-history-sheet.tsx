@@ -24,6 +24,7 @@ type HistorySession = {
   id?: string
   date: string
   sets: Array<{
+    loggingMode?: "relaxed"
     weight: number
     reps: number
     completed: boolean
@@ -56,8 +57,15 @@ export function ExerciseHistorySheet({
       .filter((s) => s.sets.length > 0)
   }, [history])
 
-  const maxWeights = completedSessions.map((s) =>
-    Math.max(...s.sets.map((set) => set.weight || 0))
+  const weightedSessions = completedSessions.filter((s) =>
+    s.sets.some((set) => set.loggingMode !== "relaxed")
+  )
+  const maxWeights = weightedSessions.map((s) =>
+    Math.max(
+      ...s.sets
+        .filter((set) => set.loggingMode !== "relaxed")
+        .map((set) => set.weight || 0)
+    )
   )
 
   const chartW = 280
@@ -70,7 +78,15 @@ export function ExerciseHistorySheet({
   }
 
   function fmtSets(sets: HistorySession["sets"]) {
-    return sets.map((s) => `${fmtWeight(s.weight)}×${s.reps}`).join(", ")
+    return sets
+      .map((s) =>
+        s.loggingMode === "relaxed"
+          ? s.reps > 0
+            ? tr("{{value0}} reps", { value0: s.reps })
+            : tr("Completed")
+          : `${fmtWeight(s.weight)}×${s.reps}`
+      )
+      .join(", ")
   }
 
   return (
@@ -127,7 +143,7 @@ export function ExerciseHistorySheet({
           </div>
         ) : (
           <>
-            {completedSessions.length >= 2 && (
+            {weightedSessions.length >= 2 && (
               <div className="mx-5 mb-4 overflow-hidden rounded-2xl bg-foreground/[0.04] px-4 py-4">
                 <p className="mb-3 text-[13px] font-bold text-muted-foreground">
                   <Message
@@ -175,11 +191,11 @@ export function ExerciseHistorySheet({
                 </svg>
                 <div className="mt-2 flex justify-between">
                   <span className="text-[13px] text-muted-foreground">
-                    {formatSessionDate(completedSessions[0].date)}
+                    {formatSessionDate(weightedSessions[0].date)}
                   </span>
                   <span className="text-[13px] text-muted-foreground">
                     {formatSessionDate(
-                      completedSessions[completedSessions.length - 1].date
+                      weightedSessions[weightedSessions.length - 1].date
                     )}
                   </span>
                 </div>
@@ -191,7 +207,12 @@ export function ExerciseHistorySheet({
               // Find the best working set across all sessions (highest estimated 1RM)
               const bestSet = completedSessions
                 .flatMap((s) =>
-                  s.sets.filter((set) => set.weight > 0 && set.reps > 0)
+                  s.sets.filter(
+                    (set) =>
+                      set.loggingMode !== "relaxed" &&
+                      set.weight > 0 &&
+                      set.reps > 0
+                  )
                 )
                 .reduce<{ weight: number; reps: number; est: number } | null>(
                   (best, set) => {

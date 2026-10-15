@@ -6786,5 +6786,19 @@
   "−{{value1}}%": "−{{value1}}%",
   "−{{value1}}bpm on baseline": "−{{value1}} ppm respecto al nivel base",
   "−{{value1}}ms on baseline": "−{{value1}} ms respecto al nivel base",
-  "✓ Logged to {{value0}}": "✓ Registrado en {{value0}}"
+  "✓ Logged to {{value0}}": "✓ Registrado en {{value0}}",
+  "Relaxed workout logging": "Registro de entrenamiento flexible",
+  "Less tracking, same workout": "Menos registro, el mismo entrenamiento",
+  "With relaxed logging, skip weights and enter reps only if you want. Tap to complete each set, even with no numbers.": "Omite los pesos y anota repeticiones solo si quieres. Toca para completar cada serie, incluso sin números.",
+  "Useful for recovery days or whenever you want less tracking. Turn it on or off in Settings, or ask Coach. It stays on until you switch it off.": "Útil para días de recuperación o cuando quieras registrar menos. Actívalo o desactívalo en Ajustes, o pídeselo a Coach. Seguirá activo hasta que lo desactives.",
+  "Could not save workout logging preference": "No se pudo guardar la preferencia de registro",
+  "Turn on relaxed logging": "Activar registro flexible",
+  "Keep current logging": "Mantener el registro actual",
+  "Relaxed logging: weights off, reps optional": "Registro flexible: sin pesos, repeticiones opcionales",
+  "Weight trends are paused for relaxed sessions.": "Las tendencias de peso no se registran en las sesiones flexibles.",
+  "Weight not logged": "Peso no registrado",
+  "Reps (optional)": "Reps. (opcional)",
+  "Skip weights and make reps optional. Stays on until you switch it off here or ask Coach.": "Omite los pesos y haz opcionales las repeticiones. Seguirá activo hasta que lo desactives aquí o se lo pidas a Coach.",
+  "Optional reps": "Reps. opcionales",
+  "Reps optional": "Repeticiones opcionales"
 }

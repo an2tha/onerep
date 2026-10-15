@@ -296,6 +296,7 @@ export type CoachOperation = CoachOperationMeta &
         schedule: SupplementSchedule
         nutrientsPerServing: SupplementNutrients
       }
+    | { type: "set_workout_logging"; enabled: boolean }
     | {
         type: "set_nutrition_targets"
         calories?: number
@@ -393,6 +394,7 @@ export type CoachOperationResult =
         | "save_check_in"
         | "start_recovery"
         | "save_weekly_plan"
+        | "set_workout_logging"
         | "set_nutrition_targets"
         | "undo_action"
       label: string

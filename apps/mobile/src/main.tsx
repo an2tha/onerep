@@ -1,3 +1,4 @@
+import { RelaxedWorkoutIntro } from "./components/relaxed-workout-intro"
 import { tr } from "@repo/ui/i18n"
 import { CollapsingPageBar } from "./components/collapsing-page-bar"
 import Journal from "./pages/Journal"
@@ -124,7 +125,6 @@ import {
   type AppServiceWorkerRegistration,
 } from "./lib/service-worker"
 import { OfflineSyncIndicator } from "./components/offline-sync-indicator"
-import { OtaLifecycle } from "./components/ota-lifecycle"
 import { OnboardingMobile } from "./pages/OnboardingMobile.tsx"
 import {
   BottomBar,
@@ -154,11 +154,8 @@ function PwaLifecycle() {
   useEffect(() => {
     if (!import.meta.env.PROD) return
 
-    // On native, OtaLifecycle owns updates. A service worker here would keep
-    // serving the previous bundle's index.html and hashed assets out of cache
-    // after the updater swaps the bundle directory, silently defeating it.
-    // Existing installs already registered one, so unregister rather than
-    // simply returning early.
+    // Native apps use store-bundled assets. Remove service workers left by
+    // older installs so they cannot serve cached executable assets.
     if (Capacitor.isNativePlatform()) {
       void unregisterAppServiceWorker()
       return
@@ -687,6 +684,7 @@ function NavSync() {
             />
           )}
         </TourProvider>
+        <RelaxedWorkoutIntro />
         <AppMoments />
         <RecoveryReminderSync />
       </BottomBarActionProvider>
@@ -1439,9 +1437,6 @@ createRoot(document.getElementById("root")!).render(
       <ThemeProvider identities={PALETTES}>
         <PwaLifecycle />
         <ErrorBoundary label={tr("the app")}>
-          {/* Inside the boundary on purpose: a bundle whose tree crashes
-                must never reach notifyAppReady() and report itself healthy. */}
-          <OtaLifecycle />
           <OfflineSyncIndicator />
           <WidgetDataSync />
           <HealthSync />

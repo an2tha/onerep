@@ -59,7 +59,7 @@ test("edit weight and reps, log, rest, finish and undo without losing the simple
   ).toBeVisible()
 })
 
-test("expanded rows fit narrow screens, have touch targets, and delete through set settings", async ({
+test("expanded rows fit narrow screens and delete sets directly", async ({
   page,
 }) => {
   await page.getByRole("button", { name: "Switch to expanded view" }).click()
@@ -83,15 +83,36 @@ test("expanded rows fit narrow screens, have touch targets, and delete through s
   await expect(
     page.getByRole("button", { name: "Set 1 rest time" })
   ).toContainText("2:15")
-  await page.getByRole("button", { name: "Set 2 rest time" }).click()
-  await page.getByRole("button", { name: "Delete this set" }).click()
+  await page.getByRole("spinbutton", { name: "Set 3 reps" }).fill("12")
+  const deleteSet = page.getByRole("button", {
+    name: "Delete set 2",
+    exact: true,
+  })
+  const deleteTarget = await deleteSet.boundingBox()
+  expect(deleteTarget!.width).toBeGreaterThanOrEqual(44)
+  expect(deleteTarget!.height).toBeGreaterThanOrEqual(44)
+  await deleteSet.focus()
+  await page.keyboard.press("Enter")
   await expect(page.getByRole("dialog")).toHaveCount(0)
   await expect(
     page.getByRole("button", { name: "Mark set complete" })
   ).toHaveCount(2)
+  await expect(
+    page.getByRole("spinbutton", { name: "Set 2 reps" })
+  ).toHaveValue("12")
   await page.screenshot({
     path: `test-results/workout-rows-${test.info().project.name}.png`,
   })
+  await page.getByRole("button", { name: "Mark set complete" }).first().click()
+  await expect(
+    page.getByRole("button", { name: "Delete set 1", exact: true })
+  ).toHaveCount(0)
+  await page.getByRole("button", { name: "Delete set 2", exact: true }).click()
+  await expect(
+    page.getByRole("spinbutton", { name: /Set .* reps/ })
+  ).toHaveCount(1)
+  await page.getByRole("button", { name: "Mark set incomplete" }).click()
+  await expect(page.getByRole("button", { name: /Delete set/ })).toHaveCount(0)
 })
 
 test("finish stays open during a request, reports failure locally and retries once", async ({
@@ -350,4 +371,62 @@ test("sheets follow the visible viewport and keep focused fields and actions usa
       window.visualViewport!.dispatchEvent(new Event("resize"))
     })
   }
+})
+
+test("relaxed logging completes sets with optional reps and no weight entry in both views", async ({
+  page,
+}) => {
+  await page.goto(`${fixture}?relaxed`)
+  await expect(
+    page.getByRole("button", { name: /Weight:.*Change it/ })
+  ).toHaveCount(0)
+  const reps = page.getByRole("spinbutton", { name: "Set 1 reps" })
+  await expect(reps).toHaveValue("")
+  await expect(reps).toHaveAttribute("placeholder", "Optional reps")
+  await page.getByRole("button", { name: "Complete set", exact: true }).click()
+  await expect(page.getByText("Completed", { exact: true })).toBeVisible()
+  await page.getByRole("button", { name: "Skip rest", exact: true }).click()
+  await page.getByRole("spinbutton", { name: "Set 2 reps" }).fill("8")
+  await page.getByRole("button", { name: "Switch to expanded view" }).click()
+  await expect(page.getByRole("button", { name: /weight in/ })).toHaveCount(0)
+  await expect(page.getByText("Reps (optional)", { exact: true })).toBeVisible()
+  await expect(
+    page.getByRole("spinbutton", { name: "Set 2 reps" })
+  ).toHaveValue("8")
+  await expect(
+    page.getByRole("spinbutton", { name: "Set 3 reps" })
+  ).toHaveValue("")
+  await page
+    .getByRole("button", { name: "Mark set complete", exact: true })
+    .last()
+    .click()
+  await expect(
+    page.getByRole("button", { name: "Mark set incomplete" })
+  ).toHaveCount(2)
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)
+  ).toBe(false)
+  await page.screenshot({
+    path: `test-results/relaxed-rows-${test.info().project.name}.png`,
+    animations: "disabled",
+  })
+})
+
+test("relaxed logging introduction fits and enables only after an explicit choice", async ({
+  page,
+}) => {
+  await page.goto(`${fixture}?intro`)
+  const dialog = page.getByRole("dialog", { name: "Relaxed workout logging" })
+  await expect(dialog).toBeVisible()
+  await expect(page.getByLabel("Outcome")).toHaveText("")
+  await expect(
+    dialog.getByRole("button", { name: "Keep current logging" })
+  ).toBeInViewport()
+  await page.screenshot({
+    path: `test-results/relaxed-intro-${test.info().project.name}.png`,
+    animations: "disabled",
+  })
+  await dialog.getByRole("button", { name: "Turn on relaxed logging" }).click()
+  await expect(dialog).toHaveCount(0)
+  await expect(page.getByLabel("Outcome")).toHaveText("relaxed enabled")
 })

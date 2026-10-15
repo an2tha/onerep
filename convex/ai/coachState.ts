@@ -1,3 +1,4 @@
+import { setWorkoutLoggingPreference } from "../lib/workoutLoggingPreference";
 import { v } from "convex/values";
 import {
   internalMutation,
@@ -641,6 +642,11 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 async function undoPayload(ctx: MutationCtx, userId: string, payload: unknown) {
   if (!isRecord(payload) || typeof payload.kind !== "string") {
     throw new Error("This action cannot be undone");
+  }
+
+  if (payload.kind === "restore_workout_logging" && typeof payload.enabled === "boolean") {
+    await setWorkoutLoggingPreference(ctx, userId, payload.enabled);
+    return;
   }
 
   if (payload.kind === "restore_nutrition_targets" && isRecord(payload.body)) {

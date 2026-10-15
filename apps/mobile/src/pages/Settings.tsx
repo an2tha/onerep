@@ -324,6 +324,27 @@ export default function Settings({
       : "overview")
 
   const preferences = useQuery(api.users.users.getPreferences)
+  const setRelaxedLogging = useMutation(
+    api.users.users.setRelaxedWorkoutLogging
+  )
+  const [savingRelaxedLogging, setSavingRelaxedLogging] = useState(false)
+  async function chooseRelaxedLogging(enabled: boolean) {
+    if (savingRelaxedLogging) return
+    setSavingRelaxedLogging(true)
+    try {
+      await setRelaxedLogging({ enabled })
+    } catch (error) {
+      toast.error(
+        translateError(
+          error instanceof Error
+            ? error.message
+            : tr("Could not save workout logging preference")
+        )
+      )
+    } finally {
+      setSavingRelaxedLogging(false)
+    }
+  }
   const effectiveGoals = useQuery(api.users.users.getEffectiveGoals, {})
   const onboarding = useQuery(api.users.onboarding.get)
   const aiUsage = useQuery(api.ai.usage.getMonthlyUsage, {})
@@ -1618,7 +1639,9 @@ export default function Settings({
                   />
                   <DisclosureRow
                     title={tr("Nutrition strategy")}
-                    value={macroCyclingEnabled ? tr("Macro cycling") : tr("Standard")}
+                    value={
+                      macroCyclingEnabled ? tr("Macro cycling") : tr("Standard")
+                    }
                     leading={<SlidersHorizontal size={20} weight="regular" />}
                     onClick={() => showView("nutrition")}
                   />
@@ -2122,6 +2145,24 @@ export default function Settings({
                   <>
                     <SettingsSectionLabel title={tr("Training")} />
                     <GroupedList label={tr("Training preferences")}>
+                      <SettingsRow
+                        label={tr("Relaxed workout logging")}
+                        detail={tr(
+                          "Skip weights and make reps optional. Stays on until you switch it off here or ask Coach."
+                        )}
+                      >
+                        <CompactSwitch
+                          label={tr("Relaxed workout logging")}
+                          checked={preferences?.relaxedWorkoutLogging ?? false}
+                          disabled={
+                            savingRelaxedLogging || preferences === undefined
+                          }
+                          onChange={(enabled) =>
+                            void chooseRelaxedLogging(enabled)
+                          }
+                          onInteract={hapticSelection}
+                        />
+                      </SettingsRow>
                       <SettingsRow label={tr("Primary focus")}>
                         <SegmentedControl
                           onInteract={hapticSelection}

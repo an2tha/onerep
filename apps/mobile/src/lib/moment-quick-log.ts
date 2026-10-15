@@ -16,6 +16,7 @@ export type QuickLogSet = {
   reps: number
   weight: number
   completed: boolean
+  loggingMode?: "relaxed"
   rpe?: number
   rir?: number
 }
@@ -89,6 +90,9 @@ export function normalizeLoggedExercises(raw: unknown[]): QuickLogExercise[] {
               reps: number(set.reps),
               weight: number(set.weight),
               completed: true,
+              ...(set.loggingMode === "relaxed"
+                ? { loggingMode: "relaxed" as const }
+                : {}),
               rpe: optionalNumber(set.rpe),
               rir: optionalNumber(set.rir),
             },

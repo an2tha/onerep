@@ -24,7 +24,6 @@ class MainActivity : BridgeActivity() {
         registerPlugin(WorkoutStatusPlugin::class.java)
         registerPlugin(HomeWidgetsPlugin::class.java)
         registerPlugin(NativeTabBarPlugin::class.java)
-        registerPlugin(OtaTrustPlugin::class.java)
         registerPlugin(PushSupportPlugin::class.java)
         intent = rewriteHealthRationale(intent)
         super.onCreate(savedInstanceState)

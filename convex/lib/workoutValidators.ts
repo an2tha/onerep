@@ -49,6 +49,7 @@ export const cardioDetailsValidator = v.object({
 });
 
 export const completedSetValidator = v.object({
+  loggingMode: v.optional(v.literal("relaxed")),
   type: v.string(), // "normal", "warmup", "dropset", "failure"
   reps: v.number(),
   weight: v.number(),

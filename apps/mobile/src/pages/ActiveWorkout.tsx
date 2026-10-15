@@ -1,3 +1,4 @@
+import { prepareWorkoutSet, serializeWorkoutSet } from "@/lib/relaxed-workout"
 import { Message, choice, tr, translateError } from "@repo/ui/i18n"
 import { hapticConfirm } from "@/lib/haptics"
 import { ActiveRouteOnly } from "@/lib/route-activity"
@@ -271,7 +272,8 @@ function renderSupersetItem(
   itemIndex: number,
   itemCount: number,
   onMoveItem: (itemKey: string, direction: -1 | 1) => void,
-  defaultSetCompleted = false
+  defaultSetCompleted = false,
+  relaxedLogging = false
 ) {
   const key = workoutItemKey(item)
   const dt = dropTarget
@@ -395,6 +397,7 @@ function renderSupersetItem(
               className="border-t border-border/35 first:border-t-0"
             >
               <ActiveExerciseCard
+                relaxedLogging={relaxedLogging}
                 exercise={ex}
                 data={exData[exId]}
                 unit={unit}
@@ -584,6 +587,9 @@ function ActiveWorkoutSession() {
     Record<string, Exercise>
   >({})
   const preferences = useQuery(api.users.users.getPreferences)
+  const relaxedLogging =
+    (!isRetro || retroMode === "create") &&
+    (preferences?.relaxedWorkoutLogging ?? false)
   const liveWorkoutStatusEnabled = preferences?.liveWorkoutStatusEnabled ?? true
   const healthWriteEnabled = preferences?.healthSync?.writeEnabled ?? false
   const [unit, setUnit] = useState<WeightUnit>(readCachedWeightUnit)
@@ -699,6 +705,33 @@ function ActiveWorkoutSession() {
 
   // Track if we've initialized from Convex to avoid overwriting user's workout data
   const [isInitialized, setIsInitialized] = useState(false)
+  useEffect(() => {
+    if (
+      !isInitialized ||
+      preferences === undefined ||
+      (isRetro && retroMode === "edit")
+    )
+      return
+    setExData((current) => {
+      let changed = false
+      const next = Object.fromEntries(
+        Object.entries(current).map(([id, data]) => {
+          const sets = data.sets.map((set) =>
+            isRetro && relaxedLogging && set.loggingMode !== "relaxed"
+              ? {
+                  ...prepareWorkoutSet({ ...set, completed: false }, true),
+                  completed: set.completed,
+                }
+              : prepareWorkoutSet(set, relaxedLogging)
+          )
+          const updated = sets.some((set, index) => set !== data.sets[index])
+          changed ||= updated
+          return [id, updated ? { ...data, sets } : data]
+        })
+      )
+      return changed ? next : current
+    })
+  }, [exData, isInitialized, isRetro, retroMode, relaxedLogging, preferences])
   // Debounce sync to Convex
   const syncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const isSyncingRef = useRef(false)
@@ -2041,6 +2074,23 @@ function ActiveWorkoutSession() {
     toast.success(tr("Swapped to {{value0}}", { value0: ex.name }))
   }
   function updateExData(id: string, data: ExerciseState) {
+    if (!isRetro)
+      data = {
+        ...data,
+        sets: data.sets.map((set) => {
+          const previous = exData[id]?.sets.find((old) => old.id === set.id)
+          if (set.completed && previous && !previous.completed)
+            return {
+              ...prepareWorkoutSet(
+                { ...set, completed: false },
+                relaxedLogging
+              ),
+              completed: true,
+            }
+          return prepareWorkoutSet(set, relaxedLogging)
+        }),
+      }
+
     // Compare stable set IDs so edits, reordering and adding empty rows don't
     // celebrate. Both workout views (and their undo controls) pass here.
     if (!isRetro) {
@@ -2262,14 +2312,7 @@ function ActiveWorkoutSession() {
         const cardio = isCardio ? cardioLogFromState(data.cardio) : null
         const sets = isCardio
           ? []
-          : data.sets
-              .filter((s) => s.completed)
-              .map((s) => ({
-                type: "normal",
-                weight: parseFloat(String(s.weight)) || 0,
-                reps: parseFloat(String(s.reps)) || 0,
-                completed: s.completed,
-              }))
+          : data.sets.filter((s) => s.completed).map(serializeWorkoutSet)
         return [
           {
             id,
@@ -2905,8 +2948,17 @@ function ActiveWorkoutSession() {
             </button>
           </div>
         )}
+        {relaxedLogging && (
+          <p
+            className="px-[var(--app-page-x)] pt-3 text-center text-sm text-muted-foreground"
+            role="status"
+          >
+            {tr("Relaxed logging: weights off, reps optional")}
+          </p>
+        )}
         {simpleViewActive ? (
           <FocusWorkoutView
+            relaxedLogging={relaxedLogging}
             exerciseName={activeExerciseName}
             set={focusSet}
             allSets={focusState?.sets}
@@ -2983,6 +3035,7 @@ function ActiveWorkoutSession() {
                   const key = workoutItemKey(item)
                   return (
                     <ActiveExerciseCard
+                      relaxedLogging={relaxedLogging}
                       key={item.exerciseId}
                       exercise={ex}
                       data={exData[item.exerciseId]}
@@ -3086,7 +3139,8 @@ function ActiveWorkoutSession() {
                   itemIndex,
                   items.length,
                   moveItemByStep,
-                  isRetro
+                  isRetro,
+                  relaxedLogging
                 )
               })}
               {simpleViewActive &&

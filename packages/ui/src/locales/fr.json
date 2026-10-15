@@ -6786,5 +6786,19 @@
   "−{{value1}}%": "−{{value1}}%",
   "−{{value1}}bpm on baseline": "−{{value1}} bpm par rapport à la référence",
   "−{{value1}}ms on baseline": "−{{value1}} ms par rapport à la référence",
-  "✓ Logged to {{value0}}": "✓ Consigné dans {{value0}}"
+  "✓ Logged to {{value0}}": "✓ Consigné dans {{value0}}",
+  "Relaxed workout logging": "Suivi d’entraînement allégé",
+  "Less tracking, same workout": "Moins de suivi, le même entraînement",
+  "With relaxed logging, skip weights and enter reps only if you want. Tap to complete each set, even with no numbers.": "Ignorez les charges et saisissez les répétitions seulement si vous le souhaitez. Touchez pour terminer chaque série, même sans chiffres.",
+  "Useful for recovery days or whenever you want less tracking. Turn it on or off in Settings, or ask Coach. It stays on until you switch it off.": "Utile les jours de récupération ou pour alléger le suivi. Activez ou désactivez cette option dans Réglages, ou demandez à Coach. Elle reste active jusqu’à sa désactivation.",
+  "Could not save workout logging preference": "Impossible d’enregistrer la préférence de suivi",
+  "Turn on relaxed logging": "Activer le suivi allégé",
+  "Keep current logging": "Conserver le suivi actuel",
+  "Relaxed logging: weights off, reps optional": "Suivi allégé : sans charges, répétitions facultatives",
+  "Weight trends are paused for relaxed sessions.": "Les tendances de charge sont suspendues pour les séances allégées.",
+  "Weight not logged": "Charge non enregistrée",
+  "Reps (optional)": "Rép. (facultatif)",
+  "Skip weights and make reps optional. Stays on until you switch it off here or ask Coach.": "Ignorez les charges et rendez les répétitions facultatives. Reste actif jusqu’à sa désactivation ici ou par Coach.",
+  "Optional reps": "Rép. facultatives",
+  "Reps optional": "Répétitions facultatives"
 }

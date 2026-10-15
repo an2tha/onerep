@@ -63,6 +63,7 @@ export type CachedWorkoutLog = {
     trackRpe?: boolean
     trackUnilateral?: boolean
     sets: Array<{
+      loggingMode?: "relaxed"
       weight: string | number
       reps: string | number
       completed: boolean
