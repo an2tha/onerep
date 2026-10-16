@@ -303,6 +303,22 @@ describe("coachState Convex functions", () => {
     ).resolves.toEqual({ ok: true });
   });
 
+  test("check-in edits preserve omitted notes, clear explicit empty notes, and undo the clear", async () => {
+    const t = convexTest(schema, modules);
+    const user = t.withIdentity({ tokenIdentifier: "test|check-in-edit" });
+    const scores = { date: "2026-10-16", energy: 3, soreness: 2, sleepQuality: 4, mood: 3 };
+    await user.mutation(api.ai.coachState.saveCheckIn, { ...scores, note: "Morning note" });
+    await user.mutation(api.ai.coachState.saveCheckIn, { ...scores, energy: 4 });
+    expect((await user.query(api.ai.coachState.listCheckIns, {}))[0].note).toBe("Morning note");
+    const cleared = await user.mutation(api.ai.coachState.saveCheckIn, { ...scores, note: "   " });
+    const rows = await user.query(api.ai.coachState.listCheckIns, {});
+    expect(rows).toHaveLength(1);
+    expect(rows[0].note).toBeUndefined();
+    await user.mutation(api.ai.coachState.undoAction, { id: cleared.actionId });
+    expect((await user.query(api.ai.coachState.listCheckIns, {}))[0].note).toBe("Morning note");
+    expect(await t.withIdentity({ tokenIdentifier: "test|other" }).query(api.ai.coachState.listCheckIns, {})).toEqual([]);
+  });
+
   test("rejects invalid check-in dates", async () => {
     const t = convexTest(schema, modules);
     const user = t.withIdentity({ tokenIdentifier: "test|check-in-date" });

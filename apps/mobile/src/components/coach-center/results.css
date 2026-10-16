@@ -1,0 +1,345 @@
+/* Results and conversation share Coach's open reading surface. */
+.coach-center .center-result {
+  max-width: 620px;
+  margin: 24px auto;
+}
+.coach-center .center-result-body {
+  max-width: 620px;
+  margin: 0 auto;
+  border: 0;
+  padding: 0;
+}
+.center-result-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+.center-result-heading > div:first-child {
+  flex: 1;
+  min-width: 0;
+}
+.coach-center .center-result-heading .voice-orb {
+  width: 64px;
+  height: 72px;
+  flex-shrink: 0;
+  margin: 0;
+}
+.coach-center .center-result-intro .voice-orb {
+  width: 120px;
+  height: 110px;
+  margin: 0 0 12px;
+}
+.coach-center .center-result-title,
+.coach-center .center-result-intro h2 {
+  font-size: 24px !important;
+  line-height: 1.3 !important;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  margin: 10px 0 12px !important;
+}
+.center-result-summary {
+  font-size: 14px;
+  line-height: 1.65;
+}
+.center-result-summary button,
+.center-request-options > summary {
+  font-size: 13px;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  min-height: 44px;
+  align-content: center;
+}
+.center-result-summary button {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.center-request-options {
+  margin-top: 28px;
+  border-top: 1px solid var(--divider);
+  padding-top: 12px;
+}
+.center-request-options .center-request {
+  padding-top: 12px;
+}
+.coach-center .center-activity,
+.coach-center .center-progress-chart {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  margin: 28px 0;
+}
+.coach-center .center-bars > div {
+  height: 120px;
+  font-size: 12px;
+}
+.coach-center .center-bars i {
+  width: 8px;
+  border-radius: 3px;
+}
+.coach-center .center-activity p {
+  font-size: 12px;
+  margin-top: 12px;
+}
+.coach-center .center-activity figcaption {
+  font-size: 13px;
+  font-weight: 500;
+}
+.coach-center .center-result-body .center-accordion {
+  padding: 16px 0;
+  font-size: 14px;
+  border-bottom: 1px solid var(--divider);
+}
+.center-result-body .center-accordion > button {
+  min-height: 44px;
+  font-weight: 500;
+}
+.center-result-body .center-accordion p {
+  margin-top: 12px;
+}
+.center-session-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+.center-session-heading small {
+  margin: 0 0 3px;
+}
+.center-session-heading strong {
+  font-weight: 500;
+}
+.center-session-duration {
+  font-size: 12px;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+}
+.center-session-meter {
+  display: block;
+  height: 3px;
+  margin-top: 12px;
+  background: var(--divider);
+  border-radius: 3px;
+}
+.center-session-meter i {
+  display: block;
+  height: 100%;
+  background: var(--accent-workout);
+  border-radius: inherit;
+}
+.center-result-body .center-exercises {
+  list-style: none;
+  padding: 0;
+}
+.center-result-body .center-exercises li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 4px 12px;
+  padding: 12px 0;
+  margin: 0;
+}
+.center-result-body .center-exercises li + li {
+  border-top: 1px solid var(--divider);
+}
+.center-result-body .center-exercises p {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.center-result-body .center-exercises strong {
+  font-size: 14px;
+  font-weight: 500;
+}
+.center-next-steps {
+  margin: 24px 0;
+}
+.center-next-steps ol {
+  list-style: decimal;
+  padding-left: 20px;
+}
+.center-result-body .center-limitations {
+  margin: 24px 0;
+  font-size: 12px;
+}
+.center-result-body .center-limitations h3,
+.center-result-body .center-limitations li {
+  font-size: 12px;
+  line-height: 1.6;
+}
+.center-result-body .center-limitations h3 {
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+.center-result-body .center-limitations li {
+  margin: 4px 0;
+}
+.center-discuss {
+  margin-top: 12px;
+  gap: 8px;
+}
+.coach-center
+  :is(
+    .center-result-summary button,
+    .center-request-options > summary
+  ):focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 4px;
+}
+.coach-center-chat .coach-conversation-content {
+  max-width: 620px;
+}
+.coach-center-chat .coach-message--assistant {
+  width: 100%;
+  max-width: 620px;
+}
+.coach-center-chat
+  .coach-conversation-content
+  .coach-message--assistant
+  > div:first-child {
+  border: 0;
+  border-radius: 0;
+  padding: 8px 0 20px;
+  background: transparent;
+}
+.coach-center-chat .coach-message--user {
+  background: var(--muted);
+  color: var(--foreground);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.coach-center-chat .coach-conversation-content .coach-welcome-bubble {
+  padding: 16px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.coach-reply {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--foreground);
+  overflow-wrap: anywhere;
+}
+.coach-reply p + p,
+.coach-reply :is(ol, ul) {
+  margin-top: 12px;
+}
+.coach-reply :is(ol, ul) {
+  padding-left: 20px;
+}
+.coach-reply ol {
+  list-style: decimal;
+}
+.coach-reply ul {
+  list-style: disc;
+}
+.coach-reply li {
+  margin: 6px 0;
+}
+.coach-reply :is(h1, h2, h3, h4) {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 20px 0 8px;
+  line-height: 1.4;
+}
+.coach-reply strong {
+  font-weight: 600;
+}
+.coach-reply a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.coach-reply pre {
+  overflow-x: auto;
+}
+@media (max-width: 480px) {
+  .center-result-heading {
+    gap: 8px;
+  }
+  .coach-center .center-result-heading .voice-orb {
+    width: 48px;
+    height: 58px;
+  }
+  .coach-center .center-result-title {
+    font-size: 22px !important;
+  }
+  .center-result-body .center-exercises li {
+    grid-template-columns: 1fr;
+  }
+}
+
+.coach-review-orb {
+  width: 100px;
+  height: 100px;
+  margin: 0 auto 16px;
+}
+.coach-review-orb .voice-orb,
+.coach-review-orb canvas {
+  width: 100%;
+  height: 100%;
+}
+
+.coach-center-chat .coach-reply :is(p, li) {
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+/* The conversation owns its viewport. The shared page bar is an overlay. */
+.app-route-frame[data-page-bar="true"] > .coach-center-chat {
+  padding-top: 0 !important;
+}
+.coach-center-chat {
+  height: 100svh;
+  min-height: 0;
+}
+.app-route-frame[data-page-bar="true"] > .coach-center-chat .coach-content {
+  padding-top: calc(env(safe-area-inset-top, 0px) + 60px);
+}
+.coach-center-chat .coach-content {
+  max-width: 760px;
+  min-height: 0;
+}
+.coach-center-chat .coach-content > header {
+  border-bottom: 0;
+}
+.coach-center-chat .coach-conversation-form {
+  max-width: 620px;
+  border-top: 0;
+  padding-top: 8px;
+}
+.coach-conversation-mode {
+  display: block;
+  min-height: 36px;
+  max-width: 180px;
+  margin-bottom: 6px;
+  background: transparent;
+  color: var(--muted-foreground);
+  font: inherit;
+  font-size: 12px;
+}
+.coach-conversation-mode option {
+  background: var(--background);
+  color: var(--foreground);
+}
+.coach-conversation-welcome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding-top: clamp(20px, 8vh, 96px);
+}
+.coach-center-chat .coach-conversation-welcome .voice-orb {
+  width: 120px;
+  height: 110px;
+}
+.coach-center-chat .coach-conversation-welcome canvas {
+  width: 100%;
+  height: 100%;
+}
+@media (max-width: 480px) {
+  .coach-center-chat .coach-content > header { gap: 4px; }
+  .coach-center-chat .coach-content > header h1 { font-size: 16px; }
+  .coach-center-chat .coach-conversation-welcome { padding-top: 24px; }
+}

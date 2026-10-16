@@ -1,0 +1,2184 @@
+[
+  {
+    "id": "repetition",
+    "name": "Repetition",
+    "category": "Strength",
+    "definition": "One completed performance of an exercise movement using the agreed start and finish positions. The counting convention should stay consistent across sessions.",
+    "example": "Eight complete presses are eight repetitions.",
+    "caution": "A partial repetition and a full-range repetition are different tasks even when both are counted as one.",
+    "guide": "logging",
+    "aliases": "rep reps repetitions",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Repetition",
+      "labels": [
+        "Start position",
+        "One movement",
+        "Return / finish"
+      ],
+      "caption": "Eight complete presses are eight repetitions."
+    }
+  },
+  {
+    "id": "set",
+    "name": "Set",
+    "category": "Strength",
+    "definition": "A group of repetitions performed together before a rest or a change of exercise. A set is a container for work, not a fixed amount of training stimulus.",
+    "example": "Three sets of eight means three separate groups of eight repetitions.",
+    "caution": "Twenty easy repetitions and five demanding repetitions can both be one set.",
+    "guide": "volume",
+    "aliases": "",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Set",
+      "labels": [
+        "8 reps",
+        "Rest",
+        "8 reps"
+      ],
+      "caption": "Three sets of eight means three separate groups of eight repetitions."
+    }
+  },
+  {
+    "id": "working-set",
+    "name": "Working set",
+    "category": "Strength",
+    "definition": "A set intended to provide the main training work rather than only prepare for it. The distinction depends on the session plan, not a universal weight cutoff.",
+    "example": "Two lighter practice sets precede three planned working sets.",
+    "caution": "A very demanding warm-up can still add fatigue even if you exclude it from the working-set total.",
+    "guide": "warmup",
+    "aliases": "",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Working set",
+      "labels": [
+        "Practice sets",
+        "Working sets",
+        "Session record"
+      ],
+      "caption": "Two lighter practice sets precede three planned working sets."
+    }
+  },
+  {
+    "id": "warm-up-set",
+    "name": "Warm-up set",
+    "category": "Strength",
+    "definition": "A preparatory set used to rehearse an exercise and approach the planned working load. It can also reveal whether the setup or planned demand needs adjustment.",
+    "example": "An easy machine-press set lets you check the seat position before adding weight.",
+    "caution": "Warm-up sets do not need to become a second workout.",
+    "guide": "warmup",
+    "aliases": "",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Warm-up set",
+      "labels": [
+        "Easy load",
+        "Check setup",
+        "Approach work"
+      ],
+      "caption": "An easy machine-press set lets you check the seat position before adding weight."
+    }
+  },
+  {
+    "id": "load",
+    "name": "Load",
+    "category": "Strength",
+    "definition": "The resistance used for an exercise. In a log this often means external mass, but bands, bodyweight, leverage, and machines make the mechanical task more complicated.",
+    "example": "A dumbbell press may be logged as 16 kg per hand.",
+    "caution": "Do not compare two cable stacks as if identical printed weights necessarily mean identical resistance.",
+    "guide": "logging",
+    "aliases": "",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Load",
+      "labels": [
+        "External resistance",
+        "Exercise setup",
+        "Performed task"
+      ],
+      "caption": "A dumbbell press may be logged as 16 kg per hand."
+    }
+  },
+  {
+    "id": "1rm",
+    "name": "1RM",
+    "category": "Strength",
+    "definition": "One-repetition maximum: the greatest load a person can lift once for a specified exercise and movement standard under the test conditions.",
+    "example": "A tested bench-press 1RM applies to that bench-press standard.",
+    "caution": "It is exercise-specific and can change with technique, fatigue, and testing conditions. Testing is not necessary for every training plan.",
+    "guide": "progression",
+    "aliases": "one rep max one repetition maximum",
+    "sources": [
+      "load"
+    ],
+    "diagram": {
+      "kind": "concept",
+      "title": "1RM",
+      "labels": [
+        "One exercise",
+        "One valid repetition",
+        "Maximum test load"
+      ],
+      "caption": "A tested bench-press 1RM applies to that bench-press standard."
+    }
+  },
+  {
+    "id": "estimated-1rm",
+    "name": "Estimated 1RM",
+    "category": "Strength",
+    "definition": "A prediction of one-repetition maximum calculated from another performance, such as a submaximal set. The formula and closeness to failure affect the estimate.",
+    "example": "A calculator uses load and repetitions to estimate a maximum without a maximal attempt.",
+    "caution": "A calculated personal record is not the same as actually lifting that load. Estimates from high-repetition sets can be especially uncertain.",
+    "guide": "trends",
+    "aliases": "e1rm estimated one rep max",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Estimated 1RM",
+      "labels": [
+        "Load + repetitions",
+        "Prediction formula",
+        "Estimated maximum"
+      ],
+      "caption": "A calculator uses load and repetitions to estimate a maximum without a maximal attempt."
+    }
+  },
+  {
+    "id": "rir",
+    "name": "RIR",
+    "category": "Strength",
+    "definition": "Repetitions in reserve: your estimate of additional repetitions possible before the specified endpoint of the set. It is a subjective estimate.",
+    "example": "About 2 RIR means you believe roughly two more comparable repetitions were available.",
+    "caution": "Accuracy varies. Discomfort and technique changes can alter what you mean by another possible repetition.",
+    "guide": "effort",
+    "aliases": "reps in reserve repetitions in reserve",
+    "sources": [
+      "rir"
+    ],
+    "diagram": {
+      "kind": "concept",
+      "title": "RIR",
+      "labels": [
+        "Set completed",
+        "~2 reps available",
+        "Estimated endpoint"
+      ],
+      "caption": "About 2 RIR means you believe roughly two more comparable repetitions were available."
+    }
+  },
+  {
+    "id": "rpe",
+    "name": "RPE",
+    "category": "Strength",
+    "definition": "Rating of perceived exertion. It reports subjective effort on a named scale. Strength RPE based on RIR and general aerobic exertion scales are not interchangeable.",
+    "example": "In a common lifting convention, RPE 8 corresponds to roughly 2 RIR.",
+    "caution": "Always identify the scale. A cardio effort of 8/10 does not imply two repetitions remain.",
+    "guide": "effort",
+    "aliases": "rating of perceived exertion effort",
+    "sources": [
+      "effort"
+    ],
+    "diagram": {
+      "kind": "concept",
+      "title": "RPE",
+      "labels": [
+        "Name the scale",
+        "Rate the effort",
+        "Record the context"
+      ],
+      "caption": "In a common lifting convention, RPE 8 corresponds to roughly 2 RIR."
+    }
+  },
+  {
+    "id": "technical-failure",
+    "name": "Technical failure",
+    "category": "Strength",
+    "definition": "The point at which another repetition cannot be performed within the technique standard you chose. It can occur before you are unable to move the load at all.",
+    "example": "You stop a row because you can no longer keep the torso position consistent.",
+    "caution": "Different people may use different technique standards. State yours when comparing sets.",
+    "guide": "effort",
+    "aliases": "",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Technical failure",
+      "labels": [
+        "Chosen standard",
+        "Standard no longer met",
+        "Stop the set"
+      ],
+      "caption": "You stop a row because you can no longer keep the torso position consistent."
+    }
+  },
+  {
+    "id": "momentary-muscular-failure",
+    "name": "Momentary muscular failure",
+    "category": "Strength",
+    "definition": "In common research usage, the point where the concentric phase cannot be completed despite attempting it under the stated exercise conditions.",
+    "example": "You attempt another repetition but cannot complete the lifting phase.",
+    "caution": "It differs from voluntarily stopping because a set feels difficult. Definitions and testing procedures vary between studies.",
+    "guide": "effort",
+    "aliases": "muscle failure training to failure",
+    "sources": [
+      "effort"
+    ],
+    "diagram": {
+      "kind": "concept",
+      "title": "Momentary muscular failure",
+      "labels": [
+        "Attempt repetition",
+        "Cannot complete lift",
+        "Set endpoint"
+      ],
+      "caption": "You attempt another repetition but cannot complete the lifting phase."
+    }
+  },
+  {
+    "id": "progressive-overload",
+    "name": "Progressive overload",
+    "category": "Strength",
+    "definition": "A principle of increasing or adapting training demand over time as capacity changes. It can involve load, repetitions, sets, range, or another task-relevant variable.",
+    "example": "You build repetitions at one load before testing the next available load.",
+    "caution": "It does not require adding weight every workout. Changes should remain interpretable and manageable.",
+    "guide": "progression",
+    "aliases": "",
+    "sources": [
+      "acsm"
+    ],
+    "diagram": {
+      "kind": "concept",
+      "title": "Progressive overload",
+      "labels": [
+        "Current capacity",
+        "Appropriate demand",
+        "Reassess over time"
+      ],
+      "caption": "You build repetitions at one load before testing the next available load."
+    }
+  },
+  {
+    "id": "double-progression",
+    "name": "Double progression",
+    "category": "Strength",
+    "definition": "A programming method that progresses repetitions within a chosen range and then increases load when a defined criterion is met.",
+    "example": "Work from 8 toward 12 reps, then increase load after meeting your rule.",
+    "caution": "There are several versions. Specify whether the rule applies to every set or another measure.",
+    "guide": "progression",
+    "aliases": "",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Double progression",
+      "labels": [
+        "Build repetitions",
+        "Meet the rule",
+        "Increase load"
+      ],
+      "caption": "Work from 8 toward 12 reps, then increase load after meeting your rule."
+    }
+  },
+  {
+    "id": "volume",
+    "name": "Volume",
+    "category": "Strength",
+    "definition": "The amount of training work, expressed using a defined measure such as working sets, repetitions, time, or distance. The unit matters.",
+    "example": "Six working sets across two weekly sessions is a set-based volume measure.",
+    "caution": "The word alone does not tell you whether someone means sets, repetitions, or total external weight moved.",
+    "guide": "volume",
+    "aliases": "",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Volume",
+      "labels": [
+        "Choose the unit",
+        "Count the work",
+        "State the period"
+      ],
+      "caption": "Six working sets across two weekly sessions is a set-based volume measure."
+    }
+  },
+  {
+    "id": "volume-load",
+    "name": "Volume load",
+    "category": "Strength",
+    "definition": "The sum of repetitions multiplied by external load across the sets being counted. It is a bookkeeping measure that does not fully capture training stimulus.",
+    "example": "3 × 10 × 40 kg equals 1,200 kg of volume load.",
+    "caution": "Totals across different exercises, ranges, and machines are not directly equivalent.",
+    "guide": "volume",
+    "aliases": "",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Volume load",
+      "labels": [
+        "Sets × reps",
+        "× external load",
+        "Volume-load total"
+      ],
+      "caption": "3 × 10 × 40 kg equals 1,200 kg of volume load."
+    }
+  },
+  {
+    "id": "frequency",
+    "name": "Frequency",
+    "category": "Strength",
+    "definition": "How often a defined activity occurs during a period. It may describe sessions, exercise exposures, or how often a muscle group is trained.",
+    "example": "Three gym visits is three sessions per week, even if a particular exercise appears only twice.",
+    "caution": "Session frequency and per-muscle frequency are different measures.",
+    "guide": "volume",
+    "aliases": "",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Frequency",
+      "labels": [
+        "Define the activity",
+        "Count occurrences",
+        "State the time window"
+      ],
+      "caption": "Three gym visits is three sessions per week, even if a particular exercise appears only twice."
+    }
+  },
+  {
+    "id": "hypertrophy",
+    "name": "Hypertrophy",
+    "category": "Strength",
+    "definition": "An increase in muscle size. It is different from an immediate pump, short-term swelling, or a change in scale weight alone.",
+    "example": "Repeated resistance training can produce increases in muscle size over time.",
+    "caution": "A larger volume-load total does not directly measure hypertrophy.",
+    "guide": "volume",
+    "aliases": "",
+    "sources": [
+      "load"
+    ],
+    "diagram": {
+      "kind": "concept",
+      "title": "Hypertrophy",
+      "labels": [
+        "Repeated training",
+        "Adaptation over time",
+        "Muscle size"
+      ],
+      "caption": "Repeated resistance training can produce increases in muscle size over time."
+    }
+  },
+  {
+    "id": "strength",
+    "name": "Strength",
+    "category": "Strength",
+    "definition": "The ability to produce force under specified conditions. In a gym it is often assessed by performance on a particular movement and loading task.",
+    "example": "Improved bench-press performance describes strength in that tested task.",
+    "caution": "Skill, setup, and movement standard influence test results. Strength is not one universal number.",
+    "guide": "progression",
+    "aliases": "",
+    "sources": [
+      "load"
+    ],
+    "diagram": {
+      "kind": "concept",
+      "title": "Strength",
+      "labels": [
+        "Specified task",
+        "Force production",
+        "Measured performance"
+      ],
+      "caption": "Improved bench-press performance describes strength in that tested task."
+    }
+  },
+  {
+    "id": "power",
+    "name": "Power",
+    "category": "Strength",
+    "definition": "The rate of doing mechanical work. It relates to force and movement velocity, so producing force quickly matters.",
+    "example": "Moving a load faster at a given force changes mechanical power.",
+    "caution": "A heavier but much slower repetition is not automatically a more powerful one.",
+    "guide": "concurrent",
+    "aliases": "",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Power",
+      "labels": [
+        "Force",
+        "× velocity",
+        "Mechanical power"
+      ],
+      "caption": "Moving a load faster at a given force changes mechanical power."
+    }
+  },
+  {
+    "id": "muscular-endurance",
+    "name": "Muscular endurance",
+    "category": "Strength",
+    "definition": "The ability to sustain or repeat muscular work over a task. The outcome depends on the exercise, resistance, duration, and test rules.",
+    "example": "The number of valid repetitions at a fixed load can be one endurance measure.",
+    "caution": "It is not identical to maximal strength or cardiorespiratory endurance.",
+    "guide": "progression",
+    "aliases": "",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Muscular endurance",
+      "labels": [
+        "Defined load",
+        "Repeated work",
+        "Task duration"
+      ],
+      "caption": "The number of valid repetitions at a fixed load can be one endurance measure."
+    }
+  },
+  {
+    "id": "compound-exercise",
+    "name": "Compound exercise",
+    "category": "Strength",
+    "definition": "An exercise involving movement at more than one joint. The term describes movement organization, not automatic superiority over other exercises.",
+    "example": "A squat involves motion at the hips, knees, and ankles.",
+    "caution": "Muscle contribution depends on technique, range, load, and anatomy.",
+    "guide": "rest",
+    "aliases": "",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Compound exercise",
+      "labels": [
+        "Multiple joints",
+        "Coordinated movement",
+        "One exercise"
+      ],
+      "caption": "A squat involves motion at the hips, knees, and ankles."
+    }
+  },
+  {
+    "id": "isolation-exercise",
+    "name": "Isolation exercise",
+    "category": "Strength",
+    "definition": "An exercise emphasizing movement at one joint, often used to focus work on a smaller set of muscles. Other muscles may still stabilize the task.",
+    "example": "A knee-extension machine primarily trains a knee-extension action.",
+    "caution": "“Isolation” does not mean only one muscle is active.",
+    "guide": "volume",
+    "aliases": "",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Isolation exercise",
+      "labels": [
+        "One main joint action",
+        "Targeted movement",
+        "Supporting stabilization"
+      ],
+      "caption": "A knee-extension machine primarily trains a knee-extension action."
+    }
+  },
+  {
+    "id": "unilateral-exercise",
+    "name": "Unilateral exercise",
+    "category": "Strength",
+    "definition": "An exercise performed with one side at a time or with a deliberately asymmetric emphasis. Log sides clearly.",
+    "example": "Ten lunges per side is different from ten alternating lunges in total.",
+    "caution": "Do not silently switch between per-side and total-repetition conventions.",
+    "guide": "logging",
+    "aliases": "",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Unilateral exercise",
+      "labels": [
+        "Left-side work",
+        "Right-side work",
+        "Clear counting rule"
+      ],
+      "caption": "Ten lunges per side is different from ten alternating lunges in total."
+    }
+  },
+  {
+    "id": "bilateral-exercise",
+    "name": "Bilateral exercise",
+    "category": "Strength",
+    "definition": "An exercise performed with both sides acting together in the main movement. The label does not imply perfectly equal contribution from each side.",
+    "example": "A conventional two-leg squat is a bilateral exercise.",
+    "caution": "The total external load is not necessarily divided equally between limbs.",
+    "guide": "logging",
+    "aliases": "",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Bilateral exercise",
+      "labels": [
+        "Both sides",
+        "Shared movement",
+        "Total task"
+      ],
+      "caption": "A conventional two-leg squat is a bilateral exercise."
+    }
+  },
+  {
+    "id": "concentric",
+    "name": "Concentric",
+    "category": "Strength",
+    "definition": "A muscle action in which the active muscle shortens while producing force. In many lifts it corresponds to the lifting phase.",
+    "example": "The elbow flexors shorten during the upward phase of a curl.",
+    "caution": "“Up” is not a universal definition for every muscle or exercise.",
+    "guide": "range",
+    "aliases": "",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Concentric",
+      "labels": [
+        "Active muscle",
+        "Shortening",
+        "Force production"
+      ],
+      "caption": "The elbow flexors shorten during the upward phase of a curl."
+    }
+  },
+  {
+    "id": "eccentric",
+    "name": "Eccentric",
+    "category": "Strength",
+    "definition": "A muscle action in which the active muscle lengthens while producing force. It often controls the lowering phase of a lift.",
+    "example": "The elbow flexors lengthen while controlling the lowering of a curl.",
+    "caution": "It is active control, not simply letting a weight fall.",
+    "guide": "range",
+    "aliases": "",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Eccentric",
+      "labels": [
+        "Active muscle",
+        "Lengthening",
+        "Controlled force"
+      ],
+      "caption": "The elbow flexors lengthen while controlling the lowering of a curl."
+    }
+  },
+  {
+    "id": "isometric",
+    "name": "Isometric",
+    "category": "Strength",
+    "definition": "A muscle action producing force without a meaningful change in the joint position being held. Internal muscle and tendon behavior can still be complex.",
+    "example": "Holding a fixed position against resistance is an isometric task.",
+    "caution": "A still-looking body does not mean no muscular effort is occurring.",
+    "guide": "range",
+    "aliases": "",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Isometric",
+      "labels": [
+        "Fixed position",
+        "Force maintained",
+        "Time under effort"
+      ],
+      "caption": "Holding a fixed position against resistance is an isometric task."
+    }
+  },
+  {
+    "id": "range-of-motion",
+    "name": "Range of motion",
+    "category": "Strength",
+    "definition": "The movement excursion used at a joint or in an exercise. It can be described with angles or repeatable practical landmarks.",
+    "example": "A row recorded from full arm reach to a specified handle endpoint has a defined range.",
+    "caution": "The useful range depends on the task and person; a diagram cannot set an individual pain-free limit.",
+    "guide": "range",
+    "aliases": "ROM",
+    "sources": [
+      "rom"
+    ],
+    "diagram": {
+      "kind": "concept",
+      "title": "Range of motion",
+      "labels": [
+        "Start landmark",
+        "Movement excursion",
+        "End landmark"
+      ],
+      "caption": "A row recorded from full arm reach to a specified handle endpoint has a defined range."
+    }
+  },
+  {
+    "id": "partial-repetition",
+    "name": "Partial repetition",
+    "category": "Strength",
+    "definition": "A repetition intentionally or unintentionally using only part of a defined movement range. Which part is trained matters.",
+    "example": "A partial rep might use the lower half or upper half of an exercise.",
+    "caution": "Do not assume every partial range has the same effect or compare it silently with full-range work.",
+    "guide": "range",
+    "aliases": "",
+    "sources": [
+      "rom"
+    ],
+    "diagram": {
+      "kind": "concept",
+      "title": "Partial repetition",
+      "labels": [
+        "Defined full range",
+        "Selected portion",
+        "Recorded partial"
+      ],
+      "caption": "A partial rep might use the lower half or upper half of an exercise."
+    }
+  },
+  {
+    "id": "tempo",
+    "name": "Tempo",
+    "category": "Strength",
+    "definition": "The timing of phases within a repetition, often written as a sequence for lowering, pauses, and lifting. The order should be explained.",
+    "example": "A note of “3-second lowering” is clearer than an unexplained four-digit code.",
+    "caution": "The same total repetition time can be distributed across phases in different ways.",
+    "guide": "logging",
+    "aliases": "",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Tempo",
+      "labels": [
+        "Lowering",
+        "Pause / transition",
+        "Lifting"
+      ],
+      "caption": "A note of “3-second lowering” is clearer than an unexplained four-digit code."
+    }
+  },
+  {
+    "id": "rest-interval",
+    "name": "Rest interval",
+    "category": "Strength",
+    "definition": "The time between defined bouts of work, most commonly between sets. State where timing begins and ends.",
+    "example": "Two minutes from finishing one set to starting the next is a two-minute inter-set rest.",
+    "caution": "Rest between exercises and rest between repetitions are different quantities.",
+    "guide": "rest",
+    "aliases": "",
+    "sources": [
+      "rest"
+    ],
+    "diagram": {
+      "kind": "concept",
+      "title": "Rest interval",
+      "labels": [
+        "Set ends",
+        "Recovery interval",
+        "Next set starts"
+      ],
+      "caption": "Two minutes from finishing one set to starting the next is a two-minute inter-set rest."
+    }
+  },
+  {
+    "id": "superset",
+    "name": "Superset",
+    "category": "Strength",
+    "definition": "Two exercises performed in sequence with little or no planned rest between them, followed by the specified recovery. Arrangements vary.",
+    "example": "A press followed by a row can be one superset pairing.",
+    "caution": "Pairing does not make the exercises physiologically independent; fatigue can carry across.",
+    "guide": "rest",
+    "aliases": "",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Superset",
+      "labels": [
+        "Exercise A",
+        "Exercise B",
+        "Planned recovery"
+      ],
+      "caption": "A press followed by a row can be one superset pairing."
+    }
+  },
+  {
+    "id": "autoregulation",
+    "name": "Autoregulation",
+    "category": "Strength",
+    "definition": "Adjusting a training prescription using current performance or feedback instead of relying only on a fixed plan. The decision rule should be explicit.",
+    "example": "Reduce the load if the warm-up and first set are substantially harder than the planned effort.",
+    "caution": "It does not mean changing the whole session based on one vague mood or device score.",
+    "guide": "deload",
+    "aliases": "",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Autoregulation",
+      "labels": [
+        "Planned task",
+        "Current feedback",
+        "Defined adjustment"
+      ],
+      "caption": "Reduce the load if the warm-up and first set are substantially harder than the planned effort."
+    }
+  },
+  {
+    "id": "specificity",
+    "name": "Specificity",
+    "category": "Strength",
+    "definition": "The principle that adaptations and performance improvements relate to the tasks and demands practiced. Transfer between tasks is not unlimited.",
+    "example": "Practice on one exercise may improve its performance more than an unrelated movement.",
+    "caution": "Specificity does not mean variation is useless; it means the comparison should match the goal.",
+    "guide": "plateau",
+    "aliases": "",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Specificity",
+      "labels": [
+        "Goal task",
+        "Relevant practice",
+        "Task-specific outcome"
+      ],
+      "caption": "Practice on one exercise may improve its performance more than an unrelated movement."
+    }
+  },
+  {
+    "id": "plateau",
+    "name": "Plateau",
+    "category": "Strength",
+    "definition": "A period without clear improvement in a chosen outcome across comparable observations. The observation window and measurement error matter.",
+    "example": "Several comparable sessions show no change in repetitions at a fixed load.",
+    "caution": "One difficult session does not establish a plateau.",
+    "guide": "plateau",
+    "aliases": "",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Plateau",
+      "labels": [
+        "Comparable records",
+        "Stable outcome",
+        "Review the context"
+      ],
+      "caption": "Several comparable sessions show no change in repetitions at a fixed load."
+    }
+  },
+  {
+    "id": "aerobic-exercise",
+    "name": "Aerobic exercise",
+    "category": "Conditioning",
+    "definition": "Activity that substantially uses aerobic energy production and challenges cardiorespiratory function over time. Energy systems overlap rather than switching completely on or off.",
+    "example": "Brisk walking or sustained cycling can be aerobic activity.",
+    "caution": "A movement is not automatically moderate or vigorous for every person.",
+    "guide": "cardio",
+    "aliases": "cardio endurance",
+    "sources": [
+      "activity"
+    ],
+    "diagram": {
+      "kind": "concept",
+      "title": "Aerobic exercise",
+      "labels": [
+        "Sustained movement",
+        "Oxygen-supported energy",
+        "Cardiorespiratory demand"
+      ],
+      "caption": "Brisk walking or sustained cycling can be aerobic activity."
+    }
+  },
+  {
+    "id": "moderate-intensity",
+    "name": "Moderate intensity",
+    "category": "Conditioning",
+    "definition": "A level of aerobic effort that is meaningfully above easy activity. Relative intensity considers the person, while absolute intensity uses a standardized task measure.",
+    "example": "In the talk test, you can talk but would have difficulty singing.",
+    "caution": "A fixed walking speed may feel very different to two people.",
+    "guide": "intensity",
+    "aliases": "",
+    "sources": [
+      "intensity"
+    ],
+    "diagram": {
+      "kind": "concept",
+      "title": "Moderate intensity",
+      "labels": [
+        "Conversation possible",
+        "Singing difficult",
+        "Relative effort"
+      ],
+      "caption": "In the talk test, you can talk but would have difficulty singing."
+    }
+  },
+  {
+    "id": "vigorous-intensity",
+    "name": "Vigorous intensity",
+    "category": "Conditioning",
+    "definition": "A higher level of aerobic effort. In the talk test, speech is limited to a few words before pausing for breath.",
+    "example": "A hard uphill effort may make full-sentence conversation difficult.",
+    "caution": "Vigorous does not mean maximal, and symptoms should not be ignored to preserve a target.",
+    "guide": "intensity",
+    "aliases": "",
+    "sources": [
+      "intensity"
+    ],
+    "diagram": {
+      "kind": "concept",
+      "title": "Vigorous intensity",
+      "labels": [
+        "Harder breathing",
+        "Few words at a time",
+        "Higher effort"
+      ],
+      "caption": "A hard uphill effort may make full-sentence conversation difficult."
+    }
+  },
+  {
+    "id": "talk-test",
+    "name": "Talk test",
+    "category": "Conditioning",
+    "definition": "A practical method of estimating relative aerobic intensity from how comfortably you can speak during activity.",
+    "example": "Comfortable conversation versus only a few words helps distinguish effort levels.",
+    "caution": "It is a rough cue, not a direct lactate or ventilatory-threshold measurement.",
+    "guide": "intensity",
+    "aliases": "",
+    "sources": [
+      "intensity"
+    ],
+    "diagram": {
+      "kind": "concept",
+      "title": "Talk test",
+      "labels": [
+        "Move",
+        "Try speaking",
+        "Interpret effort"
+      ],
+      "caption": "Comfortable conversation versus only a few words helps distinguish effort levels."
+    }
+  },
+  {
+    "id": "heart-rate-zone",
+    "name": "Heart-rate zone",
+    "category": "Conditioning",
+    "definition": "A band of heart rates defined by a chosen model. Models may use maximum heart rate, heart-rate reserve, or measured thresholds.",
+    "example": "Two apps can assign different zone boundaries to the same person.",
+    "caution": "The label “zone 2” is incomplete without the system and settings behind it.",
+    "guide": "intensity",
+    "aliases": "",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Heart-rate zone",
+      "labels": [
+        "Choose a model",
+        "Set its boundaries",
+        "Interpret the band"
+      ],
+      "caption": "Two apps can assign different zone boundaries to the same person."
+    }
+  },
+  {
+    "id": "heart-rate-reserve",
+    "name": "Heart-rate reserve",
+    "category": "Conditioning",
+    "definition": "The difference between maximum and resting heart rate. A reserve-based target adds a chosen fraction of that difference to resting heart rate.",
+    "example": "If maximum is 180 and resting is 60 bpm, reserve is 120 bpm.",
+    "caution": "Both input values can be uncertain. This example is arithmetic, not your training target.",
+    "guide": "intensity",
+    "aliases": "",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Heart-rate reserve",
+      "labels": [
+        "180 bpm maximum",
+        "− 60 bpm resting",
+        "120 bpm reserve"
+      ],
+      "caption": "If maximum is 180 and resting is 60 bpm, reserve is 120 bpm."
+    }
+  },
+  {
+    "id": "maximum-heart-rate",
+    "name": "Maximum heart rate",
+    "category": "Conditioning",
+    "definition": "The highest heart rate reached under appropriate maximal testing conditions. Age-based formulas predict population averages rather than a precise individual value.",
+    "example": "A formula-generated maximum and a measured test maximum are different inputs.",
+    "caution": "Do not treat an age formula as an exact safety boundary or self-test instruction.",
+    "guide": "intensity",
+    "aliases": "",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Maximum heart rate",
+      "labels": [
+        "Test or estimate",
+        "Individual variation",
+        "Model input"
+      ],
+      "caption": "A formula-generated maximum and a measured test maximum are different inputs."
+    }
+  },
+  {
+    "id": "met",
+    "name": "MET",
+    "category": "Conditioning",
+    "definition": "Metabolic equivalent of task: a standardized expression of energy expenditure relative to a conventional resting reference.",
+    "example": "An activity listed at 4 METs has a standardized intensity classification.",
+    "caution": "MET tables are not individualized measurements of your calorie expenditure.",
+    "guide": "intensity",
+    "aliases": "metabolic equivalent",
+    "sources": [
+      "intensity"
+    ],
+    "diagram": {
+      "kind": "concept",
+      "title": "MET",
+      "labels": [
+        "Resting reference",
+        "Task multiple",
+        "Standardized estimate"
+      ],
+      "caption": "An activity listed at 4 METs has a standardized intensity classification."
+    }
+  },
+  {
+    "id": "vo2-max",
+    "name": "VO2 max",
+    "category": "Conditioning",
+    "definition": "Maximum rate of oxygen uptake during an appropriate test, often expressed in mL/kg/min. Wearable values are estimates from algorithms.",
+    "example": "A laboratory gas-analysis test and a watch estimate use different methods.",
+    "caution": "Compare methods and conditions before interpreting a small change as adaptation.",
+    "guide": "wearables",
+    "aliases": "",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "VO2 max",
+      "labels": [
+        "Oxygen uptake",
+        "Maximal test",
+        "Rate of consumption"
+      ],
+      "caption": "A laboratory gas-analysis test and a watch estimate use different methods."
+    }
+  },
+  {
+    "id": "pace",
+    "name": "Pace",
+    "category": "Conditioning",
+    "definition": "Time taken per unit of distance, such as minutes per kilometer. It is the inverse framing of speed.",
+    "example": "5:00 min/km corresponds to 12 km/h.",
+    "caution": "A lower pace number means faster movement when distance units are unchanged.",
+    "guide": "logging",
+    "aliases": "",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Pace",
+      "labels": [
+        "5 min",
+        "Per 1 km",
+        "12 km/h equivalent"
+      ],
+      "caption": "5:00 min/km corresponds to 12 km/h."
+    }
+  },
+  {
+    "id": "interval-training",
+    "name": "Interval training",
+    "category": "Conditioning",
+    "definition": "Training that alternates defined work periods with recovery periods. Duration, intensity, repetitions, and recovery all define the session.",
+    "example": "Six work bouts separated by easier movement form an interval structure.",
+    "caution": "Intervals are not automatically maximal-effort sprints.",
+    "guide": "cardio",
+    "aliases": "",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Interval training",
+      "labels": [
+        "Work period",
+        "Recovery period",
+        "Repeat as planned"
+      ],
+      "caption": "Six work bouts separated by easier movement form an interval structure."
+    }
+  },
+  {
+    "id": "concurrent-training",
+    "name": "Concurrent training",
+    "category": "Conditioning",
+    "definition": "A program that includes both aerobic and strength training over the same period. The arrangement and total demand affect practical results.",
+    "example": "Two strength sessions plus two cycling sessions in a week is concurrent training.",
+    "caution": "Combining modes does not automatically prevent strength or muscle gains.",
+    "guide": "concurrent",
+    "aliases": "",
+    "sources": [
+      "concurrent"
+    ],
+    "diagram": {
+      "kind": "concept",
+      "title": "Concurrent training",
+      "labels": [
+        "Strength work",
+        "Aerobic work",
+        "Shared schedule"
+      ],
+      "caption": "Two strength sessions plus two cycling sessions in a week is concurrent training."
+    }
+  },
+  {
+    "id": "interference-effect",
+    "name": "Interference effect",
+    "category": "Conditioning",
+    "definition": "A potential reduction in a specific adaptation when training demands are combined compared with a relevant single-mode program. It is outcome- and context-dependent.",
+    "example": "Explosive performance may respond differently from muscle size in mixed programs.",
+    "caution": "It is not a synonym for feeling tired after a run.",
+    "guide": "concurrent",
+    "aliases": "",
+    "sources": [
+      "concurrent"
+    ],
+    "diagram": {
+      "kind": "concept",
+      "title": "Interference effect",
+      "labels": [
+        "Combined demands",
+        "Specific outcome",
+        "Relevant comparison"
+      ],
+      "caption": "Explosive performance may respond differently from muscle size in mixed programs."
+    }
+  },
+  {
+    "id": "protein",
+    "name": "Protein",
+    "category": "Nutrition",
+    "definition": "A macronutrient made from amino acids, used for structural and functional roles throughout the body, including muscle repair and adaptation.",
+    "example": "Food sources include legumes, tofu, eggs, dairy, fish, and meat.",
+    "caution": "More protein does not substitute for training, enough energy, or a varied diet.",
+    "guide": "protein",
+    "aliases": "",
+    "sources": [
+      "protein"
+    ],
+    "diagram": {
+      "kind": "concept",
+      "title": "Protein",
+      "labels": [
+        "Dietary protein",
+        "Amino acids",
+        "Body proteins"
+      ],
+      "caption": "Food sources include legumes, tofu, eggs, dairy, fish, and meat."
+    }
+  },
+  {
+    "id": "amino-acid",
+    "name": "Amino acid",
+    "category": "Nutrition",
+    "definition": "A building block of proteins. Essential amino acids must be obtained through the diet because the body cannot make enough to meet its needs.",
+    "example": "Different protein foods supply different amino-acid patterns.",
+    "caution": "A food’s protein content and its amino-acid profile are related but distinct properties.",
+    "guide": "protein",
+    "aliases": "",
+    "sources": [
+      "performance"
+    ],
+    "diagram": {
+      "kind": "concept",
+      "title": "Amino acid",
+      "labels": [
+        "Protein food",
+        "Amino-acid supply",
+        "Body requirements"
+      ],
+      "caption": "Different protein foods supply different amino-acid patterns."
+    }
+  },
+  {
+    "id": "protein-distribution",
+    "name": "Protein distribution",
+    "category": "Nutrition",
+    "definition": "How total daily protein is spread across eating occasions. It is separate from the total amount eaten.",
+    "example": "112 g could be distributed as four 28 g portions, but equal portions are not mandatory.",
+    "caution": "Do not turn one idealized meal schedule into a requirement that makes ordinary eating difficult.",
+    "guide": "protein",
+    "aliases": "",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Protein distribution",
+      "labels": [
+        "Daily total",
+        "Eating occasions",
+        "Practical distribution"
+      ],
+      "caption": "112 g could be distributed as four 28 g portions, but equal portions are not mandatory."
+    }
+  },
+  {
+    "id": "carbohydrate",
+    "name": "Carbohydrate",
+    "category": "Nutrition",
+    "definition": "A broad nutrient category including sugars, starches, and fiber. Different carbohydrate foods also provide different mixtures of other nutrients.",
+    "example": "Oats, beans, fruit, and rice all contribute carbohydrate.",
+    "caution": "Carbohydrate amount alone does not describe a food’s overall quality.",
+    "guide": "meals",
+    "aliases": "carbs",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Carbohydrate",
+      "labels": [
+        "Sugars",
+        "Starches",
+        "Fiber"
+      ],
+      "caption": "Oats, beans, fruit, and rice all contribute carbohydrate."
+    }
+  },
+  {
+    "id": "glycogen",
+    "name": "Glycogen",
+    "category": "Nutrition",
+    "definition": "A stored form of carbohydrate found mainly in muscle and liver. Its storage is associated with water, so changes can influence body mass.",
+    "example": "A change in carbohydrate intake and training can alter glycogen and water storage.",
+    "caution": "A rapid scale change is not automatically an equivalent change in fat tissue.",
+    "guide": "energy",
+    "aliases": "",
+    "sources": [
+      "model"
+    ],
+    "diagram": {
+      "kind": "concept",
+      "title": "Glycogen",
+      "labels": [
+        "Stored carbohydrate",
+        "Associated water",
+        "Variable scale mass"
+      ],
+      "caption": "A change in carbohydrate intake and training can alter glycogen and water storage."
+    }
+  },
+  {
+    "id": "dietary-fat",
+    "name": "Dietary fat",
+    "category": "Nutrition",
+    "definition": "A macronutrient that supplies energy and supports functions including absorption of fat-soluble vitamins. Foods contain different fatty-acid mixtures.",
+    "example": "Nuts, olive oil, avocado, and oily fish contribute dietary fat.",
+    "caution": "Dietary fat and body-fat tissue are not interchangeable concepts.",
+    "guide": "meals",
+    "aliases": "",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Dietary fat",
+      "labels": [
+        "Food fats",
+        "Energy + nutrients",
+        "Dietary pattern"
+      ],
+      "caption": "Nuts, olive oil, avocado, and oily fish contribute dietary fat."
+    }
+  },
+  {
+    "id": "macronutrient",
+    "name": "Macronutrient",
+    "category": "Nutrition",
+    "definition": "A nutrient category consumed in relatively large amounts. In common food tracking, macros refer to protein, carbohydrate, and fat.",
+    "example": "A meal can be described by grams of protein, carbohydrate, and fat.",
+    "caution": "A macro total does not describe all vitamins, minerals, fiber, or food quality.",
+    "guide": "meals",
+    "aliases": "macros",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Macronutrient",
+      "labels": [
+        "Protein",
+        "Carbohydrate",
+        "Fat"
+      ],
+      "caption": "A meal can be described by grams of protein, carbohydrate, and fat."
+    }
+  },
+  {
+    "id": "micronutrient",
+    "name": "Micronutrient",
+    "category": "Nutrition",
+    "definition": "A vitamin or mineral needed in smaller quantities than macronutrients. Small required quantities do not imply small importance.",
+    "example": "Iron, calcium, vitamin D, and vitamin B12 are micronutrients.",
+    "caution": "More is not automatically better; some supplemental amounts can be harmful.",
+    "guide": "meals",
+    "aliases": "micros",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Micronutrient",
+      "labels": [
+        "Vitamins",
+        "Minerals",
+        "Specific requirements"
+      ],
+      "caption": "Iron, calcium, vitamin D, and vitamin B12 are micronutrients."
+    }
+  },
+  {
+    "id": "fiber",
+    "name": "Fiber",
+    "category": "Nutrition",
+    "definition": "Dietary components, largely from plants, that resist digestion in the small intestine and can have varied physiological effects.",
+    "example": "Beans, whole grains, fruits, and vegetables can contribute fiber.",
+    "caution": "Different fibers have different properties; a single label number does not describe them all.",
+    "guide": "fiber",
+    "aliases": "fibre dietary fiber",
+    "sources": [
+      "fiber"
+    ],
+    "diagram": {
+      "kind": "concept",
+      "title": "Fiber",
+      "labels": [
+        "Plant food",
+        "Nondigested components",
+        "Varied properties"
+      ],
+      "caption": "Beans, whole grains, fruits, and vegetables can contribute fiber."
+    }
+  },
+  {
+    "id": "soluble-fiber",
+    "name": "Soluble fiber",
+    "category": "Nutrition",
+    "definition": "Fiber that dissolves or disperses in water. Some forms create viscous gels and some are fermented by gut microbes.",
+    "example": "Oats and legumes contain soluble fiber alongside other components.",
+    "caution": "Solubility, viscosity, and fermentability are separate properties, not synonyms.",
+    "guide": "fiber",
+    "aliases": "",
+    "sources": [
+      "fiber"
+    ],
+    "diagram": {
+      "kind": "concept",
+      "title": "Soluble fiber",
+      "labels": [
+        "Water interaction",
+        "Possible gel formation",
+        "Varied fermentation"
+      ],
+      "caption": "Oats and legumes contain soluble fiber alongside other components."
+    }
+  },
+  {
+    "id": "insoluble-fiber",
+    "name": "Insoluble fiber",
+    "category": "Nutrition",
+    "definition": "Fiber that does not dissolve readily in water. Many plant foods contain both soluble and insoluble fractions.",
+    "example": "Whole grains and vegetables can supply insoluble fiber.",
+    "caution": "The categories overlap in foods; they are not a reason to eat only one type.",
+    "guide": "fiber",
+    "aliases": "",
+    "sources": [
+      "fiber"
+    ],
+    "diagram": {
+      "kind": "concept",
+      "title": "Insoluble fiber",
+      "labels": [
+        "Plant structure",
+        "Low water solubility",
+        "Part of mixed foods"
+      ],
+      "caption": "Whole grains and vegetables can supply insoluble fiber."
+    }
+  },
+  {
+    "id": "whole-grain",
+    "name": "Whole grain",
+    "category": "Nutrition",
+    "definition": "A grain retaining its bran, germ, and endosperm in their original relative proportions, whether intact or processed.",
+    "example": "Oats and brown rice are familiar examples.",
+    "caution": "A dark color or the word “multigrain” does not by itself prove a product is whole grain.",
+    "guide": "fiber",
+    "aliases": "",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Whole grain",
+      "labels": [
+        "Bran",
+        "Germ",
+        "Endosperm"
+      ],
+      "caption": "Oats and brown rice are familiar examples."
+    }
+  },
+  {
+    "id": "serving-size",
+    "name": "Serving size",
+    "category": "Nutrition",
+    "definition": "The reference amount used to state nutrition information on a label. Its meaning depends on the labeling system.",
+    "example": "A label may report nutrition per 30 g serving.",
+    "caution": "It is not automatically the portion you ate or a personalized recommendation.",
+    "guide": "labels",
+    "aliases": "",
+    "sources": [
+      "label"
+    ],
+    "diagram": {
+      "kind": "concept",
+      "title": "Serving size",
+      "labels": [
+        "Label reference",
+        "Nutrients per reference",
+        "Scale to intake"
+      ],
+      "caption": "A label may report nutrition per 30 g serving."
+    }
+  },
+  {
+    "id": "portion",
+    "name": "Portion",
+    "category": "Nutrition",
+    "definition": "The amount of food you actually choose or consume on an occasion. It can differ from the label serving size.",
+    "example": "A 45 g portion is 1.5 times a 30 g label serving.",
+    "caution": "Record the actual amount before multiplying the label values.",
+    "guide": "labels",
+    "aliases": "",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Portion",
+      "labels": [
+        "30 g reference",
+        "45 g consumed",
+        "1.5 servings"
+      ],
+      "caption": "A 45 g portion is 1.5 times a 30 g label serving."
+    }
+  },
+  {
+    "id": "percent-daily-value",
+    "name": "Percent Daily Value",
+    "category": "Nutrition",
+    "definition": "A U.S. label measure showing how a serving contributes to a reference daily nutrient amount. It supports general label comparisons.",
+    "example": "A stated %DV applies to the serving shown on that label.",
+    "caution": "Daily Values are reference amounts, not individual requirements, and other regions use different systems.",
+    "guide": "labels",
+    "aliases": "%DV daily value",
+    "sources": [
+      "label"
+    ],
+    "diagram": {
+      "kind": "concept",
+      "title": "Percent Daily Value",
+      "labels": [
+        "Nutrient in serving",
+        "Reference daily amount",
+        "Percent contribution"
+      ],
+      "caption": "A stated %DV applies to the serving shown on that label."
+    }
+  },
+  {
+    "id": "energy-density",
+    "name": "Energy density",
+    "category": "Nutrition",
+    "definition": "The energy content per unit mass of food, often expressed as kcal per gram or per 100 grams.",
+    "example": "240 kcal per 100 g equals 2.4 kcal per gram.",
+    "caution": "It does not alone describe nutrient quality, fullness, or an appropriate portion.",
+    "guide": "labels",
+    "aliases": "",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Energy density",
+      "labels": [
+        "240 kcal",
+        "100 g food",
+        "2.4 kcal/g"
+      ],
+      "caption": "240 kcal per 100 g equals 2.4 kcal per gram."
+    }
+  },
+  {
+    "id": "calorie",
+    "name": "Calorie",
+    "category": "Nutrition",
+    "definition": "In food contexts, “calorie” usually means kilocalorie, abbreviated kcal. It is a unit of energy, not a type of nutrient.",
+    "example": "1 kcal equals 4.184 kilojoules.",
+    "caution": "Check whether an app displays kcal or kJ before comparing values.",
+    "guide": "energy",
+    "aliases": "kcal kilocalorie calories",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Calorie",
+      "labels": [
+        "1 kcal",
+        "Energy unit",
+        "4.184 kJ"
+      ],
+      "caption": "1 kcal equals 4.184 kilojoules."
+    }
+  },
+  {
+    "id": "energy-balance",
+    "name": "Energy balance",
+    "category": "Nutrition",
+    "definition": "The relationship between energy intake and energy expenditure over time. Changes in stored body energy are related to the difference.",
+    "example": "A persistent imbalance can change energy stores, while daily scale readings also reflect water and contents.",
+    "caution": "It is a dynamic relationship, not a perfect daily prediction from two app numbers.",
+    "guide": "energy",
+    "aliases": "",
+    "sources": [
+      "model"
+    ],
+    "diagram": {
+      "kind": "concept",
+      "title": "Energy balance",
+      "labels": [
+        "Energy intake",
+        "Energy expenditure",
+        "Change over time"
+      ],
+      "caption": "A persistent imbalance can change energy stores, while daily scale readings also reflect water and contents."
+    }
+  },
+  {
+    "id": "calorie-deficit",
+    "name": "Calorie deficit",
+    "category": "Nutrition",
+    "definition": "A period in which energy intake is lower than energy expenditure. The size is usually estimated rather than directly measured in everyday life.",
+    "example": "A planned intake below estimated maintenance is intended to create a deficit.",
+    "caution": "A target in an app does not prove the actual deficit, and bigger is not automatically appropriate.",
+    "guide": "energy",
+    "aliases": "",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Calorie deficit",
+      "labels": [
+        "Intake",
+        "Below expenditure",
+        "Estimated deficit"
+      ],
+      "caption": "A planned intake below estimated maintenance is intended to create a deficit."
+    }
+  },
+  {
+    "id": "maintenance-energy",
+    "name": "Maintenance energy",
+    "category": "Nutrition",
+    "definition": "An estimated energy intake associated with stable body energy stores over a period under given conditions. It changes with circumstances.",
+    "example": "A person’s maintenance estimate can differ after changes in body size or activity.",
+    "caution": "It is not a fixed lifetime calorie number or a guarantee of identical daily scale readings.",
+    "guide": "energy",
+    "aliases": "maintenance calories TDEE",
+    "sources": [
+      "weight"
+    ],
+    "diagram": {
+      "kind": "concept",
+      "title": "Maintenance energy",
+      "labels": [
+        "Current body + activity",
+        "Observation period",
+        "Working estimate"
+      ],
+      "caption": "A person’s maintenance estimate can differ after changes in body size or activity."
+    }
+  },
+  {
+    "id": "recipe-yield",
+    "name": "Recipe yield",
+    "category": "Nutrition",
+    "definition": "The total amount or number of portions produced by a recipe. It determines how the recipe’s ingredient totals are divided.",
+    "example": "A recipe containing 2,000 kcal divided into four equal portions gives about 500 kcal per portion.",
+    "caution": "Equal portions by eye may not be equal by weight, and cooking changes water content.",
+    "guide": "meals",
+    "aliases": "",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Recipe yield",
+      "labels": [
+        "Ingredient totals",
+        "Final recipe yield",
+        "Portion share"
+      ],
+      "caption": "A recipe containing 2,000 kcal divided into four equal portions gives about 500 kcal per portion."
+    }
+  },
+  {
+    "id": "hydration",
+    "name": "Hydration",
+    "category": "Nutrition",
+    "definition": "The state of body water and fluid balance. It is influenced by intake, losses, and health circumstances rather than a single bottle count.",
+    "example": "Water, other beverages, and water-containing foods all contribute to intake.",
+    "caution": "A fixed daily target does not fit every climate, activity level, or medical situation.",
+    "guide": "hydration",
+    "aliases": "",
+    "sources": [
+      "water"
+    ],
+    "diagram": {
+      "kind": "concept",
+      "title": "Hydration",
+      "labels": [
+        "Fluid intake",
+        "Fluid losses",
+        "Body-water balance"
+      ],
+      "caption": "Water, other beverages, and water-containing foods all contribute to intake."
+    }
+  },
+  {
+    "id": "electrolyte",
+    "name": "Electrolyte",
+    "category": "Nutrition",
+    "definition": "A substance that forms electrically charged particles in solution. Sodium, potassium, and chloride are familiar examples relevant to body fluids.",
+    "example": "Sweat contains water and electrolytes, including sodium.",
+    "caution": "An electrolyte drink is not automatically necessary for every short workout.",
+    "guide": "hydration",
+    "aliases": "",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Electrolyte",
+      "labels": [
+        "Body fluids",
+        "Charged particles",
+        "Fluid and cell function"
+      ],
+      "caption": "Sweat contains water and electrolytes, including sodium."
+    }
+  },
+  {
+    "id": "sodium",
+    "name": "Sodium",
+    "category": "Nutrition",
+    "definition": "A mineral and electrolyte involved in fluid balance and nerve and muscle function. Food labels often list sodium rather than total salt mass.",
+    "example": "Sodium chloride is table salt; its sodium content is only part of its mass.",
+    "caution": "Milligrams of sodium are not the same as milligrams of salt.",
+    "guide": "hydration",
+    "aliases": "",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Sodium",
+      "labels": [
+        "Sodium",
+        "Part of sodium chloride",
+        "Distinct label amount"
+      ],
+      "caption": "Sodium chloride is table salt; its sodium content is only part of its mass."
+    }
+  },
+  {
+    "id": "sweat-rate",
+    "name": "Sweat rate",
+    "category": "Nutrition",
+    "definition": "An estimate of sweat loss per unit time. Field estimates can use changes in body mass adjusted for fluid consumed and urine produced.",
+    "example": "A session estimate is tied to its duration, environment, and activity.",
+    "caution": "It does not automatically generalize to a different climate or intensity, and measurements contain error.",
+    "guide": "hydration",
+    "aliases": "",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Sweat rate",
+      "labels": [
+        "Estimated sweat loss",
+        "÷ elapsed time",
+        "Loss per hour"
+      ],
+      "caption": "A session estimate is tied to its duration, environment, and activity."
+    }
+  },
+  {
+    "id": "creatine",
+    "name": "Creatine",
+    "category": "Nutrition",
+    "definition": "A compound involved in rapid energy buffering through the creatine-phosphocreatine system. Creatine monohydrate is the best-studied supplemental form.",
+    "example": "It is commonly studied with repeated high-intensity exercise and resistance training.",
+    "caution": "It is not a stimulant and does not replace training or adequate food intake.",
+    "guide": "creatine",
+    "aliases": "",
+    "sources": [
+      "creatine"
+    ],
+    "diagram": {
+      "kind": "concept",
+      "title": "Creatine",
+      "labels": [
+        "Creatine stores",
+        "Rapid energy buffering",
+        "Repeated hard effort"
+      ],
+      "caption": "It is commonly studied with repeated high-intensity exercise and resistance training."
+    }
+  },
+  {
+    "id": "phosphocreatine",
+    "name": "Phosphocreatine",
+    "category": "Nutrition",
+    "definition": "A phosphorylated form of creatine that can donate a phosphate to help regenerate ATP during demanding muscular work.",
+    "example": "It contributes to rapid ATP replenishment during brief intense efforts.",
+    "caution": "This energy system overlaps with others; it does not operate alone for an exact fixed number of seconds.",
+    "guide": "creatine",
+    "aliases": "PCr",
+    "sources": [
+      "creatine"
+    ],
+    "diagram": {
+      "kind": "concept",
+      "title": "Phosphocreatine",
+      "labels": [
+        "Phosphate donation",
+        "ADP → ATP",
+        "Rapid replenishment"
+      ],
+      "caption": "It contributes to rapid ATP replenishment during brief intense efforts."
+    }
+  },
+  {
+    "id": "loading-phase",
+    "name": "Loading phase",
+    "category": "Nutrition",
+    "definition": "An initial period using a particular higher-intake protocol to increase a substance’s stores more quickly. In creatine use, loading is optional.",
+    "example": "A creatine protocol may use loading before a lower maintenance intake.",
+    "caution": "The term describes a protocol, not a requirement for everyone or permission to improvise large doses.",
+    "guide": "creatine",
+    "aliases": "",
+    "sources": [
+      "creatine"
+    ],
+    "diagram": {
+      "kind": "concept",
+      "title": "Loading phase",
+      "labels": [
+        "Initial protocol",
+        "Store accumulation",
+        "Maintenance phase"
+      ],
+      "caption": "A creatine protocol may use loading before a lower maintenance intake."
+    }
+  },
+  {
+    "id": "supplement",
+    "name": "Supplement",
+    "category": "Nutrition",
+    "definition": "A product intended to supplement the diet. Ingredients, amounts, evidence, quality, and regulation differ between products and jurisdictions.",
+    "example": "A protein powder or creatine product can be a supplement.",
+    "caution": "A performance claim or high price does not establish safety, purity, or usefulness.",
+    "guide": "creatine",
+    "aliases": "",
+    "sources": [
+      "performance"
+    ],
+    "diagram": {
+      "kind": "concept",
+      "title": "Supplement",
+      "labels": [
+        "Ingredient identity",
+        "Actual dose",
+        "Evidence + quality"
+      ],
+      "caption": "A protein powder or creatine product can be a supplement."
+    }
+  },
+  {
+    "id": "caffeine",
+    "name": "Caffeine",
+    "category": "Nutrition",
+    "definition": "A stimulant found in foods, drinks, medicines, and supplements. Response depends on dose, timing, sensitivity, and circumstances.",
+    "example": "Coffee plus an energy drink contributes to the same day’s total intake.",
+    "caution": "The FDA’s 400 mg adult reference is not a recommended target or a guarantee for everyone.",
+    "guide": "caffeine",
+    "aliases": "",
+    "sources": [
+      "caffeine"
+    ],
+    "diagram": {
+      "kind": "concept",
+      "title": "Caffeine",
+      "labels": [
+        "All sources",
+        "Dose + timing",
+        "Individual response"
+      ],
+      "caption": "Coffee plus an energy drink contributes to the same day’s total intake."
+    }
+  },
+  {
+    "id": "recovery",
+    "name": "Recovery",
+    "category": "Recovery",
+    "definition": "The processes and time associated with restoring capacity after training and other demands. Different tissues and performance measures can recover at different rates.",
+    "example": "You may feel less sore before a particular performance measure returns to its usual level.",
+    "caution": "No single score captures every aspect of recovery.",
+    "guide": "deload",
+    "aliases": "",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Recovery",
+      "labels": [
+        "Training demand",
+        "Time + supporting habits",
+        "Capacity over time"
+      ],
+      "caption": "You may feel less sore before a particular performance measure returns to its usual level."
+    }
+  },
+  {
+    "id": "fatigue",
+    "name": "Fatigue",
+    "category": "Recovery",
+    "definition": "A reduction in the ability or willingness to perform a task, with multiple possible physical and psychological contributors. It is not one diagnosis.",
+    "example": "A usual load may feel harder after a demanding week.",
+    "caution": "A difficult set does not identify the cause. Consider sleep, illness, schedule, and the task itself.",
+    "guide": "deload",
+    "aliases": "",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Fatigue",
+      "labels": [
+        "Current demand",
+        "Reduced task capacity",
+        "Possible contributors"
+      ],
+      "caption": "A usual load may feel harder after a demanding week."
+    }
+  },
+  {
+    "id": "deload",
+    "name": "Deload",
+    "category": "Recovery",
+    "definition": "A planned reduction in training demand for a defined period. Programs implement it in different ways.",
+    "example": "You reduce working-set count for a busy week and review before rebuilding.",
+    "caution": "There is no universal percentage or calendar that every trainee needs.",
+    "guide": "deload",
+    "aliases": "",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Deload",
+      "labels": [
+        "Usual demand",
+        "Planned reduction",
+        "Review and return"
+      ],
+      "caption": "You reduce working-set count for a busy week and review before rebuilding."
+    }
+  },
+  {
+    "id": "doms",
+    "name": "DOMS",
+    "category": "Recovery",
+    "definition": "Delayed-onset muscle soreness: discomfort developing after exercise, often after unfamiliar or demanding work. It is not a direct measure of adaptation.",
+    "example": "You notice thigh soreness the day after a new exercise variation.",
+    "caution": "Sharp pain, severe weakness, or unusual symptoms should not automatically be labeled ordinary soreness.",
+    "guide": "soreness",
+    "aliases": "delayed onset muscle soreness",
+    "sources": [
+      "soreness"
+    ],
+    "diagram": {
+      "kind": "concept",
+      "title": "DOMS",
+      "labels": [
+        "Exercise exposure",
+        "Later soreness",
+        "Assess symptoms"
+      ],
+      "caption": "You notice thigh soreness the day after a new exercise variation."
+    }
+  },
+  {
+    "id": "sleep-opportunity",
+    "name": "Sleep opportunity",
+    "category": "Recovery",
+    "definition": "The amount of time made available for sleep, such as the interval between going to bed and getting up. It is not all necessarily spent asleep.",
+    "example": "23:00 to 07:00 provides an eight-hour opportunity.",
+    "caution": "Awake periods reduce actual sleep time even when the schedule looks adequate.",
+    "guide": "sleep",
+    "aliases": "",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Sleep opportunity",
+      "labels": [
+        "Bedtime",
+        "Time available",
+        "Wake time"
+      ],
+      "caption": "23:00 to 07:00 provides an eight-hour opportunity."
+    }
+  },
+  {
+    "id": "sleep-duration",
+    "name": "Sleep duration",
+    "category": "Recovery",
+    "definition": "The amount of time actually spent asleep during a defined period. Self-reports and wearables estimate it in different ways.",
+    "example": "Eight hours in bed with awake periods can mean less than eight hours of sleep.",
+    "caution": "Do not treat time in bed or a device estimate as a perfectly measured duration.",
+    "guide": "sleep",
+    "aliases": "",
+    "sources": [
+      "sleep"
+    ],
+    "diagram": {
+      "kind": "concept",
+      "title": "Sleep duration",
+      "labels": [
+        "Sleep onset",
+        "Sleeping intervals",
+        "Total sleep time"
+      ],
+      "caption": "Eight hours in bed with awake periods can mean less than eight hours of sleep."
+    }
+  },
+  {
+    "id": "sleep-efficiency",
+    "name": "Sleep efficiency",
+    "category": "Recovery",
+    "definition": "The proportion of time in bed spent asleep, usually expressed as a percentage. It depends on how both times are measured.",
+    "example": "Seven hours asleep during eight hours in bed gives 87.5%.",
+    "caution": "A high percentage can coexist with too little total sleep opportunity.",
+    "guide": "sleep",
+    "aliases": "",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Sleep efficiency",
+      "labels": [
+        "7 hours asleep",
+        "÷ 8 hours in bed",
+        "87.5% example"
+      ],
+      "caption": "Seven hours asleep during eight hours in bed gives 87.5%."
+    }
+  },
+  {
+    "id": "circadian-rhythm",
+    "name": "Circadian rhythm",
+    "category": "Recovery",
+    "definition": "An approximately 24-hour biological rhythm involved in timing many body processes, including the sleep-wake pattern.",
+    "example": "Light exposure and habitual timing can influence sleep scheduling.",
+    "caution": "It is not the same as the amount of sleep pressure accumulated while awake.",
+    "guide": "sleep",
+    "aliases": "",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Circadian rhythm",
+      "labels": [
+        "Biological timing",
+        "Environmental cues",
+        "Daily pattern"
+      ],
+      "caption": "Light exposure and habitual timing can influence sleep scheduling."
+    }
+  },
+  {
+    "id": "cool-down",
+    "name": "Cool-down",
+    "category": "Recovery",
+    "definition": "A period of gradually reduced activity after the main session, allowing a more gradual transition toward rest.",
+    "example": "After aerobic work, you continue at an easier pace before stopping.",
+    "caution": "It is not a guarantee against soreness or an excuse to force painful stretching.",
+    "guide": "warmup",
+    "aliases": "",
+    "sources": [
+      "warmup"
+    ],
+    "diagram": {
+      "kind": "concept",
+      "title": "Cool-down",
+      "labels": [
+        "Main activity",
+        "Gradual reduction",
+        "Return toward rest"
+      ],
+      "caption": "After aerobic work, you continue at an easier pace before stopping."
+    }
+  },
+  {
+    "id": "mobility",
+    "name": "Mobility",
+    "category": "Recovery",
+    "definition": "A practical term for the ability to access and control movement through a range. It is used differently across coaching settings.",
+    "example": "You practice controlled movement through the range needed for a particular exercise.",
+    "caution": "It is broader than a single flexibility measurement, and more range is not automatically better for every task.",
+    "guide": "range",
+    "aliases": "",
+    "sources": [
+      "mobility"
+    ],
+    "diagram": {
+      "kind": "concept",
+      "title": "Mobility",
+      "labels": [
+        "Available range",
+        "Control in range",
+        "Task requirement"
+      ],
+      "caption": "You practice controlled movement through the range needed for a particular exercise."
+    }
+  },
+  {
+    "id": "training-log",
+    "name": "Training log",
+    "category": "Your data",
+    "definition": "A record of the work performed and the context needed to interpret it. Its usefulness depends on consistency and accurate units.",
+    "example": "An exercise entry includes load, repetitions, effort, and relevant setup notes.",
+    "caution": "A long record with inconsistent conventions can be less useful than a short, repeatable one.",
+    "guide": "logging",
+    "aliases": "",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Training log",
+      "labels": [
+        "Work performed",
+        "Units + context",
+        "Comparable history"
+      ],
+      "caption": "An exercise entry includes load, repetitions, effort, and relevant setup notes."
+    }
+  },
+  {
+    "id": "personal-record",
+    "name": "Personal record",
+    "category": "Your data",
+    "definition": "Your best recorded performance on a defined task and standard. The task definition should remain visible.",
+    "example": "A best set of ten at a fixed movement standard is a rep-specific record.",
+    "caution": "Changing equipment, range, or counting conventions can create an apparent record without a fair comparison.",
+    "guide": "logging",
+    "aliases": "PR PB personal best",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Personal record",
+      "labels": [
+        "Defined task",
+        "Comparable standard",
+        "Best recorded result"
+      ],
+      "caption": "A best set of ten at a fixed movement standard is a rep-specific record."
+    }
+  },
+  {
+    "id": "baseline",
+    "name": "Baseline",
+    "category": "Your data",
+    "definition": "A reference set of observations used for comparison. A useful baseline represents the measurement conditions and period you intend to compare against.",
+    "example": "Several comparable morning measurements form a more informative reference than one unusual day.",
+    "caution": "A baseline is a reference, not a permanent personal norm.",
+    "guide": "trends",
+    "aliases": "",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Baseline",
+      "labels": [
+        "Reference period",
+        "Comparable observations",
+        "Future comparison"
+      ],
+      "caption": "Several comparable morning measurements form a more informative reference than one unusual day."
+    }
+  },
+  {
+    "id": "trend",
+    "name": "Trend",
+    "category": "Your data",
+    "definition": "A pattern of change across multiple observations. Its interpretation depends on noise, missing data, and how the values were collected.",
+    "example": "Several weeks of consistent records can show a pattern that one day cannot.",
+    "caution": "A trend line does not establish why the change happened.",
+    "guide": "trends",
+    "aliases": "",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Trend",
+      "labels": [
+        "Repeated observations",
+        "Pattern over time",
+        "Context for interpretation"
+      ],
+      "caption": "Several weeks of consistent records can show a pattern that one day cannot."
+    }
+  },
+  {
+    "id": "rolling-average",
+    "name": "Rolling average",
+    "category": "Your data",
+    "definition": "An average recalculated over a moving window of observations. It smooths short-term variation while lagging some changes.",
+    "example": "A seven-day average updates as a new day enters and an old day leaves the window.",
+    "caution": "Missing values and the choice of window can change the result. State the method.",
+    "guide": "trends",
+    "aliases": "",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Rolling average",
+      "labels": [
+        "Choose window",
+        "Average its values",
+        "Move the window"
+      ],
+      "caption": "A seven-day average updates as a new day enters and an old day leaves the window."
+    }
+  },
+  {
+    "id": "missing-data",
+    "name": "Missing data",
+    "category": "Your data",
+    "definition": "An observation that was not recorded or is unavailable. Its absence is different from a measured zero.",
+    "example": "A day without a step record is not necessarily a day with zero steps.",
+    "caution": "Silently replacing missing values with zero can distort totals and averages.",
+    "guide": "trends",
+    "aliases": "",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Missing data",
+      "labels": [
+        "No observation",
+        "Not a measured zero",
+        "Keep the gap visible"
+      ],
+      "caption": "A day without a step record is not necessarily a day with zero steps."
+    }
+  },
+  {
+    "id": "measurement-error",
+    "name": "Measurement error",
+    "category": "Your data",
+    "definition": "The difference or uncertainty introduced by a measurement process. It can include systematic bias and random variation.",
+    "example": "Device fit or a changed scale position can affect recorded values.",
+    "caution": "A small difference may reflect the method rather than a meaningful change in the person.",
+    "guide": "wearables",
+    "aliases": "",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Measurement error",
+      "labels": [
+        "Underlying quantity",
+        "Measurement process",
+        "Recorded value"
+      ],
+      "caption": "Device fit or a changed scale position can affect recorded values."
+    }
+  },
+  {
+    "id": "body-mass",
+    "name": "Body mass",
+    "category": "Your data",
+    "definition": "The mass measured by a scale, including body tissues, water, and contents. It is not a direct measurement of body fat.",
+    "example": "Food, fluid, and glycogen-related changes can affect short-term readings.",
+    "caution": "Do not interpret each daily change as fat gained or lost.",
+    "guide": "energy",
+    "aliases": "weight body weight",
+    "sources": [
+      "model"
+    ],
+    "diagram": {
+      "kind": "concept",
+      "title": "Body mass",
+      "labels": [
+        "Tissues",
+        "Water + contents",
+        "Scale measurement"
+      ],
+      "caption": "Food, fluid, and glycogen-related changes can affect short-term readings."
+    }
+  },
+  {
+    "id": "resting-heart-rate",
+    "name": "Resting heart rate",
+    "category": "Your data",
+    "definition": "Heart rate measured or estimated under resting conditions. Devices may define the daily resting value differently.",
+    "example": "A watch-derived resting value may use a different time window from a seated manual measurement.",
+    "caution": "Compare methods and circumstances before interpreting small changes.",
+    "guide": "wearables",
+    "aliases": "RHR",
+    "sources": [
+      "wearables"
+    ],
+    "diagram": {
+      "kind": "concept",
+      "title": "Resting heart rate",
+      "labels": [
+        "Resting conditions",
+        "Measurement window",
+        "Beats per minute"
+      ],
+      "caption": "A watch-derived resting value may use a different time window from a seated manual measurement."
+    }
+  },
+  {
+    "id": "hrv",
+    "name": "HRV",
+    "category": "Your data",
+    "definition": "Heart-rate variability: variation in intervals between consecutive heartbeats. Different HRV statistics describe different features and use different units.",
+    "example": "A device may report an RMSSD-based value in milliseconds.",
+    "caution": "It is not the same as heart rate, and higher is not universally better. Do not compare unlike metrics or devices casually.",
+    "guide": "wearables",
+    "aliases": "heart rate variability",
+    "sources": [
+      "hrv"
+    ],
+    "diagram": {
+      "kind": "concept",
+      "title": "HRV",
+      "labels": [
+        "Beat-to-beat intervals",
+        "Chosen statistic",
+        "Contextual interpretation"
+      ],
+      "caption": "A device may report an RMSSD-based value in milliseconds."
+    }
+  },
+  {
+    "id": "readiness-score",
+    "name": "Readiness score",
+    "category": "Your data",
+    "definition": "A device- or app-specific composite estimate intended to summarize factors related to readiness. Inputs and weighting vary.",
+    "example": "A score may combine recent sleep, activity, and heart-rate information.",
+    "caution": "It is not a diagnosis or a universally comparable measurement across brands.",
+    "guide": "wearables",
+    "aliases": "",
+    "sources": [
+      "wearables"
+    ],
+    "diagram": {
+      "kind": "concept",
+      "title": "Readiness score",
+      "labels": [
+        "Selected inputs",
+        "Proprietary weighting",
+        "Composite estimate"
+      ],
+      "caption": "A score may combine recent sleep, activity, and heart-rate information."
+    }
+  },
+  {
+    "id": "correlation",
+    "name": "Correlation",
+    "category": "Your data",
+    "definition": "A statistical description of how variables vary together. It does not by itself establish that one caused the other.",
+    "example": "Your better sessions may occur on days with more sleep, but other factors may also differ.",
+    "caution": "A small personal dataset can show patterns by chance or through confounding factors.",
+    "guide": "trends",
+    "aliases": "",
+    "sources": [],
+    "diagram": {
+      "kind": "concept",
+      "title": "Correlation",
+      "labels": [
+        "Variable A",
+        "Observed co-variation",
+        "Variable B"
+      ],
+      "caption": "Your better sessions may occur on days with more sleep, but other factors may also differ."
+    }
+  }
+]

@@ -83,6 +83,12 @@ system: |-
   app navigation action. Do not use external links, Query, Mutation, or automatic
   writes. Keep operations in the outer JSON and preserve all consent rules below.
   Avoid decorative cards and do not split one idea across several redundant blocks.
+  Match Coach's open, natural layout: prefer a single Stack of compact rows,
+  a table for a session, or a chart when recorded data supports it. Do not wrap
+  each observation in a card, badge, or separate panel. Use Accordion for optional
+  explanations, while keeping safety warnings and approval controls visible.
+  Do not repeat a visual's contents in reply. For plain conversation without a
+  visual, use short paragraphs or a brief list rather than one dense paragraph.
   Return artifacts=[] unless the user explicitly asks for a briefing, progress
   explanation, simulation, validation, or recovery adaptation. Use one CoachGoal component
   when the answer is a coherent time-boxed challenge with 2-6

@@ -1,0 +1,1167 @@
+[
+  {
+    "id": "progression",
+    "title": "Progress without adding weight every session",
+    "category": "Strength",
+    "summary": "Use a repeatable exercise, a rep range, and one clear rule for the next session.",
+    "sections": [
+      {
+        "title": "Define what stays the same",
+        "text": "A heavier number is only useful when the exercise remains comparable. Keep the equipment, setup, range of motion, and counting convention consistent. A cable stack on another machine may have different pulley mechanics. A shorter squat is not the same task as a deeper squat, even if the bar is heavier."
+      },
+      {
+        "title": "Use a rep range",
+        "text": "A double-progression rule changes repetitions before load. Choose a range appropriate to your program, such as 8–12. Keep the load while you work toward the upper end with your intended effort and technique. Once all intended sets meet the rule, try a small load increase and allow repetitions to fall within the range again. This is one practical method, not a requirement to progress on every visit."
+      },
+      {
+        "title": "Treat the next session as a check",
+        "text": "Progressive resistance training can improve strength and muscle size. The rate of progress differs across people and exercises. If the next increase changes the movement or takes you well past the intended effort, repeat or reduce it. Keep the record rather than rewriting the last workout to make the trend look smoother."
+      }
+    ],
+    "example": "Illustrative dumbbell press: 16 kg per hand for 10, 10, 9 reps; then 11, 10, 10; then 12, 12, 12. Only after the chosen rule is met would you test the next available load. These are example log entries, not promised weekly gains.",
+    "steps": [
+      "Choose one exercise to compare.",
+      "Write the rep range and effort target.",
+      "Record the next load decision after the final set."
+    ],
+    "terms": [
+      "Progressive overload",
+      "Double progression",
+      "Working set",
+      "RIR"
+    ],
+    "sources": [
+      "acsm"
+    ],
+    "diagram": {
+      "kind": "bars",
+      "title": "Example repetitions at a fixed load",
+      "labels": [
+        "Visit 1",
+        "Visit 2",
+        "Visit 3"
+      ],
+      "values": [
+        29,
+        31,
+        36
+      ],
+      "unit": "total reps",
+      "caption": "Illustrative log: three sets at 16 kg per hand. This is not a predicted adaptation curve."
+    }
+  },
+  {
+    "id": "effort",
+    "title": "Use RIR without pretending it is exact",
+    "category": "Strength",
+    "summary": "Describe how hard a set was, while leaving room for uncertainty.",
+    "sections": [
+      {
+        "title": "Count possible repetitions, not discomfort",
+        "text": "Repetitions in reserve estimates how many additional repetitions you could complete before reaching the defined endpoint. The endpoint matters: another repetition with the same movement standard is different from any repetition you could force through. Burning muscles, breathlessness, and willingness to continue can influence the rating."
+      },
+      {
+        "title": "Give the estimate a consistent meaning",
+        "text": "The familiar strength-training RPE scale often maps RPE 10 to 0 RIR, 9 to about 1 RIR, and 8 to about 2 RIR. That is not the same as every general exertion scale. Research finds meaningful error in predictions, particularly farther from failure. Record an estimate such as “about 2 RIR” instead of treating it as a measurement from a sensor."
+      },
+      {
+        "title": "Use it to compare similar sets",
+        "text": "Compare the same exercise, load, and rep count. Ten repetitions that feel easier over several comparable sessions can be useful information even before you add weight. You do not need to test failure to validate every estimate. For unfamiliar or technically demanding movements, a coach can help establish a repeatable stopping point."
+      }
+    ],
+    "example": "Example: two sets of 10 at the same load. You log the first as roughly 3 RIR and the second as roughly 1 RIR. The load did not change; the effort did. Add the rest interval so you can interpret that difference later.",
+    "steps": [
+      "Write which RPE scale you use.",
+      "Rate the set soon after finishing.",
+      "Include technique changes in your note."
+    ],
+    "terms": [
+      "RIR",
+      "RPE",
+      "Technical failure",
+      "Momentary muscular failure"
+    ],
+    "sources": [
+      "rir",
+      "effort"
+    ],
+    "diagram": {
+      "kind": "scale",
+      "title": "A common strength RPE / RIR convention",
+      "labels": [
+        "RPE 7",
+        "RPE 8",
+        "RPE 9",
+        "RPE 10"
+      ],
+      "values": [
+        "~3 RIR",
+        "~2 RIR",
+        "~1 RIR",
+        "0 RIR"
+      ],
+      "caption": "Approximate reporting convention, not an exact conversion or a general cardio exertion scale."
+    }
+  },
+  {
+    "id": "rest",
+    "title": "Choose rest intervals you can repeat",
+    "category": "Strength",
+    "summary": "Make the next set a comparable effort instead of a race against the timer.",
+    "sections": [
+      {
+        "title": "Rest is part of the prescription",
+        "text": "The time between sets changes how recovered you feel when the next set starts. If performance drops sharply, a short rest can be part of the explanation. Record rest when comparing workouts, especially when you change from a quiet gym to a rushed session."
+      },
+      {
+        "title": "Use the task to choose the interval",
+        "text": "Heavy, demanding sets usually need more recovery than light practice sets. A practical starting experiment is two to three minutes for a demanding compound movement and longer when you still cannot perform the intended work. This is an example starting point, not a universal physiological threshold. Shorter intervals may fit simpler accessory work."
+      },
+      {
+        "title": "Interpret the evidence carefully",
+        "text": "A 2024 review found a small average hypertrophy advantage for rests longer than 60 seconds, with uncertainty and limited evidence for a single best duration. It does not mean a stopwatch can guarantee muscle growth. Keep the exercise and effort consistent, then use the log to judge whether your chosen interval supports the planned repetitions."
+      }
+    ],
+    "example": "Example comparison: three sets at one load with 60-second rests yield 10, 7, 6 repetitions. On another comparable day, longer rests yield 10, 9, 8. This illustration shows why rest belongs in the record; it is not a study result.",
+    "steps": [
+      "Start timing from the end of the set.",
+      "Note unusually short or long rests.",
+      "Adjust one variable before comparing again."
+    ],
+    "terms": [
+      "Rest interval",
+      "Compound exercise",
+      "Superset",
+      "Working set"
+    ],
+    "sources": [
+      "rest"
+    ],
+    "diagram": {
+      "kind": "interval",
+      "title": "Three sets, two recovery intervals",
+      "labels": [
+        "Set 1",
+        "Rest",
+        "Set 2",
+        "Rest",
+        "Set 3"
+      ],
+      "caption": "Session structure only. Block widths do not prescribe a particular work-to-rest ratio."
+    }
+  },
+  {
+    "id": "volume",
+    "title": "Count weekly work without chasing tonnage",
+    "category": "Strength",
+    "summary": "Distinguish sets, repetitions, and volume load before comparing weeks.",
+    "sections": [
+      {
+        "title": "Pick a useful unit",
+        "text": "Working sets per exercise or muscle group are often easier to interpret than a single giant weight total. Volume load is sets × repetitions × external load, summed where appropriate. It is bookkeeping, not a complete measure of muscle stimulus. It omits leverage, range of motion, effort, and how much work different muscles perform."
+      },
+      {
+        "title": "Avoid false comparisons",
+        "text": "A leg press and a barbell squat do not become equivalent because their volume-load totals match. Bodyweight exercises create another problem: the effective load is not simply the number on the scale. Keep separate records when the exercise or equipment changes, and explain how you count unilateral work."
+      },
+      {
+        "title": "Add work for a reason",
+        "text": "Higher set volumes can support hypertrophy, but more work also adds time and fatigue. Research summaries describe group averages, not a guaranteed dose for an individual. Start from work you can perform consistently. If you add a set, check subsequent performance and recovery instead of assuming every extra set is productive."
+      }
+    ],
+    "example": "Example: 3 sets × 10 reps × 40 kg = 1,200 kg of external volume load. Two sessions with this exact prescription total six working sets and 2,400 kg. A change in exercise makes the weight total less comparable.",
+    "steps": [
+      "Separate warm-ups from working sets.",
+      "Keep one convention for unilateral work.",
+      "Review sets alongside effort and performance."
+    ],
+    "terms": [
+      "Volume",
+      "Volume load",
+      "Frequency",
+      "Hypertrophy"
+    ],
+    "sources": [
+      "volume"
+    ],
+    "diagram": {
+      "kind": "equation",
+      "title": "Volume load is an accounting measure",
+      "labels": [
+        "3 sets",
+        "10 reps",
+        "40 kg"
+      ],
+      "result": "1,200 kg",
+      "caption": "One exercise, fixed load. This calculation does not measure muscle growth."
+    }
+  },
+  {
+    "id": "range",
+    "title": "Make range of motion part of your log",
+    "category": "Strength",
+    "summary": "A repeatable start and finish make exercise comparisons more useful.",
+    "sections": [
+      {
+        "title": "Describe the movement you performed",
+        "text": "Range of motion is the excursion through which a joint or movement travels. In a training log, describe practical landmarks: the machine setting, the start position, and the end position. A number of repetitions without a movement standard leaves an important part of the task unspecified."
+      },
+      {
+        "title": "Separate preference from evidence",
+        "text": "Research on full and partial ranges depends on the exercise, muscle, and region of the range being trained. Work at longer muscle lengths can matter in some contexts, but a finding for one exercise is not a rule for every joint. Full and partial repetitions are not interchangeable just because the load is identical."
+      },
+      {
+        "title": "Use a controllable range",
+        "text": "Choose a range you can control for the task and your circumstances. Do not force a painful position to satisfy a diagram. If you intentionally change the range, create a note and compare future sessions with that new standard. A camera angle can help show consistency, but a two-dimensional video cannot determine every joint load."
+      }
+    ],
+    "example": "Example: “Seated row, seat 4, chest stays on pad, handle touches lower ribs.” This is more repeatable than “full ROM.” A later change to seat 6 should be visible in the record before you compare loads.",
+    "steps": [
+      "Name start and finish landmarks.",
+      "Record equipment adjustments.",
+      "Flag intentional partial repetitions."
+    ],
+    "terms": [
+      "Range of motion",
+      "Partial repetition",
+      "Eccentric",
+      "Concentric"
+    ],
+    "sources": [
+      "rom",
+      "mobility"
+    ],
+    "diagram": {
+      "kind": "range",
+      "title": "Specify the trained part of the movement",
+      "labels": [
+        "Start position",
+        "End position"
+      ],
+      "caption": "Schematic movement range. It does not prescribe a joint angle, depth, or pain-free limit."
+    }
+  },
+  {
+    "id": "warmup",
+    "title": "Build a warm-up around the first exercise",
+    "category": "Strength",
+    "summary": "Move from general activity to the movement and load you are about to use.",
+    "sections": [
+      {
+        "title": "Begin gradually",
+        "text": "A warm-up prepares you for the session rather than proving how hard you can work. Public exercise guidance commonly suggests five to ten minutes of gradually increasing activity. The exact preparation depends on the upcoming task, temperature, and your starting condition."
+      },
+      {
+        "title": "Rehearse the movement",
+        "text": "For strength work, use progressively more specific practice. Check the equipment, perform the movement at an easy load, and add load in manageable steps. As the load rises, fewer practice repetitions can help avoid making the warm-up a tiring workout of its own. The sequence below is an illustration rather than a universal loading formula."
+      },
+      {
+        "title": "Keep the log honest",
+        "text": "Mark warm-up sets separately from working sets. If an easy practice set feels unexpectedly difficult, use that information before committing to the planned load. After a session, reduce aerobic intensity gradually rather than stopping abruptly. A warm-up is useful preparation, not an injury-proof guarantee."
+      }
+    ],
+    "example": "Example before a familiar machine press: easy whole-body movement, an easy practice set, a moderate practice set, then the first working set. The machine settings and movement standard are checked before the demanding work begins.",
+    "steps": [
+      "Check the equipment and setup.",
+      "Increase demand gradually.",
+      "Keep warm-up sets separately labeled."
+    ],
+    "terms": [
+      "Warm-up set",
+      "Working set",
+      "Cool-down",
+      "Load"
+    ],
+    "sources": [
+      "warmup"
+    ],
+    "diagram": {
+      "kind": "sequence",
+      "title": "A practical preparation sequence",
+      "labels": [
+        "Easy movement",
+        "Practice the lift",
+        "Build load",
+        "Working sets"
+      ],
+      "caption": "Example sequence. Time and load depend on the person and session."
+    }
+  },
+  {
+    "id": "plateau",
+    "title": "Investigate a plateau before changing everything",
+    "category": "Strength",
+    "summary": "Check whether you have a real repeated pattern and a fair comparison.",
+    "sections": [
+      {
+        "title": "Define the outcome",
+        "text": "A plateau means the outcome you care about has stopped improving across comparable observations. One difficult session is not enough to establish that pattern. Choose a specific measure: repetitions at a fixed load, a repeatable time trial, or attendance. A vague feeling of “no progress” is hard to investigate."
+      },
+      {
+        "title": "Audit the comparison",
+        "text": "Check exercise setup, effort, rest, schedule, and logging conventions. Did the machine change? Did you shorten rest or add work beforehand? These are changes in the task, not necessarily changes in your capacity. Separate what you observed from what you think caused it."
+      },
+      {
+        "title": "Run one small experiment",
+        "text": "Choose a change that answers a question. For example, keep the exercise and load but standardize rest for the next few exposures. Decide when you will review it. If several things change at once, you may get a better session without learning which change mattered. Persistent pain or an unexplained drop in capacity deserves a more individual assessment."
+      }
+    ],
+    "example": "Example audit: your press stays at 10 repetitions for three visits, but the rest intervals were 90, 45, and 60 seconds. Before replacing the program, compare sessions with a consistent rest interval and the same exercise order.",
+    "steps": [
+      "Choose one outcome.",
+      "Check three comparable records.",
+      "Write one change and a review date."
+    ],
+    "terms": [
+      "Plateau",
+      "Specificity",
+      "Baseline",
+      "Trend"
+    ],
+    "sources": [
+      "acsm"
+    ],
+    "diagram": {
+      "kind": "sequence",
+      "title": "An investigation, not a guaranteed fix",
+      "labels": [
+        "Check the log",
+        "Find a change",
+        "Test one variable",
+        "Review again"
+      ],
+      "caption": "A decision workflow. It does not diagnose the cause of stalled performance."
+    }
+  },
+  {
+    "id": "cardio",
+    "title": "Build a weekly cardio routine",
+    "category": "Conditioning",
+    "summary": "Spread useful activity across a week you can actually repeat.",
+    "sections": [
+      {
+        "title": "Use the public-health baseline",
+        "text": "For adults, CDC guidance recommends at least 150 minutes of moderate aerobic activity, 75 minutes of vigorous activity, or an equivalent mix each week, plus muscle-strengthening work on two days. Some activity is beneficial even before reaching those totals. The baseline is for health and is not a personalized race-training plan."
+      },
+      {
+        "title": "Choose an activity you can repeat",
+        "text": "Walking, cycling, swimming, and other activities can count when their intensity fits the task. Choose a mode that fits your access, preferences, and tolerance. A short session you repeat is easier to evaluate than a demanding plan you rarely complete. Record minutes and an intensity cue rather than just a device calorie estimate."
+      },
+      {
+        "title": "Progress the schedule gradually",
+        "text": "Start from your present activity and make a manageable change in frequency, duration, or intensity. Avoid increasing all three at once. There is no universal weekly percentage that makes every progression safe. Track how the next session feels and keep room for your strength work and other demands."
+      }
+    ],
+    "example": "Example at the moderate-activity baseline: five 30-minute walks total 150 minutes. Another schedule can divide the same total differently. These examples illustrate arithmetic; they do not imply everyone should start with the full total immediately.",
+    "steps": [
+      "Choose a repeatable activity.",
+      "Place sessions in your actual calendar.",
+      "Log duration and effort."
+    ],
+    "terms": [
+      "Aerobic exercise",
+      "Moderate intensity",
+      "Vigorous intensity",
+      "Frequency"
+    ],
+    "sources": [
+      "activity"
+    ],
+    "diagram": {
+      "kind": "bars",
+      "title": "One way to distribute 150 minutes",
+      "labels": [
+        "Mon",
+        "Tue",
+        "Wed",
+        "Thu",
+        "Fri"
+      ],
+      "values": [
+        30,
+        30,
+        30,
+        30,
+        30
+      ],
+      "unit": "minutes",
+      "caption": "Illustrative schedule of moderate activity, not an individualized prescription."
+    }
+  },
+  {
+    "id": "intensity",
+    "title": "Use the talk test before chasing zones",
+    "category": "Conditioning",
+    "summary": "Combine breathing, speech, and effort with the heart-rate number.",
+    "sections": [
+      {
+        "title": "Start with relative intensity",
+        "text": "An activity can feel easy to one person and hard to another. Relative intensity describes your effort. CDC’s talk test describes moderate activity as allowing conversation but not singing, while vigorous activity permits only a few words before a breath. It is a practical cue, not a laboratory measurement."
+      },
+      {
+        "title": "Keep scales separate",
+        "text": "A general 0–10 exertion rating is not the strength-training RPE-to-RIR scale. Record which one you mean. A cardio RPE of 7 describes a different task from RPE 7 on a set of squats. Zone labels also vary by device and training system; “zone 2” does not have one universal numerical definition."
+      },
+      {
+        "title": "Interpret heart rate in context",
+        "text": "Heat, fatigue, medication, and measurement conditions can affect the number or its meaning. Use the same device and activity when looking for trends. If the display disagrees with how you feel, check fit and conditions rather than forcing the session to match a colored band. Unusual symptoms take priority over a zone target."
+      }
+    ],
+    "example": "Example note: “25 minutes cycling, could speak in sentences, general effort 5/10.” This gives a later review more information than “zone 2” alone, especially if you change watches or zone settings.",
+    "steps": [
+      "Write the scale or zone model.",
+      "Use a speech or breathing cue.",
+      "Record unusual conditions."
+    ],
+    "terms": [
+      "Talk test",
+      "Heart-rate zone",
+      "RPE",
+      "MET"
+    ],
+    "sources": [
+      "intensity"
+    ],
+    "diagram": {
+      "kind": "scale",
+      "title": "Talk-test cues",
+      "labels": [
+        "Easy",
+        "Moderate",
+        "Vigorous"
+      ],
+      "values": [
+        "Comfortable talk",
+        "Talk, not sing",
+        "Few words"
+      ],
+      "caption": "A rough relative-intensity guide. Symptoms and individual circumstances matter."
+    }
+  },
+  {
+    "id": "concurrent",
+    "title": "Combine strength and cardio in one week",
+    "category": "Conditioning",
+    "summary": "Schedule both while making your main goal clear.",
+    "sections": [
+      {
+        "title": "Name the priority",
+        "text": "Strength and aerobic training can coexist. Research does not support the blanket claim that cardio automatically erases muscle gains. Findings depend on what is measured, how the training is arranged, and the person doing it. Explosive performance can be more sensitive than maximal strength or muscle size."
+      },
+      {
+        "title": "Protect the session that matters most",
+        "text": "If a particular lift or run is the priority, give it a place where you can perform it well. Separate demanding sessions when your schedule allows, or put the priority task first when they share a session. Do not confuse an immediate tired performance with a long-term loss of adaptation."
+      },
+      {
+        "title": "Track the practical trade-off",
+        "text": "Record the order, duration, and effort of both activities. If your lower-body session repeatedly suffers after a hard ride, first examine the schedule and total demand. More training is not automatically a better weekly plan when it displaces sleep, meals, or the sessions you most value."
+      }
+    ],
+    "example": "Illustrative week: strength Monday and Thursday; comfortable cycling Tuesday and Saturday. A different week might pair a short easy ride with strength. The useful question is whether the chosen arrangement lets you perform and repeat the work.",
+    "steps": [
+      "Choose your priority outcome.",
+      "Identify the demanding sessions.",
+      "Review performance before adding more work."
+    ],
+    "terms": [
+      "Concurrent training",
+      "Interference effect",
+      "Power",
+      "Recovery"
+    ],
+    "sources": [
+      "concurrent"
+    ],
+    "diagram": {
+      "kind": "schedule",
+      "title": "An example mixed-training week",
+      "labels": [
+        "Mon",
+        "Tue",
+        "Wed",
+        "Thu",
+        "Fri",
+        "Sat",
+        "Sun"
+      ],
+      "values": [
+        "Lift",
+        "Ride",
+        "Rest",
+        "Lift",
+        "Rest",
+        "Ride",
+        "Rest"
+      ],
+      "caption": "A scheduling example, not a universal split or intensity prescription."
+    }
+  },
+  {
+    "id": "protein",
+    "title": "Make protein practical across the day",
+    "category": "Nutrition",
+    "summary": "Translate a daily range into meals you already eat.",
+    "sections": [
+      {
+        "title": "Understand the range",
+        "text": "The ISSN position stand describes roughly 1.4–2.0 grams of protein per kilogram of body mass per day as sufficient for most exercising people. Other sports-nutrition guidance gives slightly different ranges. Needs depend on training, energy intake, age, and individual circumstances. A range is not a rule to maximize intake indefinitely."
+      },
+      {
+        "title": "Start with ordinary meals",
+        "text": "List your usual breakfast, lunch, dinner, and snacks. Identify a protein source in each place where it fits: beans, lentils, tofu, eggs, fish, meat, dairy, or suitable alternatives. Powders are a convenience option, not a requirement. Check the amount you actually eat rather than the front-of-pack claim."
+      },
+      {
+        "title": "Make the arithmetic explicit",
+        "text": "If you use a target, write both the body mass and multiplier behind it. Then check a few representative days instead of assuming every meal must be identical. A late meal does not make the whole day useless. If you have a medical condition affecting protein needs, use an individualized target rather than a sports range."
+      }
+    ],
+    "example": "Illustrative calculation: 70 kg × 1.6 g/kg = 112 g per day. Four eating occasions with 28 g each would total 112 g, but that equal split is only arithmetic. It is not a mandatory meal pattern or a personal recommendation.",
+    "steps": [
+      "Identify your current food sources.",
+      "Check the serving you actually eat.",
+      "Use a range rather than false precision."
+    ],
+    "terms": [
+      "Protein",
+      "Amino acid",
+      "Protein distribution",
+      "Serving size"
+    ],
+    "sources": [
+      "protein"
+    ],
+    "diagram": {
+      "kind": "equation",
+      "title": "Example daily protein calculation",
+      "labels": [
+        "70 kg",
+        "1.6 g/kg"
+      ],
+      "result": "112 g/day",
+      "caption": "Illustrative calculation for an adult, not a personalized target."
+    }
+  },
+  {
+    "id": "meals",
+    "title": "Build repeatable meals from flexible parts",
+    "category": "Nutrition",
+    "summary": "Use familiar foods and easy substitutions instead of a rigid menu.",
+    "sections": [
+      {
+        "title": "Think in components",
+        "text": "A meal framework can include vegetables or fruit, a protein source, a grain or other carbohydrate food, and a source of fat. Harvard’s Healthy Eating Plate is one educational model that emphasizes produce, whole grains, and varied protein foods. A plate picture is a food-quality guide, not an individualized calorie or macro prescription."
+      },
+      {
+        "title": "Choose swaps that preserve the job",
+        "text": "If you replace chicken with beans, the meal changes in more than one nutrient. Beans contribute carbohydrate and fiber as well as protein. If you replace rice with vegetables, energy and carbohydrate may fall. You do not need a perfect swap; you need to understand what changed and whether the meal still fits your needs."
+      },
+      {
+        "title": "Make repetition useful",
+        "text": "Save the ingredients and amounts you regularly use. Keep sauces, cooking oils, and optional toppings visible if you track nutrition. A saved recipe should be easy to edit when the portion or brand changes. Repeating a few meals can reduce planning work while leaving room for variety across the week."
+      }
+    ],
+    "example": "Example bowl: cooked rice, tofu, mixed vegetables, and a sauce. Next time, change the rice to potatoes or the tofu to lentils. Check the new portion and ingredients instead of copying the previous nutrition total unchanged.",
+    "steps": [
+      "Choose one reliable meal.",
+      "Save its ingredient amounts.",
+      "Name two substitutions you enjoy."
+    ],
+    "terms": [
+      "Macronutrient",
+      "Carbohydrate",
+      "Dietary fat",
+      "Recipe yield"
+    ],
+    "sources": [
+      "plate"
+    ],
+    "diagram": {
+      "kind": "sequence",
+      "title": "A flexible meal-building example",
+      "labels": [
+        "Vegetables",
+        "Protein food",
+        "Grain or starch",
+        "Flavor and fat"
+      ],
+      "caption": "Components, not fixed proportions. Food groups overlap nutritionally."
+    }
+  },
+  {
+    "id": "labels",
+    "title": "Read a food label without logging the wrong serving",
+    "category": "Nutrition",
+    "summary": "Start with the unit and serving size, then scale the numbers.",
+    "sections": [
+      {
+        "title": "Read the basis first",
+        "text": "A label may show values per serving, per 100 grams, or both. The stated serving is not automatically the amount you ate. U.S. Nutrition Facts serving sizes reflect amounts typically consumed; they are not a recommendation for how much to eat. Check whether the package contains multiple servings."
+      },
+      {
+        "title": "Scale the amount consistently",
+        "text": "Use the same unit for the label and your portion. If the food lists 240 kcal per 100 g and you eat 75 g, multiply by 0.75. If the label describes the food prepared with milk, do not add the same milk a second time. Raw and cooked weights are different measurement bases."
+      },
+      {
+        "title": "Use %DV for its intended purpose",
+        "text": "Percent Daily Value describes how a serving contributes to a reference daily amount in that labeling system. It is useful for comparisons, but is not your personal target. Regional labels and definitions differ. Keep the package details when a database result looks inconsistent rather than choosing the entry that produces a preferred number."
+      }
+    ],
+    "example": "Example: a product has 240 kcal and 8 g protein per 100 g. A 75 g portion has about 180 kcal and 6 g protein. Rounding on the original label means the calculated result is still an estimate.",
+    "steps": [
+      "Check per-serving versus per-100-g values.",
+      "Match the raw or prepared basis.",
+      "Scale all nutrients using the same factor."
+    ],
+    "terms": [
+      "Serving size",
+      "Portion",
+      "Percent Daily Value",
+      "Energy density"
+    ],
+    "sources": [
+      "label"
+    ],
+    "diagram": {
+      "kind": "equation",
+      "title": "Scale the label to your portion",
+      "labels": [
+        "240 kcal / 100 g",
+        "75 g portion"
+      ],
+      "result": "180 kcal",
+      "caption": "Illustrative label arithmetic. Actual labels contain rounding."
+    }
+  },
+  {
+    "id": "energy",
+    "title": "Read energy balance without oversimplifying weight",
+    "category": "Nutrition",
+    "summary": "Understand the long-term concept and the noise in short-term measurements.",
+    "sections": [
+      {
+        "title": "Separate energy balance from a daily weigh-in",
+        "text": "Energy intake and expenditure influence changes in stored body energy over time. Scale weight also includes water, digestive contents, glycogen, and other tissues. A change after one meal or workout is not a direct measurement of fat gained or lost."
+      },
+      {
+        "title": "Treat estimates as estimates",
+        "text": "Food records and activity devices both have error. Energy expenditure can change as body size, activity, and intake change. A fixed calorie-to-weight conversion does not predict every person’s path indefinitely. NIDDK’s body-weight modeling explicitly accounts for dynamic changes rather than assuming a permanent straight line."
+      },
+      {
+        "title": "Choose an observation method you can tolerate",
+        "text": "If weight tracking is useful for your goal, compare measurements collected under similar conditions over time. Also review performance, habits, and how you feel. If tracking increases distress or pushes you toward excessive restriction, it is reasonable to change the method and seek appropriate support. Weight management is not the only reason to train or eat well."
+      }
+    ],
+    "example": "Illustrative weigh-ins: 70.0, 70.4, 69.9, 70.2, 70.1, 69.8, 70.0 kg. Their average is about 70.1 kg. The individual jumps are larger than the difference between the first and last measurement.",
+    "steps": [
+      "Choose comparable measurement conditions.",
+      "Look beyond one observation.",
+      "Review whether tracking is helping your goal."
+    ],
+    "terms": [
+      "Energy balance",
+      "Calorie deficit",
+      "Maintenance energy",
+      "Body mass"
+    ],
+    "sources": [
+      "weight",
+      "model"
+    ],
+    "diagram": {
+      "kind": "line",
+      "title": "Daily measurements can vary",
+      "labels": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7"
+      ],
+      "values": [
+        70,
+        70.4,
+        69.9,
+        70.2,
+        70.1,
+        69.8,
+        70
+      ],
+      "unit": "kg",
+      "caption": "Illustrative body-mass readings. The vertical axis is truncated to show variation, not fat change."
+    }
+  },
+  {
+    "id": "hydration",
+    "title": "Plan fluids around the day you have",
+    "category": "Nutrition",
+    "summary": "Use context rather than one universal water target.",
+    "sections": [
+      {
+        "title": "Count more than plain water",
+        "text": "Beverages and water-containing foods both contribute to fluid intake. Needs vary with activity, climate, pregnancy, illness, and other circumstances. CDC guidance notes that heat and greater physical activity can increase water needs. A bottle target is a planning aid, not proof that hydration is adequate."
+      },
+      {
+        "title": "Notice the conditions",
+        "text": "A cool indoor workout and a long hot session are different situations. Keep fluid available, take opportunities to drink, and note unusual thirst, heat, or heavy sweating. Do not force very large amounts to chase a perfectly clear urine color. More is not always better."
+      },
+      {
+        "title": "Make the habit easy to observe",
+        "text": "Record the size of the bottle or glass rather than only “one drink.” If a clinician has advised a fluid restriction or a specific plan, use that instead of generic exercise advice. For long or demanding activity, individualized guidance can help with fluid and electrolyte decisions."
+      }
+    ],
+    "example": "Example log: a 500 mL bottle refilled twice means 1,000 mL consumed if both bottles were finished. A third half-full refill adds 250 mL. Food and other drinks still contribute beyond that bottle total.",
+    "steps": [
+      "Know the volume of your usual bottle.",
+      "Account for heat and activity.",
+      "Use an individualized plan when medically indicated."
+    ],
+    "terms": [
+      "Hydration",
+      "Electrolyte",
+      "Sweat rate",
+      "Sodium"
+    ],
+    "sources": [
+      "water"
+    ],
+    "diagram": {
+      "kind": "equation",
+      "title": "Make the bottle total explicit",
+      "labels": [
+        "2 full × 500 mL",
+        "½ × 500 mL"
+      ],
+      "result": "1,250 mL",
+      "caption": "A logging example, not a daily fluid recommendation."
+    }
+  },
+  {
+    "id": "fiber",
+    "title": "Increase fiber with foods you already use",
+    "category": "Nutrition",
+    "summary": "Build variety gradually and keep the rest of the meal in view.",
+    "sections": [
+      {
+        "title": "Understand what fiber means",
+        "text": "Dietary fiber includes plant components that are not digested in the same way as ordinary starches and sugars. Different fibers have different properties. The soluble-versus-insoluble distinction is useful, but many foods contain a mixture and not every effect fits that simple split."
+      },
+      {
+        "title": "Use practical substitutions",
+        "text": "Oats, beans, lentils, fruit, vegetables, nuts, seeds, and whole grains can contribute fiber. Start with a food you already eat and consider a realistic addition or swap. Increasing intake gradually can make a change easier to tolerate. A single high-fiber product does not determine the quality of the whole diet."
+      },
+      {
+        "title": "Read the label and the meal",
+        "text": "Compare fiber on the same serving basis. A smaller serving of a very fibrous food can contain less total fiber than a larger serving of another food. Consider texture, appetite, preparation, and individual digestive tolerance. If you have a condition requiring a specific fiber plan, use that guidance rather than a generic target."
+      }
+    ],
+    "example": "Example breakfast experiment: keep your usual breakfast and add a portion of berries or swap part of a low-fiber cereal for oats. Record the actual amount and how the meal feels before making several changes at once.",
+    "steps": [
+      "Choose one familiar meal.",
+      "Add or substitute one fiber-containing food.",
+      "Increase gradually and review tolerance."
+    ],
+    "terms": [
+      "Fiber",
+      "Soluble fiber",
+      "Insoluble fiber",
+      "Whole grain"
+    ],
+    "sources": [
+      "fiber"
+    ],
+    "diagram": {
+      "kind": "sequence",
+      "title": "A gradual food-based experiment",
+      "labels": [
+        "Usual meal",
+        "One food change",
+        "Observe tolerance",
+        "Repeat or adjust"
+      ],
+      "caption": "A habit workflow, not a treatment plan for digestive symptoms."
+    }
+  },
+  {
+    "id": "sleep",
+    "title": "Review sleep as a pattern",
+    "category": "Recovery",
+    "summary": "Use a week of context instead of judging recovery from one score.",
+    "sections": [
+      {
+        "title": "Allow enough opportunity",
+        "text": "NHLBI describes seven to nine hours per day as a general adult sleep range. Individual needs and circumstances vary. Time in bed is not the same as time asleep, so a schedule that allows only seven hours in bed may leave less actual sleep."
+      },
+      {
+        "title": "Separate observation from interpretation",
+        "text": "Write bedtime, wake time, disruptions, and how rested you feel. A wearable sleep score is an estimate produced by that device’s method. It is not a direct measurement of readiness to train, and a low score does not automatically specify what you should change in a workout."
+      },
+      {
+        "title": "Choose a repeatable adjustment",
+        "text": "A regular wake time, a sleep-friendly environment, and a quieter period before bed can support sleep habits. Choose one change that fits your life and review it over several nights. Persistent insomnia, loud snoring with breathing pauses, or substantial daytime sleepiness warrants professional assessment rather than more optimization of a score."
+      }
+    ],
+    "example": "Example diary: “In bed 23:00, up 07:00, awake around 03:00, felt reasonably rested.” That is an eight-hour sleep opportunity with an interruption, not proof of eight hours asleep. Keep those categories separate in the log.",
+    "steps": [
+      "Track opportunity and actual sleep separately.",
+      "Record disruptions and daytime experience.",
+      "Try one sustainable schedule change."
+    ],
+    "terms": [
+      "Sleep opportunity",
+      "Sleep duration",
+      "Circadian rhythm",
+      "Sleep efficiency"
+    ],
+    "sources": [
+      "sleep"
+    ],
+    "diagram": {
+      "kind": "interval",
+      "title": "Time in bed is not identical to sleep",
+      "labels": [
+        "Settle",
+        "Sleep",
+        "Awake",
+        "Sleep",
+        "Wake"
+      ],
+      "caption": "Illustrative night sequence. This is not a sleep-stage chart or wearable measurement."
+    }
+  },
+  {
+    "id": "soreness",
+    "title": "Separate soreness from workout quality",
+    "category": "Recovery",
+    "summary": "Use symptoms and function to guide the next decision, not pride in being sore.",
+    "sections": [
+      {
+        "title": "Recognize the timing",
+        "text": "Delayed-onset muscle soreness is discomfort that develops after exercise, often after unfamiliar or demanding work. Eccentric exercise is commonly used in studies that produce it. The amount of soreness is not a reliable score for how much strength or muscle you gained."
+      },
+      {
+        "title": "Describe what you notice",
+        "text": "Record location, onset, severity in your own words, and whether ordinary movement is affected. “Thighs sore on stairs the next day” is more informative than “destroyed.” Sharp pain during a repetition, major swelling, or symptoms that do not behave like your usual post-exercise soreness should not be dismissed as a productive session."
+      },
+      {
+        "title": "Adjust the next exposure thoughtfully",
+        "text": "An unfamiliar session may need a more gradual reintroduction. Consider an easier version, less work, or another activity while you assess how movement feels. Do not use a soreness score alone to diagnose injury or recovery. Severe symptoms, marked weakness, or dark urine after exertion need prompt medical attention."
+      }
+    ],
+    "example": "Example note: “New split-squat variation; mild front-thigh soreness the following morning; walking normal.” At the next session, compare movement and symptoms before deciding whether to repeat the same amount of work.",
+    "steps": [
+      "Describe the symptom and timing.",
+      "Check ordinary movement as well as the exercise.",
+      "Avoid treating pain as a progress target."
+    ],
+    "terms": [
+      "DOMS",
+      "Eccentric",
+      "Recovery",
+      "Fatigue"
+    ],
+    "sources": [
+      "soreness"
+    ],
+    "diagram": {
+      "kind": "sequence",
+      "title": "Observe before deciding",
+      "labels": [
+        "New training",
+        "Later symptoms",
+        "Check function",
+        "Adjust next session"
+      ],
+      "caption": "A practical observation sequence. It cannot diagnose an injury."
+    }
+  },
+  {
+    "id": "deload",
+    "title": "Make an easier week answer a clear question",
+    "category": "Recovery",
+    "summary": "Reduce training demand deliberately, then review what changed.",
+    "sections": [
+      {
+        "title": "Name the purpose",
+        "text": "A deload is a planned period of lower training demand. You might use it to make a busy week manageable or to reassess accumulated fatigue. There is no single universally validated calendar, percentage reduction, or set of symptoms that proves every person needs one."
+      },
+      {
+        "title": "Specify what becomes easier",
+        "text": "You can reduce sets, load, session frequency, or proximity to failure. Changing one or two variables makes the plan easier to understand. Keep familiar movements when that helps preserve skill and routine. An easier week should actually be easier, not a normal week plus extra conditioning."
+      },
+      {
+        "title": "Plan the return",
+        "text": "Write what you will review before restoring demand: ordinary movement, session performance, schedule, and symptoms. A deload is not a treatment for an unexplained medical problem. If the main issue is a lack of time, returning immediately to the same unmanageable schedule may recreate it."
+      }
+    ],
+    "example": "Illustrative adjustment: a three-session week with 12 working sets per session becomes three shorter sessions with 6 sets each. This is a 50% reduction in set count, not a universal deload prescription or a claim that fatigue falls by 50%.",
+    "steps": [
+      "Write the reason for the easier week.",
+      "Specify the variable you reduce.",
+      "Set a review point before rebuilding demand."
+    ],
+    "terms": [
+      "Deload",
+      "Fatigue",
+      "Autoregulation",
+      "Volume"
+    ],
+    "sources": [
+      "acsm"
+    ],
+    "diagram": {
+      "kind": "bars",
+      "title": "Example reduction in set count",
+      "labels": [
+        "Usual week",
+        "Easier week"
+      ],
+      "values": [
+        36,
+        18
+      ],
+      "unit": "working sets",
+      "caption": "Illustrative planning arithmetic. No fixed deload percentage is prescribed."
+    }
+  },
+  {
+    "id": "creatine",
+    "title": "Understand what creatine can and cannot do",
+    "category": "Nutrition",
+    "summary": "Evaluate a specific supplement claim rather than the marketing around it.",
+    "sections": [
+      {
+        "title": "Match it to the task",
+        "text": "Creatine helps replenish the phosphocreatine system used during brief, high-intensity efforts. Creatine monohydrate is well studied for repeated high-intensity exercise and strength-training contexts. It is not a stimulant, an instant muscle gain, or a substitute for a training program."
+      },
+      {
+        "title": "Separate routine use from loading",
+        "text": "Research commonly uses a daily maintenance dose around 3–5 g in adults. A loading phase is one option for reaching higher muscle stores sooner, but it is not essential. Changes in scale weight can include water. Different products and higher prices do not establish greater effectiveness."
+      },
+      {
+        "title": "Make the decision deliberately",
+        "text": "Review your goal, the product label, other supplements, and any medical circumstances. Discuss use with a clinician if you have kidney disease or other relevant concerns, and tell them about use when interpreting laboratory results. Sport participants should also consider independently tested products and their organization’s rules."
+      }
+    ],
+    "example": "Example label check: compare a plain creatine monohydrate product with a blend. Record the actual grams of creatine per serving, not just the total scoop mass. A 7 g scoop of mixed ingredients does not necessarily contain 7 g of creatine.",
+    "steps": [
+      "Check the exact ingredient and amount.",
+      "Separate expected effects from marketing claims.",
+      "Consider health context and product testing."
+    ],
+    "terms": [
+      "Creatine",
+      "Phosphocreatine",
+      "Loading phase",
+      "Supplement"
+    ],
+    "sources": [
+      "creatine",
+      "performance"
+    ],
+    "diagram": {
+      "kind": "cycle",
+      "title": "A simplified energy-transfer relationship",
+      "labels": [
+        "Phosphocreatine",
+        "ATP replenishment",
+        "Brief hard effort"
+      ],
+      "caption": "Conceptual relationship only. It does not depict reaction rates or individual performance gains."
+    }
+  },
+  {
+    "id": "caffeine",
+    "title": "Count caffeine before adding another pre-workout",
+    "category": "Nutrition",
+    "summary": "Look at the whole day, product size, and your response.",
+    "sections": [
+      {
+        "title": "Total the sources",
+        "text": "Coffee, tea, energy drinks, some medicines, and supplements can all contribute caffeine. The amount varies widely between products and serving sizes. A “cup” is not a standardized caffeine dose, and a blend may contain multiple caffeine-containing ingredients."
+      },
+      {
+        "title": "Do not turn an upper reference into a target",
+        "text": "The FDA cites 400 mg per day as an amount not generally associated with negative effects for most adults. That is not a recommended performance dose or a guarantee for every person. Sensitivity, pregnancy, medications, health conditions, and sleep can change the decision."
+      },
+      {
+        "title": "Include the timing",
+        "text": "Record when you consume it and whether you notice disrupted sleep, anxiety, palpitations, or digestive effects. More alertness during training can come with a cost later. Avoid pure or highly concentrated caffeine products; small measurement errors can create dangerous amounts."
+      }
+    ],
+    "example": "Illustrative label arithmetic: a drink with 160 mg plus another product with 100 mg totals 260 mg before any coffee or tea. The number is only as accurate as the serving information and what you actually consumed.",
+    "steps": [
+      "List every source and serving.",
+      "Record the time as well as the amount.",
+      "Review the effect on sleep and symptoms."
+    ],
+    "terms": [
+      "Caffeine",
+      "Serving size",
+      "Supplement",
+      "Sleep duration"
+    ],
+    "sources": [
+      "caffeine"
+    ],
+    "diagram": {
+      "kind": "equation",
+      "title": "Add caffeine across products",
+      "labels": [
+        "160 mg drink",
+        "100 mg product"
+      ],
+      "result": "260 mg total",
+      "caption": "Hypothetical label amounts, not a suggested intake."
+    }
+  },
+  {
+    "id": "wearables",
+    "title": "Read wearable data without handing it the decision",
+    "category": "Your data",
+    "summary": "Use trends and measurement context before treating a score as advice.",
+    "sections": [
+      {
+        "title": "Know what is estimated",
+        "text": "A wearable may measure a signal and then estimate another quantity from it. Heart rate, energy expenditure, sleep stages, and readiness scores do not all have the same measurement method or accuracy. A composite score can hide several assumptions behind one number."
+      },
+      {
+        "title": "Keep the conditions comparable",
+        "text": "Device fit, movement, time of day, and the metric’s calculation can affect interpretation. HRV is especially sensitive to context and cannot be compared casually across different metrics or devices. A higher value is not universally better. Clinical reviews emphasize data quality and personal context rather than isolated thresholds."
+      },
+      {
+        "title": "Combine the record with experience",
+        "text": "Look at repeated patterns alongside training, illness, sleep, and how you feel. If the watch changes, mark that transition in the record. Use unexplained or concerning readings as a reason to assess the situation appropriately, not as a diagnosis supplied by a consumer device."
+      }
+    ],
+    "example": "Example: a new watch reports a different resting heart rate than the old one. Keep a note of the switch before treating the difference as a training effect. The device change is an alternative explanation that the chart alone cannot resolve.",
+    "steps": [
+      "Identify the metric and device.",
+      "Record changes in measurement conditions.",
+      "Review trends alongside symptoms and performance."
+    ],
+    "terms": [
+      "HRV",
+      "Resting heart rate",
+      "Readiness score",
+      "Measurement error"
+    ],
+    "sources": [
+      "wearables",
+      "hrv"
+    ],
+    "diagram": {
+      "kind": "sequence",
+      "title": "Interpretation starts before the score",
+      "labels": [
+        "Signal quality",
+        "Comparable context",
+        "Repeated pattern",
+        "Human decision"
+      ],
+      "caption": "A review workflow. A consumer score is not a medical diagnosis."
+    }
+  },
+  {
+    "id": "trends",
+    "title": "Read a trend without hiding the raw data",
+    "category": "Your data",
+    "summary": "Use summaries to see patterns while keeping missingness and variation visible.",
+    "sections": [
+      {
+        "title": "Choose the comparison window",
+        "text": "A daily value and a weekly average answer different questions. An average smooths variation, but it can also conceal a very different distribution of observations. Write the time window and the number of observations used. Missing entries are not automatically zero."
+      },
+      {
+        "title": "Keep the underlying values available",
+        "text": "A line looks precise even when it joins sparse data. Distinguish measured points from connecting lines or predictions. If the measurement method changes, note it. A chart can show association or timing without proving that one event caused another."
+      },
+      {
+        "title": "Use the chart to ask a better question",
+        "text": "Instead of “why did recovery drop?”, ask “what changed in the data, the measurement, or the week?” Check the raw observations, then the context. A good summary reduces the work of reading a log without removing the information needed to question it."
+      }
+    ],
+    "example": "Example: two weeks each average three sessions only if the underlying counts support it. For daily steps, five recorded days are not automatically comparable with seven. Keep the observation count next to the summary and avoid silently filling missing days with zero.",
+    "steps": [
+      "State the time window.",
+      "Show how many observations were available.",
+      "Keep raw values and missing entries distinguishable."
+    ],
+    "terms": [
+      "Trend",
+      "Rolling average",
+      "Baseline",
+      "Missing data"
+    ],
+    "sources": [],
+    "diagram": {
+      "kind": "line",
+      "title": "An illustrative series with a missing observation",
+      "labels": [
+        "Mon",
+        "Tue",
+        "Wed",
+        "Thu",
+        "Fri",
+        "Sat",
+        "Sun"
+      ],
+      "values": [
+        6,
+        7,
+        null,
+        5,
+        8,
+        7,
+        9
+      ],
+      "unit": "example units",
+      "caption": "The gap is intentional. A missing observation is not zero and is not interpolated."
+    }
+  },
+  {
+    "id": "logging",
+    "title": "Keep a workout log you can compare later",
+    "category": "Your data",
+    "summary": "Record the details that explain what you actually did.",
+    "sections": [
+      {
+        "title": "Choose a stable naming convention",
+        "text": "Name the exercise and equipment clearly. “Row” could mean a cable row, a dumbbell row, or an ergometer session. Keep variants separate when the setup changes the task. Write whether dumbbell weight is per hand and whether unilateral repetitions are per side."
+      },
+      {
+        "title": "Capture the minimum useful context",
+        "text": "For a strength set, load, repetitions, and an effort estimate are a useful start. Add rest, setup, and unusual technique changes when they matter. A short concrete note is more valuable than a generic label like “good session.” For conditioning, include duration, distance where relevant, and an intensity cue."
+      },
+      {
+        "title": "Correct errors visibly",
+        "text": "A decimal-place mistake can distort a chart more than weeks of actual training. Check outliers before interpreting them. When you change a measurement convention, mark the date rather than quietly merging unlike records. The aim is a useful personal history, not an immaculate sequence of personal records."
+      }
+    ],
+    "example": "Example entry: “Dumbbell press, 16 kg per hand, 3 × 10, about 2 RIR on the final set, 2 min rest.” If the next workout uses a barbell, create a separate exercise record instead of treating its total load as the next point on the same series.",
+    "steps": [
+      "Name the variant and load convention.",
+      "Record repetitions and effort promptly.",
+      "Check outliers before drawing conclusions."
+    ],
+    "terms": [
+      "Training log",
+      "Personal record",
+      "Load",
+      "Unilateral exercise"
+    ],
+    "sources": [],
+    "diagram": {
+      "kind": "sequence",
+      "title": "A useful strength-set record",
+      "labels": [
+        "Exercise + setup",
+        "Load + reps",
+        "Effort + rest",
+        "Relevant note"
+      ],
+      "caption": "A record structure, not a claim that every field is required for every set."
+    }
+  }
+]

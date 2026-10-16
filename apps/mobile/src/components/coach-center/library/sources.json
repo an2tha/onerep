@@ -1,0 +1,132 @@
+{
+  "acsm": {
+    "title": "ACSM: resistance training guidelines (2026)",
+    "url": "https://acsm.org/resistance-training-guidelines-update-2026/",
+    "type": "Professional guidance"
+  },
+  "load": {
+    "title": "resistance training load, strength and hypertrophy (2021)",
+    "url": "https://pubmed.ncbi.nlm.nih.gov/33433148/",
+    "type": "Systematic review"
+  },
+  "rir": {
+    "title": "accuracy of repetitions-in-reserve predictions (2022)",
+    "url": "https://pubmed.ncbi.nlm.nih.gov/34542869/",
+    "type": "Scoping review"
+  },
+  "effort": {
+    "title": "reporting proximity to failure (2022)",
+    "url": "https://pubmed.ncbi.nlm.nih.gov/35247203/",
+    "type": "Methods review"
+  },
+  "rest": {
+    "title": "rest intervals and hypertrophy (2024)",
+    "url": "https://pubmed.ncbi.nlm.nih.gov/39205815/",
+    "type": "Systematic review"
+  },
+  "volume": {
+    "title": "resistance training prescription variables (2024)",
+    "url": "https://pubmed.ncbi.nlm.nih.gov/37385345/",
+    "type": "Umbrella review"
+  },
+  "rom": {
+    "title": "range of motion and hypertrophy (2023)",
+    "url": "https://pubmed.ncbi.nlm.nih.gov/36662126/",
+    "type": "Systematic review"
+  },
+  "mobility": {
+    "title": "resistance training and range of motion (2023)",
+    "url": "https://pubmed.ncbi.nlm.nih.gov/36622555/",
+    "type": "Systematic review"
+  },
+  "warmup": {
+    "title": "American Heart Association: warming up and cooling down",
+    "url": "https://www.heart.org/en/healthy-living/exercise-and-physical-activity/fitness-basics/warm-up-cool-down",
+    "type": "Public guidance"
+  },
+  "activity": {
+    "title": "CDC: adult physical activity recommendations",
+    "url": "https://www.cdc.gov/physical-activity-basics/guidelines/adults.html",
+    "type": "Public guidance"
+  },
+  "intensity": {
+    "title": "CDC: measuring activity intensity",
+    "url": "https://www.cdc.gov/physical-activity-basics/measuring/index.html",
+    "type": "Public guidance"
+  },
+  "concurrent": {
+    "title": "combining aerobic and strength training (2022)",
+    "url": "https://pubmed.ncbi.nlm.nih.gov/34757594/",
+    "type": "Systematic review"
+  },
+  "protein": {
+    "title": "ISSN: protein and exercise position stand (2017)",
+    "url": "https://pubmed.ncbi.nlm.nih.gov/28642676/",
+    "type": "Position stand"
+  },
+  "performance": {
+    "title": "NIH Office of Dietary Supplements: exercise and athletic performance",
+    "url": "https://ods.od.nih.gov/factsheets/ExerciseAndAthleticPerformance-HealthProfessional/",
+    "type": "Evidence fact sheet"
+  },
+  "plate": {
+    "title": "Harvard Nutrition Source: Healthy Eating Plate",
+    "url": "https://nutritionsource.hsph.harvard.edu/healthy-eating-plate/",
+    "type": "Nutrition guidance"
+  },
+  "label": {
+    "title": "FDA: understanding the Nutrition Facts label",
+    "url": "https://www.fda.gov/food/nutrition-facts-label/how-understand-and-use-nutrition-facts-label",
+    "type": "Label guidance"
+  },
+  "weight": {
+    "title": "NIDDK: eating and activity for weight management",
+    "url": "https://www.niddk.nih.gov/health-information/weight-management/adult-overweight-obesity/eating-physical-activity",
+    "type": "Public guidance"
+  },
+  "model": {
+    "title": "dynamic model of adult body-weight change",
+    "url": "https://www.niddk.nih.gov/-/media/Files/BWP/Hall_Lancet_Web_Appendix.pdf",
+    "type": "Model documentation"
+  },
+  "water": {
+    "title": "CDC: water and healthier drinks",
+    "url": "https://www.cdc.gov/healthy-weight-growth/water-healthy-drinks/",
+    "type": "Public guidance"
+  },
+  "fiber": {
+    "title": "Harvard Nutrition Source: dietary fiber",
+    "url": "https://nutritionsource.hsph.harvard.edu/carbohydrates/fiber/",
+    "type": "Nutrition guidance"
+  },
+  "sleep": {
+    "title": "NHLBI: enough good-quality sleep",
+    "url": "https://www.nhlbi.nih.gov/health/heart-healthy-living/sleep",
+    "type": "Public guidance"
+  },
+  "soreness": {
+    "title": "repeated eccentric exercise and soreness (1995)",
+    "url": "https://pubmed.ncbi.nlm.nih.gov/7894959/",
+    "type": "Exercise study"
+  },
+  "creatine": {
+    "title": "creatine questions and evidence (2021)",
+    "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC7871530/",
+    "type": "Evidence review"
+  },
+  "caffeine": {
+    "title": "FDA: how much caffeine is too much?",
+    "url": "https://www.fda.gov/consumers/consumer-updates/spilling-beans-how-much-caffeine-too-much",
+    "type": "Public guidance"
+  },
+  "wearables": {
+    "title": "JACC: consumer wearable health and fitness technology (2023)",
+    "url": "https://pubmed.ncbi.nlm.nih.gov/37438010/",
+    "type": "Clinical review"
+  },
+  "hrv": {
+    "title": "wearable HRV accuracy (2018)",
+    "url": "https://pubmed.ncbi.nlm.nih.gov/29668452/",
+    "type": "Systematic review"
+  }
+}

@@ -80,6 +80,7 @@ export const userDataRegistry = {
   coachGoalTasks: "dependent_on_user_content",
   coachUploads: "directly_user_owned",
   coachReviews: "directly_user_owned",
+  coachCenterResults: "directly_user_owned",
   coachTouches: "directly_user_owned",
   celebrations: "directly_user_owned",
   pushTokens: "directly_user_owned",

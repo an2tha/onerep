@@ -1,3 +1,4 @@
+import {centerKind,centerResult} from "./lib/coachCenterValidators";
 import { programmePlan, programmeSettings, programmeTrack } from "./lib/guidedProgrammeValidators";
 import { trailPointValidator } from "./lib/trailGeometry";
 import { defineSchema, defineTable } from "convex/server";
@@ -7,6 +8,7 @@ import { nutrientProfileValidator } from "./lib/nutritionValues";
 import { goalPlanValidator, goalFocusValidator } from "./lib/goalPlan";
 
 export default defineSchema({
+  coachCenterResults: defineTable({userId:v.string(),kind:centerKind,result:centerResult}).index("by_userId_and_kind",["userId","kind"]).index("by_userId",["userId"]),
   guidedProgrammes: defineTable({
     userId: v.string(), track: programmeTrack,
     status: v.union(v.literal("draft"), v.literal("active"), v.literal("paused"), v.literal("ended")),

@@ -3,3 +3,28 @@
 .coach-openui select {
   min-height: 44px;
 }
+
+/* Read-only generated content sits on the conversation surface. */
+.coach-center-chat
+  .coach-openui
+  :is(
+    .openui-card,
+    .openui-markdown-renderer-card,
+    .openui-markdown-renderer-card-sunk
+  ) {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
+  width: 100%;
+  max-width: 100%;
+}
+.coach-center-chat
+  .coach-openui
+  :is(.openui-overview-card, .openui-context-card, .openui-snippet-card) {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}

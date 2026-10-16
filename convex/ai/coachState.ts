@@ -311,7 +311,11 @@ export const saveCheckIn = mutation({
       soreness: clampScore(args.soreness),
       sleepQuality: clampScore(args.sleepQuality),
       mood: clampScore(args.mood),
-      ...(args.note ? { note: clampText(args.note, 280) } : {}),
+      // An explicit empty note clears an earlier answer; omission preserves it.
+      note:
+        args.note === undefined
+          ? existing?.note
+          : clampText(args.note, 280) || undefined,
       updatedAt: Date.now(),
     };
     let checkInId;

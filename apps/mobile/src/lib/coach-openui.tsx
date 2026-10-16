@@ -7,7 +7,7 @@ import {
   type ReactNode,
 } from "react"
 import { Renderer, type ActionEvent } from "@openuidev/react-lang"
-import { ThemeProvider } from "@openuidev/react-ui"
+import { MarkDownRenderer, ThemeProvider } from "@openuidev/react-ui"
 import {
   CoachOpenUIContext,
   coachOpenUILibrary,
@@ -31,7 +31,7 @@ const navigationActions = new Set<CoachUiAction>([
 
 export function handleCoachOpenUIAction(
   event: ActionEvent,
-  actions: CoachOpenUIActions
+  actions: CoachOpenUIActions,
 ) {
   if (navigationActions.has(event.type as CoachUiAction)) {
     actions.onAction(event.type as CoachUiAction)
@@ -107,12 +107,12 @@ export default function CoachOpenUI({
   const dark = useSyncExternalStore(
     subscribeToAppearance,
     currentAppearance,
-    () => false
+    () => false,
   )
   const [failed, setFailed] = useState(false)
   const onError = useCallback(
     (errors: unknown[]) => setFailed(errors.length > 0),
-    []
+    [],
   )
   return (
     <CoachOpenUIContext.Provider value={actions}>
@@ -136,5 +136,32 @@ export default function CoachOpenUI({
         </div>
       </ThemeProvider>
     </CoachOpenUIContext.Provider>
+  )
+}
+
+/** Render prose with the same typography as structured answers. Never execute HTML. */
+export function CoachReply({ text }: { text: string }) {
+  const dark = useSyncExternalStore(
+    subscribeToAppearance,
+    currentAppearance,
+    () => false,
+  )
+  return (
+    <ThemeProvider
+      mode={dark ? "dark" : "light"}
+      lightTheme={theme}
+      darkTheme={theme}
+      cssSelector=".coach-reply"
+    >
+      <MarkDownRenderer
+        className="coach-reply"
+        variant="clear"
+        textMarkdown={text}
+        options={{
+          skipHtml: true,
+          components: { img: ({ alt }) => <span>{alt}</span> },
+        }}
+      />
+    </ThemeProvider>
   )
 }

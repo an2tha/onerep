@@ -1,3 +1,4 @@
+import { CoachReply } from "./coach-openui"
 import { describe, expect, test } from "bun:test"
 import { renderToStaticMarkup } from "react-dom/server"
 import { Renderer } from "@openuidev/react-lang"
@@ -80,5 +81,33 @@ describe("Coach OpenUI", () => {
   test("allows plain conversation without generated UI", () => {
     expect(normalizeCoachOpenUI("")).toBe("")
     expect(normalizeCoachOpenUI(undefined)).toBe("")
+  })
+})
+
+describe("Coach reply prose", () => {
+  test("keeps the complete answer and safety note while rendering paragraphs and lists", () => {
+    const html = renderToStaticMarkup(
+      <CoachReply
+        text={
+          "Keep **two reps in reserve**.\n\n1. Warm up.\n2. Keep the load controlled.\n\nStop if the movement causes pain."
+        }
+      />,
+    )
+    expect(html).toContain("<strong>two reps in reserve</strong>")
+    expect(html).toContain("<ol>")
+    expect(html).toContain("Stop if the movement causes pain.")
+  })
+  test("does not execute HTML or load remote images from model prose", () => {
+    const html = renderToStaticMarkup(
+      <CoachReply
+        text={
+          "<script>alert(1)</script>\n\n![Exercise illustration](https://example.com/tracking.png)\n\n[unsafe](javascript:alert(1))"
+        }
+      />,
+    )
+    expect(html).not.toContain("<script>")
+    expect(html).not.toContain("<img")
+    expect(html).not.toContain('href="javascript:')
+    expect(html).toContain("Exercise illustration")
   })
 })

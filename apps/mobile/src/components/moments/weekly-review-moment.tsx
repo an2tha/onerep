@@ -1,5 +1,6 @@
 import { Message, tr, translateError, uiLocale } from "@repo/ui/i18n"
-import { NudgeIllustration } from "@repo/ui/mobile"
+import { Orb } from "@/components/coach-center/Orb"
+import "@/components/coach-center/results.css"
 import { useState } from "react"
 import { useAction, useMutation } from "convex/react"
 import { Check, X } from "@phosphor-icons/react"
@@ -138,13 +139,13 @@ export function WeeklyReviewMoment({
         </>
       }
     >
-      <NudgeIllustration scene="week" className="mx-auto mb-5 !w-44" />
+      <div className="coach-review-orb"><Orb small /></div>
       {review.summary.length > 0 && (
         <ul className="flex flex-col gap-2">
           {review.summary.map((line) => (
             <li
               key={line}
-              className="rounded-2xl bg-muted/30 px-4 py-3 text-[13px] leading-snug text-muted-foreground"
+              className="py-2 text-[13px] leading-snug text-muted-foreground"
             >
               {line}
             </li>
@@ -153,8 +154,8 @@ export function WeeklyReviewMoment({
       )}
 
       {review.focus && (
-        <div className="app-surface mt-3 px-4 py-4">
-          <p className="text-[12px] tracking-wide text-muted-foreground uppercase">
+        <div className="mt-5 border-t border-border pt-5">
+          <p className="text-[12px] text-muted-foreground">
             {tr("Next week")}
           </p>
           <p className="mt-1 text-[15px] leading-snug font-semibold tracking-tight">
@@ -173,7 +174,7 @@ export function WeeklyReviewMoment({
             return (
               <div
                 key={`${operation.type ?? "operation"}-${index}`}
-                className="app-surface px-4 py-4"
+                className="border-t border-border py-4"
               >
                 <p className="text-[14px] leading-snug font-medium">
                   {operation.summary ?? tr("A change to your plan")}

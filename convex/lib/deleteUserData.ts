@@ -206,6 +206,7 @@ export async function deleteUserDataBatch(
     ["coachWeeklyPlans", "by_userId"],
     ["coachMonthlySummaries", "by_userId"],
     ["coachReviews", "by_userId"],
+    ["coachCenterResults", "by_userId"],
     ["coachTouches", "by_userId"],
     ["celebrations", "by_userId"],
     // The device rows go with the account: a token left behind is a phone that

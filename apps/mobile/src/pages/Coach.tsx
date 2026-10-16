@@ -1,3 +1,6 @@
+import { Orb } from "@/components/coach-center/Orb"
+import { CoachReply } from "@/lib/coach-openui"
+import "@/components/coach-center/results.css"
 import { RestartNudge } from "@/components/restart/restart-nudge"
 import { Message, tr, translateError, uiLocale } from "@repo/ui/i18n"
 import { coachErrorMessage } from "@/lib/coach-error"
@@ -680,11 +683,13 @@ function workoutDraftFromOperation(
 
 export default function Coach({
   embedded = false,
+  inCoachCenter = false,
   onClose,
   activeWorkout,
   initialInput,
 }: {
   embedded?: boolean
+  inCoachCenter?: boolean
   onClose?: () => void
   /**
    * What to put in the composer on open, unsent. The route form of this
@@ -720,6 +725,7 @@ export default function Coach({
   const hasActiveWorkout = (activeWorkouts?.length ?? 0) > 0
   const coachModesRef = useTourAnchor("coach-modes")
   const location = useLocation()
+  const [centerResultKind,setCenterResultKind]=useState<"review"|"progress"|"plan"|"meals"|undefined>(()=>location.state?.centerResultKind);
   const [sleepAtmosphere, setSleepAtmosphere] = useState(
     () => new URLSearchParams(location.search).get("sleep") === "1"
   )
@@ -758,7 +764,7 @@ export default function Coach({
   const [showHistory, setShowHistory] = useState(false)
   const [historySearch, setHistorySearch] = useState("")
   const [showMemory, setShowMemory] = useState(false)
-  const [showFormCoach, setShowFormCoach] = useState(false)
+  const [showFormCoach, setShowFormCoach] = useState(() => new URLSearchParams(location.search).get("form") === "1")
   const [newMemoryCategory, setNewMemoryCategory] = useState("preference")
   const [newMemoryValue, setNewMemoryValue] = useState("")
   const [savingMemory, setSavingMemory] = useState(false)
@@ -2001,6 +2007,7 @@ export default function Coach({
       )
         setSleepAtmosphere(true)
       const result = await generateChat({
+        centerResultKind,
         context,
         message: activeWorkout
           ? [
@@ -2142,6 +2149,7 @@ export default function Coach({
 
   function startNewChat() {
     if (busy || newChatPhase !== "idle") return
+    setCenterResultKind(undefined);
     setSleepAtmosphere(false)
     hapticTap()
     dictation.cancel()
@@ -2398,7 +2406,7 @@ export default function Coach({
         className="coach-page-slide relative h-full w-full touch-pan-y"
         data-swipe-direction={modeSwipeDirection}
         onPointerDown={(event) => {
-          if ((event.target as HTMLElement).closest("button, input, textarea"))
+          if (inCoachCenter || (event.target as HTMLElement).closest("button, input, textarea, select"))
             return
           coachSwipeStartRef.current = { x: event.clientX, y: event.clientY }
         }}
@@ -2436,7 +2444,7 @@ export default function Coach({
             <div className="flex min-w-0 items-center gap-1">
               {/* Form advice arrives here mid-set, so getting back to the
                   workout should not mean hunting through the tab bar. */}
-              {(embedded || hasActiveWorkout) && (
+              {(embedded || hasActiveWorkout || location.pathname.startsWith("/coach")) && (
                 <button
                   type="button"
                   onClick={() => {
@@ -2445,10 +2453,10 @@ export default function Coach({
                       onClose?.()
                       return
                     }
-                    navigate("/workout/active", { motion: "back" })
+                    navigate(hasActiveWorkout ? "/workout/active" : "/coach", { motion: "back" })
                   }}
                   aria-label={
-                    embedded ? tr("Close coach") : tr("Back to your workout")
+                    embedded ? tr("Close coach") : hasActiveWorkout ? tr("Back to your workout") : tr("Back to Coach")
                   }
                   className="-ml-2 flex size-11 shrink-0 items-center justify-center rounded-full text-muted-foreground active:bg-muted"
                 >
@@ -2572,10 +2580,9 @@ export default function Coach({
               ) : null}
             </div>
           </header>
-          <RecoveryBanner surface="coach" />
-          <RestartNudge coach />
+          {!inCoachCenter && <><RecoveryBanner surface="coach" /><RestartNudge coach /></>}
 
-          <nav
+          {!inCoachCenter && <nav
             ref={coachModesRef}
             className="coach-mode-tabs grid shrink-0 grid-cols-3 gap-1 border-b border-border/45 py-2"
             role="tablist"
@@ -2607,13 +2614,13 @@ export default function Coach({
                 </button>
               )
             })}
-          </nav>
+          </nav>}
 
           <section
             key={activeMode}
             id="coach-workspace"
-            role="tabpanel"
-            aria-label={mode.label}
+            role={inCoachCenter ? "region" : "tabpanel"}
+            aria-label={inCoachCenter ? tr("Chat") : mode.label}
             className="coach-mode-stage relative isolate flex min-h-0 flex-1 flex-col overflow-hidden"
             data-coach-mode={activeMode}
             data-swipe-direction={modeSwipeDirection}
@@ -2621,7 +2628,7 @@ export default function Coach({
             <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 pt-5 pb-8 sm:px-5">
               {loading ? (
                 <CoachLoadingState />
-              ) : messages.length === 0 ? (
+              ) : messages.length === 0 && !guidedIntent && !recipeCustomization && !embedded ? (<div className="coach-conversation-content coach-conversation-welcome mx-auto w-full max-w-3xl">{inCoachCenter && <Orb small />}<p className="coach-welcome-bubble">{tr("Hi. What would you like to work on today?")}</p>{centerResultKind && <p className="mt-3 text-sm text-muted-foreground">{tr("Your saved Coach result is attached to this conversation.")}</p>}</div>) : messages.length === 0 ? (
                 <div className="coach-empty-intro mx-auto flex w-full max-w-3xl flex-1 flex-col py-5 sm:py-9">
                   {guidedIntent && (
                     <div className="coach-customization-state mx-auto w-full max-w-2xl">
@@ -2876,7 +2883,7 @@ export default function Coach({
                                 : cn(mode.messageClass, "text-foreground")
                             )}
                           >
-                            <p>{message.content}</p>
+                            <CoachReply text={message.content} />
                             {message.error && lastFailedPrompt ? (
                               <button
                                 type="button"
@@ -3066,7 +3073,7 @@ export default function Coach({
               </div>
             </div>
           )}
-          {!loading &&
+          {!inCoachCenter && !loading &&
           messages.length === 0 &&
           !guidedIntent &&
           !recipeCustomization ? (
@@ -3099,8 +3106,9 @@ export default function Coach({
               event.preventDefault()
               void submit()
             }}
-            className="z-20 mx-auto w-full max-w-3xl min-w-0 shrink-0 border-t border-border/55 bg-transparent pt-3 pb-[calc(env(safe-area-inset-bottom,0px)+4.25rem)] lg:pb-4"
+            className="coach-conversation-form z-20 mx-auto w-full max-w-3xl min-w-0 shrink-0 border-t border-border/55 bg-transparent pt-3 pb-[calc(env(safe-area-inset-bottom,0px)+4.25rem)] lg:pb-4"
           >
+            {inCoachCenter && <select className="coach-conversation-mode" aria-label={tr("Coach modes")} value={activeMode} disabled={busy || modeTransitioning} onChange={(event) => switchCoachMode(event.target.value as CoachMode)}>{COACH_MODES.map((item) => <option key={item.id} value={item.id}>{item.id === "chat" ? tr("Chat") : item.label}</option>)}</select>}
             <TourAnchor
               anchor="coach-composer"
               className="block w-full max-w-full min-w-0"
@@ -3186,6 +3194,7 @@ export default function Coach({
                         void submit()
                       }
                     }}
+                    aria-label={tr("Message Coach")}
                     placeholder={
                       loading
                         ? tr("Connecting your data…")

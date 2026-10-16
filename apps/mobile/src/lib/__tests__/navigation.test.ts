@@ -6,7 +6,22 @@ import {
   prefersReducedMotion,
   setRouteMotion,
   shouldShowPageBar,
+  shouldShowBottomBar,
 } from "../navigation"
+
+test("Coach keeps navigation when entering a conversation or result", () => {
+  for (const route of [
+    "/coach",
+    "/coach/chat",
+    "/coach/review",
+    "/coach/guides/progression",
+  ]) {
+    expect(shouldShowBottomBar(route)).toBe(true)
+  }
+  for (const route of ["/coaching", "/camera", "/workout/active"]) {
+    expect(shouldShowBottomBar(route)).toBe(false)
+  }
+})
 
 describe("route motion helpers", () => {
   const originalDocumentDescriptor = Object.getOwnPropertyDescriptor(

@@ -97,7 +97,7 @@ import HealthVitals from "./pages/health/Vitals.tsx"
 import HealthMindfulness from "./pages/health/Mindfulness.tsx"
 import HealthReproductive from "./pages/health/Reproductive.tsx"
 import HealthTrends from "./pages/health/Trends.tsx"
-import Coach from "./pages/Coach.tsx"
+import CoachCenter from "./pages/CoachCenter.tsx"
 import Settings from "./pages/Settings.tsx"
 import { AuthGuard } from "./components/auth-guard.tsx"
 import { ErrorBoundary } from "./components/error-boundary.tsx"
@@ -1306,11 +1306,11 @@ const router = createBrowserRouter([
         ),
       },
       {
-        path: "/coach",
+        path: "/coach/*",
         element: (
           <AuthGuard>
             <ErrorBoundary label={tr("Coach")}>
-              <Coach />
+              <CoachCenter />
             </ErrorBoundary>
           </AuthGuard>
         ),

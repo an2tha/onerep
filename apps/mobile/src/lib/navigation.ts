@@ -102,6 +102,8 @@ export function shouldShowBottomBar(pathname: string) {
     pathname.startsWith("/health/") ||
     pathname === "/supplements" ||
     pathname === "/coach" ||
+    // Coach conversations and results retain the Center's navigation chrome.
+    pathname.startsWith("/coach/") ||
     // A single exercise is a browsing destination, not a task. Keeping the
     // chrome means the desktop sidebar does not vanish just because someone
     // wanted to read how a curl works.

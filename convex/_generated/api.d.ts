@@ -9,6 +9,8 @@
  */
 
 import type * as ai_byok from "../ai/byok.js";
+import type * as ai_coachCenter from "../ai/coachCenter.js";
+import type * as ai_coachCenterState from "../ai/coachCenterState.js";
 import type * as ai_coachGoals from "../ai/coachGoals.js";
 import type * as ai_coachHistory from "../ai/coachHistory.js";
 import type * as ai_coachOpenUI from "../ai/coachOpenUI.js";
@@ -61,6 +63,7 @@ import type * as lib_auth from "../lib/auth.js";
 import type * as lib_authEmail from "../lib/authEmail.js";
 import type * as lib_bodyMeasurements from "../lib/bodyMeasurements.js";
 import type * as lib_calculateCalories from "../lib/calculateCalories.js";
+import type * as lib_coachCenterValidators from "../lib/coachCenterValidators.js";
 import type * as lib_coachWorkspaceBudget from "../lib/coachWorkspaceBudget.js";
 import type * as lib_communityModeration from "../lib/communityModeration.js";
 import type * as lib_customMetricScoring from "../lib/customMetricScoring.js";
@@ -87,6 +90,7 @@ import type * as lib_importPresets from "../lib/importPresets.js";
 import type * as lib_mealTargets from "../lib/mealTargets.js";
 import type * as lib_memoryConsolidation from "../lib/memoryConsolidation.js";
 import type * as lib_nutritionPlan from "../lib/nutritionPlan.js";
+import type * as lib_nutritionProfile from "../lib/nutritionProfile.js";
 import type * as lib_nutritionProgramme from "../lib/nutritionProgramme.js";
 import type * as lib_nutritionTargets from "../lib/nutritionTargets.js";
 import type * as lib_nutritionValues from "../lib/nutritionValues.js";
@@ -109,6 +113,7 @@ import type * as lib_workoutEdit from "../lib/workoutEdit.js";
 import type * as lib_workoutGuide from "../lib/workoutGuide.js";
 import type * as lib_workoutGuideLlm from "../lib/workoutGuideLlm.js";
 import type * as lib_workoutGuideQuestions from "../lib/workoutGuideQuestions.js";
+import type * as lib_workoutLoggingPreference from "../lib/workoutLoggingPreference.js";
 import type * as lib_workoutLogs from "../lib/workoutLogs.js";
 import type * as lib_workoutTextParser from "../lib/workoutTextParser.js";
 import type * as lib_workoutValidators from "../lib/workoutValidators.js";
@@ -180,6 +185,8 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   "ai/byok": typeof ai_byok;
+  "ai/coachCenter": typeof ai_coachCenter;
+  "ai/coachCenterState": typeof ai_coachCenterState;
   "ai/coachGoals": typeof ai_coachGoals;
   "ai/coachHistory": typeof ai_coachHistory;
   "ai/coachOpenUI": typeof ai_coachOpenUI;
@@ -232,6 +239,7 @@ declare const fullApi: ApiFromModules<{
   "lib/authEmail": typeof lib_authEmail;
   "lib/bodyMeasurements": typeof lib_bodyMeasurements;
   "lib/calculateCalories": typeof lib_calculateCalories;
+  "lib/coachCenterValidators": typeof lib_coachCenterValidators;
   "lib/coachWorkspaceBudget": typeof lib_coachWorkspaceBudget;
   "lib/communityModeration": typeof lib_communityModeration;
   "lib/customMetricScoring": typeof lib_customMetricScoring;
@@ -258,6 +266,7 @@ declare const fullApi: ApiFromModules<{
   "lib/mealTargets": typeof lib_mealTargets;
   "lib/memoryConsolidation": typeof lib_memoryConsolidation;
   "lib/nutritionPlan": typeof lib_nutritionPlan;
+  "lib/nutritionProfile": typeof lib_nutritionProfile;
   "lib/nutritionProgramme": typeof lib_nutritionProgramme;
   "lib/nutritionTargets": typeof lib_nutritionTargets;
   "lib/nutritionValues": typeof lib_nutritionValues;
@@ -280,6 +289,7 @@ declare const fullApi: ApiFromModules<{
   "lib/workoutGuide": typeof lib_workoutGuide;
   "lib/workoutGuideLlm": typeof lib_workoutGuideLlm;
   "lib/workoutGuideQuestions": typeof lib_workoutGuideQuestions;
+  "lib/workoutLoggingPreference": typeof lib_workoutLoggingPreference;
   "lib/workoutLogs": typeof lib_workoutLogs;
   "lib/workoutTextParser": typeof lib_workoutTextParser;
   "lib/workoutValidators": typeof lib_workoutValidators;

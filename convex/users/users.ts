@@ -1046,6 +1046,7 @@ export const exportMyData = query({
       coachMonthlySummaries,
       coachTouches,
       coachReviews,
+      coachCenterResults,
       coachGoals,
       coachGoalTasks,
       coachUploads,
@@ -1162,6 +1163,7 @@ export const exportMyData = query({
         .query("coachReviews")
         .withIndex("by_userId", (q) => q.eq("userId", user._id))
         .collect(),
+      ctx.db.query("coachCenterResults").withIndex("by_userId",q=>q.eq("userId",user._id)).take(4),
       ctx.db
         .query("coachGoals")
         .withIndex("by_userId", (q) => q.eq("userId", user._id))
@@ -1260,6 +1262,7 @@ export const exportMyData = query({
         coachMonthlySummaries,
         coachTouches,
         coachReviews,
+      coachCenterResults,
         coachGoals,
         coachGoalTasks,
         coachUploads,
