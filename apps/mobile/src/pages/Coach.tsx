@@ -1,4 +1,4 @@
-import { Orb } from "@/components/coach-center/Orb"
+import { Orb } from "@repo/ui/coach"
 import { CoachReply } from "@/lib/coach-openui"
 import "@/components/coach-center/results.css"
 import { RestartNudge } from "@/components/restart/restart-nudge"

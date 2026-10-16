@@ -8,8 +8,8 @@ import { api } from "../../../../../convex/_generated/api"
 import { useAppAuth } from "@/lib/auth-client"
 import { currentDateKey } from "@/lib/food-log"
 import { actions } from "@/components/restart/restart-content"
-import { Orb } from "./Orb"
-import { coachSignals, type CoachSignal } from "./signals"
+import { Orb } from "@repo/ui/coach"
+import { coachSignals, type CoachSignal } from "@repo/models/coach-signals"
 
 type Review = {
   id: string

@@ -34,7 +34,7 @@ import {
   TodayContext,
 } from "@/components/coach-center/Dashboard"
 import { Briefing } from "@/components/coach-center/Briefing"
-import { Atmosphere } from "@/components/coach-center/Atmosphere"
+import { Atmosphere } from "@repo/ui/coach"
 import {
   CenterResult,
   resultTitle,

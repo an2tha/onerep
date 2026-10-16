@@ -1,6 +1,6 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { coachSignals } from "./signals"
+import { coachSignals } from "@repo/models/coach-signals"
 const base = { today: "2026-10-16", logs: [], checkIns: [], goals: [] }
 const goal = {
   _id: "g",

@@ -12,6 +12,7 @@
     "preview": "vite preview"
   },
   "exports": {
+    "./coach": "./src/coach.ts",
     ".": "./src/index.ts",
     "./home": "./src/home.ts",
     "./mobile": "./src/mobile.ts",

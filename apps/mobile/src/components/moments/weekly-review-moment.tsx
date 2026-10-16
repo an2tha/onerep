@@ -1,5 +1,5 @@
 import { Message, tr, translateError, uiLocale } from "@repo/ui/i18n"
-import { Orb } from "@/components/coach-center/Orb"
+import { Orb } from "@repo/ui/coach"
 import "@/components/coach-center/results.css"
 import { useState } from "react"
 import { useAction, useMutation } from "convex/react"

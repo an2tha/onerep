@@ -60,6 +60,12 @@ describe("@repo/ui package boundary", () => {
       "../../../apps/mobile/src/components"
     )
     const allowedModules = new Set([
+      // Coach controllers bind authenticated queries, AI consent, saved results,
+      // and library navigation. Visuals and signal derivation live in packages.
+      "coach-center/Briefing.tsx",
+      "coach-center/CenterResult.tsx",
+      "coach-center/Dashboard.tsx",
+      "coach-center/KnowledgeLibrary.tsx",
       // Mints and revokes API keys over Convex, and reaches for the clipboard.
       // The panel itself is grouped-list primitives from @repo/ui.
       "api-keys-section.tsx",

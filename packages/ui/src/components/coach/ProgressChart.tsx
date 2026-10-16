@@ -1,8 +1,8 @@
 import { useId, useState } from "react"
-import { NativeSelect } from "@repo/ui/components/ui/native-select"
-import { AnimatedAccordion } from "@repo/ui/components/animated-accordion"
-import { tr, uiLocale } from "@repo/ui/i18n"
-import type { CoachCenterResult } from "../../../../../packages/models/src/coach-center"
+import { NativeSelect } from "../ui/native-select"
+import { AnimatedAccordion } from "../animated-accordion"
+import { tr, uiLocale } from "../../i18n"
+import type { CoachCenterResult } from "@repo/models/coach-center"
 
 export function ProgressChart({
   series,
