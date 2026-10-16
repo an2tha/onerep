@@ -53,7 +53,7 @@ const PRESET_PROMPT_SOURCE = readFileSync(
 ).replace(/\s+/g, " ")
 
 describe("Coach first-open experience", () => {
-  test("separates general, food, and training coaching into focused tabs", () => {
+  test("keeps coaching modes available in embedded tabs and the Center selector", () => {
     expect(COACH_SOURCE).toContain('label: "Briefing"')
     expect(COACH_SOURCE).toContain('label: "Nutrition"')
     expect(COACH_SOURCE).toContain('label: "Training"')
@@ -95,7 +95,9 @@ describe("Coach first-open experience", () => {
     expect(COACH_SOURCE).toContain('role="tab"')
     expect(COACH_SOURCE).toContain("aria-selected={active}")
     expect(COACH_SOURCE).toContain('aria-controls="coach-workspace"')
-    expect(COACH_SOURCE).toContain('role="tabpanel"')
+    expect(COACH_SOURCE).toContain('role={inCoachCenter ? "region" : "tabpanel"}')
+    expect(COACH_SOURCE).toContain('className="coach-conversation-mode"')
+    expect(COACH_SOURCE).toContain('value={activeMode}')
     expect(COACH_SOURCE).toContain("min-h-11 min-w-0")
     expect(COACH_SOURCE).toContain("{item.label}")
     expect(COACH_SOURCE).toContain("pt-[var(--app-safe-top)]")
