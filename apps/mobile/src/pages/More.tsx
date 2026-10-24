@@ -1,4 +1,6 @@
 import { tr } from "@repo/ui/i18n"
+import { useQuery } from "convex/react"
+import { api } from "../../../../convex/_generated/api"
 import { useSmoothNavigate } from "@/lib/navigation"
 import {
   BookOpen,
@@ -11,6 +13,7 @@ import {
 
 export default function More() {
   const navigate = useSmoothNavigate()
+  const analyticsViewer = useQuery(api.analytics.viewer, {})
   const destinations = [
     { path: "/programmes", label: tr("Programmes"), description: tr("Guided nutrition and training, built around you"), Icon: Path },
     {
@@ -38,6 +41,15 @@ export default function More() {
       Icon: UserCircle,
     },
   ]
+  // Keep the destination hidden until the server explicitly confirms admin access.
+  if (analyticsViewer?.canView === true) {
+    destinations.push({
+      path: "/admin/analytics",
+      label: "Analytics",
+      description: "Internal signup and workout retention counts",
+      Icon: BookOpen,
+    })
+  }
   return (
     <main className="desktop-canvas min-h-svh px-[var(--app-page-x)] pt-[var(--app-safe-top)] pb-28 lg:pl-72">
       <h1 className="py-6 text-3xl font-semibold">{tr("More")}</h1>

@@ -13,6 +13,9 @@ export type UserDataClassification =
  * a data lifecycle here.
  */
 export const userDataRegistry = {
+  // Brand-level social aggregates, without OneRep user or health records.
+  analyticsSocialSnapshots: "global_non_user_data",
+  analyticsInstagramSnapshots: "global_non_user_data",
   restartPlans: "directly_user_owned",
   journalEntries: "directly_user_owned",
   recoveryEpisodes: "directly_user_owned",

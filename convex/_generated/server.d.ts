@@ -27,6 +27,10 @@ import type { DataModel } from "./dataModel.js";
 type Env = {
   readonly AI_PROCESSOR_APPROVED: string | undefined;
   readonly AI_USAGE_UNLIMITED: string | undefined;
+  readonly ANALYTICS_ADMIN_EMAILS: string | undefined;
+  readonly ANALYTICS_ADMIN_USER_IDS: string | undefined;
+  readonly ANALYTICS_EXCLUDED_EMAILS: string | undefined;
+  readonly ANALYTICS_EXCLUDED_USER_IDS: string | undefined;
   readonly APNS_BUNDLE_ID: string | undefined;
   readonly APNS_ENVIRONMENT: string | undefined;
   readonly APNS_KEY_ID: string | undefined;

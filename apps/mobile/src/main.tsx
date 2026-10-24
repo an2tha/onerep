@@ -54,6 +54,7 @@ declare global {
 }
 
 import App from "./App.tsx"
+import AdminAnalytics from "./pages/AdminAnalytics"
 import ExerciseDetail from "./pages/ExerciseDetail.tsx"
 import EmailVerified from "./pages/EmailVerified.tsx"
 import Login from "./pages/Login.tsx"
@@ -792,6 +793,16 @@ const router = createBrowserRouter([
   {
     element: <NavSync />,
     children: [
+      {
+        path: "/admin/analytics",
+        element: (
+          <AuthGuard>
+            <ErrorBoundary label="Analytics">
+              <AdminAnalytics />
+            </ErrorBoundary>
+          </AuthGuard>
+        ),
+      },
       {
         path: "/more",
         element: (

@@ -6,8 +6,12 @@ import { v } from "convex/values";
 import { billingPlatform, billingState } from "./billing/types";
 import { nutrientProfileValidator } from "./lib/nutritionValues";
 import { goalPlanValidator, goalFocusValidator } from "./lib/goalPlan";
+import { tikTokSnapshotValidator } from "./lib/tiktokAnalytics";
+import { instagramSnapshotValidator } from "./lib/instagramAnalytics";
 
 export default defineSchema({
+  analyticsSocialSnapshots: defineTable(tikTokSnapshotValidator).index("by_accountHandle", ["accountHandle"]),
+  analyticsInstagramSnapshots: defineTable(instagramSnapshotValidator).index("by_accountHandle", ["accountHandle"]),
   coachCenterResults: defineTable({userId:v.string(),kind:centerKind,result:centerResult}).index("by_userId_and_kind",["userId","kind"]).index("by_userId",["userId"]),
   guidedProgrammes: defineTable({
     userId: v.string(), track: programmeTrack,

@@ -40,6 +40,12 @@ const app = defineApp({
     AUTH_EMAIL_FROM: v.optional(v.string()),
     /** Comma-separated accounts allowed to approve or decline feedback. */
     FEEDBACK_MODERATOR_EMAILS: v.optional(v.string()),
+    /** Canonical token identifiers, comma-separated. Never exposed to Vite. */
+    ANALYTICS_ADMIN_USER_IDS: v.optional(v.string()),
+    /** Additional admins, checked against verified Better Auth account records. */
+    ANALYTICS_ADMIN_EMAILS: v.optional(v.string()),
+    ANALYTICS_EXCLUDED_USER_IDS: v.optional(v.string()),
+    ANALYTICS_EXCLUDED_EMAILS: v.optional(v.string()),
     // Coach outreach. The kill switch is separate from the credentials on
     // purpose: a deployment can hold working push keys and still be forbidden
     // from speaking first, which is what every environment except production
