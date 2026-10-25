@@ -12,6 +12,7 @@
     "preview": "vite preview"
   },
   "exports": {
+    "./admin-analytics": "./src/admin-analytics.ts",
     "./coach": "./src/coach.ts",
     ".": "./src/index.ts",
     "./home": "./src/home.ts",

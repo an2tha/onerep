@@ -1,6 +1,6 @@
 import { useRef, useState } from "react"
-import type { TikTokSnapshot } from "../../../../../convex/lib/tiktokAnalytics"
-import type { InstagramSnapshot } from "../../../../../convex/lib/instagramAnalytics"
+import type { TikTokSnapshot } from "@repo/models"
+import type { InstagramSnapshot } from "@repo/models"
 import { TikTokAnalytics } from "./tiktok"
 import { InstagramAnalytics } from "./instagram"
 

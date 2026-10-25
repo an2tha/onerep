@@ -1,7 +1,4 @@
-import type {
-  TikTokSnapshot,
-  TikTokWindow,
-} from "../../../../../convex/lib/tiktokAnalytics"
+import type { TikTokSnapshot, TikTokWindow } from "@repo/models"
 
 const format = new Intl.NumberFormat("en")
 const date = (value: string) =>

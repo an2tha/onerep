@@ -1,10 +1,7 @@
 import { useEffect, useState } from "react"
 import { TikTokCharts } from "./tiktok-charts"
 import { SocialMetrics } from "./social-metrics"
-import type {
-  TikTokSnapshot,
-  TikTokWindow,
-} from "../../../../../convex/lib/tiktokAnalytics"
+import type { TikTokSnapshot, TikTokWindow } from "@repo/models"
 
 const number = new Intl.NumberFormat("en")
 const count = (value: number | null) =>

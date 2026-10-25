@@ -1,3 +1,6 @@
+import type { AnalyticsReport } from "@repo/models";
+export type { AnalyticsCohort, AnalyticsReport } from "@repo/models";
+
 const DAY = 86_400_000;
 const WEEK = 7 * DAY;
 
@@ -48,48 +51,6 @@ type UserActivity = {
   activeWeeks: number;
   activated: boolean;
   returned: boolean;
-};
-
-export type AnalyticsCohort = {
-  week: string;
-  signups: number;
-  activated: number | null;
-  retained: number | null;
-  activationStatus: "available" | "pending" | "unavailable";
-  retentionStatus: "available" | "pending" | "unavailable";
-};
-
-export type AnalyticsReport = {
-  asOf: number;
-  totals: {
-    signups: number;
-    workoutUsers: number;
-    repeatDayUsers: number | null;
-    active7: number | null;
-    active30: number | null;
-  };
-  cohorts: AnalyticsCohort[];
-  comparisons: {
-    signups7: number | null;
-    signupsPrevious7: number | null;
-    signups30: number | null;
-    signupsPrevious30: number | null;
-    activePrevious7: number | null;
-    activePrevious30: number | null;
-  };
-  weekly: {
-    week: string;
-    signups: number | null;
-    activeUsers: number | null;
-    partial: boolean;
-  }[];
-  quality: {
-    excludedAccounts: number;
-    unknownSignupAccounts: number;
-    unlinkedWorkoutRecords: number;
-    invalidWorkoutDates: number;
-    invalidLogTimes: number;
-  };
 };
 
 function validTimestamp(value: number | null, now: number): value is number {

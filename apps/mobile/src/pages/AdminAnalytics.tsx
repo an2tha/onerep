@@ -2,13 +2,13 @@ import { useAction, useQuery } from "convex/react"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Link } from "react-router"
 import { api } from "../../../../convex/_generated/api"
-import type { AnalyticsReport } from "../../../../convex/lib/internalAnalytics"
-import { SocialAnalytics } from "@/components/admin-analytics/social"
+import type { AnalyticsReport } from "@repo/models"
 
 import {
   AnalyticsResults,
   AnalyticsLoading,
-} from "@/components/admin-analytics/results"
+  SocialAnalytics,
+} from "@repo/ui/admin-analytics"
 
 export default function AdminAnalytics() {
   const viewer = useQuery(api.analytics.viewer, {})

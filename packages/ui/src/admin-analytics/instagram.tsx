@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import type { InstagramSnapshot } from "../../../../../convex/lib/instagramAnalytics"
+import type { InstagramSnapshot } from "@repo/models"
 import { TikTokCharts } from "./tiktok-charts"
 import { SocialMetrics } from "./social-metrics"
 

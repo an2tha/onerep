@@ -1,4 +1,6 @@
-import { ConvexError, v, type Infer } from "convex/values";
+import type { InstagramSnapshot } from "@repo/models";
+export type { InstagramSnapshot } from "@repo/models";
+import { ConvexError, v } from "convex/values";
 
 const count = v.union(v.number(), v.null());
 const content = v.object({
@@ -49,7 +51,6 @@ export const instagramSnapshotValidator = v.object({
     }),
   ),
 });
-export type InstagramSnapshot = Infer<typeof instagramSnapshotValidator>;
 
 function validDate(value: string) {
   const timestamp = Date.parse(`${value}T00:00:00Z`);

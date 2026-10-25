@@ -5,9 +5,9 @@ import { getFunctionName, type FunctionReference } from "convex/server"
 import { ThemeProvider, PALETTES } from "@repo/ui"
 import AdminAnalytics from "../../../src/pages/AdminAnalytics"
 import More from "../../../src/pages/More"
-import type { AnalyticsReport } from "../../../../../convex/lib/internalAnalytics"
-import type { TikTokSnapshot } from "../../../../../convex/lib/tiktokAnalytics"
-import type { InstagramSnapshot } from "../../../../../convex/lib/instagramAnalytics"
+import type { AnalyticsReport } from "@repo/models"
+import type { TikTokSnapshot } from "@repo/models"
+import type { InstagramSnapshot } from "@repo/models"
 import "../../../src/styles/index.css"
 
 const params = new URLSearchParams(location.search)

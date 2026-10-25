@@ -1,4 +1,6 @@
-import { ConvexError, v, type Infer } from "convex/values";
+import type { TikTokSnapshot } from "@repo/models";
+export type { TikTokSnapshot, TikTokWindow } from "@repo/models";
+import { ConvexError, v } from "convex/values";
 
 const count = v.union(v.number(), v.null());
 const coverage = v.union(
@@ -58,8 +60,6 @@ export const tikTokSnapshotValidator = v.object({
     }),
   ),
 });
-export type TikTokSnapshot = Infer<typeof tikTokSnapshotValidator>;
-export type TikTokWindow = TikTokSnapshot["windows"][number];
 
 function validDate(value: string) {
   const timestamp = Date.parse(`${value}T00:00:00Z`);

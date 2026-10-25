@@ -11,3 +11,4 @@ export * from "./foods";
 export * from "./supplements";
 export * from "./coach";
 export * from "./guided-programme";
+export * from "./analytics";

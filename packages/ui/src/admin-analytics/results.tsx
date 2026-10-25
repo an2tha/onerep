@@ -1,8 +1,5 @@
 import { useState, type ReactNode } from "react"
-import type {
-  AnalyticsCohort,
-  AnalyticsReport,
-} from "../../../../../convex/lib/internalAnalytics"
+import type { AnalyticsCohort, AnalyticsReport } from "@repo/models"
 
 const number = new Intl.NumberFormat("en")
 const shortDate = (date: string) =>
