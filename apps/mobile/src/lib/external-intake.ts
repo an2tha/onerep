@@ -22,6 +22,32 @@ export type ExternalNutrientRow = {
   headline: boolean
 }
 
+/**
+ * How far back the native read has to reach to include a given day.
+ *
+ * The card is shown for the day being browsed, which is often not today, and
+ * the reader takes a window ending now. Asking for the whole month every time
+ * would read records nothing on screen needs, so the window is shortened to
+ * land on the day — with a floor of one and the reader's own ceiling of 45.
+ */
+export function daysBackForDate(date: string, today: Date = new Date()): number {
+  const parts = date.split("-").map(Number)
+  if (parts.length !== 3 || parts.some((part) => !Number.isFinite(part))) return 1
+  const [year, month, day] = parts
+  const target = new Date(year, month - 1, day)
+  const startOfToday = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate()
+  )
+  const daysApart = Math.round(
+    (startOfToday.getTime() - target.getTime()) / (24 * 60 * 60 * 1000)
+  )
+  // A day in the future cannot be read, and one older than the window is out
+  // of reach either way; both clamp to something the reader accepts.
+  return Math.max(1, Math.min(45, daysApart + 1))
+}
+
 /** The short word after the number, so the line reads as prose. */
 const HEADLINE_NOUNS: Record<string, string> = {
   dietaryEnergyKcal: "",
