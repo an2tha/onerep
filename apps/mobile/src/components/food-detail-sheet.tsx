@@ -818,6 +818,7 @@ export function FoodDetailSheet({
   const servingLabel = detail?.servingLabel ?? item.serving
   const servingPortion = initialSelectedPortion(item, detail)
   const showVolumeUnits = foodLooksLiquid(item, detail, servingPortion)
+  const hydrationRowVisible = hydrationOn && showVolumeUnits
   // A serving of "100 g" is just grams — only a serving the units cannot spell
   // earns its own colour and its own counter.
   const servingIsNamed = isNamedFoodServing(servingLabel, servingPortion)
@@ -942,7 +943,7 @@ export function FoodDetailSheet({
                   meal,
                   detail,
                   portion,
-                  countsWater ? hydrationMl : undefined
+                  hydrationRowVisible && countsWater ? hydrationMl : undefined
                 )
               }}
               data-state={ctaVisualState}
@@ -1050,7 +1051,7 @@ export function FoodDetailSheet({
           {/* ── Hydration ─────────────────────────────────────────────── */}
           {/* Only drinks, and only while hydration is tracked: a sheet that
               asks a chicken breast whether it counts as water is noise. */}
-          {hydrationOn && foodLooksLiquid(item, detail, servingPortion) && (
+          {hydrationRowVisible && (
             <section className="mx-4 mt-4 rounded-2xl border border-border bg-card px-4 py-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">

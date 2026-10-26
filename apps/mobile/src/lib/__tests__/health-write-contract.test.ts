@@ -427,3 +427,67 @@ describe("rewriting a past day asks the store that needs to be asked", () => {
     expect(swift).toContain("day.end.addingTimeInterval(-1)")
   })
 })
+
+describe("native replacement preserves unrelated and unauthorized data", () => {
+  const swift = readFileSync(
+    new URL("../../../ios/App/App/AppleHealthPlugin.swift", import.meta.url),
+    "utf8"
+  )
+  const kotlin = readFileSync(
+    new URL(
+      "../../../android/app/src/main/java/com/ananthh/onerep/HealthConnectPlugin.kt",
+      import.meta.url
+    ),
+    "utf8"
+  )
+
+  test("both Android writers remove legacy hydration IDs only when replacing water", () => {
+    for (const name of ["writeNutritionDay", "writeNutritionItems"]) {
+      const body = kotlin
+        .slice(kotlin.indexOf(`private suspend fun ${name}(`))
+        .split("\n    private ")[0]!
+      const replacement = body.slice(body.indexOf("return runCatching {"))
+      expect(replacement).toMatch(
+        /if \(wantsWater\) \{[^}]*deleteRecords\(HydrationRecord::class/s
+      )
+      expect(replacement.indexOf("HydrationRecord::class")).toBeLessThan(
+        replacement.indexOf("hc.insertRecords")
+      )
+      expect(replacement).toMatch(
+        /if \((?:wantsNutrition|items.isNotEmpty\(\))\) \{\s*hc.deleteRecords\(NutritionRecord::class/s
+      )
+    }
+  })
+
+  test("iOS refuses missing write permissions before any cleanup", () => {
+    const write = swift.slice(
+      swift.indexOf("@objc func saveNutritionItems("),
+      swift.indexOf("private func dayRange(")
+    )
+    const permission = write.indexOf("guard requiredTypes.allSatisfy")
+    const cleanup = write.indexOf("await deleteOwnDay(")
+    expect(permission).toBeGreaterThan(0)
+    expect(permission).toBeLessThan(cleanup)
+    expect(write.slice(permission, cleanup)).toContain(
+      'writeRefusal("no_permission"'
+    )
+    expect(write.slice(permission, cleanup)).toContain("return")
+    expect(write).toContain("nutrition: !items.isEmpty, water: wantsWater")
+  })
+
+  test("iOS cleanup skips unshared types and omitted water", () => {
+    const cleanup = swift.slice(
+      swift.indexOf("private func deleteOwnDay("),
+      swift.indexOf("private func saveObjects(")
+    )
+    expect(cleanup).toContain('if water { identifiers.append("DietaryWater") }')
+    expect(cleanup).toContain("var identifiers = nutrition ? [")
+    const permission = cleanup.indexOf(
+      "guard healthStore.authorizationStatus(for: type) == .sharingAuthorized else { continue }"
+    )
+    expect(permission).toBeGreaterThan(0)
+    expect(permission).toBeLessThan(
+      cleanup.indexOf("healthStore.deleteObjects")
+    )
+  })
+})

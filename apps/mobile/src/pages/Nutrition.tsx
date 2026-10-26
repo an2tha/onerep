@@ -1547,7 +1547,7 @@ function DescribeMealSheet({
  * could correct — the reason people were reading their own food log through
  * an API client to verify it.
  */
-function FoodEntrySheet({
+export function FoodEntrySheet({
   entry,
   saving,
   onSave,
@@ -1840,24 +1840,23 @@ function FoodEntrySheet({
         type="button"
         disabled={saving || !changed || trimmedName.length === 0}
         aria-busy={saving}
-        onClick={() =>
+        onClick={() => {
+          const updated = {
+            ...entry,
+            name: trimmedName,
+            meal: meal as MealType,
+            loggedAt: nextLoggedAt,
+            calories: number(macros.calories),
+            protein: number(macros.protein),
+            carbs: number(macros.carbs),
+            fat: number(macros.fat),
+          }
           onSave(
-            withEntryHydration(
-              {
-                ...entry,
-                name: trimmedName,
-                meal: meal as MealType,
-                loggedAt: nextLoggedAt,
-                calories: number(macros.calories),
-                protein: number(macros.protein),
-                carbs: number(macros.carbs),
-                fat: number(macros.fat),
-              },
-              hydrationOn && countsWater,
-              hydrationMl
-            )
+            hydrationOn
+              ? withEntryHydration(updated, countsWater, hydrationMl)
+              : updated
           )
-        }
+        }}
         className="mt-4 flex min-h-12 w-full items-center justify-center rounded-2xl bg-foreground px-4 text-[14px] font-bold text-background transition-opacity active:opacity-80 disabled:opacity-35"
       >
         {saving
@@ -4225,6 +4224,14 @@ export default function Nutrition() {
             </section>
 
             {logMethods}
+
+            {visibleMetrics.calories && (
+              <ExternalIntakeCard
+                date={dateKey}
+                energyUnit={energyUnit}
+                waterUnit={waterUnit}
+              />
+            )}
 
             {smartMealSuggestion && (
               <div className="mt-3">
