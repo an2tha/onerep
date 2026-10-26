@@ -1,16 +1,17 @@
 import { tr } from "@repo/ui/i18n"
 /**
- * Re-pushes the past week's nutrition and hydration day totals to the health
- * store, replacing whatever earlier versions of the app left there.
+ * Re-pushes the past week's foods and hydration to the health store, replacing
+ * whatever earlier versions of the app left there.
  *
  * Why this exists: builds before the native upsert fix filed every writeback
  * push as a NEW record, and Health Connect aggregates by summing — so a day
  * logged three times can read three days' worth of food. The fix stops future
- * stacking; this repair washes out the past. Each day is cleaned once via
- * deleteDailyRecords before its batch is pushed (a per-write delete would
- * erase batch siblings sharing NutritionRecord), then the per-metric
- * clientRecordId upsert keeps future pushes from stacking — so one pass
- * leaves each day correct.
+ * stacking; this repair washes out the past. Each Health Connect day is
+ * cleaned once via deleteDailyRecords and then re-written as its own named
+ * meals plus water —
+ * so one pass leaves each day correct, and legible. A refused cleanup or write
+ * is counted and its reason reported, because a bare "refused" sends nobody
+ * anywhere.
  *
  * The queries live in a child component that only mounts once the user arms
  * the repair — this convex version's `useQueries` has no skip, so gating by
@@ -23,9 +24,16 @@ import { useQueries } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
 import { PrimaryButton } from "@repo/ui"
 import {
-  saveHealthDailyMetric,
+  saveHealthNutritionItems,
   deleteHealthDailyRecords,
+  healthStoreNeedsDailyCleanup,
+  type HealthWriteFailure,
 } from "@/lib/health-provider"
+import {
+  toHealthNutritionItems,
+  type HealthNutritionItemSource,
+} from "@/lib/health-nutrition-items"
+import { healthWriteFailureMessage } from "@/lib/health-write-report"
 import {
   beginHealthSync,
   endHealthSync,
@@ -56,20 +64,27 @@ export function HealthWriteBackRepair({ disabled }: { disabled?: boolean }) {
           setSummary(
             result === null
               ? "Repair couldn't read the past week's logs. Try again."
-              : tr(
-                  "Repair re-wrote {{value0}} day{{value1}} ({{value2}} values{{value3}}).",
-                  {
-                    value0: result.days,
-                    value1: result.days === 1 ? "" : "s",
-                    value2: result.writes,
-                    value3:
-                      result.failures > 0
-                        ? tr(", {{value0}} refused", {
-                            value0: result.failures,
-                          })
-                        : "",
-                  }
-                )
+              : [
+                  tr(
+                    "Repair re-wrote {{value0}} day{{value1}} ({{value2}} values{{value3}}).",
+                    {
+                      value0: result.days,
+                      value1: result.days === 1 ? "" : "s",
+                      value2: result.writes,
+                      value3:
+                        result.failures > 0
+                          ? tr(", {{value0}} refused", {
+                              value0: result.failures,
+                            })
+                          : "",
+                    }
+                  ),
+                  // Why it was refused, in the store's own terms, when the
+                  // store said — the count alone leaves nothing to act on.
+                  result.reason ? healthWriteFailureMessage(result.reason) : null,
+                ]
+                  .filter(Boolean)
+                  .join(" ")
           )
         }}
       />
@@ -83,7 +98,7 @@ export function HealthWriteBackRepair({ disabled }: { disabled?: boolean }) {
         disabled={disabled}
         onClick={() => setArmed(true)}
       >
-        {tr("Repair last week's written totals")}
+        {tr("Repair last week's written meals")}
       </PrimaryButton>
       {summary && (
         <p className="native-row-detail px-[var(--app-page-x)]">{summary}</p>
@@ -92,11 +107,18 @@ export function HealthWriteBackRepair({ disabled }: { disabled?: boolean }) {
   )
 }
 
-type RepairSummary = { days: number; writes: number; failures: number }
+type RepairSummary = {
+  days: number
+  writes: number
+  failures: number
+  /** Why the first refusal happened, when the store said. */
+  reason?: HealthWriteFailure
+}
 
 type DayPayload = {
   date: string
-  totals: { calories: number; protein: number; carbs: number; fat: number }
+  /** The day's foods, named, as the store takes them. */
+  items: ReturnType<typeof toHealthNutritionItems>
   waterMl: number
 }
 
@@ -177,34 +199,15 @@ function RepairRunner({
       const water = waterQueries[date]
       if (food instanceof Error || water instanceof Error) {
         readErrors += 1
-        return {
-          date,
-          totals: { calories: 0, protein: 0, carbs: 0, fat: 0 },
-          waterMl: 0,
-        }
+        return { date, items: [], waterMl: 0 }
       }
       const entries =
         (
           food as {
             date: string
-            entries: {
-              calories: number
-              protein: number
-              carbs: number
-              fat: number
-              hydrationMl?: number
-            }[]
+            entries: (HealthNutritionItemSource & { hydrationMl?: number })[]
           }[]
         )?.find((doc) => doc.date === date)?.entries ?? []
-      const totals = entries.reduce(
-        (acc, e) => ({
-          calories: acc.calories + e.calories,
-          protein: acc.protein + e.protein,
-          carbs: acc.carbs + e.carbs,
-          fat: acc.fat + e.fat,
-        }),
-        { calories: 0, protein: 0, carbs: 0, fat: 0 }
-      )
       // The day's hydration as every other surface reads it, drinks included:
       // a repair that pushed only the water rows would leave health disagreeing
       // with the app about the same day, which is the whole reason there is one
@@ -213,7 +216,7 @@ function RepairRunner({
         water as { amountMl: number }[] | undefined,
         entries
       )
-      return { date, totals, waterMl }
+      return { date, items: toHealthNutritionItems(entries), waterMl }
     })
     readErrorsRef.current = readErrors
     setSnapshot(payloads)
@@ -234,7 +237,7 @@ function RepairRunner({
 
       for (let i = 0; i < snapshot!.length; i++) {
         if (cancelled) return
-        const { date, totals, waterMl } = snapshot![i]
+        const { date, items, waterMl } = snapshot![i]
         setHealthSyncPhase(
           i === 0
             ? "Rewriting today…"
@@ -242,62 +245,49 @@ function RepairRunner({
         )
         setProgress(i)
 
-        const hadNutrition =
-          totals.calories > 0 ||
-          totals.protein > 0 ||
-          totals.carbs > 0 ||
-          totals.fat > 0
+        const hadNutrition = items.length > 0
         const hadWater = waterMl > 0
         if (hadNutrition || hadWater) {
-          // Wash pre-fix stacks once per day BEFORE the batch: the four
-          // nutrition metrics share NutritionRecord, so a per-write delete
-          // would erase batch siblings (energy pushed, then protein's delete
-          // eats it). The per-metric clientRecordId upsert handles future
-          // dedupe; this handles records filed before ids existed.
+          // Wash the day once before re-writing it: older builds filed a
+          // record per metric per push, so one day can hold several days' worth
+          // of food. The replacement is the day's own foods, written over the
+          // cleared day — so clean, then write, and the day ends up right
+          // either way.
+          //
+          // Only where the store has to be told to wash the day. Apple Health
+          // deletes the day's own samples inside the items write, so asking
+          // there would fail every day on a store that had already done it.
           //
           // A failed cleanup is a failed day, never a silent overwrite: on an
           // older native shell without deleteDailyRecords the replacement
-          // writes would stack on top of the legacy records, inflating the
-          // totals while the UI reported the day repaired.
-          const cleanup = await deleteHealthDailyRecords({
-            date,
-            metrics: [
-              "dietaryEnergyKcal",
-              "dietaryProteinG",
-              "dietaryCarbsG",
-              "dietaryFatG",
-              "hydrationMl",
-            ],
-          })
+          // writes would join the legacy records instead of replacing them,
+          // inflating the totals while the UI reported the day repaired.
+          const cleanup = healthStoreNeedsDailyCleanup()
+            ? await deleteHealthDailyRecords({
+                date,
+                metrics: [
+                  "dietaryEnergyKcal",
+                  "dietaryProteinG",
+                  "dietaryCarbsG",
+                  "dietaryFatG",
+                  "hydrationMl",
+                ],
+              })
+            : { deleted: true as const }
           if (!cleanup.deleted) {
             summary.failures += 1
+            summary.reason = summary.reason ?? cleanup.reason
             continue
           }
-          if (hadNutrition) {
-            const pushes: [string, number][] = [
-              ["dietaryEnergyKcal", Math.round(totals.calories)],
-              ["dietaryProteinG", Math.round(totals.protein)],
-              ["dietaryCarbsG", Math.round(totals.carbs)],
-              ["dietaryFatG", Math.round(totals.fat)],
-            ]
-            for (const [metric, value] of pushes) {
-              const result = await saveHealthDailyMetric({
-                metric,
-                date,
-                value,
-              })
-              if (result.saved) summary.writes += 1
-              else summary.failures += 1
-            }
-          }
-          if (hadWater) {
-            const result = await saveHealthDailyMetric({
-              metric: "hydrationMl",
-              date,
-              value: Math.round(waterMl),
-            })
-            if (result.saved) summary.writes += 1
-            else summary.failures += 1
+          const result = await saveHealthNutritionItems({
+            date,
+            items,
+            ...(hadWater ? { waterMl: Math.round(waterMl) } : {}),
+          })
+          if (result.saved) summary.writes += 1
+          else {
+            summary.failures += 1
+            summary.reason = summary.reason ?? result.reason
           }
           summary.days += 1
         } else if (!cancelled) {
@@ -318,7 +308,10 @@ function RepairRunner({
             ],
           })
           if (cleanup.deleted) summary.days += 1
-          else summary.failures += 1
+          else {
+            summary.failures += 1
+            summary.reason = summary.reason ?? cleanup.reason
+          }
         }
       }
 
@@ -359,7 +352,7 @@ function RepairRunner({
           style={{ width: `${Math.round((progress / REPAIR_DAYS) * 100)}%` }}
         />
       </div>
-      <p className="native-row-detail mt-2">{tr("Re-pushing day totals…")}</p>
+      <p className="native-row-detail mt-2">{tr("Re-pushing the week's meals…")}</p>
     </div>
   )
 }

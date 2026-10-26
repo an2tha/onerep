@@ -64,6 +64,13 @@ import {
   useHealthSyncStatus,
 } from "@/lib/health-sync-status"
 import { HealthWriteBackRepair } from "@/components/health-writeback-repair"
+import { HealthWriteBackCheck } from "@/components/health-writeback-verify"
+import {
+  requestHealthWriteAccess,
+  useHealthWriteAccess,
+  writeAccessWarning,
+} from "@/lib/health-write-access"
+import { reportHealthWriteOutcome } from "@/lib/health-write-report"
 import { HealthSyncSummary } from "@/components/health-sync-summary"
 import type { HealthSyncAction } from "@/lib/health-sync-presentation"
 import { cacheWeightUnit, readCachedWeightUnit } from "@/lib/use-weight-unit"
@@ -413,6 +420,11 @@ export default function Settings({
   const healthSyncEnabled =
     healthSync?.healthSyncEnabled ?? healthSync?.appleHealthEnabled ?? false
   const healthWriteEnabled = healthSync?.writeEnabled ?? false
+  // Whether the store will actually take the writes the switch above promises.
+  // The switch says what the user asked for; this says what the platform
+  // agreed to, which is the half that used to be missing.
+  const writeAccess = useHealthWriteAccess()
+  const writeAccessNote = writeAccessWarning(writeAccess.status)
   // A refusal is a state of its own rather than a failure to retry: the fix is
   // a grant, and "try again" would earn the same answer. Both the local error
   // and the persisted one are checked, since either can be the only survivor.
@@ -987,6 +999,29 @@ export default function Settings({
       return
     }
     await setHealthSync({ writeEnabled: true })
+  }
+
+  /**
+   * Re-asks for write access, then says what happened.
+   *
+   * The row that calls this only appears when the store is already refusing, so
+   * its whole job is to reopen the sheet and report the answer — including the
+   * unchanged one, which is otherwise indistinguishable from a tap that did
+   * nothing at all.
+   */
+  async function fixHealthWriteAccess() {
+    setHealthError(null)
+    const status = await requestHealthWriteAccess()
+    if (status === "granted") {
+      reportHealthWriteOutcome({ saved: 1, refused: 0 })
+      toast.success(
+        tr("{{value0}} will now take your food and workouts", {
+          value0: healthLabel,
+        })
+      )
+      return
+    }
+    reportHealthWriteOutcome({ saved: 0, refused: 1, reason: "no_permission" })
   }
 
   /**
@@ -3132,6 +3167,18 @@ export default function Settings({
                           label={tr("Save data back")}
                         />
                       </SettingsRow>
+                      {writeAccessNote && (
+                        // Not a duplicate of the switch: the switch is the
+                        // request, this row is the store's answer, and it is
+                        // the only place a refused write has ever been visible.
+                        <ListRow
+                          title={tr("Grant write access")}
+                          detail={writeAccessNote}
+                          onClick={() => {
+                            void fixHealthWriteAccess()
+                          }}
+                        />
+                      )}
                       {supportsHealthSettingsDeepLink() && (
                         // Health Connect owns revocation; there is no API to do
                         // it from here, so send the user to the app itself.
@@ -3173,6 +3220,20 @@ export default function Settings({
                       </div>
                     )}
 
+                    {/*
+                      The receipt: what the store actually holds for the last
+                      week, beside what OneRep logged. Read-only, so it is safe
+                      on both platforms, and it is the honest answer to "is my
+                      food in there?" when the platform will not say whether a
+                      write was refused.
+                    */}
+                    {isHealthSyncSupportedPlatform() && healthWriteEnabled && (
+                      <div className="mt-4 px-[var(--app-page-x)]">
+                        <HealthWriteBackCheck
+                          disabled={healthBusy || syncStatus.running}
+                        />
+                      </div>
+                    )}
 
                     <MetricToggleList
                       busy={!healthSyncEnabled}

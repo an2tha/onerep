@@ -227,6 +227,20 @@ describe("@repo/ui package boundary", () => {
       // Binds sleep and strain data from the app's health model to its
       // full-screen overview and sleep atmosphere.
       "health-sleep-strain-overview.tsx",
+      // The health-sync card reads the app's Convex preferences and the native
+      // health store to decide what sync is doing next; the pill, rows and
+      // buttons it draws come from @repo/ui.
+      "health-sync-summary.tsx",
+      // Reads what other apps filed into the phone's health store, through the
+      // app's own Convex query rather than anything a package can reach.
+      "external-intake-card.tsx",
+      // Reads a week back out of the native health store and compares it with
+      // OneRep's own log, which is app and platform state a package cannot
+      // reach. The card and rows are @repo/ui's.
+      "health-writeback-verify.tsx",
+      // The week's hydration split, derived from the app's own water and drink
+      // model rather than from anything the package owns.
+      "hydration-trend-insight.tsx",
       // Nutrition programme state, persistence, and workout adjustments are
       // app-domain controllers rendered with shared UI primitives.
       "nutrition-programme.tsx",
@@ -260,7 +274,10 @@ describe("@repo/ui package boundary", () => {
       "restart/restart-experience.tsx",
     ])
     const unexpected = sourceFiles(mobileComponents)
-      .map((path) => relative(mobileComponents, path))
+      // Normalised to forward slashes: `relative()` answers with backslashes on
+      // Windows, and the allowlist above is written the other way, so without
+      // this every nested module reads as unexpected on a Windows checkout.
+      .map((path) => relative(mobileComponents, path).split("\\").join("/"))
       .filter((path) => !path.endsWith(".test.tsx"))
       .filter((path) => !allowedModules.has(path))
 

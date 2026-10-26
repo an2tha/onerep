@@ -72,6 +72,7 @@ import {
 import { CustomFoodEditorSheet } from "@/components/custom-food-editor-sheet"
 import { toast } from "@repo/ui"
 import { reportOfflineMutationError } from "@/lib/offline-mutation-errors"
+import { saveFoodLogEntry } from "@/lib/food-log-write"
 import { hapticSelection } from "@/lib/haptics"
 import { cn } from "@/lib/utils"
 import { useEnergyUnit } from "@/lib/use-energy-unit"
@@ -430,7 +431,7 @@ export default function SearchFoods() {
         ...micros,
       })
 
-      await addFoodEntry({ date, entry })
+      await saveFoodLogEntry(addFoodEntry, { date, entry })
       announceOrbActivity("log")
 
       captureFeatureUsage("food_logged", {
@@ -467,7 +468,7 @@ export default function SearchFoods() {
         id: Math.random().toString(36).slice(2),
         ...stamp,
       })
-      await addFoodEntry({ date, entry })
+      await saveFoodLogEntry(addFoodEntry, { date, entry })
       announceOrbActivity("log")
       captureFeatureUsage("food_logged", {
         item_count: 1,
@@ -511,7 +512,7 @@ export default function SearchFoods() {
           searchParams.get("time")
         ),
       })
-      await addFoodEntry({ date, entry })
+      await saveFoodLogEntry(addFoodEntry, { date, entry })
       announceOrbActivity("log")
       captureFeatureUsage("food_logged", {
         item_count: 1,

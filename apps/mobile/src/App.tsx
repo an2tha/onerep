@@ -24,6 +24,7 @@ import {
 import { DayRail } from "@/dashboard/day-rail"
 import { MobileDateSelector, WeekStrip } from "@/dashboard/week-strip"
 import { useNutritionHealthWriteBack } from "@/lib/nutrition-writeback"
+import { useEnsureHealthWriteAccess } from "@/lib/health-write-access"
 import {
   QuickActionDrawer,
   type QuickActionId,
@@ -193,6 +194,11 @@ function Dashboard() {
     viewingToday ? foodEntries : undefined,
     viewingToday ? hydrationTotalMl : 0
   )
+  // And the permissions that push depends on, repaired once per launch. A
+  // phone whose preference says write-back is on while its grants predate it is
+  // the state that made every write fail without a word, so it is checked
+  // before it can matter rather than only when a meal is lost.
+  useEnsureHealthWriteAccess()
 
   // Which of the plan's supplements are taken today, as supplement id →
   // intake-log id, so the rail's checkboxes can untake as well as take.
@@ -395,12 +401,16 @@ function Dashboard() {
             <HomeProgrammes />
             {viewingToday && <RestartNudge />}
             {viewingToday && <RecoveryBanner />}
-            {viewingToday && (
-              <div className="my-2 flex items-center gap-2">
-                <RepeatChips dateKey={dateKey} />
-                <VoiceLogButton />
-              </div>
-            )}
+            {/* The repeats are date-correct rather than today-only: RepeatChips
+              queries what was eaten on or before the day being viewed and logs
+              onto that same day. Hiding them on a past day took away the one
+              tap that makes backfilling a forgotten dinner possible. Only the
+              voice button stays tied to today — dictating into a day that has
+              already happened is a different question. */}
+            <div className="my-2 flex items-center gap-2">
+              <RepeatChips dateKey={dateKey} />
+              {viewingToday && <VoiceLogButton />}
+            </div>
             <div className="lg:hidden">
               {!recovery?.active && (
                 <DashboardDials {...dialProps} layout="row" />

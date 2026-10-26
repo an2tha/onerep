@@ -44,6 +44,7 @@ import { searchFoodsAccurate } from "@/lib/openfoodfacts"
 import { foodCardMacros } from "@/lib/food-search-nutrition"
 import { FoodDetailSheet } from "@/components/food-detail-sheet"
 import { withEntryHydration } from "@/lib/hydration"
+import { saveFoodLogEntry } from "@/lib/food-log-write"
 import type { FullScreenEventOutcome } from "@/lib/full-screen-events"
 
 /** Enough to cover a day; more turns a shortcut back into a browse. */
@@ -280,7 +281,7 @@ export function QuickFoodStep({
       // Unique client ids make the batch safe to fire together; serialising
       // it only adds a round trip per food to a panel whose job is speed.
       await Promise.all(
-        entries.map((entry) => addFood({ date: todayKey, entry }))
+        entries.map((entry) => saveFoodLogEntry(addFood, { date: todayKey, entry }))
       )
       announceOrbActivity("log", Math.min(entries.length, 3))
       hapticMedium()
@@ -335,7 +336,7 @@ export function QuickFoodStep({
 
     setBusy(true)
     try {
-      await addFood({ date: todayKey, entry })
+      await saveFoodLogEntry(addFood, { date: todayKey, entry })
       announceOrbActivity("log")
       hapticMedium()
       setLogged((count) => count + 1)

@@ -973,6 +973,26 @@ export default defineSchema({
   }).index("by_userId_and_updatedAt", ["userId", "updatedAt"])
     .index("by_userId_date", ["userId", "date"]),
 
+  // ── Nutrition and water other apps wrote into the phone's health store ────
+  //
+  // Read-only mirrors, kept apart from `foodLogs` on purpose: these figures
+  // were written somewhere else, cannot be edited here, and folding them into
+  // the diary would show meals with no source to correct and double-count every
+  // day somebody logs the same lunch in two apps.
+  externalNutrition: defineTable({
+    userId: v.string(),
+    date: v.string(), // YYYY-MM-DD, the user's local day
+    provider: v.union(v.literal("apple_health"), v.literal("health_connect")),
+    /** Keyed by `platformHealthMetrics`, already bounded by its sane ranges. */
+    nutrients: v.record(v.string(), v.number()),
+    /** App labels, for the provenance line under the figure. */
+    sources: v.array(v.string()),
+    syncedAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId_and_date", ["userId", "date"])
+    .index("by_userId_and_updatedAt", ["userId", "updatedAt"]),
+
   // ── Supplement logs (one doc per user+date) ───────────────────────────────
   supplementLogs: defineTable({
     userId: v.string(),

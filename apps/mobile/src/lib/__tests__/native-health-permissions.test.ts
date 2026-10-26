@@ -140,4 +140,43 @@ describe("native health permissions", () => {
       `AndroidManifest.xml is missing these. Health Connect does not error on an undeclared permission — it omits it from the permission screen and the metric silently never arrives.`
     )
   })
+
+  test("write access is answered from the write permissions, not the read ones", () => {
+    // The conflation that hid this bug for months: `authorizationStatus`
+    // reports on reads, so a phone with nothing but read access still read as
+    // "Connected" while every meal it logged was refused.
+    const body = ANDROID_PLUGIN.slice(ANDROID_PLUGIN.indexOf("fun getWriteAccess"))
+    assert.ok(body.length > 0, "HealthConnectPlugin must answer getWriteAccess")
+    assert.match(body, /granted\.containsAll\(coreWritePermissions\)/)
+    assert.match(body, /"missing"/)
+  })
+
+  test("every write method a caller uses is actually reachable", () => {
+    // A Capacitor method without `@PluginMethod` (or without an iOS entry in
+    // `pluginMethods`) does not exist as far as JS is concerned, and the call
+    // fails as `unsupported_metric` — which is why the day write and the
+    // access check are asserted rather than assumed.
+    assert.match(ANDROID_PLUGIN, /@PluginMethod\s+fun saveNutritionDay/)
+    assert.match(ANDROID_PLUGIN, /@PluginMethod\s+fun getWriteAccess/)
+    assert.match(IOS_PLUGIN, /CAPPluginMethod\(name: "getWriteAccess"/)
+    assert.match(IOS_PLUGIN, /@objc func getWriteAccess\(_ call: CAPPluginCall\)/)
+  })
+
+  test("iOS admits a refusal and otherwise stays unknown", () => {
+    // HealthKit will not report that a share request was granted, so claiming
+    // write access from it would be a guess — the one thing this whole change
+    // exists to stop. Only an explicit refusal is reported as missing.
+    const body = IOS_PLUGIN.slice(IOS_PLUGIN.indexOf("func getWriteAccess"))
+    assert.match(body, /sharingDenied/)
+    assert.match(body, /"missing"/)
+    assert.match(body, /"unknown"/)
+  })
+
+  test("a refused write carries a reason on both platforms", () => {
+    // The reason is what a screen can say; without it a refusal is invisible.
+    assert.match(ANDROID_PLUGIN, /private fun writeRefusal\(reason: String/)
+    assert.match(ANDROID_PLUGIN, /\.put\("reason", reason\)/)
+    assert.match(IOS_PLUGIN, /private func writeRefusal\(_ reason: String/)
+    assert.match(IOS_PLUGIN, /\["saved": false, "reason": reason\]/)
+  })
 })

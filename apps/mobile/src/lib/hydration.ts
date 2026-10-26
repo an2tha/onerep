@@ -66,6 +66,21 @@ export function hydrationAmountFor(portion: FoodPortion | null | undefined) {
   return drinkVolumeMl(portion) || DEFAULT_DRINK_ML
 }
 
+/**
+ * The millilitres a camera-logged drink contributes.
+ *
+ * The Snap and barcode screens carry a portion as grams, not as a portion
+ * object, so `hydrationAmountFor` cannot read it. For the drinks people actually
+ * count, a gram is a millilitre — juice, milk and water sit at roughly the
+ * density this assumes, and the labels that produced those grams were volume
+ * labels to begin with. A count with no weighable portion still gets a glass, so
+ * ticking the box never contributes nothing.
+ */
+export function snapHydrationMl(grams: number): number {
+  const ml = Number.isFinite(grams) ? Math.round(grams) : 0
+  return ml > 0 ? ml : DEFAULT_DRINK_ML
+}
+
 /** The millilitres one logged entry contributes. Unticked entries contribute none. */
 export function entryHydrationMl(entry: { hydrationMl?: number }): number {
   const ml = entry.hydrationMl
