@@ -36,6 +36,18 @@ test("account deletion removes imported nutrition", async () => {
   ).toEqual([]);
 });
 
+test("a day emptied in the other app stops being shown", async () => {
+  const { t, owner } = await setup();
+  await owner.mutation(api.logs.externalIntake.sync, {
+    provider: "health_connect",
+    days: [{ date: "2026-10-26", nutrients: {}, sources: [] }],
+    windowStart: "2026-10-26",
+  });
+  expect(
+    await t.run((ctx) => ctx.db.query("externalNutrition").collect()),
+  ).toEqual([]);
+});
+
 test("export and bounded deletion isolate each account's imported nutrition", async () => {
   const { t, owner } = await setup();
   const other = t.withIdentity({ tokenIdentifier: "test|other-nutrition" });

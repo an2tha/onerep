@@ -60,6 +60,20 @@ function signatureFor(
   return [...parts, `water:${Math.round(waterMl)}`].join("|")
 }
 
+/**
+ * Days this session has filed food for.
+ *
+ * Deleting the last meal of a day is the one empty state worth a call: the
+ * record has to go, and an empty day is otherwise sent nowhere. Before anything
+ * was pushed there is nothing to remove, so a date change stays silent rather
+ * than deleting a day it never wrote.
+ *
+ * Module scope rather than a ref: leaving the day and coming back is the same
+ * session, and a clear still waiting on the debounce has to survive the
+ * remount, or the store keeps a day nobody can see.
+ */
+const filedDays = new Set<string>()
+
 export function useNutritionHealthWriteBack(
   dateKey: string,
   foodEntries: readonly HealthNutritionItemSource[] | undefined,
@@ -81,9 +95,10 @@ export function useNutritionHealthWriteBack(
 
   useEffect(() => {
     if (!writeEnabled) return
+    const dayIsEmpty = items.length === 0 && water <= 0
     // An entirely empty day has nothing to say; skipping it also stops an
     // old write from being shadowed by a fresh zero before the query lands.
-    if (items.length === 0 && water <= 0) return
+    if (dayIsEmpty && !filedDays.has(dateKey)) return
 
     // The debounce is the whole trick: food logging arrives in bursts —
     // three entries in ten seconds — and one settled write per quiet period is
@@ -96,7 +111,12 @@ export function useNutritionHealthWriteBack(
           date: dateKey,
           items,
           ...(water > 0 ? { waterMl: Math.round(water) } : {}),
+          ...(dayIsEmpty ? { cleared: true } : {}),
         })
+        if (result.saved) {
+          if (dayIsEmpty) filedDays.delete(dateKey)
+          else filedDays.add(dateKey)
+        }
         reportHealthWriteOutcome({
           // The store's own count when it gave one; one write either way.
           saved: result.saved ? (result.written ?? 1) : 0,

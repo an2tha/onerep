@@ -1288,9 +1288,29 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
         }
         let waterMl = call.getDouble("waterMl")
         let wantsWater = (waterMl ?? 0) > 0
+        // An emptied day: the delete below is the request, not a write.
+        let cleared = call.getBool("cleared") ?? false
 
         if items.isEmpty && !wantsWater {
-            call.resolve(writeRefusal("invalid_record", "nothing to write for \(date)"))
+            guard cleared else {
+                call.resolve(writeRefusal("invalid_record", "nothing to write for \(date)"))
+                return
+            }
+            Task { @MainActor in
+                // Every meal on the day was removed in the diary, so the day's
+                // own samples go with them. Types we may not share are skipped
+                // inside deleteOwnDay: HealthKit rejects deleting those, and a
+                // refusal there would leave the rest of the day behind.
+                if let failure = await deleteOwnDay(
+                    in: day, nutrition: true, water: true
+                ) {
+                    call.resolve(
+                        writeRefusal(reason(for: failure), failure.localizedDescription)
+                    )
+                    return
+                }
+                call.resolve(["saved": true, "cleared": true])
+            }
             return
         }
 

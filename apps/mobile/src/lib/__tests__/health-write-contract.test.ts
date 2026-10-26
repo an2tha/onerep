@@ -33,6 +33,7 @@ type ItemCall = {
     fat: number
   }[]
   waterMl?: number
+  cleared?: boolean
 }
 
 const plugin: Record<string, unknown> = {}
@@ -378,6 +379,88 @@ describe("the write-back no longer fires and forgets", () => {
   })
 })
 
+describe("the read-back check measures what the write-back sends", () => {
+  const verify = readFileSync(
+    new URL("../../components/health-writeback-verify.tsx", import.meta.url),
+    "utf8"
+  )
+
+  test("expected calories come from the same rounded items", () => {
+    // Rounding the unrounded sum reported a day that had every record as
+    // "less than sent": 100.4 + 100.4 is stored as 200, not 201.
+    expect(verify).toContain("toHealthNutritionItems(entries).reduce(")
+  })
+
+  test("no water is expected while the tracker is off", () => {
+    expect(verify).toContain("useHydrationEnabled()")
+    expect(verify).toContain(": hydrationOn")
+  })
+})
+
+describe("a day emptied in the diary is emptied in the store", () => {
+  const writeback = readFileSync(
+    new URL("../nutrition-writeback.ts", import.meta.url),
+    "utf8"
+  )
+  const kotlin = readFileSync(
+    new URL(
+      "../../../android/app/src/main/java/com/ananthh/onerep/HealthConnectPlugin.kt",
+      import.meta.url
+    ),
+    "utf8"
+  )
+  const swift = readFileSync(
+    new URL("../../../ios/App/App/AppleHealthPlugin.swift", import.meta.url),
+    "utf8"
+  )
+
+  test("the clear reaches the shell, and an old shell is not blamed for it", async () => {
+    plugin.saveNutritionItems = async (options: ItemCall) => {
+      calls.items.push(options)
+      return { saved: true, written: 0 }
+    }
+
+    expect(
+      await saveHealthNutritionItems({
+        date: "2026-10-16",
+        items: [],
+        cleared: true,
+      })
+    ).toEqual({ saved: true, written: 0 })
+    expect(calls.items[0]).toMatchObject({
+      date: "2026-10-16",
+      items: [],
+      cleared: true,
+    })
+
+    // A shell older than the items write has no delete at all. There is nothing
+    // to report: the day is empty here, and the repair washes it later.
+    delete plugin.saveNutritionItems
+    expect(
+      await saveHealthNutritionItems({
+        date: "2026-10-16",
+        items: [],
+        cleared: true,
+      })
+    ).toEqual({ saved: true, written: 0 })
+  })
+
+  test("only a day this session filed is cleared", () => {
+    // Otherwise every date the user browses would delete a day it never wrote.
+    expect(writeback).toContain("filedDays.has(dateKey)")
+    expect(writeback).toContain("cleared: true")
+  })
+
+  test("both shells read the clear and delete rather than refuse", () => {
+    expect(kotlin).toContain("cleared: Boolean")
+    expect(kotlin).toContain("(wantsNutrition || cleared)")
+    // An empty clear has nothing to insert, and the SDK refuses an empty batch.
+    expect(kotlin).toContain("if (written.isNotEmpty()) hc.insertRecords(written)")
+    expect(swift).toContain('call.getBool("cleared")')
+    expect(swift).toContain("in: day, nutrition: true, water: true")
+  })
+})
+
 describe("rewriting a past day asks the store that needs to be asked", () => {
   const repair = readFileSync(
     new URL("../../components/health-writeback-repair.tsx", import.meta.url),
@@ -448,13 +531,13 @@ describe("native replacement preserves unrelated and unauthorized data", () => {
         .split("\n    private ")[0]!
       const replacement = body.slice(body.indexOf("return runCatching {"))
       expect(replacement).toMatch(
-        /if \(wantsWater\) \{[^}]*deleteRecords\(HydrationRecord::class/s
+        /if \(wantsWater(?: \|\| cleared)?\) \{[\s\S]*?deleteRecords\(HydrationRecord::class/
       )
       expect(replacement.indexOf("HydrationRecord::class")).toBeLessThan(
         replacement.indexOf("hc.insertRecords")
       )
       expect(replacement).toMatch(
-        /if \((?:wantsNutrition|items.isNotEmpty\(\))\) \{\s*hc.deleteRecords\(NutritionRecord::class/s
+        /if \((?:wantsNutrition(?: \|\| cleared)?|items.isNotEmpty\(\))\) \{[\s\S]*?deleteRecords\(NutritionRecord::class/
       )
     }
   })
@@ -465,7 +548,9 @@ describe("native replacement preserves unrelated and unauthorized data", () => {
       swift.indexOf("private func dayRange(")
     )
     const permission = write.indexOf("guard requiredTypes.allSatisfy")
-    const cleanup = write.indexOf("await deleteOwnDay(")
+    // The delete that belongs to a write. The clear path above deletes without
+    // waiting for that guard on purpose: it writes nothing to protect.
+    const cleanup = write.indexOf("await deleteOwnDay(", permission)
     expect(permission).toBeGreaterThan(0)
     expect(permission).toBeLessThan(cleanup)
     expect(write.slice(permission, cleanup)).toContain(
