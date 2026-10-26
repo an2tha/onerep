@@ -436,6 +436,17 @@ export async function readHealthDailyMetrics(
  * has to answer "I could not read", not "there is nothing there". Those two
  * look identical in `days` and mean opposite things.
  */
+/**
+ * Whether this shell can read the store at all.
+ *
+ * Separate from the read itself because the answer decides where a surface
+ * should look: a browser has no store and falls back to the cached copy, while
+ * a phone that answered "nothing" must be believed rather than topped up.
+ */
+export function hasExternalNutritionReader(): boolean {
+  return typeof plugin()?.getExternalNutrition === "function"
+}
+
 export async function getExternalNutrition(
   options: { daysBack?: number } = {}
 ): Promise<{ days: ExternalNutritionDay[]; complete: boolean }> {

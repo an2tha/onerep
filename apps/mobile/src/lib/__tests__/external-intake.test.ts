@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 
 import {
+  daysBackForDate,
   externalHeadlineRows,
   externalNoun,
   externalNutrients,
@@ -73,6 +74,26 @@ describe("what another app logged", () => {
     expect(externalNoun("dietaryProteinG")).toBe("protein")
     expect(externalNoun("hydrationMl")).toBe("water")
     expect(externalNoun("dietaryEnergyKcal")).toBe("")
+  })
+})
+
+describe("how far back the card reads", () => {
+  // Local dates on purpose: the reader slices days by the phone's clock, and a
+  // UTC comparison would ask for the wrong window either side of midnight.
+  const today = new Date(2026, 9, 26, 13, 0, 0)
+
+  test("the day being looked at is inside the window", () => {
+    expect(daysBackForDate("2026-10-26", today)).toBe(1)
+    expect(daysBackForDate("2026-10-25", today)).toBe(2)
+    expect(daysBackForDate("2026-10-19", today)).toBe(8)
+  })
+
+  test("a day past the reader's reach clamps rather than asking for it", () => {
+    expect(daysBackForDate("2026-01-01", today)).toBe(45)
+  })
+
+  test("a malformed date still asks for something the reader accepts", () => {
+    expect(daysBackForDate("not-a-date", today)).toBe(1)
   })
 })
 

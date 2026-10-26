@@ -1,17 +1,23 @@
-import { Component, useMemo, useState, type ReactNode } from "react"
+import { Component, useEffect, useMemo, useState, type ReactNode } from "react"
 import { useQuery } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
 import { tr } from "@repo/ui/i18n"
 import { energyDisplay } from "@repo/ui"
 import type { EnergyUnit } from "@/lib/use-energy-unit"
 import { formatWater, type WaterUnit } from "@/lib/measurement-system"
-import { logDevWarn } from "@/lib/utils"
 import {
+  getExternalNutrition,
+  hasExternalNutritionReader,
+  type ExternalNutritionDay,
+} from "@/lib/health-provider"
+import {
+  daysBackForDate,
   externalHeadlineRows,
   externalNoun,
   externalNutrients,
   externalSourceLabel,
 } from "@/lib/external-intake"
+import { logDevWarn } from "@/lib/utils"
 
 type Props = {
   /** The local day being looked at, so browsing back shows that day's imports. */
@@ -34,10 +40,23 @@ function rounded(value: number): string {
  * the split named, the number is still there when it is wanted and cannot
  * quietly inflate a ring the app scores against.
  *
+ * Read from the phone rather than from the server. The store is where these
+ * numbers live and where they are already permitted; a copy on the server only
+ * ever helps a surface with no store of its own, so the cached query is the
+ * fallback for exactly that case and never stands in for a store that answered.
+ *
  * Renders nothing at all when no other app has logged that day: an empty card
  * saying "0 kcal from other apps" is a claim about the store, not a fact about
  * the person.
  */
+export function ExternalIntakeCard(props: Props) {
+  return (
+    <SilentBoundary>
+      <ExternalIntakeCardBody {...props} />
+    </SilentBoundary>
+  )
+}
+
 /**
  * Hides the card rather than the page.
  *
@@ -64,26 +83,52 @@ class SilentBoundary extends Component<{ children: ReactNode }, { failed: boolea
   }
 }
 
-export function ExternalIntakeCard(props: Props) {
-  return (
-    <SilentBoundary>
-      <ExternalIntakeCardBody {...props} />
-    </SilentBoundary>
-  )
+type ReadState = {
+  /** The phone's own answer, or null when it has nothing for this day. */
+  day: ExternalNutritionDay | null
+  /** Whether this shell can read the store at all. */
+  readable: boolean
 }
 
 function ExternalIntakeCardBody({ date, energyUnit, waterUnit }: Props) {
-  const intake = useQuery(api.logs.externalIntake.forDate, { date })
+  const [read, setRead] = useState<ReadState | null>(null)
   const [expanded, setExpanded] = useState(false)
 
-  const rows = useMemo(
-    () => externalNutrients(intake?.nutrients),
-    [intake?.nutrients]
+  useEffect(() => {
+    if (!hasExternalNutritionReader()) {
+      setRead({ day: null, readable: false })
+      return
+    }
+    let cancelled = false
+    setRead(null)
+    void getExternalNutrition({ daysBack: daysBackForDate(date) }).then(
+      (answer) => {
+        if (cancelled) return
+        setRead({
+          day: answer.days.find((day) => day.date === date) ?? null,
+          readable: true,
+        })
+      }
+    )
+    return () => {
+      cancelled = true
+    }
+  }, [date])
+
+  // Only where the shell cannot read the store — a browser, or an installed
+  // app older than this build. A store that answered "nothing" must not be
+  // topped up from a cache that says otherwise.
+  const cached = useQuery(
+    api.logs.externalIntake.forDate,
+    read && !read.readable ? { date } : "skip"
   )
+  const day = read?.readable ? read.day : ((cached ?? null) as ExternalNutritionDay | null)
+
+  const rows = useMemo(() => externalNutrients(day?.nutrients), [day?.nutrients])
   const headline = useMemo(() => externalHeadlineRows(rows), [rows])
   const rest = useMemo(() => rows.filter((row) => !row.headline), [rows])
 
-  if (!intake || rows.length === 0) return null
+  if (!day || rows.length === 0) return null
 
   function display(row: (typeof rows)[number]): string {
     if (row.key === "dietaryEnergyKcal") {
@@ -96,7 +141,7 @@ function ExternalIntakeCardBody({ date, energyUnit, waterUnit }: Props) {
     return `${rounded(row.value)} ${row.unit}${noun ? ` ${noun}` : ""}`
   }
 
-  const sources = externalSourceLabel(intake.sources, tr("another app"))
+  const sources = externalSourceLabel(day.sources, tr("another app"))
 
   return (
     <div className="mt-4 border-t border-border/35 pt-3 text-left">
