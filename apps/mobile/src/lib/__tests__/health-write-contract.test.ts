@@ -379,6 +379,24 @@ describe("the write-back no longer fires and forgets", () => {
   })
 })
 
+describe("the read-back check measures what the write-back sends", () => {
+  const verify = readFileSync(
+    new URL("../../components/health-writeback-verify.tsx", import.meta.url),
+    "utf8"
+  )
+
+  test("expected calories come from the same rounded items", () => {
+    // Rounding the unrounded sum reported a day that had every record as
+    // "less than sent": 100.4 + 100.4 is stored as 200, not 201.
+    expect(verify).toContain("toHealthNutritionItems(entries).reduce(")
+  })
+
+  test("no water is expected while the tracker is off", () => {
+    expect(verify).toContain("useHydrationEnabled()")
+    expect(verify).toContain(": hydrationOn")
+  })
+})
+
 describe("a day emptied in the diary is emptied in the store", () => {
   const writeback = readFileSync(
     new URL("../nutrition-writeback.ts", import.meta.url),

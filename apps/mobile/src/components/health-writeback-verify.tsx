@@ -18,7 +18,11 @@ import {
   healthProviderLabel,
   readHealthDailyMetrics,
 } from "@/lib/health-provider"
-import { dayHydrationMl } from "@/lib/hydration"
+import { dayHydrationMl, useHydrationEnabled } from "@/lib/hydration"
+import {
+  toHealthNutritionItems,
+  type HealthNutritionItemSource,
+} from "@/lib/health-nutrition-items"
 import { offsetDateKey } from "@/lib/food-log"
 import { localDateKey } from "@/lib/utils"
 import {
@@ -115,6 +119,9 @@ function CheckRunner({
 }: {
   onFinished: (result: HealthWriteBackCheckResult) => void
 }) {
+  // The comparison has to measure what the write-back actually sends, and it
+  // sends no water at all while the tracker is off.
+  const hydrationOn = useHydrationEnabled()
   const dayKeys = useMemo(
     () => Array.from({ length: CHECK_DAYS }, (_, i) => offsetDateKey(localDateKey(), -i)),
     []
@@ -225,10 +232,9 @@ function CheckRunner({
         const food = foodQueries[date] as
           | {
               date: string
-              entries?: {
-                calories: number
+              entries?: (HealthNutritionItemSource & {
                 hydrationMl?: number
-              }[]
+              })[]
             }[]
           | Error
           | undefined
@@ -236,13 +242,19 @@ function CheckRunner({
         const entries =
           (food instanceof Error ? undefined : food?.find((doc) => doc.date === date)?.entries) ??
           []
-        const appKcal = Math.round(
-          entries.reduce((sum, entry) => sum + entry.calories, 0)
+        // The same rounded items the push sends, not the raw entries: two
+        // 100.4 kcal meals land as 100 + 100, and rounding the unrounded sum
+        // reported a day that had every record as "less than sent".
+        const appKcal = toHealthNutritionItems(entries).reduce(
+          (sum, item) => sum + item.calories,
+          0
         )
         const appWaterMl =
           water instanceof Error || !water
             ? 0
-            : dayHydrationMl(water, entries)
+            : hydrationOn
+              ? dayHydrationMl(water, entries)
+              : 0
         const store = byDate.get(date)
         return {
           date,
@@ -260,7 +272,7 @@ function CheckRunner({
     })()
 
     return stopClock
-  }, [settled, dayKeys, settle, failWith])
+  }, [settled, dayKeys, settle, failWith, hydrationOn])
 
   return (
     <div className="px-[var(--app-page-x)]">
