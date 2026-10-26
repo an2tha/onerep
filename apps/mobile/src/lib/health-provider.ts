@@ -154,6 +154,16 @@ export type HealthNutritionItemsWrite = {
   date: string
   items: HealthNutritionItemWrite[]
   waterMl?: number
+  /**
+   * The day is empty now, so the store should forget it.
+   *
+   * Without this an emptied day is indistinguishable from one that never had
+   * food: the caller sends nothing, and the record this app wrote earlier stays
+   * in the store claiming a meal the diary no longer has. Only set it for a day
+   * that was written before — an empty day that was never filed has nothing to
+   * delete.
+   */
+  cleared?: boolean
 }
 
 type HealthWorkoutQuery = {
@@ -595,6 +605,10 @@ export async function saveHealthNutritionItems(
   if (!active) return { saved: false, reason: "unavailable" }
 
   if (!active.saveNutritionItems) {
+    // An older shell has no per-item writer and no way to delete a day. The
+    // repair pass washes an emptied day later, so a refusal here would put a
+    // permanent failure on Settings for a state that is correct.
+    if (options.cleared) return { saved: true, written: 0 }
     const totals = options.items.reduce(
       (acc, item) => ({
         calories: acc.calories + item.calories,
