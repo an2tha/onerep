@@ -4,7 +4,10 @@ import { renderToStaticMarkup } from "react-dom/server"
 import { getFunctionName } from "convex/server"
 import { mkdirSync, writeFileSync } from "node:fs"
 const today = "2026-09-24"
+const originalFoodLog = { ...(await import("@/lib/food-log")) }
+const originalUi = { ...(await import("@repo/ui")) }
 mock.module("@/lib/food-log", () => ({
+  ...originalFoodLog,
   currentDateKey: () => today,
   offsetDateKey: shiftDay,
 }))
@@ -20,7 +23,10 @@ mock.module("@/components/mobile-sheet", () => ({
     <div>{children}</div>
   ),
 }))
-mock.module("@repo/ui", () => ({ toast: { error: () => {} } }))
+mock.module("@repo/ui", () => ({
+  ...originalUi,
+  toast: { ...originalUi.toast, error: () => {} },
+}))
 mock.module("convex/react", () => ({
   useMutation: () => () => Promise.resolve(),
   useQuery: (reference: Parameters<typeof getFunctionName>[0]) => {
