@@ -15,6 +15,7 @@ import { readLocalizedSource as readFileSync } from "../../tests/helpers/localiz
 
 import { test, describe } from "node:test"
 import assert from "node:assert/strict"
+import { hydrationEnabledFor } from "@/lib/hydration"
 
 const SETTINGS_SOURCE = readFileSync(
   new URL("./Settings.tsx", import.meta.url),
@@ -878,5 +879,57 @@ describe("App Review settings navigation regression", () => {
         /navigate\("\/settings\?view=health", \{ motion: "forward" \}\)/
       )
     }
+  })
+})
+
+// ─── Hydration is optional ───────────────────────────────────────────────────
+
+describe("Settings – hydration can be turned off", () => {
+  test("the switch defaults to on, so nothing changes for an account that never answered", () => {
+    assert.strictEqual(hydrationEnabledFor(null), true)
+    assert.strictEqual(hydrationEnabledFor(undefined), true)
+    assert.strictEqual(hydrationEnabledFor({}), true)
+  })
+
+  test("an account that turned it off keeps it off, in the app and in the store", () => {
+    assert.strictEqual(hydrationEnabledFor({ hydrationEnabled: false }), false)
+  })
+
+  test("the switch sits with the daily targets and writes as soon as it is moved", () => {
+    assert.match(SETTINGS_SOURCE, /"Hydration tracking"/)
+    assert.match(SETTINGS_SOURCE, /users\.users\.setHydrationEnabled/)
+    // Immediate, like the health toggles: a tracker with no save button beside
+    // it must not need one.
+    assert.match(SETTINGS_SOURCE, /setHydrationEnabled\(\{ enabled: next \}\)/)
+  })
+})
+
+// ─── Health sync reads as one card ───────────────────────────────────────────
+
+describe("Settings – health sync is one state and one action", () => {
+  test("the section leads with the card, before the switches that configure it", () => {
+    assert.match(SETTINGS_SOURCE, /<HealthSyncSummary/)
+    const cardAt = SETTINGS_SOURCE.indexOf("<HealthSyncSummary")
+    const consentAt = SETTINGS_SOURCE.indexOf("Health consent")
+    assert.ok(cardAt > 0, "the card is rendered")
+    assert.ok(consentAt > cardAt, "the card comes before the consent group")
+  })
+
+  test("the journal and the repair sit behind disclosures instead of in the way", () => {
+    assert.match(SETTINGS_SOURCE, /<AnimatedAccordion/)
+    assert.match(SETTINGS_SOURCE, /Recent activity/)
+    assert.match(SETTINGS_SOURCE, /"Repair past sync data"/)
+  })
+
+  test("there is no second sync button and no floating progress bar", () => {
+    assert.doesNotMatch(SETTINGS_SOURCE, /"Syncing…" : "Sync now"/)
+    assert.doesNotMatch(SETTINGS_SOURCE, /syncStatus\.running && \(/)
+  })
+
+  test("every state's one action goes through the same handlers", () => {
+    assert.match(SETTINGS_SOURCE, /handleHealthSyncAction/)
+    assert.match(SETTINGS_SOURCE, /await runHealthSync\(\)/)
+    // Enabling import asks for permission wherever it is asked from.
+    assert.match(SETTINGS_SOURCE, /enableHealthImport\(\)/)
   })
 })

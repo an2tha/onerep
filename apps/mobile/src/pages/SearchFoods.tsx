@@ -2,6 +2,7 @@ import { PageBarBack } from "@/components/page-bar-actions"
 import { Message, tr, translateError, uiLocale } from "@repo/ui/i18n"
 import {
   foodLogContextParams,
+  foodLogRepeatStamp,
   foodLogTimestamp,
   foodLogTimestampForMeal,
   isFoodLogDate,
@@ -71,6 +72,7 @@ import {
 import { CustomFoodEditorSheet } from "@/components/custom-food-editor-sheet"
 import { toast } from "@repo/ui"
 import { reportOfflineMutationError } from "@/lib/offline-mutation-errors"
+import { saveFoodLogEntry } from "@/lib/food-log-write"
 import { hapticSelection } from "@/lib/haptics"
 import { cn } from "@/lib/utils"
 import { useEnergyUnit } from "@/lib/use-energy-unit"
@@ -397,7 +399,9 @@ export default function SearchFoods() {
     micros: LogMicros = {},
     meal = defaultMeal(),
     detail?: FoodDetail | null,
-    portion?: FoodPortion
+    portion?: FoodPortion,
+    /** Set when the sheet's hydration switch was left on for a drink. */
+    hydrationMl?: number
   ) {
     if (addingFoodRef.current) return
     addingFoodRef.current = item.id
@@ -423,10 +427,11 @@ export default function SearchFoods() {
         servingLabel: detail?.servingLabel ?? item.serving,
         imageUrl: detail?.imageUrl ?? item.imageUrl,
         openFoodFacts: product,
+        ...(hydrationMl && hydrationMl > 0 ? { hydrationMl } : {}),
         ...micros,
       })
 
-      await addFoodEntry({ date, entry })
+      await saveFoodLogEntry(addFoodEntry, { date, entry })
       announceOrbActivity("log")
 
       captureFeatureUsage("food_logged", {
@@ -450,20 +455,20 @@ export default function SearchFoods() {
     addingFoodRef.current = food.key
     setAddingFoodId(food.key)
     try {
+      // Same food and portion, but the stamp is this tap's. The source entry's
+      // meal tag records when that food was eaten before, and inheriting it
+      // logged a breakfast item repeated after dinner at 08:00. An explicit
+      // ?time= is a choice rather than an inheritance, so it still wins.
+      const stamp = foodLogRepeatStamp(date, searchParams.get("time"))
       const entry = stripUndefined({
         ...previous,
         _id: undefined,
         // Runs only from the Log again click handler, never during render.
         // eslint-disable-next-line react-hooks/purity
         id: Math.random().toString(36).slice(2),
-        meal: previous.meal || defaultMeal(),
-        loggedAt: foodLogTimestampForMeal(
-          date,
-          previous.meal || defaultMeal(),
-          searchParams.get("time")
-        ),
+        ...stamp,
       })
-      await addFoodEntry({ date, entry })
+      await saveFoodLogEntry(addFoodEntry, { date, entry })
       announceOrbActivity("log")
       captureFeatureUsage("food_logged", {
         item_count: 1,
@@ -507,7 +512,7 @@ export default function SearchFoods() {
           searchParams.get("time")
         ),
       })
-      await addFoodEntry({ date, entry })
+      await saveFoodLogEntry(addFoodEntry, { date, entry })
       announceOrbActivity("log")
       captureFeatureUsage("food_logged", {
         item_count: 1,
@@ -1180,14 +1185,15 @@ export default function SearchFoods() {
         <FoodDetailSheet
           item={detailItem}
           added={added?.itemId === detailItem.id}
-          onAdd={(item, grams, micros, meal, detail, portion) => {
+          onAdd={(item, grams, micros, meal, detail, portion, hydrationMl) => {
             void handleAdd(
               detailItem,
               grams,
               micros,
               meal,
               detail ?? detailItem,
-              portion
+              portion,
+              hydrationMl
             ).catch(reportOfflineMutationError)
           }}
           onCorrectValues={(detail) =>

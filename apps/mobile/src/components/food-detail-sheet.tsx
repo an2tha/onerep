@@ -10,7 +10,20 @@ import {
   X,
 } from "@phosphor-icons/react"
 import { MobileSheet } from "./mobile-sheet"
-import { AnimatedAccordion } from "@repo/ui"
+import { AnimatedAccordion, CompactSwitch } from "@repo/ui"
+import {
+  defaultCountsAsWater,
+  hydrationAmountFor,
+  useHydrationEnabled,
+  writeHydrationCountDefault,
+} from "@/lib/hydration"
+import {
+  FL_OZ_ML,
+  flOzToMl,
+  formatWater,
+  mlToFlOz,
+} from "@/lib/measurement-system"
+import { useWaterUnit } from "@/lib/use-water-unit"
 import {
   FoodMacroStack as MacroStack,
   FoodNutrientRow as NutrRow,
@@ -28,6 +41,7 @@ import {
   foodServingMultiplier,
   gramsFromFoodPortion,
   isNamedFoodServing,
+  looksLikeLiquid,
   stepFoodServingMultiplier,
   logMicrosFromFoodDetail,
   readAllMealCategories,
@@ -89,22 +103,31 @@ const VOLUME_UNITS = new Set<FoodPortionUnit>(["ml", "fl_oz"])
 const LIQUID_TEXT_RE =
   /\b(?:ml|millilit(?:er|re)s?|l|lit(?:er|re)s?|cl|fl\s*oz|fluid\s*ounces?)\b/i
 
+/**
+ * Is this something a person drinks?
+ *
+ * Decides two things: whether the portion picker offers volume units, and
+ * whether the sheet offers to count the log toward hydration. Two questions
+ * are asked because labels answer them differently — "330 ml" in the serving
+ * text says liquid without saying what it is, and a name like "Coffee" says
+ * what it is without a volume. The name half is the food log's own test, so
+ * this sheet and the hydration rule cannot disagree about a coffee.
+ */
 function foodLooksLiquid(
   item: FoodResult,
   detail: Detail,
   servingPortion?: FoodPortion
 ) {
   if (servingPortion && VOLUME_UNITS.has(servingPortion.unit)) return true
-  return LIQUID_TEXT_RE.test(
-    [
-      detail?.servingLabel,
-      item.serving,
-      item.openFoodFacts?.quantity,
-      item.openFoodFacts?.serving_size,
-    ]
-      .filter(Boolean)
-      .join(" ")
-  )
+  const text = [
+    detail?.servingLabel,
+    item.serving,
+    item.openFoodFacts?.quantity,
+    item.openFoodFacts?.serving_size,
+  ]
+    .filter(Boolean)
+    .join(" ")
+  return LIQUID_TEXT_RE.test(text) || looksLikeLiquid(`${item.name} ${text}`)
 }
 
 // ─── Macro summary ───────────────────────────────────────────────────────────
@@ -567,7 +590,9 @@ type Props = {
     micros: LogMicros,
     meal: string,
     detail?: FoodDetail | null,
-    portion?: FoodPortion
+    portion?: FoodPortion,
+    /** Millilitres this log adds to the day's hydration, when it was counted. */
+    hydrationMl?: number
   ) => void
   added: boolean
   saving?: boolean
@@ -629,6 +654,23 @@ export function FoodDetailSheet({
     "ready" | "saving" | "added" | "reverting"
   >(added ? "added" : "ready")
   const [meal, setMeal] = useState<string>(() => defaultMeal())
+  // Hydration is optional, and a drink only counts because it was asked to. The
+  // remembered answer seeds the switch, so the coffee someone always counts is
+  // ticked for them; `null` means the amount still follows the portion, and
+  // typing in the field pins it.
+  const hydrationOn = useHydrationEnabled()
+  const waterUnit = useWaterUnit()
+  const [countsWater, setCountsWater] = useState(() =>
+    defaultCountsAsWater({
+      name: item.name,
+      portion: initialSelectedPortion(item, initialFoodDetail(item)),
+      liquid: foodLooksLiquid(item, initialFoodDetail(item)),
+    })
+  )
+  const [hydrationOverrideMl, setHydrationOverrideMl] = useState<number | null>(
+    null
+  )
+  const [hydrationInput, setHydrationInput] = useState<string | null>(null)
   const extraRef = useRef<HTMLDivElement>(null)
   const previousAdded = useRef(added)
   const mealCfg = readAllMealCategories().find((c) => c.id === meal) ?? {
@@ -665,11 +707,21 @@ export function FoodDetailSheet({
     const embeddedDetail = initialFoodDetail(item)
     setShowExtra(false)
     setServingKey(undefined)
+    // A different food starts a fresh answer: the remembered default, applied to
+    // this food's own portion rather than the last one's.
+    setHydrationOverrideMl(null)
     if (embeddedDetail) {
       const nextPortion = initialSelectedPortion(item, embeddedDetail)
       setDetail(embeddedDetail)
       setUnit(nextPortion.unit)
       setGrams(nextPortion.grams)
+      setCountsWater(
+        defaultCountsAsWater({
+          name: item.name,
+          portion: nextPortion,
+          liquid: foodLooksLiquid(item, embeddedDetail),
+        })
+      )
       setLoading(false)
       return
     }
@@ -681,6 +733,13 @@ export function FoodDetailSheet({
         const nextPortion = initialSelectedPortion(item, d)
         setUnit(nextPortion.unit)
         setGrams(nextPortion.grams)
+        setCountsWater(
+          defaultCountsAsWater({
+            name: item.name,
+            portion: nextPortion,
+            liquid: foodLooksLiquid(item, d),
+          })
+        )
         setLoading(false)
       })
       .catch(() => setLoading(false))
@@ -703,6 +762,31 @@ export function FoodDetailSheet({
     amount: amountFromFoodPortionGrams(grams, unit),
     unit,
     grams,
+  }
+
+  // ── Hydration ─────────────────────────────────────────────────────────────
+
+  /** What this log adds, following the portion until someone types a figure. */
+  const hydrationMl = hydrationOverrideMl ?? hydrationAmountFor(portion)
+  const hydrationFieldValue =
+    hydrationInput ??
+    (waterUnit === "fl oz"
+      ? String(Math.round(mlToFlOz(hydrationMl) * 10) / 10)
+      : String(hydrationMl))
+
+  function setHydrationFromValue(value: number) {
+    const ml = waterUnit === "fl oz" ? flOzToMl(value) : value
+    setHydrationOverrideMl(Math.max(0, Math.round(ml)))
+    setHydrationInput(null)
+  }
+
+  function commitHydrationInput(raw: string) {
+    const parsed = Number(raw.replace(",", "."))
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      setHydrationInput(null)
+      return
+    }
+    setHydrationFromValue(parsed)
   }
 
   // ── Portion presets ───────────────────────────────────────────────────────
@@ -734,6 +818,7 @@ export function FoodDetailSheet({
   const servingLabel = detail?.servingLabel ?? item.serving
   const servingPortion = initialSelectedPortion(item, detail)
   const showVolumeUnits = foodLooksLiquid(item, detail, servingPortion)
+  const hydrationRowVisible = hydrationOn && showVolumeUnits
   // A serving of "100 g" is just grams — only a serving the units cannot spell
   // earns its own colour and its own counter.
   const servingIsNamed = isNamedFoodServing(servingLabel, servingPortion)
@@ -857,7 +942,8 @@ export function FoodDetailSheet({
                   logMicrosFromFoodDetail(detail, grams),
                   meal,
                   detail,
-                  portion
+                  portion,
+                  hydrationRowVisible && countsWater ? hydrationMl : undefined
                 )
               }}
               data-state={ctaVisualState}
@@ -961,6 +1047,94 @@ export function FoodDetailSheet({
             </div>
             <MacroStack protein={protein} carbs={carbs} fat={fat} />
           </section>
+
+          {/* ── Hydration ─────────────────────────────────────────────── */}
+          {/* Only drinks, and only while hydration is tracked: a sheet that
+              asks a chicken breast whether it counts as water is noise. */}
+          {hydrationRowVisible && (
+            <section className="mx-4 mt-4 rounded-2xl border border-border bg-card px-4 py-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[13px] font-semibold">
+                    {tr("Counts toward hydration")}
+                  </p>
+                  <p className="mt-0.5 text-[12px] text-muted-foreground">
+                    {countsWater
+                      ? tr("Adds {{value0}} of water to this day", {
+                          value0: formatWater(hydrationMl, waterUnit),
+                        })
+                      : tr("Logged as food only — water stays untouched")}
+                  </p>
+                </div>
+                <CompactSwitch
+                  checked={countsWater}
+                  onInteract={hapticSelection}
+                  onChange={(next) => {
+                    setCountsWater(next)
+                    setHydrationInput(null)
+                    if (next) setHydrationOverrideMl(null)
+                    writeHydrationCountDefault(next)
+                  }}
+                  label={tr("Counts toward hydration")}
+                />
+              </div>
+              {countsWater && (
+                <div className="mt-3 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      hapticSelection()
+                      setHydrationFromValue(
+                        Math.max(
+                          0,
+                          (waterUnit === "fl oz"
+                            ? mlToFlOz(hydrationMl)
+                            : hydrationMl) - (waterUnit === "fl oz" ? 1 : 50)
+                        )
+                      )
+                    }}
+                    aria-label={tr("Less water")}
+                    className="flex size-11 shrink-0 items-center justify-center rounded-[10px] border border-border bg-background text-foreground active:bg-muted"
+                  >
+                    <Minus size={14} weight="bold" />
+                  </button>
+                  <div className="flex min-w-0 flex-1 items-center gap-2 rounded-xl bg-muted/35 px-3">
+                    <input
+                      type="text"
+                      name="food-hydration-amount"
+                      aria-label={tr("Water amount")}
+                      inputMode="decimal"
+                      value={hydrationFieldValue}
+                      onChange={(e) => setHydrationInput(e.target.value)}
+                      onBlur={(e) => commitHydrationInput(e.target.value)}
+                      onKeyDown={(e) =>
+                        e.key === "Enter" && e.currentTarget.blur()
+                      }
+                      className="h-10 w-full min-w-0 bg-transparent text-right text-[16px] font-bold tabular-nums outline-none"
+                    />
+                    <span className="shrink-0 text-[12px] font-semibold text-muted-foreground">
+                      {waterUnit}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      hapticSelection()
+                      setHydrationFromValue(
+                        (waterUnit === "fl oz"
+                          ? mlToFlOz(hydrationMl)
+                          : hydrationMl) + (waterUnit === "fl oz" ? 1 : 50)
+                      )
+                    }}
+                    aria-label={tr("More water")}
+                    className="flex size-11 shrink-0 items-center justify-center rounded-[10px] border border-border bg-background text-foreground active:bg-muted"
+                  >
+                    <Plus size={14} weight="bold" />
+                  </button>
+                </div>
+              )}
+            </section>
+          )}
 
           {/* ── Nutrition table ───────────────────────────────────────── */}
           {detail?.nutrients && detail.nutrients.length > 0 && (

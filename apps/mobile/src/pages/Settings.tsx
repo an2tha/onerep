@@ -64,6 +64,15 @@ import {
   useHealthSyncStatus,
 } from "@/lib/health-sync-status"
 import { HealthWriteBackRepair } from "@/components/health-writeback-repair"
+import { HealthWriteBackCheck } from "@/components/health-writeback-verify"
+import {
+  requestHealthWriteAccess,
+  useHealthWriteAccess,
+  writeAccessWarning,
+} from "@/lib/health-write-access"
+import { reportHealthWriteOutcome } from "@/lib/health-write-report"
+import { HealthSyncSummary } from "@/components/health-sync-summary"
+import type { HealthSyncAction } from "@/lib/health-sync-presentation"
 import { cacheWeightUnit, readCachedWeightUnit } from "@/lib/use-weight-unit"
 import {
   cacheWaterUnit,
@@ -208,6 +217,7 @@ const apiSiteUrl =
 const apiBaseUrl = apiSiteUrl ? `${apiSiteUrl}/v1` : undefined
 const mcpEndpointUrl = apiSiteUrl ? `${apiSiteUrl}/mcp` : undefined
 import {
+  AnimatedAccordion,
   CompactSwitch,
   AiUsageProgress,
   DisclosureRow,
@@ -410,6 +420,10 @@ export default function Settings({
     api.users.users.setHealthSync,
     "users.users.setHealthSync"
   )
+  const setHydrationEnabled = useOfflineMutation(
+    api.users.users.setHydrationEnabled,
+    "users.users.setHydrationEnabled"
+  )
   const importHealthWorkouts = useMutation(
     api.logs.healthWorkouts.importHealthWorkouts
   )
@@ -427,6 +441,17 @@ export default function Settings({
   const healthSyncEnabled =
     healthSync?.healthSyncEnabled ?? healthSync?.appleHealthEnabled ?? false
   const healthWriteEnabled = healthSync?.writeEnabled ?? false
+  // Whether the store will actually take the writes the switch above promises.
+  // The switch says what the user asked for; this says what the platform
+  // agreed to, which is the half that used to be missing.
+  const writeAccess = useHealthWriteAccess()
+  const writeAccessNote = writeAccessWarning(writeAccess.status)
+  // A refusal is a state of its own rather than a failure to retry: the fix is
+  // a grant, and "try again" would earn the same answer. Both the local error
+  // and the persisted one are checked, since either can be the only survivor.
+  const healthPermissionDenied = /permission|refused a read/i.test(
+    healthError ?? healthSync?.lastSyncError ?? ""
+  )
   // Merged over the catalogue defaults, so a metric added after this user last
   // opened the screen arrives switched on rather than silently absent.
   const healthMetricSelection = resolveHealthMetricSelection(
@@ -587,6 +612,11 @@ export default function Settings({
     )
   const [waterGoal, setWaterGoalState] = useState(
     preferences?.waterGoalMl ?? 2500
+  )
+  // Absent means on: an account that has never answered keeps the water row it
+  // has always had, and turning it off is a deliberate choice.
+  const [hydrationEnabled, setHydrationEnabledState] = useState(
+    preferences?.hydrationEnabled ?? true
   )
   // Per-meal default log times. Local-only by design — the tag is a writing
   // convenience, not account data; device defaults keep it that way.
@@ -820,6 +850,12 @@ export default function Settings({
   }, [preferences])
 
   useEffect(() => {
+    if (typeof preferences?.hydrationEnabled === "boolean") {
+      setHydrationEnabledState(preferences.hydrationEnabled)
+    }
+  }, [preferences])
+
+  useEffect(() => {
     if (effectiveGoals === undefined) return
 
     if (effectiveGoals?.effective) {
@@ -984,6 +1020,175 @@ export default function Settings({
       return
     }
     await setHealthSync({ writeEnabled: true })
+  }
+
+  /**
+   * Re-asks for write access, then says what happened.
+   *
+   * The row that calls this only appears when the store is already refusing, so
+   * its whole job is to reopen the sheet and report the answer — including the
+   * unchanged one, which is otherwise indistinguishable from a tap that did
+   * nothing at all.
+   */
+  async function fixHealthWriteAccess() {
+    setHealthError(null)
+    const status = await requestHealthWriteAccess()
+    if (status === "granted") {
+      reportHealthWriteOutcome({ saved: 1, refused: 0 })
+      toast.success(
+        tr("{{value0}} will now take your food and workouts", {
+          value0: healthLabel,
+        })
+      )
+      return
+    }
+    reportHealthWriteOutcome({ saved: 0, refused: 1, reason: "no_permission" })
+  }
+
+  /**
+   * Turns health import on, asking for permission at the moment it matters.
+   *
+   * Both doors into this — the switch below and the card's own action — go
+   * through here, so permission is requested once and the denial is worded in
+   * one place.
+   */
+  async function enableHealthImport() {
+    setHealthError(null)
+    try {
+      const authorization = await requestHealthAuthorization()
+      if (!authorization.available) {
+        setHealthError(
+          tr("{{value0}} is not available on this device.", {
+            value0: healthLabel,
+          })
+        )
+        return
+      }
+      if (!authorization.granted) {
+        setHealthError(
+          translateError(
+            healthProvider() === "health_connect"
+              ? tr(
+                  "Permission was denied. You can grant it in the Health Connect app."
+                )
+              : tr(
+                  "Permission was denied. Enable OneRep under Settings › Health › Data Access & Devices."
+                )
+          )
+        )
+        return
+      }
+      await setHealthSync({ healthSyncEnabled: true })
+    } catch {
+      setHealthError(
+        tr("Could not reach {{value0}} on this device.", {
+          value0: healthLabel,
+        })
+      )
+    }
+  }
+
+  /** The card's consent action: the same door as the switch itself. */
+  function grantWearableConsent() {
+    void (
+      onSetupWearableConsentChange
+        ? onSetupWearableConsentChange(true)
+        : setConsent({ wearableIntegrations: true })
+    ).catch(() => toast.error(translateError(tr("Could not update consent"))))
+  }
+
+  /**
+   * Runs a health sync: permission, read, import, journal.
+   *
+   * Lifted out of the sync button's own onClick because the summary card is now
+   * the one place a sync starts, and a second copy of this would be a second
+   * set of rules for what a sync does.
+   */
+  async function runHealthSync() {
+    setHealthBusy(true)
+    beginHealthSync("Checking Health Connect…")
+    setHealthError(null)
+    if (syncStatus.lastError) {
+      // Clear the persisted client-side error the repair / a stale mount may
+      // have left, so the next sync starts with a clean error row.
+      updateHealthSyncStatus({ lastError: null })
+    }
+    try {
+      const authorization = await requestHealthAuthorization()
+      if (!authorization.granted) {
+        setHealthError(translateError(tr("Permission was denied.")))
+        endHealthSync({ error: "Permission was denied." })
+        return
+      }
+      setHealthSyncPhase("Reading workouts from Health Connect…")
+      const workouts = await getRecentHealthWorkouts({
+        daysBack: HEALTH_SYNC_DAYS_BACK,
+        limit: HEALTH_SYNC_LIMIT,
+      })
+      const provider = healthProvider()
+      if (!provider) {
+        endHealthSync({ error: null })
+        return
+      }
+      setHealthSyncPhase("Importing…")
+      const result = await importHealthWorkouts({
+        provider,
+        workouts: workouts.map((workout) =>
+          healthWorkoutToImport(
+            workout,
+            preferences?.lastActiveTimezone || "UTC"
+          )
+        ),
+      })
+      toast.success(
+        result.imported > 0
+          ? tr("Imported {{value0}} workout{{value1}}", {
+              value0: result.imported,
+              value1: result.imported === 1 ? "" : "s",
+            })
+          : tr("Already up to date")
+      )
+      recordSyncActivity(
+        result.imported > 0
+          ? tr("Imported {{value0}} workout{{value1}}", {
+              value0: result.imported,
+              value1: result.imported === 1 ? "" : "s",
+            })
+          : "Workout check: already up to date",
+        result.imported > 0 ? result.imported : undefined
+      )
+      endHealthSync({ error: null })
+    } catch (error) {
+      const rawMessage =
+        error instanceof Error ? error.message : tr("Sync failed")
+      setHealthError(friendlyHealthError(rawMessage) ?? rawMessage)
+      endHealthSync({ error: rawMessage })
+    } finally {
+      setHealthBusy(false)
+    }
+  }
+
+  /** The card's single action, per state. */
+  async function handleHealthSyncAction(action: HealthSyncAction) {
+    if (action === "enable") {
+      await enableHealthImport()
+      return
+    }
+    if (action === "consent") {
+      grantWearableConsent()
+      return
+    }
+    if (action === "grant") {
+      // Health Connect owns its own permission screen; re-asking from here
+      // would only produce the same denial a second time.
+      if (supportsHealthSettingsDeepLink()) {
+        await openHealthSettings()
+        return
+      }
+      await enableHealthImport()
+      return
+    }
+    await runHealthSync()
   }
 
   async function handleSaveWorkout() {
@@ -2031,7 +2236,38 @@ export default function Settings({
                       label={tr("Fat")}
                     />
                   </SettingsRow>
-                  <SettingsRow label={tr("Water")}>
+                  <SettingsRow
+                    label={tr("Hydration tracking")}
+                    detail={tr(
+                      "Count water and the drinks you choose toward a daily goal"
+                    )}
+                  >
+                    <CompactSwitch
+                      onInteract={hapticSelection}
+                      checked={hydrationEnabled}
+                      onChange={(next) => {
+                        // Immediate, like the health toggles: a tracker nobody
+                        // can find a save button for should not need one. The
+                        // rollback puts the switch back if the write is refused.
+                        setHydrationEnabledState(next)
+                        void setHydrationEnabled({ enabled: next }).catch(() => {
+                          setHydrationEnabledState(!next)
+                          toast.error(
+                            translateError(tr("Could not save that. Try again."))
+                          )
+                        })
+                      }}
+                      label={tr("Hydration tracking")}
+                    />
+                  </SettingsRow>
+                  <SettingsRow
+                    label={tr("Water")}
+                    detail={
+                      hydrationEnabled
+                        ? undefined
+                        : tr("Turn hydration tracking on to set a goal")
+                    }
+                  >
                     {/* The fluid-ounce ceiling is derived from the metric one:
                         170 fl oz is 5,027 ml, which round-trips past the
                         canonical 5,000 ml maximum the metric side enforces. */}
@@ -2855,6 +3091,24 @@ export default function Settings({
                   </GroupedList>
                 ) : (
                   <>
+                    {/*
+                      The state card comes first and answers the whole section:
+                      how sync stands, what it last did, and the single thing to
+                      do about it. Everything below is configuration for that.
+                    */}
+                    <HealthSyncSummary
+                      providerLabel={healthLabel}
+                      providerAvailable={!healthProviderUnavailable}
+                      consentMissing={!wearableConsent}
+                      enabled={healthSyncEnabled}
+                      lastSyncedAt={healthSync?.lastSyncedAt}
+                      status={syncStatus}
+                      needsPermission={healthPermissionDenied}
+                      error={
+                        healthError ?? friendlyHealthError(healthSync?.lastSyncError)
+                      }
+                      onAction={(action) => void handleHealthSyncAction(action)}
+                    />
                     <SettingsSectionLabel title={tr("Consent")} />
                     <GroupedList label={tr("Health consent")}>
                       <SettingsRow
@@ -2890,20 +3144,9 @@ export default function Settings({
                       </SettingsRow>
                     </GroupedList>
 
-                    <SettingsSectionLabel
-                      title={healthLabel}
-                      detail={
-                        healthSync?.lastSyncedAt
-                          ? tr("Last synced {{value0}}", {
-                              value0: new Date(
-                                healthSync.lastSyncedAt
-                              ).toLocaleString(uiLocale()),
-                            })
-                          : tr("Not synced yet")
-                      }
-                    />
                     <GroupedList
                       label={tr("{{value0}} sync", { value0: healthLabel })}
+                      className="mt-6"
                     >
                       <SettingsRow
                         label={tr("Import workouts")}
@@ -2920,48 +3163,12 @@ export default function Settings({
                           onInteract={hapticSelection}
                           checked={healthSyncEnabled ?? false}
                           onChange={(next) => {
-                            setHealthError(null)
                             if (!next) {
+                              setHealthError(null)
                               void setHealthSync({ healthSyncEnabled: false })
                               return
                             }
-                            void requestHealthAuthorization()
-                              .then((authorization) => {
-                                if (!authorization.available) {
-                                  setHealthError(
-                                    tr(
-                                      "{{value0}} is not available on this device.",
-                                      { value0: healthLabel }
-                                    )
-                                  )
-                                  return
-                                }
-                                if (!authorization.granted) {
-                                  setHealthError(
-                                    translateError(
-                                      healthProvider() === "health_connect"
-                                        ? tr(
-                                            "Permission was denied. You can grant it in the Health Connect app."
-                                          )
-                                        : tr(
-                                            "Permission was denied. Enable OneRep under Settings › Health › Data Access & Devices."
-                                          )
-                                    )
-                                  )
-                                  return
-                                }
-                                return setHealthSync({
-                                  healthSyncEnabled: true,
-                                })
-                              })
-                              .catch(() =>
-                                setHealthError(
-                                  tr(
-                                    "Could not reach {{value0}} on this device.",
-                                    { value0: healthLabel }
-                                  )
-                                )
-                              )
+                            void enableHealthImport()
                           }}
                           label={tr("Import workouts")}
                         />
@@ -3001,6 +3208,18 @@ export default function Settings({
                           label={tr("Save data back")}
                         />
                       </SettingsRow>
+                      {writeAccessNote && (
+                        // Not a duplicate of the switch: the switch is the
+                        // request, this row is the store's answer, and it is
+                        // the only place a refused write has ever been visible.
+                        <ListRow
+                          title={tr("Grant write access")}
+                          detail={writeAccessNote}
+                          onClick={() => {
+                            void fixHealthWriteAccess()
+                          }}
+                        />
+                      )}
                       {supportsHealthSettingsDeepLink() && (
                         // Health Connect owns revocation; there is no API to do
                         // it from here, so send the user to the app itself.
@@ -3016,122 +3235,46 @@ export default function Settings({
                       )}
                     </GroupedList>
 
-                    {syncStatus.running && (
-                      <div className="px-[var(--app-page-x)]">
-                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                          <div className="h-full w-3/5 animate-pulse rounded-full bg-foreground" />
-                        </div>
-                        <p className="native-row-detail mt-2">
-                          {syncStatus.phase ?? tr("Syncing…")}
-                        </p>
-                      </div>
-                    )}
+                    {/*
+                      The repair is a once-in-a-while tool for a specific bad
+                      build, so it sits behind a disclosure instead of in front
+                      of everyone who turns write-back on.
+                    */}
                     {supportsHealthSettingsDeepLink() && healthWriteEnabled && (
-                      <div className="px-[var(--app-page-x)]">
-                        <HealthWriteBackRepair
-                          disabled={healthBusy || syncStatus.running}
-                        />
-                        <p className="native-row-detail mt-2">
-                          {tr(
-                            "Earlier builds filed each sync push as a separate record, so Health Connect can show stacked day totals. This re-writes the past week from your OneRep log."
-                          )}
-                        </p>
+                      <div className="mt-4 px-[var(--app-page-x)]">
+                        <AnimatedAccordion
+                          summary={tr("Repair past sync data")}
+                          className="overflow-hidden rounded-2xl border border-border bg-card"
+                          triggerClassName="px-4 py-3 text-[13px] font-semibold"
+                        >
+                          <div className="border-t border-border px-4 py-3">
+                            <HealthWriteBackRepair
+                              disabled={healthBusy || syncStatus.running}
+                            />
+                            <p className="native-row-detail mt-2">
+                              {tr(
+                                "Earlier builds filed each sync push as a separate record, so Health Connect can show stacked day totals. This re-writes the past week from your OneRep log."
+                              )}
+                            </p>
+                          </div>
+                        </AnimatedAccordion>
                       </div>
-                    )}
-                    {(healthError ||
-                      healthSync?.lastSyncError ||
-                      syncStatus.lastError) && (
-                      <p className="native-row-detail px-[var(--app-page-x)] text-destructive">
-                        {healthError ??
-                          friendlyHealthError(healthSync?.lastSyncError) ??
-                          syncStatus.lastError ??
-                          healthSync?.lastSyncError}
-                      </p>
                     )}
 
-                    <div className="px-[var(--app-page-x)] pt-4">
-                      <PrimaryButton
-                        className="w-full"
-                        disabled={
-                          healthBusy || syncStatus.running || !healthSyncEnabled
-                        }
-                        onClick={async () => {
-                          setHealthBusy(true)
-                          beginHealthSync("Checking Health Connect…")
-                          setHealthError(null)
-                          if (syncStatus.lastError) {
-                            // Clear the persisted client-side error the repair /
-                            // a stale mount may have left, so the next sync starts
-                            // with a clean error row.
-                            updateHealthSyncStatus({ lastError: null })
-                          }
-                          try {
-                            const authorization =
-                              await requestHealthAuthorization()
-                            if (!authorization.granted) {
-                              setHealthError(
-                                translateError(tr("Permission was denied."))
-                              )
-                              endHealthSync({ error: "Permission was denied." })
-                              return
-                            }
-                            setHealthSyncPhase(
-                              "Reading workouts from Health Connect…"
-                            )
-                            const workouts = await getRecentHealthWorkouts({
-                              daysBack: HEALTH_SYNC_DAYS_BACK,
-                              limit: HEALTH_SYNC_LIMIT,
-                            })
-                            const provider = healthProvider()
-                            if (!provider) {
-                              endHealthSync({ error: null })
-                              return
-                            }
-                            setHealthSyncPhase("Importing…")
-                            const result = await importHealthWorkouts({
-                              provider,
-                              workouts: workouts.map((workout) =>
-                                healthWorkoutToImport(
-                                  workout,
-                                  preferences?.lastActiveTimezone || "UTC"
-                                )
-                              ),
-                            })
-                            toast.success(
-                              result.imported > 0
-                                ? tr("Imported {{value0}} workout{{value1}}", {
-                                    value0: result.imported,
-                                    value1: result.imported === 1 ? "" : "s",
-                                  })
-                                : tr("Already up to date")
-                            )
-                            recordSyncActivity(
-                              result.imported > 0
-                                ? tr("Imported {{value0}} workout{{value1}}", {
-                                    value0: result.imported,
-                                    value1: result.imported === 1 ? "" : "s",
-                                  })
-                                : "Workout check: already up to date",
-                              result.imported > 0 ? result.imported : undefined
-                            )
-                            endHealthSync({ error: null })
-                          } catch (error) {
-                            const rawMessage =
-                              error instanceof Error
-                                ? error.message
-                                : tr("Sync failed")
-                            setHealthError(
-                              friendlyHealthError(rawMessage) ?? rawMessage
-                            )
-                            endHealthSync({ error: rawMessage })
-                          } finally {
-                            setHealthBusy(false)
-                          }
-                        }}
-                      >
-                        {healthBusy ? tr("Syncing…") : tr("Sync now")}
-                      </PrimaryButton>
-                    </div>
+                    {/*
+                      The receipt: what the store actually holds for the last
+                      week, beside what OneRep logged. Read-only, so it is safe
+                      on both platforms, and it is the honest answer to "is my
+                      food in there?" when the platform will not say whether a
+                      write was refused.
+                    */}
+                    {isHealthSyncSupportedPlatform() && healthWriteEnabled && (
+                      <div className="mt-4 px-[var(--app-page-x)]">
+                        <HealthWriteBackCheck
+                          disabled={healthBusy || syncStatus.running}
+                        />
+                      </div>
+                    )}
 
                     <MetricToggleList
                       busy={!healthSyncEnabled}
@@ -3249,28 +3392,29 @@ export default function Settings({
                     </GroupedList>
 
                     {/*
-                      The sync journal, as native rows at the section's foot.
-                      It used to be a bare <ul> wedged between the sync button
-                      and the repair card, which read as debugging output taped
-                      over the settings; here it speaks the page's own design
-                      system, newest first, and stays out of the way until
-                      something actually happened.
+                      The sync journal, behind a disclosure. It answers "what
+                      did the last few syncs actually do?" — a question worth
+                      asking only sometimes, and never the first thing to read.
                     */}
                     {syncStatus.recent.length > 0 && (
-                      <>
-                        <SettingsSectionLabel
-                          title={tr("Sync activity")}
-                          detail={
+                      <div className="mt-4 px-[var(--app-page-x)]">
+                        <AnimatedAccordion
+                          summary={
                             syncStatus.lastDurationMs != null
-                              ? tr("Last sync took {{value0}}s", {
-                                  value0: (
-                                    syncStatus.lastDurationMs / 1000
-                                  ).toFixed(1),
-                                })
-                              : undefined
+                              ? tr(
+                                  "Recent activity · last sync took {{value0}}s",
+                                  {
+                                    value0: (
+                                      syncStatus.lastDurationMs / 1000
+                                    ).toFixed(1),
+                                  }
+                                )
+                              : tr("Recent activity")
                           }
-                        />
-                        <GroupedList label={tr("Recent sync activity")}>
+                          className="overflow-hidden rounded-2xl border border-border bg-card"
+                          triggerClassName="px-4 py-3 text-[13px] font-semibold"
+                        >
+                          <GroupedList label={tr("Recent sync activity")}>
                           {syncStatus.recent.map((activity) => (
                             <ListRow
                               key={activity.at}
@@ -3301,8 +3445,9 @@ export default function Settings({
                               }
                             />
                           ))}
-                        </GroupedList>
-                      </>
+                          </GroupedList>
+                        </AnimatedAccordion>
+                      </div>
                     )}
                   </>
                 )}

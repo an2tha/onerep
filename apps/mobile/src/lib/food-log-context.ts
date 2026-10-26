@@ -1,4 +1,5 @@
 /** Calendar context must survive every route in a backdated food log. */
+import { defaultMeal, type MealType } from "@/lib/food-log"
 import { mealDefaultTime } from "@/lib/meal-times"
 
 export function isFoodLogDate(value: string | null): value is string {
@@ -57,4 +58,29 @@ export function foodLogTimestampForMeal(
     return foodLogTimestamp(date, time, now)
   }
   return foodLogTimestamp(date, mealDefaultTime(meal), now)
+}
+
+/**
+ * The stamp a repeated food gets: the current meal, never the source entry's.
+ *
+ * "Log again" copies a food's identity — its name, portion and macros — from
+ * an entry that was logged earlier, and that entry's meal tag records the meal
+ * it was eaten in *then*. Carrying the tag over is how a breakfast item
+ * repeated after dinner landed at 08:00, hours before the tap.
+ *
+ * A repeat is a statement about now, so it takes the meal the tap falls in, and
+ * the time follows that meal the same way every other fresh log does. An
+ * explicit time from the calling route (a timeline minute, a `?time=` on a
+ * backdated link, the sheet's own time field) is a choice rather than an
+ * inheritance, so it still wins. This is the rule the Nutrition sheet's
+ * "Recent foods" rows already followed; the dashboard, drawer and check-in
+ * repeats drifted from it.
+ */
+export function foodLogRepeatStamp(
+  date: string,
+  time?: string | null,
+  now = new Date()
+): { meal: MealType; loggedAt: string } {
+  const meal = defaultMeal(now)
+  return { meal, loggedAt: foodLogTimestampForMeal(date, meal, time, now) }
 }

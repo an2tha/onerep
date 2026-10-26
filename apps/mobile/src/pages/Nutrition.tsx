@@ -6,6 +6,7 @@ import { useRecovery } from "@/lib/use-recovery"
 import { RecoveryBanner } from "@/components/recovery/recovery-banner"
 import {
   foodLogContextParams,
+  foodLogRepeatStamp,
   foodLogTimestamp,
   foodLogTimestampForMeal,
   foodLogTime,
@@ -53,14 +54,22 @@ import { MobileSheet } from "@/components/mobile-sheet"
 import { CoachSheet } from "@/components/coach-sheet"
 import { FastingSheet } from "@/components/fasting-sheet"
 import { NutritionProgramme } from "@/components/nutrition-programme"
+import { HydrationTrendInsight } from "@/components/hydration-trend-insight"
 import { useBottomBarAction } from "@/components/bottom-bar"
 import { ReactiveOrbField } from "@/components/reactive-orb-field"
 import { TourAnchor, useTourAnchor } from "@/components/walkthrough/tour-anchor"
-import { DateSelectorButton, SegmentedControl } from "@repo/ui"
+import { ExternalIntakeCard } from "@/components/external-intake-card"
+import {
+  CompactSwitch,
+  DateSelectorButton,
+  SegmentedControl,
+} from "@repo/ui"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { announceOrbActivity } from "@/lib/orb-activity"
 import { updateOneRepWidgets } from "@/lib/home-widgets"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
+import { saveFoodLogEntry } from "@/lib/food-log-write"
+import { offlineMutationErrorMessage } from "@/lib/offline-mutation-errors"
 import { cn, safeLocalStorageGet, safeLocalStorageSet } from "@/lib/utils"
 import { useEnergyUnit } from "@/lib/use-energy-unit"
 import { useNutritionHealthWriteBack } from "@/lib/nutrition-writeback"
@@ -73,6 +82,7 @@ import {
   mealLabel,
   nutritionDetailTotals,
   offsetDateKey,
+  looksLikeLiquid,
   parseFoodPortionLabel,
   stripUndefined,
   DEFAULT_MEAL_CATEGORIES,
@@ -103,6 +113,15 @@ import {
   clearOptimisticWaterUnit,
   useWaterUnit,
 } from "@/lib/use-water-unit"
+import {
+  DEFAULT_DRINK_ML,
+  dayHydrationMl,
+  drinkVolumeMl,
+  drinksHydrationMl,
+  entryHydrationMl,
+  useHydrationEnabled,
+  withEntryHydration,
+} from "@/lib/hydration"
 import { oneGlassWaterMl } from "@/lib/water-amounts"
 import { mealTargetProgress } from "@/lib/meal-targets"
 import { formatFastDuration } from "@/lib/fasting"
@@ -1528,7 +1547,7 @@ function DescribeMealSheet({
  * could correct — the reason people were reading their own food log through
  * an API client to verify it.
  */
-function FoodEntrySheet({
+export function FoodEntrySheet({
   entry,
   saving,
   onSave,
@@ -1544,6 +1563,21 @@ function FoodEntrySheet({
   onClose: () => void
 }) {
   const energyUnit = useEnergyUnit()
+  const hydrationOn = useHydrationEnabled()
+  const waterUnit = useWaterUnit()
+  // Every drink passes through here eventually: one logged from a photo, a
+  // recipe or the coach can be counted after the fact, which is the only way a
+  // drink the log sheet never asked about can ever count.
+  const loggedPortion = parseFoodPortionLabel(entry.servingLabel)
+  const drinkLike =
+    looksLikeLiquid(entry.name) || drinkVolumeMl(loggedPortion) > 0
+  const [countsWater, setCountsWater] = useState(
+    () => entryHydrationMl(entry) > 0
+  )
+  const [hydrationMl, setHydrationMl] = useState(
+    () =>
+      entryHydrationMl(entry) || drinkVolumeMl(loggedPortion) || DEFAULT_DRINK_ML
+  )
   const [name, setName] = useState(entry.name)
   const [meal, setMeal] = useState<string>(entry.meal)
   // The logged day stays fixed; only the clock moves. Built from the entry's
@@ -1588,7 +1622,9 @@ function FoodEntrySheet({
     number(macros.calories) !== Math.round(entry.calories) ||
     number(macros.protein) !== Math.round(entry.protein) ||
     number(macros.carbs) !== Math.round(entry.carbs) ||
-    number(macros.fat) !== Math.round(entry.fat)
+    number(macros.fat) !== Math.round(entry.fat) ||
+    (hydrationOn && countsWater !== entryHydrationMl(entry) > 0) ||
+    (hydrationOn && countsWater && hydrationMl !== entryHydrationMl(entry))
 
   const micros = FOOD_MICRONUTRIENT_KEYS.filter(
     (key) => (entry[key] ?? 0) > 0
@@ -1716,6 +1752,58 @@ function FoodEntrySheet({
         ))}
       </div>
 
+      {hydrationOn && drinkLike && (
+        <div className="mt-3 border-t border-border/45 pt-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="native-row-title">
+                {tr("Counts toward hydration")}
+              </p>
+              <p className="native-row-detail mt-0.5">
+                {countsWater
+                  ? tr("Adds {{value0}} of water to this day", {
+                      value0: formatWater(hydrationMl, waterUnit),
+                    })
+                  : tr("Logged as food only — water stays untouched")}
+              </p>
+            </div>
+            <CompactSwitch
+              checked={countsWater}
+              onInteract={hapticSelection}
+              onChange={setCountsWater}
+              label={tr("Counts toward hydration")}
+            />
+          </div>
+          {countsWater && (
+            <div className="mt-2 flex items-center gap-2">
+              <input
+                value={
+                  waterUnit === "fl oz"
+                    ? String(Math.round(mlToFlOz(hydrationMl) * 10) / 10)
+                    : String(hydrationMl)
+                }
+                onChange={(event) => {
+                  const parsed = Number(event.target.value.replace(",", "."))
+                  if (!Number.isFinite(parsed)) return
+                  setHydrationMl(
+                    Math.max(
+                      0,
+                      Math.round(
+                        waterUnit === "fl oz" ? flOzToMl(parsed) : parsed
+                      )
+                    )
+                  )
+                }}
+                inputMode="decimal"
+                aria-label={tr("Water amount")}
+                className="h-11 w-full rounded-xl border border-border bg-transparent px-2 text-center text-[15px] tabular-nums outline-none focus:border-foreground/40"
+              />
+              <span className="native-row-detail shrink-0">{waterUnit}</span>
+            </div>
+          )}
+        </div>
+      )}
+
       {servingLine && (
         <p className="native-row-detail mt-3">
           <Message
@@ -1752,8 +1840,8 @@ function FoodEntrySheet({
         type="button"
         disabled={saving || !changed || trimmedName.length === 0}
         aria-busy={saving}
-        onClick={() =>
-          onSave({
+        onClick={() => {
+          const updated = {
             ...entry,
             name: trimmedName,
             meal: meal as MealType,
@@ -1762,8 +1850,13 @@ function FoodEntrySheet({
             protein: number(macros.protein),
             carbs: number(macros.carbs),
             fat: number(macros.fat),
-          })
-        }
+          }
+          onSave(
+            hydrationOn
+              ? withEntryHydration(updated, countsWater, hydrationMl)
+              : updated
+          )
+        }}
         className="mt-4 flex min-h-12 w-full items-center justify-center rounded-2xl bg-foreground px-4 text-[14px] font-bold text-background transition-opacity active:opacity-80 disabled:opacity-35"
       >
         {saving
@@ -2516,6 +2609,10 @@ export default function Nutrition() {
     api.users.users.setWaterUnit,
     "users.users.setWaterUnit"
   )
+  const setHydrationEnabledMutation = useOfflineMutation(
+    api.users.users.setHydrationEnabled,
+    "users.users.setHydrationEnabled"
+  )
   const saveCustomGoals = useOfflineMutation(
     api.users.users.setCustomGoals,
     "users.users.setCustomGoals"
@@ -2678,10 +2775,12 @@ export default function Nutrition() {
     () => effectiveGoals?.mealTargets ?? [],
     [effectiveGoals]
   )
-  const waterTotal = waterEntries.reduce(
-    (sum, entry) => sum + entry.amountMl,
-    0
-  )
+  // The day's hydration, water rows plus whatever drinks were counted. The
+  // drinks half is shown separately below the bar, because a total that climbed
+  // without a glass being poured should say where it came from.
+  const waterTotal = dayHydrationMl(waterEntries, entries)
+  const drinkWaterTotal = drinksHydrationMl(entries)
+  const hydrationOn = useHydrationEnabled()
   // Whatever lands in the day's log also flows out to Apple Health /
   // Health Connect (opt-in), so the health store's nutrition picture is
   // complete even when meals were logged here rather than scanned there.
@@ -2912,6 +3011,18 @@ export default function Nutrition() {
     }
   }, [calorieGoalCelebration])
 
+  /** Turns the tracker back on, from the card it replaced. */
+  async function enableHydration() {
+    try {
+      await setHydrationEnabledMutation({ enabled: true })
+      toast.success(tr("Hydration tracking is on. Today's water is back."))
+    } catch {
+      toast.error(
+        translateError(tr("Could not turn hydration tracking back on."))
+      )
+    }
+  }
+
   async function saveWaterGoal(ml: number) {
     if (savingWaterGoal) return false
     setSavingWaterGoal(true)
@@ -3089,7 +3200,10 @@ export default function Nutrition() {
       // Targeted updateEntry, not a setDay rewrite — an edit must not drop
       // entries logged elsewhere between this page's read and its write.
       // _id is stripped: the validator rejects server-only fields.
-      await updateFoodEntryById({
+      // Through the same helper the add paths use: an older server refuses an
+      // edit that carries a drink's water, and losing the whole edit would also
+      // lose the correction the user came here to make.
+      await saveFoodLogEntry(updateFoodEntryById, {
         date: dateKey,
         entry: stripUndefined({ ...updated, _id: undefined }),
       })
@@ -3098,9 +3212,7 @@ export default function Nutrition() {
     } catch (error) {
       toast.error(
         translateError(
-          error instanceof Error
-            ? error.message
-            : tr("Could not save this entry")
+          offlineMutationErrorMessage(error, tr("Could not save this entry"))
         )
       )
     } finally {
@@ -3169,12 +3281,13 @@ export default function Nutrition() {
     if (quickRepeatBusyKey !== null) return
     setQuickRepeatBusyKey(key)
     try {
+      // The same rule every other repeat surface routes through: the meal the
+      // tap falls in, and the sheet's time field when it holds one.
       const repeatedFood: FoodLogEntry = stripUndefined({
         ...entry,
         _id: undefined,
         id: crypto.randomUUID(),
-        meal: defaultMeal(),
-        loggedAt: foodLogTimestampForMeal(dateKey, defaultMeal(), logTime),
+        ...foodLogRepeatStamp(dateKey, logTime),
       })
 
       await setFoodDay({
@@ -3599,6 +3712,14 @@ export default function Nutrition() {
                 complete={intakeTotals.fat >= macroTargets.fat}
               />
             </TourAnchor>
+
+            {visibleMetrics.calories && (
+              <ExternalIntakeCard
+                date={dateKey}
+                energyUnit={energyUnit}
+                waterUnit={waterUnit}
+              />
+            )}
 
             <div className="mt-4 space-y-4 border-t border-border/35 pt-4">
               {mealTargetsEnabled && (
@@ -4099,9 +4220,18 @@ export default function Nutrition() {
                   />
                 </button>
               )}
+
             </section>
 
             {logMethods}
+
+            {visibleMetrics.calories && (
+              <ExternalIntakeCard
+                date={dateKey}
+                energyUnit={energyUnit}
+                waterUnit={waterUnit}
+              />
+            )}
 
             {smartMealSuggestion && (
               <div className="mt-3">
@@ -4250,6 +4380,27 @@ export default function Nutrition() {
               </div>
 
               <div className="grid content-start gap-6 self-start">
+                {/* Hydration is optional. With the tracker off the card goes and
+                    a row says why — a section that silently disappears reads as
+                    a bug rather than as a choice someone made in Settings. */}
+                {!hydrationOn && (
+                  <div className="border-y border-border py-4">
+                    <p className="app-section-title">{tr("Water")}</p>
+                    <p className="native-row-detail mt-1">
+                      {tr(
+                        "Hydration tracking is off, so water is not counted or shown."
+                      )}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => void enableHydration()}
+                      className="app-button app-button-quiet mt-2 justify-center"
+                    >
+                      {tr("Turn on hydration tracking")}
+                    </button>
+                  </div>
+                )}
+                {hydrationOn && (
                 <div
                   className="progress-tab-enter relative overflow-hidden border-y border-border py-4"
                   style={{ animationDelay: "160ms" }}
@@ -4302,6 +4453,25 @@ export default function Nutrition() {
                     color={APP_ACCENT_COLORS.water}
                     animateChanges
                   />
+                  {/* Where the day's water came from, when part of it did not
+                      come from the glass: the honest answer to a total that
+                      moved on its own. */}
+                  {drinkWaterTotal > 0 && (
+                    <p className="native-row-detail mt-2">
+                      <Message
+                        text={
+                          "Includes {{value0}} of water from drinks you counted"
+                        }
+                        values={{ value0: fmtWater(drinkWaterTotal) }}
+                      />
+                    </p>
+                  )}
+                  {/* Today's line above answers the day. The week is a separate
+                      question, and only today's view has a week to look back
+                      over — a past day's card should stay about that day. */}
+                  {isToday && (
+                    <HydrationTrendInsight endKey={dateKey} unit={waterUnit} />
+                  )}
                   <div className="mt-3 grid grid-cols-2 gap-2.5">
                     {quickWaterAmounts.map((amount) => (
                       <button
@@ -4327,6 +4497,7 @@ export default function Nutrition() {
                     </button>
                   </div>
                 </div>
+                )}
 
                 <div
                   className="progress-tab-enter relative overflow-hidden border-y border-border py-4"

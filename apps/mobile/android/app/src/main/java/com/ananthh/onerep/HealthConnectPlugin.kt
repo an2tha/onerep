@@ -3,6 +3,7 @@ package com.ananthh.onerep
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.util.Log
 import androidx.activity.result.ActivityResult
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
@@ -31,6 +32,7 @@ import androidx.health.connect.client.records.HeightRecord
 import androidx.health.connect.client.records.HydrationRecord
 import androidx.health.connect.client.records.IntermenstrualBleedingRecord
 import androidx.health.connect.client.records.LeanBodyMassRecord
+import androidx.health.connect.client.records.MealType
 import androidx.health.connect.client.records.MenstruationFlowRecord
 import androidx.health.connect.client.records.MenstruationPeriodRecord
 import androidx.health.connect.client.records.NutritionRecord
@@ -96,6 +98,9 @@ import kotlin.reflect.KClass
 class HealthConnectPlugin : Plugin() {
 
     private companion object {
+        /** Logcat tag for refusals, which notes them even when nobody is watching. */
+        const val TAG = "OneRep.HealthConnect"
+
         const val HEALTH_CONNECT_PACKAGE = "com.google.android.apps.healthdata"
 
         /** Health Connect's per-app permission screen. */
@@ -253,6 +258,295 @@ class HealthConnectPlugin : Plugin() {
 
     private fun sdkStatus(): Int = HealthConnectClient.getSdkStatus(context)
 
+    /**
+     * A refused write, named.
+     *
+     * Every write in this plugin used to answer `saved: false` and drop the
+     * exception that explained it, so a phone that refused every meal looked
+     * identical to one that stored them — and did so for months. The reason
+     * travels to JS so a screen can say what happened; the message goes to
+     * logcat for whoever is holding the device.
+     */
+    private fun writeRefusal(reason: String, message: String? = null): JSObject {
+        if (message != null) Log.w(TAG, "write refused ($reason): $message")
+        val out = JSObject().put("saved", false).put("reason", reason)
+        if (message != null) out.put("message", message)
+        return out
+    }
+
+    /** The same shape, for the cleanup path. */
+    private fun deleteRefusal(reason: String, message: String? = null): JSObject {
+        if (message != null) Log.w(TAG, "delete refused ($reason): $message")
+        val out = JSObject().put("deleted", false).put("reason", reason)
+        if (message != null) out.put("message", message)
+        return out
+    }
+
+    /** The store's own words, mapped onto the reasons JS acts on. */
+    private fun reasonFor(error: Throwable): String = when (error) {
+        is SecurityException -> "no_permission"
+        is IllegalArgumentException -> "invalid_record"
+        is IllegalStateException -> "unavailable"
+        else -> "unknown"
+    }
+
+    /**
+     * Writes one day's nutrition, and its water, as a single unit.
+     *
+     * One record per day rather than one per nutrient: Health Connect reads a
+     * NutritionRecord as a meal's worth of food, so a day filed as four
+     * single-nutrient records shows up as four meals of unknown type. The
+     * macros we know are set on the one record, the meal type is the store's
+     * own unknown, and the stable `nutrition:<date>` id makes the push an
+     * upsert rather than a new meal.
+     *
+     * Our own records for the day are deleted first. That is what clears the
+     * stacks older builds left (a record per metric per push), and it is only
+     * safe because a day is now one record — the delete can no longer eat a
+     * batch sibling, which is why the per-write delete elsewhere in this file
+     * still excludes NutritionRecord. The SDK scopes both operations to this
+     * app's data origin, so other apps' food is never touched.
+     */
+    private suspend fun writeNutritionDay(
+        hc: HealthConnectClient,
+        date: String,
+        energyKcal: Double?,
+        proteinG: Double?,
+        carbsG: Double?,
+        fatG: Double?,
+        waterMl: Double?,
+    ): JSObject {
+        val day = runCatching { LocalDate.parse(date) }.getOrNull()
+            ?: return writeRefusal("invalid_record", "unparseable date '$date'")
+
+        val wantsNutrition =
+            energyKcal != null || proteinG != null || carbsG != null || fatG != null
+        // Zero is not a value here: the caller omits water it is not tracking,
+        // and a zero-volume record would claim a day of drinking nothing.
+        val wantsWater = waterMl != null && waterMl > 0.0
+        if (!wantsNutrition && !wantsWater) {
+            return writeRefusal("invalid_record", "nothing to write for $date")
+        }
+
+        val zone = ZoneId.systemDefault()
+        val now = Instant.now()
+        val dayStart = day.atStartOfDay(zone).toInstant()
+        // Nothing may be dated in the future, so an edit to today stops at now.
+        val dayEnd = minOf(day.plusDays(1).atStartOfDay(zone).toInstant(), now)
+        if (!dayStart.isBefore(dayEnd)) {
+            return writeRefusal("invalid_record", "empty interval for $date")
+        }
+        val spanOffset = zone.rules.getOffset(dayStart)
+
+        val granted = runCatching { hc.permissionController.getGrantedPermissions() }
+            .getOrElse { error -> return writeRefusal(reasonFor(error), error.message) }
+        val missing = mutableListOf<String>()
+        if (wantsNutrition &&
+            !granted.contains(HealthPermission.getWritePermission(NutritionRecord::class))
+        ) {
+            missing.add("NUTRITION")
+        }
+        if (wantsWater &&
+            !granted.contains(HealthPermission.getWritePermission(HydrationRecord::class))
+        ) {
+            missing.add("HYDRATION")
+        }
+        if (missing.isNotEmpty()) {
+            return writeRefusal("no_permission", "not granted: ${missing.joinToString()}")
+        }
+
+        val version = now.toEpochMilli()
+        val written = mutableListOf<Record>()
+        if (wantsNutrition) {
+            written += NutritionRecord(
+                startTime = dayStart,
+                startZoneOffset = spanOffset,
+                endTime = dayEnd,
+                endZoneOffset = spanOffset,
+                mealType = MealType.MEAL_TYPE_UNKNOWN,
+                energy = energyKcal?.let { Energy.kilocalories(it) },
+                protein = proteinG?.let { Mass.grams(it) },
+                totalCarbohydrate = carbsG?.let { Mass.grams(it) },
+                totalFat = fatG?.let { Mass.grams(it) },
+                metadata = Metadata.manualEntry(
+                    clientRecordId = "nutrition:$date",
+                    clientRecordVersion = version,
+                ),
+            )
+        }
+        if (wantsWater) {
+            written += HydrationRecord(
+                startTime = dayStart,
+                startZoneOffset = spanOffset,
+                endTime = dayEnd,
+                endZoneOffset = spanOffset,
+                volume = Volume.milliliters(waterMl ?: 0.0),
+                metadata = Metadata.manualEntry(
+                    clientRecordId = "hydration:$date",
+                    clientRecordVersion = version,
+                ),
+            )
+        }
+
+        return runCatching {
+            if (wantsNutrition) {
+                hc.deleteRecords(NutritionRecord::class, TimeRangeFilter.between(dayStart, dayEnd))
+            }
+            if (wantsWater) {
+                // Clear this app's old hydrationMl:<date> records as well as
+                // the current hydration:<date> record before replacing water.
+                hc.deleteRecords(HydrationRecord::class, TimeRangeFilter.between(dayStart, dayEnd))
+            }
+            hc.insertRecords(written)
+            JSObject().put("saved", true).put("written", written.size)
+        }.getOrElse { error -> writeRefusal(reasonFor(error), error.message) }
+    }
+
+    /** One logged food, as JS hands it over. Every field is optional. */
+    private data class NutritionItem(
+        val id: String?,
+        val name: String?,
+        val loggedAt: String?,
+        val meal: String?,
+        val energyKcal: Double?,
+        val proteinG: Double?,
+        val carbsG: Double?,
+        val fatG: Double?,
+    )
+
+    /** The instant a food was logged, when JS sent one this shell can read. */
+    private fun NutritionItem.loggedAtInstant(): Instant? =
+        loggedAt?.let { runCatching { Instant.parse(it) }.getOrNull() }
+
+    /**
+     * The app's meal, in Health Connect's terms.
+     *
+     * JS sends the closed set the two stores share (`breakfast`, `lunch`,
+     * `dinner`, `snack`, `unknown`) — the translation out of the app's own
+     * user-named meals happens once in JS, in a tested place. Anything else
+     * arrives as the store's own unknown rather than being guessed at.
+     */
+    private fun mealTypeFor(meal: String?): Int = when (meal?.lowercase()) {
+        "breakfast" -> MealType.MEAL_TYPE_BREAKFAST
+        "lunch" -> MealType.MEAL_TYPE_LUNCH
+        "dinner" -> MealType.MEAL_TYPE_DINNER
+        "snack" -> MealType.MEAL_TYPE_SNACK
+        else -> MealType.MEAL_TYPE_UNKNOWN
+    }
+
+    /**
+     * Writes the day's foods as one named record each, and its water.
+     *
+     * Each record spans a minute from the moment the food was logged, so the
+     * store's own timeline reads as the day did; a food logged in the future, or
+     * logged before the date it was filed under, is clamped into the day rather
+     * than refused, because that is what the log said happened. The record id is
+     * `nutrition:<date>:<item id>`, which is what makes a push diagnosable
+     * against a re-push long after the fact.
+     */
+    private suspend fun writeNutritionItems(
+        hc: HealthConnectClient,
+        date: String,
+        items: List<NutritionItem>,
+        waterMl: Double?,
+    ): JSObject {
+        val day = runCatching { LocalDate.parse(date) }.getOrNull()
+            ?: return writeRefusal("invalid_record", "unparseable date '$date'")
+
+        // Zero is not a value here: the caller omits water it is not tracking,
+        // and a zero-volume record would claim a day of drinking nothing.
+        val wantsWater = waterMl != null && waterMl > 0.0
+        if (items.isEmpty() && !wantsWater) {
+            return writeRefusal("invalid_record", "nothing to write for $date")
+        }
+
+        val zone = ZoneId.systemDefault()
+        val now = Instant.now()
+        val dayStart = day.atStartOfDay(zone).toInstant()
+        // Nothing may be dated in the future, so an edit to today stops at now.
+        val dayEnd = minOf(day.plusDays(1).atStartOfDay(zone).toInstant(), now)
+        if (!dayStart.isBefore(dayEnd)) {
+            return writeRefusal("invalid_record", "empty interval for $date")
+        }
+
+        val granted = runCatching { hc.permissionController.getGrantedPermissions() }
+            .getOrElse { error -> return writeRefusal(reasonFor(error), error.message) }
+        val missing = mutableListOf<String>()
+        if (items.isNotEmpty() &&
+            !granted.contains(HealthPermission.getWritePermission(NutritionRecord::class))
+        ) {
+            missing.add("NUTRITION")
+        }
+        if (wantsWater &&
+            !granted.contains(HealthPermission.getWritePermission(HydrationRecord::class))
+        ) {
+            missing.add("HYDRATION")
+        }
+        if (missing.isNotEmpty()) {
+            // The whole day is refused rather than half-written: a day whose
+            // food landed but whose water did not is a day the read-back check
+            // would report as wrong for ever.
+            return writeRefusal("no_permission", "not granted: ${missing.joinToString()}")
+        }
+
+        val version = now.toEpochMilli()
+        val written = mutableListOf<Record>()
+        items.forEachIndexed { index, item ->
+            // Strictly inside the day. A start of exactly `dayEnd` is the next
+            // day's midnight, and the minute of length below would then be
+            // counted there: a late-night meal the diary files under this day
+            // reappeared as tomorrow's food, which is what the read-back check
+            // caught on a real week — 920 kcal of dinner moved to the next day.
+            val lastInstant = dayEnd.minusMillis(1)
+            val start = (item.loggedAtInstant() ?: dayStart)
+                .coerceAtLeast(dayStart)
+                .coerceAtMost(lastInstant)
+            val end = minOf(start.plusSeconds(60), dayEnd).coerceAtLeast(start)
+            written += NutritionRecord(
+                startTime = start,
+                startZoneOffset = zone.rules.getOffset(start),
+                endTime = end,
+                endZoneOffset = zone.rules.getOffset(end),
+                mealType = mealTypeFor(item.meal),
+                name = item.name,
+                energy = item.energyKcal?.let { Energy.kilocalories(it) },
+                protein = item.proteinG?.let { Mass.grams(it) },
+                totalCarbohydrate = item.carbsG?.let { Mass.grams(it) },
+                totalFat = item.fatG?.let { Mass.grams(it) },
+                metadata = Metadata.manualEntry(
+                    clientRecordId = "nutrition:$date:${item.id ?: index}",
+                    clientRecordVersion = version,
+                ),
+            )
+        }
+        if (wantsWater) {
+            written += HydrationRecord(
+                startTime = dayStart,
+                startZoneOffset = zone.rules.getOffset(dayStart),
+                endTime = dayEnd,
+                endZoneOffset = zone.rules.getOffset(dayEnd),
+                volume = Volume.milliliters(waterMl ?: 0.0),
+                metadata = Metadata.manualEntry(
+                    clientRecordId = "hydration:$date",
+                    clientRecordVersion = version,
+                ),
+            )
+        }
+
+        return runCatching {
+            // Our own day, cleared first: the items are the day, so an edit has
+            // to replace what was there rather than join it.
+            if (items.isNotEmpty()) {
+                hc.deleteRecords(NutritionRecord::class, TimeRangeFilter.between(dayStart, dayEnd))
+            }
+            if (wantsWater) {
+                hc.deleteRecords(HydrationRecord::class, TimeRangeFilter.between(dayStart, dayEnd))
+            }
+            hc.insertRecords(written)
+            JSObject().put("saved", true).put("written", written.size)
+        }.getOrElse { error -> writeRefusal(reasonFor(error), error.message) }
+    }
+
     override fun handleOnDestroy() {
         scope.cancel()
         super.handleOnDestroy()
@@ -301,6 +595,35 @@ class HealthConnectPlugin : Plugin() {
                     },
                 ),
             )
+        }
+    }
+
+    /**
+     * Whether the store will take our writes, asked without prompting anybody.
+     *
+     * Distinct from `authorizationStatus`, which answers about reads — the
+     * conflation that let Settings say "Connected" on a phone that had granted
+     * nothing but reads while every meal it logged went nowhere. These are the
+     * writes the app performs on its own, which is also the set the toggle asks
+     * for.
+     */
+    @PluginMethod
+    fun getWriteAccess(call: PluginCall) {
+        val hc = client
+        if (hc == null) {
+            call.resolve(JSObject().put("status", "unavailable"))
+            return
+        }
+        scope.launch {
+            val granted = runCatching {
+                withContext(Dispatchers.IO) { hc.permissionController.getGrantedPermissions() }
+            }.getOrNull()
+            val status = when {
+                granted == null -> "unavailable"
+                granted.containsAll(coreWritePermissions) -> "granted"
+                else -> "missing"
+            }
+            call.resolve(JSObject().put("status", status))
         }
     }
 
@@ -1116,6 +1439,133 @@ class HealthConnectPlugin : Plugin() {
         }
     }
 
+    /**
+     * Nutrients and water written by *other* apps, by local day.
+     *
+     * Read apart from `getDailyMetrics` because that reader sums every origin,
+     * this app's included — our own write-back comes back as NutritionRecords,
+     * and counting those would double every day somebody logs a meal here. The
+     * `ownPackage` filter below is the whole loop protection.
+     *
+     * `complete` says whether the nutrition read actually happened. Health
+     * Connect answers a declined type with an exception, and the far end prunes
+     * history inside the window it is told was read — so an unreadable store
+     * must never look like an empty one.
+     */
+    @PluginMethod
+    fun getExternalNutrition(call: PluginCall) {
+        val hc = client
+        if (hc == null) {
+            call.resolve(JSObject().put("days", JSArray()).put("complete", false))
+            return
+        }
+
+        val daysBack = (call.getInt("daysBack") ?: 30).coerceIn(1, 45)
+        val zone = ZoneId.systemDefault()
+        val startDay = LocalDate.now(zone).minusDays((daysBack - 1).toLong())
+        val start = startDay.atStartOfDay(zone).toInstant()
+        val end = Instant.now()
+
+        scope.launch {
+            val outcome = runCatching {
+                withContext(Dispatchers.IO) {
+                    val ownPackage = context.packageName
+                    val nutrients = sortedMapOf<String, MutableMap<String, Double>>()
+                    val sources = sortedMapOf<String, MutableSet<String>>()
+
+                    fun offer(day: String, key: String, value: Double?) {
+                        if (value == null || !value.isFinite() || value <= 0) return
+                        val bucket = nutrients.getOrPut(day) { mutableMapOf() }
+                        bucket[key] = (bucket[key] ?: 0.0) + value
+                    }
+
+                    fun offerSource(day: String, packageName: String) {
+                        sources.getOrPut(day) { mutableSetOf() }.add(appLabel(packageName))
+                    }
+
+                    // The catalogue's own keys, so the card never has to guess
+                    // what a figure means. Health Connect keeps every nutrient
+                    // on one record; the masses are grams, so the milligrams
+                    // and micrograms are scaled here.
+                    val fields: List<Pair<String, (NutritionRecord) -> Double?>> = listOf(
+                        "dietaryEnergyKcal" to { r -> r.energy?.inKilocalories },
+                        "dietaryProteinG" to { r -> r.protein?.inGrams },
+                        "dietaryCarbsG" to { r -> r.totalCarbohydrate?.inGrams },
+                        "dietaryFatG" to { r -> r.totalFat?.inGrams },
+                        "dietarySaturatedFatG" to { r -> r.saturatedFat?.inGrams },
+                        "dietaryMonounsaturatedFatG" to { r -> r.monounsaturatedFat?.inGrams },
+                        "dietaryPolyunsaturatedFatG" to { r -> r.polyunsaturatedFat?.inGrams },
+                        "dietaryFiberG" to { r -> r.dietaryFiber?.inGrams },
+                        "dietarySugarG" to { r -> r.sugar?.inGrams },
+                        "dietaryCholesterolMg" to { r -> r.cholesterol?.inGrams?.times(1000.0) },
+                        "dietarySodiumMg" to { r -> r.sodium?.inGrams?.times(1000.0) },
+                        "dietaryPotassiumMg" to { r -> r.potassium?.inGrams?.times(1000.0) },
+                        "dietaryCalciumMg" to { r -> r.calcium?.inGrams?.times(1000.0) },
+                        "dietaryIronMg" to { r -> r.iron?.inGrams?.times(1000.0) },
+                        "dietaryVitaminAMcg" to { r -> r.vitaminA?.inGrams?.times(1_000_000.0) },
+                        "dietaryVitaminCMg" to { r -> r.vitaminC?.inGrams?.times(1000.0) },
+                        "dietaryVitaminDMcg" to { r -> r.vitaminD?.inGrams?.times(1_000_000.0) },
+                        "caffeineMg" to { r -> r.caffeine?.inGrams?.times(1000.0) },
+                    )
+
+                    readAll(
+                        hc,
+                        ReadRecordsRequest(
+                            recordType = NutritionRecord::class,
+                            timeRangeFilter = TimeRangeFilter.between(start, end),
+                        ),
+                    ) { record ->
+                        // Our own write-back, never somebody else's food.
+                        if (record.metadata.dataOrigin.packageName == ownPackage) return@readAll
+                        val day = record.startTime.atZone(zone).toLocalDate().toString()
+                        offerSource(day, record.metadata.dataOrigin.packageName)
+                        fields.forEach { (key, value) ->
+                            offer(day, key, value(record))
+                        }
+                    }
+
+                    readAll(
+                        hc,
+                        ReadRecordsRequest(
+                            recordType = HydrationRecord::class,
+                            timeRangeFilter = TimeRangeFilter.between(start, end),
+                        ),
+                    ) { record ->
+                        if (record.metadata.dataOrigin.packageName == ownPackage) return@readAll
+                        val day = record.startTime.atZone(zone).toLocalDate().toString()
+                        offerSource(day, record.metadata.dataOrigin.packageName)
+                        offer(day, "hydrationMl", record.volume.inMilliliters)
+                    }
+
+                    val array = JSArray()
+                    nutrients.forEach { (day, values) ->
+                        array.put(
+                            JSObject()
+                                .put("date", day)
+                                .put(
+                                    "nutrients",
+                                    JSObject().apply { values.forEach { (key, value) -> put(key, value) } },
+                                )
+                                .put(
+                                    "sources",
+                                    JSArray().apply { sources[day]?.sorted()?.forEach { put(it) } },
+                                ),
+                        )
+                    }
+                    array
+                }
+            }
+
+            outcome.onSuccess { array ->
+                call.resolve(JSObject().put("days", array).put("complete", true))
+            }.onFailure {
+                // A declined or unavailable type is not a reason to fail the
+                // whole sync; it is a reason not to prune what is already there.
+                call.resolve(JSObject().put("days", JSArray()).put("complete", false))
+            }
+        }
+    }
+
     private suspend fun serialize(
         hc: HealthConnectClient,
         session: ExerciseSessionRecord,
@@ -1311,15 +1761,21 @@ class HealthConnectPlugin : Plugin() {
         val metric = call.getString("metric")
         val date = call.getString("date")
         val value = call.getDouble("value")
-        if (hc == null || metric == null || date == null || value == null) {
-            call.resolve(JSObject().put("saved", false))
+        if (hc == null) {
+            call.resolve(writeRefusal("unavailable", "Health Connect is not available"))
+            return
+        }
+        if (metric == null || date == null || value == null) {
+            call.resolve(
+                writeRefusal("invalid_record", "metric, date and value are all required"),
+            )
             return
         }
 
         val zone = ZoneId.systemDefault()
         val day = runCatching { LocalDate.parse(date) }.getOrNull()
         if (day == null) {
-            call.resolve(JSObject().put("saved", false))
+            call.resolve(writeRefusal("invalid_record", "unparseable date '$date'"))
             return
         }
 
@@ -1447,16 +1903,23 @@ class HealthConnectPlugin : Plugin() {
         }
 
         if (record == null) {
-            call.resolve(JSObject().put("saved", false))
+            call.resolve(
+                writeRefusal("unsupported_metric", "$metric has no Health Connect record"),
+            )
             return
         }
 
         scope.launch {
-            val saved = runCatching {
+            val outcome = runCatching {
                 withContext(Dispatchers.IO) {
                     val granted = hc.permissionController.getGrantedPermissions()
                     val permission = HealthPermission.getWritePermission(record::class)
-                    if (!granted.contains(permission)) return@withContext false
+                    if (!granted.contains(permission)) {
+                        return@withContext writeRefusal(
+                            "no_permission",
+                            "WRITE permission for $metric was not granted",
+                        )
+                    }
                     // Cumulative day records (steps, energy, hydration totals)
                     // are re-pushed as running totals, so our previous
                     // same-day record must not survive alongside the new one —
@@ -1487,19 +1950,125 @@ class HealthConnectPlugin : Plugin() {
                         )
                     }
                     hc.insertRecords(listOf(record))
-                    true
+                    JSObject().put("saved", true)
                 }
-            }.getOrDefault(false)
+            }.getOrElse { error -> writeRefusal(reasonFor(error), error.message) }
 
-            call.resolve(JSObject().put("saved", saved))
+            call.resolve(outcome)
+        }
+    }
+
+    /**
+     * Writes one day's food and water as a single nutrition record.
+     *
+     * The day-at-a-time entry point: the app's food log knows all four macros
+     * at once, and one record is both what the store's screens expect and one
+     * round trip instead of four. Per-metric writes still work below, for
+     * callers (and JS bundles) that predate this method.
+     */
+    @PluginMethod
+    fun saveNutritionDay(call: PluginCall) {
+        val hc = client
+        val date = call.getString("date")
+        if (hc == null) {
+            call.resolve(writeRefusal("unavailable", "Health Connect is not available"))
+            return
+        }
+        if (date == null) {
+            call.resolve(writeRefusal("invalid_record", "date is required"))
+            return
+        }
+        val energyKcal = call.getDouble("energyKcal")
+        val proteinG = call.getDouble("proteinG")
+        val carbsG = call.getDouble("carbsG")
+        val fatG = call.getDouble("fatG")
+        val waterMl = call.getDouble("waterMl")
+
+        scope.launch {
+            val result = withContext(Dispatchers.IO) {
+                writeNutritionDay(
+                    hc = hc,
+                    date = date,
+                    energyKcal = energyKcal,
+                    proteinG = proteinG,
+                    carbsG = carbsG,
+                    fatG = fatG,
+                    waterMl = waterMl,
+                )
+            }
+            call.resolve(result)
+        }
+    }
+
+    /**
+     * The day's foods, one named record each, plus its water.
+     *
+     * This is the legible half of the write-back. A day's totals filed under no
+     * name tells nobody what they ate, and `NutritionRecord` takes a name and a
+     * meal type — so each logged food goes in as itself, with its own macros and
+     * the time it was eaten, and the store's own screens read like a food log
+     * instead of one anonymous number per day.
+     *
+     * The day is replaced as a unit: our own nutrition records for the date are
+     * deleted first, then the items are inserted in ONE batch. That is what
+     * makes an edited, renamed or deleted meal land as the day it should be
+     * rather than as a second copy of an earlier one — and it is also what
+     * washes the records older builds left stacked, which the upsert key alone
+     * could never match.
+     *
+     * When water is supplied, replace our hydration records too, including
+     * the legacy hydrationMl:<date> ID. Omitted water is left untouched.
+     */
+    @PluginMethod
+    fun saveNutritionItems(call: PluginCall) {
+        val hc = client
+        val date = call.getString("date")
+        if (hc == null) {
+            call.resolve(writeRefusal("unavailable", "Health Connect is not available"))
+            return
+        }
+        if (date == null) {
+            call.resolve(writeRefusal("invalid_record", "date is required"))
+            return
+        }
+
+        val items = mutableListOf<NutritionItem>()
+        val raw = call.getArray("items")
+        if (raw != null) {
+            for (i in 0 until raw.length()) {
+                val entry = raw.optJSONObject(i) ?: continue
+                // Everything is optional on the wire: an entry logged before the
+                // app recorded a meal, or one from a newer JS bundle this shell
+                // does not know about, still has to file what it can.
+                items.add(
+                    NutritionItem(
+                        id = entry.optString("id").takeIf { it.isNotBlank() },
+                        name = entry.optString("name").takeIf { it.isNotBlank() },
+                        loggedAt = entry.optString("loggedAt").takeIf { it.isNotBlank() },
+                        meal = entry.optString("meal").takeIf { it.isNotBlank() },
+                        energyKcal = entry.optDouble("calories").takeIf { it > 0.0 },
+                        proteinG = entry.optDouble("protein").takeIf { it > 0.0 },
+                        carbsG = entry.optDouble("carbs").takeIf { it > 0.0 },
+                        fatG = entry.optDouble("fat").takeIf { it > 0.0 },
+                    ),
+                )
+            }
+        }
+        val waterMl = call.getDouble("waterMl")
+
+        scope.launch {
+            val result = withContext(Dispatchers.IO) {
+                writeNutritionItems(hc = hc, date = date, items = items, waterMl = waterMl)
+            }
+            call.resolve(result)
         }
     }
 
     /**
      * One-time per-day cleanup for record classes shared by several metrics.
      *
-     * The repair flow pushes four NutritionRecords per day (energy, protein,
-     * carbs, fat). A broad delete inside saveDailyMetric would erase siblings
+     * The repair flow pushes a day's worth of NutritionRecords in one batch. A
+     * broad delete inside saveDailyMetric would erase siblings
      * in the same batch, so the repair calls this ONCE per day before pushing
      * — washing pre-fix stacks (records filed without clientRecordIds, which
      * the upsert can never match) while leaving the batch intact. Scoped to
@@ -1515,8 +2084,12 @@ class HealthConnectPlugin : Plugin() {
         val hc = client
         val date = call.getString("date")
         val day = date?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
-        if (hc == null || day == null) {
-            call.resolve(JSObject().put("deleted", false))
+        if (hc == null) {
+            call.resolve(deleteRefusal("unavailable", "Health Connect is not available"))
+            return
+        }
+        if (day == null) {
+            call.resolve(deleteRefusal("invalid_record", "unparseable date '$date'"))
             return
         }
         val metricsArray = call.getArray("metrics")
@@ -1527,7 +2100,7 @@ class HealthConnectPlugin : Plugin() {
             }
         }
         if (metrics.isEmpty()) {
-            call.resolve(JSObject().put("deleted", false))
+            call.resolve(deleteRefusal("invalid_record", "no metrics named"))
             return
         }
 
@@ -1551,12 +2124,17 @@ class HealthConnectPlugin : Plugin() {
 
         val classes = metrics.mapNotNull { classForMetric(it) }.toSet()
         if (classes.isEmpty()) {
-            call.resolve(JSObject().put("deleted", false))
+            call.resolve(
+                deleteRefusal(
+                    "unsupported_metric",
+                    "none of ${metrics.joinToString()} has a record here",
+                ),
+            )
             return
         }
 
         scope.launch {
-            val deleted = runCatching {
+            val outcome = runCatching {
                 withContext(Dispatchers.IO) {
                     val granted = hc.permissionController.getGrantedPermissions()
                     val requiredPermissions = classes.map {
@@ -1566,17 +2144,22 @@ class HealthConnectPlugin : Plugin() {
                     // can grant nutrition writes but refuse hydration; deleting
                     // NutritionRecord first would otherwise leave the day
                     // partially erased and the JS repair would skip its rewrite.
-                    if (requiredPermissions.any { it !in granted }) return@withContext false
+                    if (requiredPermissions.any { it !in granted }) {
+                        return@withContext deleteRefusal(
+                            "no_permission",
+                            "WRITE permission missing for one of ${metrics.joinToString()}",
+                        )
+                    }
                     for (klass in classes) {
                         hc.deleteRecords(
                             klass,
                             TimeRangeFilter.between(dayStart, dayEnd),
                         )
                     }
-                    true
+                    JSObject().put("deleted", true)
                 }
-            }.getOrDefault(false)
-            call.resolve(JSObject().put("deleted", deleted))
+            }.getOrElse { error -> deleteRefusal(reasonFor(error), error.message) }
+            call.resolve(outcome)
         }
     }
 

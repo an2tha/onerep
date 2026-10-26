@@ -41,6 +41,11 @@ export const foodLogEntryValidator = v.object({
   vitaminB12: v.optional(v.number()),
   caffeine: v.optional(v.number()),
   alcohol: v.optional(v.number()),
+  // Millilitres this entry contributes to the day's hydration, when the user
+  // counted the drink. Absent is the normal case: a drink only counts because it
+  // was ticked. Stored on the entry rather than as a hidden water row so
+  // unticking or deleting the drink takes its water with it.
+  hydrationMl: v.optional(v.number()),
 });
 
 type FoodLogEntryCore = {
@@ -74,6 +79,7 @@ const OPTIONAL_FOOD_NUMBER_FIELDS = [
   "vitaminB12",
   "caffeine",
   "alcohol",
+  "hydrationMl",
 ] as const;
 
 function nonNegativeFiniteNumber(value: number) {

@@ -13,9 +13,68 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "requestAuthorization", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "getRecentWorkouts", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "getDailyMetrics", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getExternalNutrition", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "saveWorkout", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "saveDailyMetric", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "saveDailyMetric", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "saveNutritionItems", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getWriteAccess", returnType: CAPPluginReturnPromise)
     ]
+
+    /**
+     A refused write, named.
+
+     HealthKit refuses a save with an error and, until now, this plugin turned
+     that into `saved: false` and nothing else — so a declined share permission
+     and a successful write were impossible to tell apart from the app. The
+     reason travels to JS so a screen can say what happened.
+     */
+    private func writeRefusal(_ reason: String, _ message: String?) -> [String: Any] {
+        if let message = message {
+            NSLog("[health] write refused (%@): %@", reason, message)
+        }
+        var out: [String: Any] = ["saved": false, "reason": reason]
+        if let message = message {
+            out["message"] = message
+        }
+        return out
+    }
+
+    /** HealthKit's own error, mapped onto the reasons JS acts on. */
+    private func reason(for error: Error?) -> String {
+        guard let error = error as NSError? else { return "unknown" }
+        if error.domain == HKErrorDomain,
+           error.code == HKError.Code.errorAuthorizationDenied.rawValue {
+            return "no_permission"
+        }
+        return "unknown"
+    }
+
+    /**
+     Whether writes will be accepted, asked without prompting anybody.
+
+     HealthKit answers this only partly, and the type says so: a request that
+     was shown is indistinguishable from one that was granted, except for a
+     type the user explicitly refused — which reports `.sharingDenied` and is
+     the one refusal iOS admits to. So a refusal is reported as `missing` and
+     everything else stays `unknown`, rather than claiming write access the
+     store never confirmed. The read-back check is the honest answer there.
+
+     This is the distinction whose absence let Settings report a phone as
+     connected while every meal it logged went nowhere.
+     */
+    @objc func getWriteAccess(_ call: CAPPluginCall) {
+        guard HKHealthStore.isHealthDataAvailable() else {
+            call.resolve(["status": "unavailable"])
+            return
+        }
+        let denied = dailyQuantities().contains { quantity in
+            guard quantity.writable, let type = quantityType(quantity.identifier) else {
+                return false
+            }
+            return healthStore.authorizationStatus(for: type) == .sharingDenied
+        }
+        call.resolve(["status": denied ? "missing" : "unknown"])
+    }
 
     private let healthStore = HKHealthStore()
     private let isoFormatter = ISO8601DateFormatter()
@@ -230,6 +289,119 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
                 ($0["date"] as? String ?? "") < ($1["date"] as? String ?? "")
             }
             call.resolve(["days": days])
+        }
+    }
+
+    /**
+     Nutrition and water written into HealthKit by *other* apps.
+
+     Read separately from `getDailyMetrics` because that reader sums every
+     source, this app's own write-back included — importing it back would double
+     every day somebody logs a meal here. Our samples are dropped by bundle
+     identifier, which HealthKit only lets us delete and not read around.
+
+     `complete` says whether the reads actually happened. HealthKit answers a
+     declined type with an error, and the far end prunes history inside the
+     window it is told was read — so an unreadable store must never look like an
+     empty one.
+     */
+    @objc func getExternalNutrition(_ call: CAPPluginCall) {
+        guard HKHealthStore.isHealthDataAvailable() else {
+            call.resolve(["days": [], "complete": false])
+            return
+        }
+
+        let daysBack = min(max(call.getInt("daysBack") ?? 30, 1), 45)
+        let calendar = Calendar.current
+        let end = Date()
+        let startOfToday = calendar.startOfDay(for: end)
+        guard let start = calendar.date(byAdding: .day, value: -(daysBack - 1), to: startOfToday) else {
+            call.resolve(["days": [], "complete": false])
+            return
+        }
+
+        let milligram = HKUnit.gramUnit(with: .milli)
+        let microgram = HKUnit.gramUnit(with: .micro)
+        // The nutrition rows of `dailyQuantities()`, type by type: HealthKit has
+        // no record with a field per nutrient, so each one is its own sample
+        // type and each has to be read on its own.
+        let quantities: [(key: String, type: HKQuantityType?, unit: HKUnit)] = [
+            ("dietaryEnergyKcal", quantityType("DietaryEnergyConsumed"), .kilocalorie()),
+            ("dietaryProteinG", quantityType("DietaryProtein"), .gram()),
+            ("dietaryCarbsG", quantityType("DietaryCarbohydrates"), .gram()),
+            ("dietaryFatG", quantityType("DietaryFatTotal"), .gram()),
+            ("dietarySaturatedFatG", quantityType("DietaryFatSaturated"), .gram()),
+            ("dietaryMonounsaturatedFatG", quantityType("DietaryFatMonounsaturated"), .gram()),
+            ("dietaryPolyunsaturatedFatG", quantityType("DietaryFatPolyunsaturated"), .gram()),
+            ("dietaryFiberG", quantityType("DietaryFiber"), .gram()),
+            ("dietarySugarG", quantityType("DietarySugar"), .gram()),
+            ("dietaryCholesterolMg", quantityType("DietaryCholesterol"), milligram),
+            ("dietarySodiumMg", quantityType("DietarySodium"), milligram),
+            ("dietaryPotassiumMg", quantityType("DietaryPotassium"), milligram),
+            ("dietaryCalciumMg", quantityType("DietaryCalcium"), milligram),
+            ("dietaryIronMg", quantityType("DietaryIron"), milligram),
+            ("dietaryVitaminAMcg", quantityType("DietaryVitaminA"), microgram),
+            ("dietaryVitaminCMg", quantityType("DietaryVitaminC"), milligram),
+            ("dietaryVitaminDMcg", quantityType("DietaryVitaminD"), microgram),
+            ("caffeineMg", quantityType("DietaryCaffeine"), milligram),
+            ("hydrationMl", quantityType("DietaryWater"), HKUnit.literUnit(with: .milli)),
+        ]
+
+        let ownBundle = Bundle.main.bundleIdentifier
+        var nutrients: [String: [String: Double]] = [:]
+        var sources: [String: Set<String>] = [:]
+        var unreadable = false
+        let lock = NSLock()
+        let group = DispatchGroup()
+
+        for entry in quantities {
+            guard let type = entry.type else {
+                unreadable = true
+                continue
+            }
+            group.enter()
+            let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: [])
+            let query = HKSampleQuery(
+                sampleType: type,
+                predicate: predicate,
+                limit: HKObjectQueryNoLimit,
+                sortDescriptors: nil
+            ) { _, samples, error in
+                defer { group.leave() }
+                if error != nil {
+                    lock.lock()
+                    unreadable = true
+                    lock.unlock()
+                    return
+                }
+                for case let sample as HKQuantitySample in samples ?? [] {
+                    // The whole loop protection: our own write-back is a sample
+                    // like any other, and counting it would double the day.
+                    let origin = sample.sourceRevision.source.bundleIdentifier
+                    if let ownBundle, origin == ownBundle { continue }
+                    let value = sample.quantity.doubleValue(for: entry.unit)
+                    guard value.isFinite, value > 0 else { continue }
+                    let day = self.dayKey(sample.startDate, calendar: calendar)
+                    lock.lock()
+                    var bucket = nutrients[day] ?? [:]
+                    bucket[entry.key, default: 0] += value
+                    nutrients[day] = bucket
+                    sources[day, default: []].insert(sample.sourceRevision.source.name)
+                    lock.unlock()
+                }
+            }
+            healthStore.execute(query)
+        }
+
+        group.notify(queue: .main) {
+            let days: [[String: Any]] = nutrients.keys.sorted().map { day in
+                [
+                    "date": day,
+                    "nutrients": nutrients[day] ?? [:],
+                    "sources": Array(sources[day] ?? []).sorted(),
+                ]
+            }
+            call.resolve(["days": days, "complete": !unreadable])
         }
     }
 
@@ -945,6 +1117,13 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
                 types.insert(type)
             }
         }
+        // Food entries are written as food correlations, so the correlation
+        // type has to be in the share request — a write of a type nobody asked
+        // for is refused, and the refusal arrives on the day the user logged a
+        // meal rather than at review time.
+        if let food = HKObjectType.correlationType(forIdentifier: .food) {
+            types.insert(food)
+        }
         return types
     }
 
@@ -962,27 +1141,37 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
      */
     @objc func saveDailyMetric(_ call: CAPPluginCall) {
         guard HKHealthStore.isHealthDataAvailable() else {
-            call.resolve(["saved": false])
+            call.resolve(writeRefusal("unavailable", "HealthKit is not available"))
             return
         }
 
         guard let metric = call.getString("metric"),
               let value = call.getDouble("value"),
-              let date = call.getString("date"),
-              // Only quantities, and only the ones Apple lets an app write.
-              // Category metrics — sleep and its stages, menstrual flow,
-              // cervical mucus, ovulation tests, sexual activity — carry an
-              // enum and a span, not a number, so "the user typed 2" does not
-              // describe a sample that could be written. They fall through to
-              // `saved: false` rather than guessing at a value.
-              let quantity = dailyQuantities().first(where: { $0.key == metric && $0.writable }),
-              let type = quantityType(quantity.identifier) else {
-            call.resolve(["saved": false])
+              let date = call.getString("date") else {
+            call.resolve(
+                writeRefusal("invalid_record", "metric, date and value are all required")
+            )
+            return
+        }
+
+        // Only quantities, and only the ones Apple lets an app write. Category
+        // metrics — sleep and its stages, menstrual flow, cervical mucus,
+        // ovulation tests, sexual activity — carry an enum and a span, not a
+        // number, so "the user typed 2" does not describe a sample that could
+        // be written. They are refused as unsupported rather than guessed at.
+        guard let quantity = dailyQuantities().first(where: {
+            $0.key == metric && $0.writable
+        }), let type = quantityType(quantity.identifier) else {
+            call.resolve(
+                writeRefusal("unsupported_metric", "\(metric) is not a writable HealthKit type")
+            )
             return
         }
 
         guard healthStore.authorizationStatus(for: type) == .sharingAuthorized else {
-            call.resolve(["saved": false])
+            call.resolve(
+                writeRefusal("no_permission", "sharing was not authorized for \(metric)")
+            )
             return
         }
 
@@ -993,7 +1182,7 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
         formatter.timeZone = calendar.timeZone
         formatter.dateFormat = "yyyy-MM-dd"
         guard let dayStart = formatter.date(from: date) else {
-            call.resolve(["saved": false])
+            call.resolve(writeRefusal("invalid_record", "unparseable date \(date)"))
             return
         }
 
@@ -1025,11 +1214,305 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
             end: finish
         )
 
-        healthStore.save(sample) { success, _ in
+        healthStore.save(sample) { success, error in
             DispatchQueue.main.async {
-                call.resolve(["saved": success])
+                if success {
+                    call.resolve(["saved": true])
+                } else {
+                    call.resolve(
+                        self.writeRefusal(self.reason(for: error), error?.localizedDescription)
+                    )
+                }
             }
         }
+    }
+
+    /** One logged food, as JS hands it over. Every field is optional. */
+    private struct NutritionItemRequest {
+        let id: String?
+        let name: String?
+        let loggedAt: Date?
+        let calories: Double
+        let protein: Double
+        let carbs: Double
+        let fat: Double
+    }
+
+    /**
+     Writes the day's foods as named food correlations, plus its water.
+
+     The other half of what makes a health record legible: `HKCorrelation` of
+     type food carries the item's name in `HKMetadataKeyFoodType` and groups its
+     nutrient samples, which is how every food-logging app writes to Apple
+     Health. A day of totals under no name is a choice this app made, not a
+     limit of HealthKit.
+
+     Replace, not append. HealthKit will not let an app touch samples another
+     app wrote, but it will let us remove our own — so before the day is written
+     its own samples are deleted, and an edited, renamed or deleted meal lands as
+     the day it should be rather than as a second copy of an earlier one. That
+     cleanup failing is a failed day, never a silent append: stacking is the bug
+     that made a day read as several days' worth of food.
+     */
+    @objc func saveNutritionItems(_ call: CAPPluginCall) {
+        guard HKHealthStore.isHealthDataAvailable() else {
+            call.resolve(writeRefusal("unavailable", "HealthKit is not available"))
+            return
+        }
+
+        guard let date = call.getString("date"),
+              let day = dayRange(for: date) else {
+            call.resolve(
+                writeRefusal("invalid_record", "date is required and must be a day")
+            )
+            return
+        }
+
+        var items: [NutritionItemRequest] = []
+        for case let entry as JSObject in call.getArray("items") ?? [] {
+            let name = (entry["name"] as? String)?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            let id = (entry["id"] as? String)?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            items.append(
+                NutritionItemRequest(
+                    id: (id?.isEmpty ?? true) ? nil : id,
+                    name: (name?.isEmpty ?? true) ? nil : name,
+                    loggedAt: (entry["loggedAt"] as? String).flatMap { instant(from: $0) },
+                    calories: number(entry["calories"]) ?? 0,
+                    protein: number(entry["protein"]) ?? 0,
+                    carbs: number(entry["carbs"]) ?? 0,
+                    fat: number(entry["fat"]) ?? 0
+                )
+            )
+        }
+        let waterMl = call.getDouble("waterMl")
+        let wantsWater = (waterMl ?? 0) > 0
+
+        if items.isEmpty && !wantsWater {
+            call.resolve(writeRefusal("invalid_record", "nothing to write for \(date)"))
+            return
+        }
+
+        Task { @MainActor in
+            // Check every type we will write before deleting any existing data.
+            // A refused nutrient must not leave an earlier nutrient erased.
+            var requiredTypes = Set(items.flatMap { item in
+                nutrientSamples(for: item, at: day.start).map { $0.quantityType }
+            })
+            if wantsWater, let type = quantityType("DietaryWater") {
+                requiredTypes.insert(type)
+            }
+            guard requiredTypes.allSatisfy({
+                healthStore.authorizationStatus(for: $0) == .sharingAuthorized
+            }) else {
+                call.resolve(writeRefusal("no_permission", "A requested dietary type is not authorized"))
+                return
+            }
+            if let failure = await deleteOwnDay(
+                in: day, nutrition: !items.isEmpty, water: wantsWater
+            ) {
+                call.resolve(
+                    writeRefusal(reason(for: failure), failure.localizedDescription)
+                )
+                return
+            }
+            call.resolve(
+                await writeNutritionItems(
+                    items,
+                    waterMl: wantsWater ? waterMl : nil,
+                    day: day
+                )
+            )
+        }
+    }
+
+    /** The local day a date string names, clamped so nothing is in the future. */
+    private func dayRange(for date: String) -> (start: Date, end: Date)? {
+        let formatter = DateFormatter()
+        let calendar = Calendar.current
+        formatter.calendar = calendar
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = calendar.timeZone
+        formatter.dateFormat = "yyyy-MM-dd"
+        guard let start = formatter.date(from: date) else { return nil }
+        let next = calendar.date(byAdding: .day, value: 1, to: start) ?? start
+        let end = min(next, Date())
+        guard start < end else { return nil }
+        return (start, end)
+    }
+
+    /** `Date.toISOString()` writes milliseconds the plain ISO formatter drops. */
+    private func instant(from value: String) -> Date? {
+        let fractional = ISO8601DateFormatter()
+        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return fractional.date(from: value) ?? ISO8601DateFormatter().date(from: value)
+    }
+
+    /** Numbers arrive as whatever the bridge decided; treat them all the same. */
+    private func number(_ value: Any?) -> Double? {
+        if let value = value as? Double { return value }
+        if let value = value as? NSNumber { return value.doubleValue }
+        if let value = value as? Int { return Double(value) }
+        if let value = value as? String { return Double(value) }
+        return nil
+    }
+
+    /** An item's own nutrient samples, skipping the macros it has none of. */
+    private func nutrientSamples(
+        for item: NutritionItemRequest,
+        at time: Date
+    ) -> [HKQuantitySample] {
+        let quantities: [(String, Double, HKUnit)] = [
+            ("DietaryEnergyConsumed", item.calories, .kilocalorie()),
+            ("DietaryProtein", item.protein, .gram()),
+            ("DietaryCarbohydrates", item.carbs, .gram()),
+            ("DietaryFatTotal", item.fat, .gram()),
+        ]
+        return quantities.compactMap { identifier, value, unit in
+            guard value > 0, let type = quantityType(identifier) else { return nil }
+            return HKQuantitySample(
+                type: type,
+                quantity: HKQuantity(unit: unit, doubleValue: value),
+                start: time,
+                end: time
+            )
+        }
+    }
+
+    /**
+     Deletes the day's dietary samples that this app wrote.
+
+     The predicate pairs the day with `HKSource.default()`, because HealthKit
+     refuses a delete whose predicate could match another app's samples — and
+     the samples this is here to remove are exactly the ones an earlier push of
+     ours left behind.
+     */
+    private func deleteOwnDay(
+        in day: (start: Date, end: Date), nutrition: Bool, water: Bool
+    ) async -> Error? {
+        var identifiers = nutrition ? [
+            "DietaryEnergyConsumed",
+            "DietaryProtein",
+            "DietaryCarbohydrates",
+            "DietaryFatTotal",
+        ] : []
+        if water { identifiers.append("DietaryWater") }
+        let predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+            HKQuery.predicateForSamples(withStart: day.start, end: day.end, options: []),
+            HKQuery.predicateForObjects(from: HKSource.default()),
+        ])
+        for identifier in identifiers {
+            guard let type = quantityType(identifier) else { continue }
+            // A type absent from this write can be unshared. Leave it alone;
+            // HealthKit would reject its deletion and stop the replacement.
+            guard healthStore.authorizationStatus(for: type) == .sharingAuthorized else { continue }
+            let failure: Error? = await withCheckedContinuation { continuation in
+                healthStore.deleteObjects(of: type, predicate: predicate) { _, _, error in
+                    continuation.resume(returning: error)
+                }
+            }
+            if let failure = failure { return failure }
+        }
+        return nil
+    }
+
+    /** Saves objects, resolving to the store's own error when it refuses. */
+    private func saveObjects(_ objects: [HKObject]) async -> Error? {
+        await withCheckedContinuation { continuation in
+            healthStore.save(objects) { success, error in
+                continuation.resume(returning: success ? nil : error)
+            }
+        }
+    }
+
+    /**
+     One food entry: a named correlation, or named samples if the store refuses.
+
+     HealthKit is documented as taking a correlation of nutrient samples, and a
+     single-macro food — a black coffee, a diet soda — is the case where the
+     object may not be a legal correlation at all. Rather than drop that food's
+     name on the floor, its samples are written on their own with the same
+     `HKMetadataKeyFoodType`, and the fallback says so in the log.
+     */
+    private func saveFoodItem(
+        name: String?,
+        samples: [HKQuantitySample],
+        at time: Date
+    ) async -> Error? {
+        if let correlationType = HKObjectType.correlationType(forIdentifier: .food) {
+            var metadata: [String: Any] = [:]
+            if let name = name { metadata[HKMetadataKeyFoodType] = name }
+            let correlation = HKCorrelation(
+                type: correlationType,
+                start: time,
+                end: time,
+                objects: Set(samples.map { $0 as HKSample }),
+                metadata: metadata
+            )
+            let failure = await saveObjects([correlation])
+            if failure == nil { return nil }
+            NSLog(
+                "[health] food correlation refused (%@); writing named samples",
+                failure?.localizedDescription ?? "unknown"
+            )
+        }
+        // The name still belongs on the record, so the samples go in on their
+        // own with it rather than the food being dropped for want of a
+        // correlation. Without a name there is nothing to add, so they go in
+        // as they are.
+        let fallback = samples.map { sample -> HKQuantitySample in
+            guard let name = name else { return sample }
+            return HKQuantitySample(
+                type: sample.quantityType,
+                quantity: sample.quantity,
+                start: sample.startDate,
+                end: sample.endDate,
+                metadata: [HKMetadataKeyFoodType: name]
+            )
+        }
+        return await saveObjects(fallback)
+    }
+
+    /** The day's items, then its water, as one answer for the whole write. */
+    private func writeNutritionItems(
+        _ items: [NutritionItemRequest],
+        waterMl: Double?,
+        day: (start: Date, end: Date)
+    ) async -> [String: Any] {
+        var written = 0
+        for item in items {
+            // Strictly inside the day: a time of exactly `day.end` is the next
+            // day's midnight, and HealthKit files the food there — the same
+            // late-night meal the diary keeps under this day must not come back
+            // as tomorrow's.
+            let lastInstant = day.end.addingTimeInterval(-1)
+            let time = min(max(item.loggedAt ?? day.start, day.start), lastInstant)
+            let samples = nutrientSamples(for: item, at: time)
+            guard !samples.isEmpty else { continue }
+            if let failure = await saveFoodItem(name: item.name, samples: samples, at: time) {
+                return writeRefusal(reason(for: failure), failure.localizedDescription)
+            }
+            written += 1
+        }
+
+        if let waterMl = waterMl, let type = quantityType("DietaryWater") {
+            let sample = HKQuantitySample(
+                type: type,
+                quantity: HKQuantity(
+                    unit: HKUnit.literUnit(with: .milli),
+                    doubleValue: waterMl
+                ),
+                start: day.start,
+                end: day.end
+            )
+            if let failure = await saveObjects([sample]) {
+                return writeRefusal(reason(for: failure), failure.localizedDescription)
+            }
+            written += 1
+        }
+
+        return ["saved": true, "written": written]
     }
 
     /**

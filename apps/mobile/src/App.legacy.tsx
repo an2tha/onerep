@@ -125,6 +125,7 @@ import {
 } from "@/dashboard/constants"
 import { formatWater } from "@/lib/measurement-system"
 import { useWaterUnit } from "@/lib/use-water-unit"
+import { dayHydrationMl, useHydrationEnabled } from "@/lib/hydration"
 import {
   dateKeyToCalendarDate,
   dateKeyToDay,
@@ -581,10 +582,10 @@ export default function LegacyApp() {
     useQuery(api.sharing.diaryComments.unreadCount, {}) ?? 0
   const [commentsDismissed, setCommentsDismissed] = useState(false)
   const waterGoalMl = preferences?.waterGoalMl ?? 2500
-  const waterTotalMl = waterEntries.reduce(
-    (sum, entry) => sum + entry.amountMl,
-    0
-  )
+  // The day's hydration, water rows plus counted drinks. With the tracker off
+  // the ring reads empty rather than showing a figure nothing maintains.
+  const hydrationOn = useHydrationEnabled()
+  const waterTotalMl = dayHydrationMl(waterEntries, foodEntries)
   const caloriesTarget = calorieInfo?.target ?? 2000
   const caloriesLeft = Math.round(caloriesTarget - intakeTotals.calories)
   const isTodaySelected = dayOffset === 0
@@ -630,7 +631,9 @@ export default function LegacyApp() {
       ? Math.min(100, (intakeTotals.protein / proteinTarget) * 100)
       : 100
   const waterProgress =
-    waterGoalMl > 0 ? Math.min(100, (waterTotalMl / waterGoalMl) * 100) : 0
+    hydrationOn && waterGoalMl > 0
+      ? Math.min(100, (waterTotalMl / waterGoalMl) * 100)
+      : 0
   const heroMacros = useMemo(
     () => [
       {

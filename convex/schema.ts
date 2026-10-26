@@ -256,6 +256,15 @@ export default defineSchema({
     showCalorieNumbers: v.optional(v.boolean()),
     foodSearchLanguage: v.optional(v.string()), // Open Food Facts language code, e.g. "en"
     waterGoalMl: v.optional(v.number()),
+    /**
+     * Whether hydration is tracked at all. Absent means on, so an account that
+     * has never answered keeps the water row it has always had — turning it off
+     * is a choice someone makes, not a default the app imposes.
+     *
+     * Nothing is deleted when this goes false: the day's water entries and the
+     * goal stay put, and the surfaces simply stop asking.
+     */
+    hydrationEnabled: v.optional(v.boolean()),
     /** Display carbs as net (carbs − fiber) everywhere. Purely presentational. */
     netCarbsEnabled: v.optional(v.boolean()),
     customGoals: v.optional(
@@ -965,6 +974,26 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_userId_and_updatedAt", ["userId", "updatedAt"])
     .index("by_userId_date", ["userId", "date"]),
+
+  // ── Nutrition and water other apps wrote into the phone's health store ────
+  //
+  // Read-only mirrors, kept apart from `foodLogs` on purpose: these figures
+  // were written somewhere else, cannot be edited here, and folding them into
+  // the diary would show meals with no source to correct and double-count every
+  // day somebody logs the same lunch in two apps.
+  externalNutrition: defineTable({
+    userId: v.string(),
+    date: v.string(), // YYYY-MM-DD, the user's local day
+    provider: v.union(v.literal("apple_health"), v.literal("health_connect")),
+    /** Keyed by `platformHealthMetrics`, already bounded by its sane ranges. */
+    nutrients: v.record(v.string(), v.number()),
+    /** App labels, for the provenance line under the figure. */
+    sources: v.array(v.string()),
+    syncedAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId_and_date", ["userId", "date"])
+    .index("by_userId_and_updatedAt", ["userId", "updatedAt"]),
 
   // ── Supplement logs (one doc per user+date) ───────────────────────────────
   supplementLogs: defineTable({

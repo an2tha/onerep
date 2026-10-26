@@ -15,7 +15,10 @@ describe("Food review page production contract", () => {
     )
     expect(FOOD_REVIEW_SOURCE).toContain("savingRef.current = true")
     expect(FOOD_REVIEW_SOURCE).toContain("setSaving(true)")
-    expect(FOOD_REVIEW_SOURCE).toContain("await addFoodEntry({")
+    // The save goes through the helper that retries without a drink's water on
+    // a server that predates the field; it still has to be awaited here so the
+    // single-flight guard covers the whole write.
+    expect(FOOD_REVIEW_SOURCE).toContain("await saveFoodLogEntry(addFoodEntry,")
     expect(FOOD_REVIEW_SOURCE).toContain("savingRef.current = false")
     expect(FOOD_REVIEW_SOURCE).toContain("setSaving(false)")
     expect(FOOD_REVIEW_SOURCE).toContain("reportOfflineMutationError(error)")

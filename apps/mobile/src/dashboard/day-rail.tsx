@@ -35,6 +35,7 @@ export function DayRail({
   fatGoal,
   waterTotalMl,
   waterGoalMl,
+  waterEnabled = true,
   supplements,
   className,
 }: {
@@ -51,6 +52,8 @@ export function DayRail({
   fatGoal?: number
   waterTotalMl: number
   waterGoalMl: number
+  /** False when hydration tracking is off: the row and its `+` both go. */
+  waterEnabled?: boolean
   /** Supplements on today's plan. `logId` is set when one is already
    * taken today — it's what unticking deletes. */
   supplements: Array<{ id: string; name: string; logId?: string }>
@@ -83,7 +86,9 @@ export function DayRail({
     : null
   const takenCount = supplements.filter((s) => s.logId).length
   const waterUnit = useWaterUnit()
-  const waterPair = formatWaterPair(waterTotalMl, waterGoalMl, waterUnit)
+  const waterPair = waterEnabled
+    ? formatWaterPair(waterTotalMl, waterGoalMl, waterUnit)
+    : null
 
   return (
     <aside
@@ -138,55 +143,57 @@ export function DayRail({
       </RailCard>
 
       {/* Water */}
-      <RailCard
-        title={tr("Water")}
-        action={
-          <button
-            type="button"
-            aria-label={
-              isToday
-                ? tr("Add a glass of water")
-                : tr("Add a glass to this day")
-            }
-            onClick={() => {
-              announceOrbActivity("log")
-              void addWater({
-                date: dateKey,
-                entry: {
-                  id: `rail:${Date.now()}`,
-                  amountMl: 250,
-                  // A glass poured into a past day did not happen at this
-                  // minute. Noon is the honest default; the wheel can drag
-                  // it to the hour it really was.
-                  loggedAt: isToday
-                    ? new Date().toISOString()
-                    : new Date(`${dateKey}T12:00:00`).toISOString(),
-                },
-              })
-            }}
-            className="motion-tactile inline-flex size-7 items-center justify-center rounded-full bg-foreground text-background"
-          >
-            <Plus size={14} weight="bold" />
-          </button>
-        }
-      >
-        <p className="flex items-baseline gap-1.5">
-          <span className="text-[26px] leading-none font-semibold tracking-tight text-foreground tabular-nums lg:text-[32px]">
-            {waterPair.total}
-          </span>
-          <span className="text-[13px] text-muted-foreground">
-            / {waterPair.goal}
-          </span>
-        </p>
-        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
-          <div
-            className="h-full rounded-full bg-foreground transition-[width] duration-500"
-            style={{
-              width: `${Math.min(100, (waterTotalMl / Math.max(1, waterGoalMl)) * 100)}%`,
-            }}
-          />
-        </div>
-      </RailCard>
+      {waterPair && (
+        <RailCard
+          title={tr("Water")}
+          action={
+            <button
+              type="button"
+              aria-label={
+                isToday
+                  ? tr("Add a glass of water")
+                  : tr("Add a glass to this day")
+              }
+              onClick={() => {
+                announceOrbActivity("log")
+                void addWater({
+                  date: dateKey,
+                  entry: {
+                    id: `rail:${Date.now()}`,
+                    amountMl: 250,
+                    // A glass poured into a past day did not happen at this
+                    // minute. Noon is the honest default; the wheel can drag
+                    // it to the hour it really was.
+                    loggedAt: isToday
+                      ? new Date().toISOString()
+                      : new Date(`${dateKey}T12:00:00`).toISOString(),
+                  },
+                })
+              }}
+              className="motion-tactile inline-flex size-7 items-center justify-center rounded-full bg-foreground text-background"
+            >
+              <Plus size={14} weight="bold" />
+            </button>
+          }
+        >
+          <p className="flex items-baseline gap-1.5">
+            <span className="text-[26px] leading-none font-semibold tracking-tight text-foreground tabular-nums lg:text-[32px]">
+              {waterPair.total}
+            </span>
+            <span className="text-[13px] text-muted-foreground">
+              / {waterPair.goal}
+            </span>
+          </p>
+          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full bg-foreground transition-[width] duration-500"
+              style={{
+                width: `${Math.min(100, (waterTotalMl / Math.max(1, waterGoalMl)) * 100)}%`,
+              }}
+            />
+          </div>
+        </RailCard>
+      )}
 
       {/* Supplements */}
       {supplements.length > 0 && (

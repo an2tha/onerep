@@ -138,6 +138,18 @@ export function CompactSwitch({
         type="checkbox"
         role="switch"
         checked={checked}
+        /*
+         * `role="switch"` replaces the checkbox's own mapping, so the ARIA
+         * state has to be spelled out or assistive tech has nothing to read.
+         *
+         * It is also not enough on Android: a uiautomator dump of the running
+         * app shows every one of these inputs as a node with
+         * `checkable="false"` and no checked state at all, on the old build and
+         * the new one alike. So nothing may treat this control as the platform's
+         * account of whether a setting is on — the store is asked directly, in
+         * src/lib/health-write-access.ts, and the answer is written out in words.
+         */
+        aria-checked={checked}
         aria-label={label}
         disabled={disabled}
         className={cn(

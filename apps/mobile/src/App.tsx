@@ -24,6 +24,7 @@ import {
 import { DayRail } from "@/dashboard/day-rail"
 import { MobileDateSelector, WeekStrip } from "@/dashboard/week-strip"
 import { useNutritionHealthWriteBack } from "@/lib/nutrition-writeback"
+import { useEnsureHealthWriteAccess } from "@/lib/health-write-access"
 import {
   QuickActionDrawer,
   type QuickActionId,
@@ -43,6 +44,7 @@ import { ReactiveOrbField } from "@/components/reactive-orb-field"
 import { announceOrbActivity } from "@/lib/orb-activity"
 import { useWaterUnit } from "@/lib/use-water-unit"
 import { formatWater, type WaterUnit } from "@/lib/measurement-system"
+import { dayHydrationMl, useHydrationEnabled } from "@/lib/hydration"
 
 import LegacyApp from "./App.legacy"
 
@@ -82,6 +84,12 @@ function Dashboard() {
     date: dateKey,
   })
   const workoutLogs = useQuery(api.logs.workouts.getLog, { date: dateKey })
+
+  // The day's hydration is the water rows plus whatever drinks were counted, so
+  // every number below is the same number: rail, phone summary and the health
+  // store. When tracking is off the figure is not asked for at all.
+  const hydrationOn = useHydrationEnabled()
+  const hydrationTotalMl = dayHydrationMl(waterEntries, foodEntries)
 
   // The rails around the wheel: health signals for the night shading,
   // history for the week strip, and today's standing for the day rail.
@@ -184,10 +192,13 @@ function Dashboard() {
   useNutritionHealthWriteBack(
     todayKey,
     viewingToday ? foodEntries : undefined,
-    viewingToday
-      ? (waterEntries ?? []).reduce((sum, entry) => sum + entry.amountMl, 0)
-      : 0
+    viewingToday ? hydrationTotalMl : 0
   )
+  // And the permissions that push depends on, repaired once per launch. A
+  // phone whose preference says write-back is on while its grants predate it is
+  // the state that made every write fail without a word, so it is checked
+  // before it can matter rather than only when a meal is lost.
+  useEnsureHealthWriteAccess()
 
   // Which of the plan's supplements are taken today, as supplement id →
   // intake-log id, so the rail's checkboxes can untake as well as take.
@@ -297,6 +308,11 @@ function Dashboard() {
     forDateKey = dateKey,
     atMinutes?: number
   ) => {
+    // One guard, every door: the timeline's + beside a past glass and the
+    // wheel's own add button both arrive here, and with hydration off there is
+    // no water to log. Rows already logged stay readable — this hides the
+    // offering, not the history.
+    if (id === "water" && !hydrationOn) return
     setQuickAction({ id, dateKey: forDateKey, atMinutes })
   }
   const [editFoodEntry, setEditFoodEntry] = useState<FoodLogEntry | null>(null)
@@ -385,12 +401,16 @@ function Dashboard() {
             <HomeProgrammes />
             {viewingToday && <RestartNudge />}
             {viewingToday && <RecoveryBanner />}
-            {viewingToday && (
-              <div className="my-2 flex items-center gap-2">
-                <RepeatChips dateKey={dateKey} />
-                <VoiceLogButton />
-              </div>
-            )}
+            {/* The repeats are date-correct rather than today-only: RepeatChips
+              queries what was eaten on or before the day being viewed and logs
+              onto that same day. Hiding them on a past day took away the one
+              tap that makes backfilling a forgotten dinner possible. Only the
+              voice button stays tied to today — dictating into a day that has
+              already happened is a different question. */}
+            <div className="my-2 flex items-center gap-2">
+              <RepeatChips dateKey={dateKey} />
+              {viewingToday && <VoiceLogButton />}
+            </div>
             <div className="lg:hidden">
               {!recovery?.active && (
                 <DashboardDials {...dialProps} layout="row" />
@@ -439,13 +459,11 @@ function Dashboard() {
                   {Math.round(dayTotals.protein)} g {tr("protein")}
                 </span>
               )}
-            <span>
-              {formatWater(
-                waterEntries.reduce((sum, row) => sum + row.amountMl, 0),
-                waterUnit
-              )}{" "}
-              {tr("water")}
-            </span>
+            {hydrationOn && (
+              <span>
+                {formatWater(hydrationTotalMl, waterUnit)} {tr("water")}
+              </span>
+            )}
           </>
         )}
       </div>
@@ -480,11 +498,9 @@ function Dashboard() {
             proteinGoal={goals?.effective.protein}
             carbsGoal={goals?.effective.carbs}
             fatGoal={goals?.effective.fat}
-            waterTotalMl={(waterEntries ?? []).reduce(
-              (sum, entry) => sum + entry.amountMl,
-              0
-            )}
+            waterTotalMl={hydrationTotalMl}
             waterGoalMl={preferences?.waterGoalMl ?? 2500}
+            waterEnabled={hydrationOn}
             supplements={(supplementOverview?.items ?? [])
               .filter((item) => item.active)
               .map((item) => ({
