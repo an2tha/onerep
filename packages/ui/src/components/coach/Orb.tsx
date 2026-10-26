@@ -71,7 +71,7 @@ export function Orb({ small = false }: { small?: boolean }) {
       gl.uniform2f(size, canvas.width, canvas.height)
       paint(performance.now())
     }
-    function paint(ms: number) {
+    const paint = (ms: number) => {
       gl.uniform1f(time, motion.matches ? 3 : ms * 0.001)
       gl.drawArrays(gl.TRIANGLES, 0, 6)
     }
