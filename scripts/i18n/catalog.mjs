@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import ts from "typescript";
 
 export const languages = ["en", "de", "es", "fr", "it", "pt"];
@@ -101,9 +102,14 @@ export function collectMessages() {
     );
   return entries;
 }
+// Run only when this file is the entry point. `pathToFileURL` rather than
+// `new URL(argv[1], "file:")`: a Windows path with a space (or a drive letter)
+// is encoded differently by the two, so the guard never matched on a Windows
+// checkout and `--check` exited 0 having verified nothing at all — which is how
+// seventy-one untranslated messages sat in the catalogues unnoticed.
 if (
   process.argv[1] &&
-  import.meta.url === new URL(process.argv[1], "file:").href
+  import.meta.url === pathToFileURL(process.argv[1]).href
 ) {
   const messages = collectMessages();
   const sources = [...new Set(messages.map((m) => m.text))].sort();

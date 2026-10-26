@@ -33,6 +33,7 @@ import {
 import {
   currentDateKey,
   defaultMeal,
+  looksLikeLiquid,
   stripUndefined,
   type FoodLogEntry,
   type MealType,
@@ -67,6 +68,7 @@ import {
   mapSnapDetectionsToReviewItems,
   scaleFoodForGrams,
   snapDetectionsFromAiResult,
+  snapItemWithRematch,
   snapNamedServing,
   snapPortionPresets,
   toConvexSafe,
@@ -74,6 +76,12 @@ import {
   type SnapFoodMatch,
   type SnapReviewItem,
 } from "@/lib/food-snap-review"
+import {
+  defaultCountsAsWater,
+  snapHydrationMl,
+  useHydrationEnabled,
+} from "@/lib/hydration"
+import { useWaterUnit, type WaterUnit } from "@/lib/use-water-unit"
 import {
   applyCorrectedCopy,
   correctedCopyForBarcode,
@@ -88,12 +96,14 @@ import { CustomFoodEditorSheet } from "@/components/custom-food-editor-sheet"
 import {
   currentMeasurementSystem,
   formatQuantityAmount,
+  formatWater,
   quantityLabel,
   ozToGrams,
 } from "@/lib/measurement-system"
 import { APP_ACCENT_COLORS, MACRO_COLORS, tint } from "@repo/ui"
 import { useAiFeatureGate } from "@/lib/ai-access"
 import { reportOfflineMutationError } from "@/lib/offline-mutation-errors"
+import { saveFoodLogEntry } from "@/lib/food-log-write"
 
 /**
  * Why the camera would not start, in the words the platform used.
@@ -156,6 +166,10 @@ export default function SnapAndLog() {
   const logStamp = () => foodLogTimestampForMeal(date, meal, logTime)
   const preferences = useQuery(api.users.users.getPreferences, {})
   const foodSearchLanguage = preferences?.foodSearchLanguage ?? "en"
+  // Fetched once and handed to every review row, so the hydration switch and
+  // the water unit are the same on all of them rather than one query per row.
+  const hydrationOn = useHydrationEnabled()
+  const waterUnit = useWaterUnit()
   // Entries are added one mutation each instead of read-modify-writing the
   // whole day: the scanner can be three entries ahead by the time the first
   // response lands, and a whole-day write built from a stale read drops the
@@ -779,7 +793,12 @@ export default function SnapAndLog() {
 
   // ── Log a food item ───────────────────────────────────────────────────────
 
-  async function handleAdd(item: FoodResult, grams?: number) {
+  async function handleAdd(
+    item: FoodResult,
+    grams?: number,
+    /** Millilitres this barcode log adds to the day, when it was counted. */
+    hydrationMl?: number
+  ) {
     if (loggingTargetRef.current || added === item.id) return
     loggingTargetRef.current = item.id
     setLoggingTarget(item.id)
@@ -798,6 +817,8 @@ export default function SnapAndLog() {
       protein: macros.protein,
       carbs: macros.carbs,
       fat: macros.fat,
+      hydrationMl:
+        hydrationMl && hydrationMl > 0 ? Math.round(hydrationMl) : undefined,
       loggedAt: logStamp(),
       meal,
       source: "openfoodfacts" as const,
@@ -810,7 +831,7 @@ export default function SnapAndLog() {
     })
 
     try {
-      await addFoodEntry({ date, entry })
+      await saveFoodLogEntry(addFoodEntry, { date, entry })
       announceOrbActivity("log")
 
       captureFeatureUsage("food_logged_from_camera", {
@@ -875,7 +896,9 @@ export default function SnapAndLog() {
       // One mutation per detected food, fired together: no whole-day
       // read-modify-write, so a barcode add that lands mid-review can never
       // be dropped, and a failed item does not roll back the others.
-      await Promise.all(entries.map((entry) => addFoodEntry({ date, entry })))
+      await Promise.all(
+        entries.map((entry) => saveFoodLogEntry(addFoodEntry, { date, entry }))
+      )
       announceOrbActivity("log", Math.min(entries.length, 3))
 
       captureFeatureUsage("food_logged_from_camera", {
@@ -926,6 +949,23 @@ export default function SnapAndLog() {
   ) {
     setSnapReviewItems((items) =>
       items.map((item) => (item.id === id ? updater(item) : item))
+    )
+  }
+
+  /**
+   * The user's own words, replacing what the model guessed for one row.
+   *
+   * Routed through the same search and ranking the detection matching already
+   * uses, so a described food reaches the same catalogue entries a typed search
+   * would — the model's guess was only ever a search query itself.
+   */
+  async function rematchSnapItem(id: string, description: string) {
+    const query = description.trim()
+    if (!query) return
+    const results = await snapSearchFoods(query, 8, foodSearchLanguage)
+    const ranked = rankAndFilterFoodResults(results, query)
+    updateSnapReviewItem(id, (item) =>
+      snapItemWithRematch(item, query, ranked.length > 0 ? ranked : results)
     )
   }
 
@@ -1323,6 +1363,9 @@ export default function SnapAndLog() {
           }
           onConfirmSnap={handleConfirmSnapLog}
           onSnapItemChange={updateSnapReviewItem}
+          onRematch={rematchSnapItem}
+          hydrationOn={hydrationOn}
+          waterUnit={waterUnit}
           onRetake={() => {
             setSnapPhase("idle")
             setSnapReviewItems([])
@@ -1375,13 +1418,17 @@ type ResultsSheetProps = {
   added: string | null
   snapLogging: boolean
   loggingTarget: string | null
-  onAdd: (item: FoodResult) => void
+  onAdd: (item: FoodResult, grams?: number, hydrationMl?: number) => void
   onCorrectValues: (item: FoodResult) => void
   onConfirmSnap: () => void
   onSnapItemChange: (
     id: string,
     updater: (item: SnapReviewItem) => SnapReviewItem
   ) => void
+  /** Re-runs the food search from the user's own description of a row. */
+  onRematch: (id: string, description: string) => Promise<void>
+  hydrationOn: boolean
+  waterUnit: WaterUnit
   onRetake: () => void
   onSearchManually: () => void
   onDismiss: () => void
@@ -1403,6 +1450,9 @@ function ResultsSheet({
   onCorrectValues,
   onConfirmSnap,
   onSnapItemChange,
+  onRematch,
+  hydrationOn,
+  waterUnit,
   onRetake,
   onSearchManually,
   onDismiss,
@@ -1526,7 +1576,12 @@ function ResultsSheet({
                     key={item.id}
                     item={item}
                     meal={meal}
+                    hydrationOn={hydrationOn}
+                    waterUnit={waterUnit}
                     onChange={(updater) => onSnapItemChange(item.id, updater)}
+                    onRematch={(description) =>
+                      onRematch(item.id, description)
+                    }
                   />
                 ))}
               </div>
@@ -1540,6 +1595,8 @@ function ResultsSheet({
                     added={added === item.id}
                     logging={loggingTarget === item.id}
                     disabled={Boolean(loggingTarget)}
+                    hydrationOn={hydrationOn}
+                    waterUnit={waterUnit}
                     onAdd={onAdd}
                     onCorrectValues={onCorrectValues}
                   />
@@ -1599,11 +1656,17 @@ function mealConfig(meal: MealType) {
 function SnapReviewRow({
   item,
   meal,
+  hydrationOn,
+  waterUnit,
   onChange,
+  onRematch,
 }: {
   item: SnapReviewItem
   meal: MealType
+  hydrationOn: boolean
+  waterUnit: WaterUnit
   onChange: (updater: (item: SnapReviewItem) => SnapReviewItem) => void
+  onRematch: (description: string) => void | Promise<void>
 }) {
   const energyUnit = useEnergyUnit()
   const food = item.food
@@ -1710,6 +1773,38 @@ function SnapReviewRow({
           }
         />
 
+        {/* The one answer a camera log was never asked for, and the reason a
+          drink snapped here used to arrive with no water in it at all. */}
+        {hydrationOn && (
+          <button
+            type="button"
+            disabled={!food}
+            aria-pressed={Boolean(item.countsWater)}
+            onClick={() =>
+              onChange((current) => ({
+                ...current,
+                countsWater: !current.countsWater,
+              }))
+            }
+            className="mt-2 flex min-h-11 w-full items-center justify-between gap-3 rounded-lg bg-white/10 px-3 text-left transition-opacity active:opacity-75 disabled:opacity-40"
+          >
+            <span className="text-[13px] font-semibold text-white/85">
+              {tr("Counts toward hydration")}
+            </span>
+            {item.countsWater ? (
+              <span className="text-[13px] font-semibold text-white tabular-nums">
+                {formatWater(snapHydrationMl(item.grams), waterUnit)}
+              </span>
+            ) : (
+              <span className="text-[13px] text-white/55">
+                {tr("Not counted")}
+              </span>
+            )}
+          </button>
+        )}
+
+        <SnapDescribeControl onSearch={onRematch} disabled={false} />
+
         {item.alternatives.length > 0 &&
           (!food || item.alternatives.length > 1) && (
             <div className="mt-2">
@@ -1717,8 +1812,8 @@ function SnapReviewRow({
                 {tr("More matches")}
               </p>
               <div className="flex gap-1.5 overflow-x-auto pb-0.5 [&::-webkit-scrollbar]:hidden">
-                {item.alternatives.slice(0, 8).map((alternative) => {
-                  const active = food?.id === alternative.id
+            {item.alternatives.slice(0, 8).map((alternative) => {
+              const active = food?.id === alternative.id
                   return (
                     <button
                       key={alternative.id}
@@ -1755,6 +1850,82 @@ function SnapReviewRow({
             </div>
           )}
       </div>
+    </div>
+  )
+}
+
+/**
+ * "It wasn't that" as a text box rather than another chip list.
+ *
+ * The alternatives under a row are the model's own searches; when none of them
+ * is the dish — which is exactly when two foods look alike — the only way to say
+ * what it was is to say it. Submitting runs the search the whole app already
+ * uses and the row's matches are replaced in place, so the correction stays on
+ * the row it belongs to instead of dropping the user onto a separate screen.
+ */
+function SnapDescribeControl({
+  onSearch,
+  disabled,
+}: {
+  onSearch: (description: string) => void | Promise<void>
+  disabled: boolean
+}) {
+  const [open, setOpen] = useState(false)
+  const [text, setText] = useState("")
+  const [busy, setBusy] = useState(false)
+
+  async function submit() {
+    const description = text.trim()
+    if (!description || busy) return
+    setBusy(true)
+    try {
+      await onSearch(description)
+      setOpen(false)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => setOpen(true)}
+        className="mt-2 text-[13px] font-medium text-white/60 underline decoration-white/30 underline-offset-2 transition-opacity active:opacity-70 disabled:opacity-40"
+      >
+        {tr("Not this one? Describe it")}
+      </button>
+    )
+  }
+
+  return (
+    <div className="mt-2 flex items-center gap-1.5">
+      <input
+        type="text"
+        name="snap-describe"
+        autoFocus
+        value={text}
+        maxLength={80}
+        disabled={disabled || busy}
+        onChange={(event) => setText(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") void submit()
+          if (event.key === "Escape") setOpen(false)
+        }}
+        placeholder={tr("Say what it really was")}
+        aria-label={tr("Describe this food")}
+        className="h-11 min-w-0 flex-1 rounded-lg bg-white/10 px-3 text-[14px] text-white outline-none placeholder:text-white/45 disabled:opacity-40"
+      />
+      <button
+        type="button"
+        disabled={disabled || busy || text.trim().length === 0}
+        aria-busy={busy}
+        onClick={() => void submit()}
+        className="flex h-11 shrink-0 items-center justify-center rounded-lg bg-white/90 px-3 text-[14px] font-semibold text-black transition-opacity active:opacity-75 disabled:opacity-40"
+      >
+        {busy ? tr("Finding…") : tr("Find")}
+      </button>
     </div>
   )
 }
@@ -1964,6 +2135,8 @@ function BarcodeResultRow({
   added,
   logging,
   disabled,
+  hydrationOn,
+  waterUnit,
   onAdd,
   onCorrectValues,
 }: {
@@ -1972,7 +2145,9 @@ function BarcodeResultRow({
   added: boolean
   logging: boolean
   disabled: boolean
-  onAdd: (item: FoodResult, grams: number) => void
+  hydrationOn: boolean
+  waterUnit: WaterUnit
+  onAdd: (item: FoodResult, grams?: number, hydrationMl?: number) => void
   onCorrectValues: (item: FoodResult) => void
 }) {
   const energyUnit = useEnergyUnit()
@@ -1986,6 +2161,14 @@ function BarcodeResultRow({
   // packet and had to go and re-edit the entry afterwards; the scanner knows
   // the food, it just never asked how much.
   const [grams, setGrams] = useState(card.grams)
+  // A scanned drink is asked the same question a searched one is; without it a
+  // bottle logged straight from the scanner counted as food and no water at all.
+  const [countsWater, setCountsWater] = useState(() =>
+    defaultCountsAsWater({
+      name: item.name,
+      liquid: looksLikeLiquid(item.name),
+    })
+  )
   const scaled =
     grams === card.grams ? card : scaleFoodForGrams(item, clampSnapGrams(grams))
 
@@ -2030,7 +2213,13 @@ function BarcodeResultRow({
         </div>
         <button
           type="button"
-          onClick={() => onAdd(item, clampSnapGrams(grams))}
+          onClick={() =>
+            onAdd(
+              item,
+              clampSnapGrams(grams),
+              countsWater ? snapHydrationMl(clampSnapGrams(grams)) : undefined
+            )
+          }
           disabled={disabled}
           aria-busy={logging}
           className="flex h-11 min-w-11 shrink-0 items-center justify-center rounded-lg px-2 text-[14px] font-semibold transition-opacity active:opacity-75"
@@ -2061,6 +2250,28 @@ function BarcodeResultRow({
           onChange={setGrams}
         />
       </div>
+      {hydrationOn && (
+        <button
+          type="button"
+          disabled={disabled}
+          aria-pressed={countsWater}
+          onClick={() => setCountsWater((current) => !current)}
+          className="mt-2 flex min-h-11 w-full items-center justify-between gap-3 rounded-lg bg-white/10 px-3 text-left transition-opacity active:opacity-75 disabled:opacity-40"
+        >
+          <span className="text-[13px] font-semibold text-white/85">
+            {tr("Counts toward hydration")}
+          </span>
+          {countsWater ? (
+            <span className="text-[13px] font-semibold text-white tabular-nums">
+              {formatWater(snapHydrationMl(clampSnapGrams(grams)), waterUnit)}
+            </span>
+          ) : (
+            <span className="text-[13px] text-white/55">
+              {tr("Not counted")}
+            </span>
+          )}
+        </button>
+      )}
       <button
         type="button"
         onClick={() => onCorrectValues(item)}

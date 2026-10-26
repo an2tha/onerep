@@ -4,6 +4,7 @@ import { useMutation, useQuery } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
 import { useAppAuth } from "@/lib/auth-client"
 import {
+  getExternalNutrition,
   getHealthDailyMetrics,
   getRecentHealthWorkouts,
   healthProvider,
@@ -11,6 +12,7 @@ import {
   isHealthSyncSupportedPlatform,
   requestHealthAuthorization,
 } from "@/lib/health-provider"
+import { currentDateKey } from "@/lib/food-log"
 import {
   HEALTH_METRICS_DAYS_BACK,
   HEALTH_SYNC_DAYS_BACK,
@@ -85,6 +87,7 @@ export function HealthSync() {
   )
   const recordSyncError = useMutation(api.logs.healthWorkouts.recordSyncError)
   const syncMetrics = useMutation(api.logs.healthMetrics.sync)
+  const syncExternalIntake = useMutation(api.logs.externalIntake.sync)
   const runningRef = useRef(false)
 
   const timeZone = preferences?.lastActiveTimezone || "UTC"
@@ -106,6 +109,39 @@ export function HealthSync() {
 
       const provider = healthProvider()
       if (!provider) return
+
+      /**
+       * Files what other apps logged, without letting it fail the sync.
+       *
+       * A deployment that predates this mutation refuses it outright, and that
+       * refusal has nothing to do with the person's watch — recording it as a
+       * sync error would put a permanent failure on the Settings screen for a
+       * feature the phone cannot reach yet. The card hides itself in the same
+       * situation, so the two stay consistent: nothing to show, nothing said.
+       */
+      const syncIntake = async () => {
+        try {
+          const external = await getExternalNutrition({
+            daysBack: HEALTH_METRICS_DAYS_BACK,
+          })
+          // A store that could not be read is not an empty one: skipping the
+          // write keeps the imported history that is already on the server.
+          if (external.days.length === 0 && !external.complete) return
+          const windowStart = currentDateKey(
+            timeZone,
+            new Date(
+              Date.now() - (HEALTH_METRICS_DAYS_BACK - 1) * 24 * 60 * 60 * 1000
+            )
+          )
+          await syncExternalIntake({
+            provider,
+            days: external.days,
+            ...(external.complete ? { windowStart: windowStart } : {}),
+          })
+        } catch (error) {
+          logDevWarn("Could not file nutrition logged by other apps", error)
+        }
+      }
 
       const [workouts, days] = await Promise.all([
         getRecentHealthWorkouts({
@@ -129,6 +165,7 @@ export function HealthSync() {
       if (workouts.length === 0) {
         if (days.length > 0)
           await syncMetrics({ provider, days: days.map(toSyncDay) })
+        await syncIntake()
         return
       }
 
@@ -140,6 +177,7 @@ export function HealthSync() {
       })
       if (days.length > 0)
         await syncMetrics({ provider, days: days.map(toSyncDay) })
+      await syncIntake()
     } catch (error) {
       // A background sync must never interrupt. The failure is surfaced in
       // Settings instead of a toast.
@@ -152,7 +190,7 @@ export function HealthSync() {
     } finally {
       runningRef.current = false
     }
-  }, [importWorkouts, recordSyncError, syncMetrics, timeZone])
+  }, [importWorkouts, recordSyncError, syncExternalIntake, syncMetrics, timeZone])
 
   useEffect(() => {
     if (!user || preferences === undefined || onboarding === undefined) return

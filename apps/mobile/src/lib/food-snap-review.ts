@@ -3,11 +3,17 @@ import {
   defaultFoodPortion,
   foodPortionLabel,
   isNamedFoodServing,
+  looksLikeLiquid,
   parseFoodPortionLabel,
   stripUndefined,
   type FoodLogEntry,
   type MealType,
 } from "./food-log"
+import {
+  DEFAULT_DRINK_ML,
+  defaultCountsAsWater,
+  snapHydrationMl,
+} from "./hydration"
 import { createClientId } from "./utils"
 
 const DEFAULT_SNAP_GRAMS = 100
@@ -48,6 +54,13 @@ export type SnapReviewItem = {
   selected: boolean
   food: FoodResult | null
   alternatives: FoodResult[]
+  /**
+   * The user's answer to "counts toward hydration", seeded by the liquid test
+   * and remembered preference exactly like the detail sheet's. It is the only
+   * reason a camera-logged drink contributes water: an entry carries
+   * `hydrationMl` when, and only when, this is true.
+   */
+  countsWater?: boolean
 }
 
 export type SnapFoodMatch = {
@@ -256,7 +269,85 @@ function dedupeFoodResults(results: FoodResult[]): FoodResult[] {
 function defaultGramsFor(food: FoodResult | null, estimatedGrams?: number) {
   if (estimatedGrams) return clampSnapGrams(estimatedGrams)
   if (!food) return DEFAULT_SNAP_GRAMS
+  // A drink whose only portion is the generic 100 g basis — the model said no
+  // amount and the catalogue weighed nothing real — opens on a glass instead.
+  // Opening on 100 g billed a bottle at a third of its water and its energy
+  // together, and the number looked as authoritative as any other.
+  if (looksLikeLiquid(food.name)) {
+    const named = parseFoodPortionLabel(food.serving)
+    const genericBasis =
+      !named || /^\s*100\s*g\s*$/i.test(food.serving ?? "")
+    if (genericBasis) return clampSnapGrams(DEFAULT_DRINK_ML)
+    return clampSnapGrams(defaultFoodPortion(food.serving, food.name).grams)
+  }
   return clampSnapGrams(defaultFoodPortion(food.serving, food.name).grams)
+}
+
+/**
+ * The starting answer to "counts toward hydration" for a matched food.
+ *
+ * Shared by every row so a drink is not asked about on Snap but silently missed
+ * on a barcode. The remembered answer wins; otherwise a liquid starts ticked.
+ */
+function hydrationDefaultFor(food: FoodResult | null): boolean {
+  if (!food) return false
+  return defaultCountsAsWater({
+    name: food.name,
+    portion: defaultFoodPortion(food.serving, food.name),
+    liquid: looksLikeLiquid(food.name),
+  })
+}
+
+/** One review row, wired the same way whether the match came from the model or
+ *  from a search the user ran. */
+function reviewItemFor(
+  detection: SnapDetection,
+  food: FoodResult | null,
+  alternatives: FoodResult[],
+  grams: number
+): SnapReviewItem {
+  return {
+    id: detection.id,
+    detectedName: detection.name,
+    quantityText: detection.quantityText,
+    grams,
+    selected: Boolean(food),
+    food,
+    alternatives,
+    countsWater: hydrationDefaultFor(food),
+  }
+}
+
+/**
+ * Replaces a row's matches with the results of the user's own description.
+ *
+ * The portion is left alone on purpose: correcting *which* food this is says
+ * nothing about how much of it there was, and discarding a quantity the user
+ * already adjusted would be an edit they never asked for. Their words become the
+ * row's detected name, so the line under the new match reads back what they
+ * typed rather than the model's original guess. The hydration answer is
+ * re-seeded because the food itself changed — the same fresh-start the detail
+ * sheet gives a different food.
+ */
+export function snapItemWithRematch(
+  item: SnapReviewItem,
+  description: string,
+  results: readonly FoodResult[]
+): SnapReviewItem {
+  const alternatives = dedupeFoodResults([...results]).slice(
+    0,
+    SNAP_ALTERNATIVE_LIMIT
+  )
+  const food = alternatives[0] ?? null
+  const described = cleanString(description)
+  return {
+    ...item,
+    detectedName: described ?? item.detectedName,
+    food,
+    alternatives,
+    selected: Boolean(food),
+    countsWater: hydrationDefaultFor(food),
+  }
 }
 
 export async function mapSnapDetectionsToReviewItems(
@@ -309,18 +400,13 @@ export async function mapSnapDetectionsToReviewItems(
       }
 
       if (alternatives.length > 0) {
-        return {
-          id: detection.id,
-          detectedName: detection.name,
-          quantityText: detection.quantityText,
-          grams: defaultGramsFor(
-            food ?? alternatives[0] ?? null,
-            detection.estimatedGrams
-          ),
-          selected: Boolean(food),
+        const matched = food ?? alternatives[0] ?? null
+        return reviewItemFor(
+          detection,
           food,
           alternatives,
-        }
+          defaultGramsFor(matched, detection.estimatedGrams)
+        )
       }
 
       const queries = searchQueriesForDetection(detection)
@@ -360,15 +446,12 @@ export async function mapSnapDetectionsToReviewItems(
       }
 
       food = alternatives[0] ?? null
-      return {
-        id: detection.id,
-        detectedName: detection.name,
-        quantityText: detection.quantityText,
-        grams: defaultGramsFor(food, detection.estimatedGrams),
-        selected: Boolean(food),
+      return reviewItemFor(
+        detection,
         food,
         alternatives,
-      }
+        defaultGramsFor(food, detection.estimatedGrams)
+      )
     })
   )
 }
@@ -478,10 +561,15 @@ export function buildSnapFoodLogEntry(
       ? item.food.name
       : `${item.food.name} (${label})`
 
+  // A counted drink contributes to the day's water; anything else leaves the
+  // field off entirely, which is how the hydration rule tells the two apart.
+  const hydrationMl = item.countsWater ? snapHydrationMl(grams) : undefined
+
   return stripUndefined({
     id: options.id ?? createFoodLogId(),
     name,
     ...scaled,
+    hydrationMl,
     loggedAt: options.loggedAt ?? new Date().toISOString(),
     meal,
     source: "openfoodfacts" as const,

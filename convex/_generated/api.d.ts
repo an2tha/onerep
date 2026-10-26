@@ -126,6 +126,7 @@ import type * as logs_calories from "../logs/calories.js";
 import type * as logs_customExercises from "../logs/customExercises.js";
 import type * as logs_customFoods from "../logs/customFoods.js";
 import type * as logs_dataImport from "../logs/dataImport.js";
+import type * as logs_externalIntake from "../logs/externalIntake.js";
 import type * as logs_fasting from "../logs/fasting.js";
 import type * as logs_foodLogs from "../logs/foodLogs.js";
 import type * as logs_groceryLists from "../logs/groceryLists.js";
@@ -306,6 +307,7 @@ declare const fullApi: ApiFromModules<{
   "logs/customExercises": typeof logs_customExercises;
   "logs/customFoods": typeof logs_customFoods;
   "logs/dataImport": typeof logs_dataImport;
+  "logs/externalIntake": typeof logs_externalIntake;
   "logs/fasting": typeof logs_fasting;
   "logs/foodLogs": typeof logs_foodLogs;
   "logs/groceryLists": typeof logs_groceryLists;

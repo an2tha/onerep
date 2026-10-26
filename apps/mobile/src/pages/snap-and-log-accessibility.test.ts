@@ -107,4 +107,22 @@ describe("Snap and Log accessibility contract", () => {
     expect(SNAP_SOURCE).toContain("aria-busy={logging}")
     expect(SNAP_SOURCE).toContain("Logging…")
   })
+
+  test("a mis-detected row can be described and re-matched in place", () => {
+    // When two foods look alike, the alternatives are the model's own guesses.
+    // The only way to say what it really was is to type it, and the search it
+    // runs is the same one the rest of the app uses.
+    expect(SNAP_SOURCE).toContain('name="snap-describe"')
+    expect(SNAP_SOURCE).toContain("SnapDescribeControl")
+    expect(SNAP_SOURCE).toContain("snapItemWithRematch")
+    expect(SNAP_SOURCE).toContain("rankAndFilterFoodResults(results, query)")
+  })
+
+  test("a camera-logged drink can be counted toward hydration", () => {
+    // A drink snapped or scanned here used to arrive with no water in it: the
+    // entry carried no hydrationMl, so the day total ignored it entirely.
+    expect(SNAP_SOURCE).toContain("Counts toward hydration")
+    expect(SNAP_SOURCE).toContain("snapHydrationMl")
+    expect(SNAP_SOURCE).toContain("countsWater ? snapHydrationMl")
+  })
 })

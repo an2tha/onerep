@@ -4,11 +4,14 @@ import {
   mapSnapDetectionsToReviewItems,
   parseSnapQuantityGrams,
   snapDetectionsFromAiResult,
+  snapItemWithRematch,
   snapNamedServing,
   snapPortionPresets,
   toConvexSafe,
   type FoodSearchFn,
+  type SnapReviewItem,
 } from "../food-snap-review"
+import { DEFAULT_DRINK_ML } from "../hydration"
 import type { FoodResult } from "@repo/models"
 
 function food(overrides: Partial<FoodResult>): FoodResult {
@@ -291,5 +294,113 @@ describe("snapPortionPresets", () => {
     const grams = presets.map((preset) => preset.grams)
     expect(new Set(grams).size).toBe(grams.length)
     expect(presets[0].label).toBe("1 serving")
+  })
+})
+
+describe("a snapped drink's hydration", () => {
+  const cola = food({ id: "cola", code: "cola", name: "Coca-Cola" })
+
+  test("a counted drink carries its millilitres onto the logged entry", () => {
+    const entry = buildSnapFoodLogEntry(
+      {
+        id: "row-cola",
+        detectedName: "Coca-Cola",
+        grams: 330,
+        selected: true,
+        food: cola,
+        alternatives: [],
+        countsWater: true,
+      },
+      "lunch",
+      { id: "log-1", loggedAt: "2026-06-25T12:00:00.000Z" }
+    )
+    expect(entry?.hydrationMl).toBe(330)
+  })
+
+  test("an unticked drink writes no hydration at all", () => {
+    // The whole hydration rule is "an entry contributes only when it carries
+    // hydrationMl" — so the field has to be absent, not zero.
+    const entry = buildSnapFoodLogEntry(
+      {
+        id: "row-cola",
+        detectedName: "Coca-Cola",
+        grams: 330,
+        selected: true,
+        food: cola,
+        alternatives: [],
+        countsWater: false,
+      },
+      "lunch",
+      { id: "log-1" }
+    )
+    expect(entry).not.toBeNull()
+    expect("hydrationMl" in entry!).toBe(false)
+  })
+
+  test("a drink the catalogue never weighed opens on a glass, not 100 g", async () => {
+    const search: FoodSearchFn = async () => [
+      food({ id: "juice", code: "juice", name: "Orange juice", serving: "100 g" }),
+    ]
+    const items = await mapSnapDetectionsToReviewItems(
+      [{ id: "row-juice", name: "Orange juice" }],
+      search
+    )
+    // 100 g was a third of a glass of juice and a third of its calories.
+    expect(items[0].grams).toBe(DEFAULT_DRINK_ML)
+  })
+
+  test("a drink whose label names its own volume keeps it", async () => {
+    const search: FoodSearchFn = async () => [
+      food({ id: "juice", code: "juice", name: "Orange juice", serving: "330 ml" }),
+    ]
+    const items = await mapSnapDetectionsToReviewItems(
+      [{ id: "row-juice", name: "Orange juice" }],
+      search
+    )
+    expect(items[0].grams).toBe(330)
+  })
+
+  test("an estimated amount still wins over the glass default", async () => {
+    const search: FoodSearchFn = async () => [
+      food({ id: "juice", code: "juice", name: "Orange juice", serving: "100 g" }),
+    ]
+    const items = await mapSnapDetectionsToReviewItems(
+      [{ id: "row-juice", name: "Orange juice", estimatedGrams: 500 }],
+      search
+    )
+    expect(items[0].grams).toBe(500)
+  })
+})
+
+describe("describing a food to re-match it", () => {
+  const item = (): SnapReviewItem => ({
+    id: "row-1",
+    detectedName: "Chicken salad",
+    grams: 220,
+    selected: true,
+    food: food({ id: "wrong", name: "Caesar salad" }),
+    alternatives: [food({ id: "wrong", name: "Caesar salad" })],
+    countsWater: false,
+  })
+
+  test("replaces the row's matches with the user's search results", () => {
+    const rematched = snapItemWithRematch(item(), "the chicken salad", [
+      food({ id: "right", code: "right", name: "Chicken salad" }),
+    ])
+    expect(rematched.food?.id).toBe("right")
+    expect(rematched.alternatives.map((a) => a.id)).toEqual(["right"])
+    // The portion the user already set is untouched: correcting which food it
+    // was says nothing about how much of it there was.
+    expect(rematched.grams).toBe(220)
+    expect(rematched.detectedName).toBe("the chicken salad")
+    expect(rematched.selected).toBe(true)
+  })
+
+  test("a description that finds nothing empties the row rather than lying", () => {
+    const rematched = snapItemWithRematch(item(), "unicorn steak", [])
+    expect(rematched.food).toBeNull()
+    expect(rematched.alternatives).toEqual([])
+    expect(rematched.selected).toBe(false)
+    expect(rematched.detectedName).toBe("unicorn steak")
   })
 })

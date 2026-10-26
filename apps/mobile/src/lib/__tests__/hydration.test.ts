@@ -9,6 +9,7 @@ import {
   hydrationAmountFor,
   hydrationEnabledFor,
   readHydrationCountDefault,
+  snapHydrationMl,
   withEntryHydration,
   writeHydrationCountDefault,
 } from "../hydration"
@@ -54,6 +55,20 @@ describe("a drink's own volume", () => {
   test("falls back to a glass when there is no volume to read", () => {
     expect(hydrationAmountFor(portion(150, "g"))).toBe(DEFAULT_DRINK_ML)
     expect(hydrationAmountFor(portion(1, "cup"))).toBe(240)
+  })
+
+  test("a camera-logged drink reads its grams as millilitres", () => {
+    // The Snap and barcode screens carry a portion as grams, not as a portion
+    // object, so the volume helper above cannot see them. For the drinks people
+    // count, a gram is a millilitre.
+    expect(snapHydrationMl(330)).toBe(330)
+    expect(snapHydrationMl(237.6)).toBe(238)
+  })
+
+  test("a counted drink with no weighable portion still gets a glass", () => {
+    // Otherwise ticking the box would contribute nothing and look broken.
+    expect(snapHydrationMl(0)).toBe(DEFAULT_DRINK_ML)
+    expect(snapHydrationMl(Number.NaN)).toBe(DEFAULT_DRINK_ML)
   })
 })
 

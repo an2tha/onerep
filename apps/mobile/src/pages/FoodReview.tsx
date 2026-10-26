@@ -23,6 +23,7 @@ import {
 } from "@/lib/food-log"
 import type { FoodDetail, FoodResult } from "@repo/models"
 import { reportOfflineMutationError } from "@/lib/offline-mutation-errors"
+import { saveFoodLogEntry } from "@/lib/food-log-write"
 import {
   currentMeasurementSystem,
   quantityLabel,
@@ -128,7 +129,7 @@ export default function FoodReview() {
     })
 
     try {
-      await addFoodEntry({ date, entry })
+      await saveFoodLogEntry(addFoodEntry, { date, entry })
       announceOrbActivity("log")
       captureFeatureUsage("food_logged", {
         item_count: 1,

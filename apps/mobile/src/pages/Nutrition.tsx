@@ -58,6 +58,7 @@ import { HydrationTrendInsight } from "@/components/hydration-trend-insight"
 import { useBottomBarAction } from "@/components/bottom-bar"
 import { ReactiveOrbField } from "@/components/reactive-orb-field"
 import { TourAnchor, useTourAnchor } from "@/components/walkthrough/tour-anchor"
+import { ExternalIntakeCard } from "@/components/external-intake-card"
 import {
   CompactSwitch,
   DateSelectorButton,
@@ -67,6 +68,8 @@ import { useSmoothNavigate } from "@/lib/navigation"
 import { announceOrbActivity } from "@/lib/orb-activity"
 import { updateOneRepWidgets } from "@/lib/home-widgets"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
+import { saveFoodLogEntry } from "@/lib/food-log-write"
+import { offlineMutationErrorMessage } from "@/lib/offline-mutation-errors"
 import { cn, safeLocalStorageGet, safeLocalStorageSet } from "@/lib/utils"
 import { useEnergyUnit } from "@/lib/use-energy-unit"
 import { useNutritionHealthWriteBack } from "@/lib/nutrition-writeback"
@@ -3198,7 +3201,10 @@ export default function Nutrition() {
       // Targeted updateEntry, not a setDay rewrite — an edit must not drop
       // entries logged elsewhere between this page's read and its write.
       // _id is stripped: the validator rejects server-only fields.
-      await updateFoodEntryById({
+      // Through the same helper the add paths use: an older server refuses an
+      // edit that carries a drink's water, and losing the whole edit would also
+      // lose the correction the user came here to make.
+      await saveFoodLogEntry(updateFoodEntryById, {
         date: dateKey,
         entry: stripUndefined({ ...updated, _id: undefined }),
       })
@@ -3207,9 +3213,7 @@ export default function Nutrition() {
     } catch (error) {
       toast.error(
         translateError(
-          error instanceof Error
-            ? error.message
-            : tr("Could not save this entry")
+          offlineMutationErrorMessage(error, tr("Could not save this entry"))
         )
       )
     } finally {
@@ -3710,6 +3714,14 @@ export default function Nutrition() {
               />
             </TourAnchor>
 
+            {visibleMetrics.calories && (
+              <ExternalIntakeCard
+                date={dateKey}
+                energyUnit={energyUnit}
+                waterUnit={waterUnit}
+              />
+            )}
+
             <div className="mt-4 space-y-4 border-t border-border/35 pt-4">
               {mealTargetsEnabled && (
                 <TourAnchor anchor="nutrition-meal-budget" className="block">
@@ -4209,6 +4221,7 @@ export default function Nutrition() {
                   />
                 </button>
               )}
+
             </section>
 
             {logMethods}

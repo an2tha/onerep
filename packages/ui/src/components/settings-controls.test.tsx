@@ -18,7 +18,11 @@ describe("CompactSwitch accessibility", () => {
       expect(markup).toContain('role="switch"')
       expect(markup).toContain('aria-label="Simple dashboard"')
       expect(markup.includes('checked=""')).toBe(checked)
-      expect(markup).not.toContain("aria-checked")
+      // `role="switch"` is not the checkbox mapping, so the state has to be
+      // stated in ARIA as well as in the DOM, and the two must agree. Android's
+      // WebView exposes neither (verified on device), which is why no screen may
+      // read its own switch for an answer — see health-write-access.ts.
+      expect(markup).toContain(`aria-checked="${checked}"`)
     }
   })
 
