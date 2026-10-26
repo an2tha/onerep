@@ -655,7 +655,7 @@ export async function buildCoachWorkspace(
     .order("desc").take(14) : [];
   const personalSources = {
     journal: journal.map(({ date, mood, alcohol, caffeine, notes }) => ({ date, mood, alcohol, caffeine, notes: notes?.slice(0, 600) })),
-    sleepAnalysis: personalized ? await sleepContext(ctx, args.userId, args.today).then(data => ({night: data.sleep, strain: data.strain, history: data.history.slice(-14), lastReview: data.review?.review ?? null})) : null,
+    sleepAnalysis: personalized ? await sleepContext(ctx, args.userId, args.today).then(data => ({night: data.sleep, strain: data.strain, history: data.history.slice(-14), connectedReview: data.connectedReview, lastReview: data.review?.review ?? null})) : null,
     foodEntries: foodDays
       .flatMap((day) =>
         day.entries

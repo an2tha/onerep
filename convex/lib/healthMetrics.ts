@@ -25,12 +25,11 @@ export async function listRecoveryWindow(
   const rows = await ctx.db
     .query("healthMetrics")
     .withIndex("by_userId_and_date", (q) =>
-      q.eq("userId", userId).gte("date", since),
+      q.eq("userId", userId).gte("date", since).lte("date", today),
     )
     .collect();
 
   return rows
-    .filter((row) => row.date <= today)
     .map((row) => ({
       date: row.date,
       sleepMinutes: row.sleepMinutes,
@@ -59,10 +58,11 @@ export async function exerciseMinutesByDate(
   until: string,
 ): Promise<Record<string, number>> {
   const floor = Date.parse(`${shiftDate(since, -1)}T00:00:00Z`);
+  const ceiling = Date.parse(`${shiftDate(until, 2)}T00:00:00Z`);
   const rows = await ctx.db
     .query("healthWorkouts")
     .withIndex("by_userId_and_startedAt", (q) =>
-      q.eq("userId", userId).gte("startedAt", floor),
+      q.eq("userId", userId).gte("startedAt", floor).lt("startedAt", ceiling),
     )
     .collect();
 
@@ -97,10 +97,11 @@ export async function listHealthSessionWindow(
   limit: number,
 ) {
   const floor = Date.parse(`${shiftDate(since, -1)}T00:00:00Z`);
+  const ceiling = Date.parse(`${shiftDate(until, 2)}T00:00:00Z`);
   const rows = await ctx.db
     .query("healthWorkouts")
     .withIndex("by_userId_and_startedAt", (q) =>
-      q.eq("userId", userId).gte("startedAt", floor),
+      q.eq("userId", userId).gte("startedAt", floor).lt("startedAt", ceiling),
     )
     .collect();
 

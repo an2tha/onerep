@@ -1,3 +1,8 @@
+import {
+  SleepAnalysis,
+  SleepPreferencesForm,
+} from "@repo/ui/sleep"
+import { ConnectedReview } from "@repo/ui/sleep"
 import { PageBarBack } from "@/components/page-bar-actions"
 import { Message, choice, tr, translateError, uiLocale } from "@repo/ui/i18n"
 import { useEffect, useState } from "react"
@@ -15,7 +20,6 @@ import { useAiFeatureGate } from "@/lib/ai-access"
 import { DetailAtmosphere } from "@/components/detail-atmosphere"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { SleepSky } from "@/components/sleep-sky"
-import { formatHours } from "./shared"
 
 function sleepReviewDate(date: string) {
   return new Date(`${date}T12:00:00`).toLocaleDateString(uiLocale(), {
@@ -152,6 +156,7 @@ export default function SleepInsights({
       ? requestedDate
       : today
   const [date, setDate] = useState(initialDate)
+  useEffect(() => setDate(initialDate), [initialDate])
   const data = useQuery(api.logs.sleep.dashboard, { date })
   const generate = useAction(api.ai.sleepReview.generate),
     preferences = useMutation(api.logs.sleep.preferences)
@@ -160,17 +165,8 @@ export default function SleepInsights({
     [error, setError] = useState("")
   const [historyOpen, setHistoryOpen] = useState(false)
   const recentReviews = useQuery(api.logs.sleep.reviewHistory, { limit: 1 })
-  const [trend, setTrend] = useState<"quality" | "duration" | "consistency">(
-    "quality"
-  )
   const trendValue = (d: NonNullable<typeof data>["history"][number]) =>
-    strainMode
-      ? d.strain.score
-      : trend === "duration"
-        ? (d.sleep?.minutes ?? null)
-        : trend === "consistency"
-          ? (d.sleep?.parts.find((p) => p.key === "consistency")?.score ?? null)
-          : (d.sleep?.score ?? null)
+    d.strain.score
   const night = data?.sleep,
     strain = data?.strain
   const [clock, setClock] = useState(Date.now)
@@ -180,15 +176,7 @@ export default function SleepInsights({
     return () => window.clearInterval(timer)
   }, [data?.review?.status])
   const reviewPending =
-    data?.review?.status === "pending" &&
-    clock - data.review.updatedAt < 120000
-  const colors: Record<string, string> = {
-    Light: "#8595cb",
-    Deep: "#5964ab",
-    REM: "#bb9cdf",
-    Awake: "#e2bd90",
-    Unclassified: "#657185",
-  }
+    data?.review?.status === "pending" && clock - data.review.updatedAt < 120000
   async function review() {
     if (busy || !requireAiAccess(1, "sleep_review")) return
     setBusy(true)
@@ -207,28 +195,6 @@ export default function SleepInsights({
       setBusy(false)
     }
   }
-  async function savePreferences(
-    automaticReview: boolean,
-    targetMinutes: number
-  ) {
-    setError(translateError(""))
-    try {
-      await preferences({ automaticReview, targetMinutes })
-    } catch {
-      setError(translateError(tr("Could not save preferences. Please retry.")))
-    }
-  }
-  const stages = night
-    ? [
-        ...night.stages,
-        ...(night.unclassifiedMinutes > 0
-          ? [{ label: tr("Unclassified"), minutes: night.unclassifiedMinutes }]
-          : []),
-        ...(night.awake !== null
-          ? [{ label: tr("Awake"), minutes: night.awake }]
-          : []),
-      ]
-    : []
   return (
     <DetailAtmosphere tone={strainMode ? "health" : "sleep"}>
       <main className="sleep-detail">
@@ -275,183 +241,26 @@ export default function SleepInsights({
               {tr("Physiological strain and training load, together.")}
             </p>
           </>
+        ) : data === undefined ? (
+          <p role="status" className="sleep-summary">
+            {tr("Reading your night…")}
+          </p>
+        ) : data ? (
+          <SleepAnalysis
+              today={today} linkComponent={Link}
+            night={night ?? null}
+            history={data.history}
+            date={date}
+            onSelect={setDate}
+            bedtimeMinutes={data.preferences.bedtimeMinutes}
+            wakeMinutes={data.preferences.wakeMinutes}
+          />
         ) : (
-          <section className="sleep-night-intro">
-            <h2>{tr("Sleep, understood.")}</h2>
-            {data === undefined ? (
-              <p role="status">{tr("Reading your night…")}</p>
-            ) : night ? (
-              <>
-                <div className="sleep-night-score">
-                  {night.score}
-                  <span className="text-xl opacity-70"> / 100</span>
-                </div>
-                <p>
-                  <Message
-                    text={"{{value0}} · {{value1}} asleep"}
-                    values={{
-                      value0: night.band,
-                      value1: formatHours(night.minutes),
-                    }}
-                  />
-                </p>
-                <p className="mt-2 text-sm text-[#c1cde4]">
-                  <Message
-                    text={"{{value0}} data confidence · waking {{value1}}"}
-                    values={{ value0: night.confidence, value1: date }}
-                  />
-                </p>
-              </>
-            ) : (
-              <>
-                <p className="mt-6">
-                  {tr("No sleep recorded for this night.")}
-                </p>
-                <p className="text-sm text-[#c1cde4]">
-                  {tr(
-                    "Sync your wearable or add sleep in Health. A new reading may arrive later today."
-                  )}
-                </p>
-              </>
-            )}
-          </section>
+          <p>{tr("Sign in to see your sleep history.")}</p>
         )}
         {!strainMode && night && (
           <>
-            <dl className="sleep-metrics">
-              <div>
-                <dt>{tr("Asleep")}</dt>
-                <dd>{formatHours(night.minutes)}</dd>
-              </div>
-              <div>
-                <dt>{tr("Baseline")}</dt>
-                <dd>
-                  {night.baseline === null
-                    ? tr("Building")
-                    : formatHours(night.baseline)}
-                </dd>
-              </div>
-              <div>
-                <dt>{tr("Recorded efficiency")}</dt>
-                <dd>
-                  {night.efficiency === null
-                    ? tr("Unavailable")
-                    : tr("{{value0}}%", {
-                        value0: Math.round(night.efficiency),
-                      })}
-                </dd>
-              </div>
-            </dl>
-            <section className="sleep-section">
-              <h2>{tr("Your night, in detail")}</h2>
-              {night.startedAt !== null && night.endedAt !== null && (
-                <p className="mb-3 text-sm text-muted-foreground">
-                  <Message
-                    text={"{{value0}} – {{value1}} · main sleep period"}
-                    values={{
-                      value0: new Date(night.startedAt).toLocaleTimeString(
-                        uiLocale(),
-                        {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        }
-                      ),
-                      value1: new Date(night.endedAt).toLocaleTimeString(
-                        uiLocale(),
-                        {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        }
-                      ),
-                    }}
-                  />
-                </p>
-              )}
-              {night.napMinutes !== null && night.napMinutes > 0 && (
-                <p className="mb-3 text-sm text-muted-foreground">
-                  <Message
-                    text={
-                      "An additional {{value0}} of sleep was recorded outside this main period."
-                    }
-                    values={{ value0: formatHours(night.napMinutes) }}
-                  />
-                </p>
-              )}
-              <div
-                className="sleep-stage-bar"
-                aria-label={tr("Recorded sleep stage proportions")}
-              >
-                {stages.map((s) => (
-                  <span
-                    key={s.label}
-                    style={{
-                      width: `${(s.minutes / (night.minutes + (night.awake ?? 0))) * 100}%`,
-                      background: colors[s.label],
-                    }}
-                  />
-                ))}
-              </div>
-              <div className="sleep-stage-legend">
-                {stages.map((s) => (
-                  <span key={s.label}>
-                    <i style={{ background: colors[s.label] }} />
-                    {s.label} {formatHours(s.minutes)} ·{" "}
-                    {Math.round(
-                      (s.minutes / (night.minutes + (night.awake ?? 0))) * 100
-                    )}
-                    %
-                  </span>
-                ))}
-              </div>
-              <p className="mt-3 text-xs text-muted-foreground">
-                {tr(
-                  "Stage totals, not a chronological timeline. Your wearable estimates stages; unclassified time stays visible."
-                )}
-              </p>
-            </section>
-            <section className="sleep-section">
-              <h2>{tr("What shaped your score")}</h2>
-              {night.parts.map((p) => (
-                <div className="sleep-contributor" key={p.key}>
-                  <span>
-                    {p.label}{" "}
-                    <small className="text-muted-foreground">
-                      <Message
-                        text={"{{value0}}% weight"}
-                        values={{ value0: p.weight }}
-                      />
-                    </small>
-                  </span>
-                  <span>{Math.round(p.score)}/100</span>
-                  <p>{p.detail}</p>
-                </div>
-              ))}
-              <p className="text-xs text-muted-foreground">
-                {tr(
-                  "Available components share the weight. Confidence describes coverage, not medical accuracy. Missing data never counts as zero."
-                )}
-              </p>
-            </section>
-            <section className="sleep-section">
-              <h2>{tr("Tonight’s focus")}</h2>
-              <p>{night.tip}</p>
-              {night.observations.map((o) => (
-                <p key={o} className="mt-3 text-sm text-muted-foreground">
-                  {o}
-                </p>
-              ))}
-              <p className="mt-3 text-sm text-muted-foreground">
-                <Message
-                  text={
-                    "{{value0}} below your goal across {{value1}} recorded nights. This is a goal shortfall, not a precise repayment target."
-                  }
-                  values={{
-                    value0: formatHours(night.shortfall),
-                    value1: night.shortfallNights,
-                  }}
-                />
-              </p>
-            </section>
+            {data && <ConnectedReview review={data.connectedReview} linkComponent={Link} today={today} />}
             <section className="sleep-section">
               <h2>{tr("A second look with Coach")}</h2>
               <button
@@ -680,137 +489,50 @@ export default function SleepInsights({
               </>
             )
           ))}
-        {data && (
-          <>
-            <section className="sleep-section">
-              <h2>{strainMode ? tr("Recent strain") : tr("Recent nights")}</h2>
-              {!strainMode && (
-                <div
-                  className="mb-3 flex gap-3 text-sm"
-                  aria-label={tr("Sleep trend")}
+        {data && strainMode && (
+          <section className="sleep-section">
+            <h2>{tr("Recent strain")}</h2>
+            <div className="sleep-history">
+              {data.history.map((d) => (
+                <button
+                  key={d.date}
+                  type="button"
+                  aria-label={tr("{{date}}: {{value}} strain", {
+                    date: d.date,
+                    value: trendValue(d) ?? tr("Unavailable"),
+                  })}
+                  onClick={() => setDate(d.date)}
                 >
-                  {(["quality", "duration", "consistency"] as const).map(
-                    (item) => (
-                      <button
-                        key={item}
-                        className="min-h-11 capitalize underline-offset-4"
-                        style={{
-                          textDecoration: trend === item ? "underline" : "none",
-                        }}
-                        aria-pressed={trend === item}
-                        onClick={() => setTrend(item)}
-                      >
-                        {item}
-                      </button>
-                    )
-                  )}
-                </div>
+                  <span
+                    style={{
+                      height: `${trendValue(d) ?? 3}%`,
+                      opacity:
+                        trendValue(d) === null
+                          ? 0.15
+                          : d.date === date
+                            ? 1
+                            : 0.65,
+                      background: "#c28e6f",
+                    }}
+                  />
+                </button>
+              ))}
+            </div>
+            <p className="sleep-chart-caption">
+              {tr(
+                "Select a day to explore it. Missing days are not zero scores."
               )}
-              <div className="sleep-history">
-                {data.history.map((d) => (
-                  <button
-                    key={d.date}
-                    aria-label={tr("{{value0}}: {{value1}} {{value2}}", {
-                      value0: d.date,
-                      value1: trendValue(d) ?? "unavailable",
-                      value2: choice(
-                        !strainMode && trend === "duration"
-                          ? "minutes"
-                          : "score"
-                      ),
-                    })}
-                    title={tr("{{value0}}: {{value1}}", {
-                      value0: d.date,
-                      value1: trendValue(d) ?? "unavailable",
-                    })}
-                    onClick={() => setDate(d.date)}
-                  >
-                    <span
-                      style={{
-                        height: `${trendValue(d) === null ? 3 : !strainMode && trend === "duration" ? Math.min(100, trendValue(d)! / 6) : trendValue(d)}%`,
-                        opacity:
-                          trendValue(d) === null
-                            ? 0.15
-                            : d.date === date
-                              ? 1
-                              : 0.65,
-                        background: strainMode ? "#c28e6f" : "#8196d1",
-                      }}
-                    />
-                  </button>
-                ))}
-              </div>
-              <p className="mt-2 text-xs text-muted-foreground">
-                {tr(
-                  "Select a day to explore it. Missing days are not zero scores."
-                )}
-              </p>
-              <Link
-                to={strainMode ? "/health/sleep" : "/health/strain"}
-                className="mt-4 inline-flex items-center gap-2 text-sm underline"
-              >
-                {strainMode
-                  ? tr("See how you slept")
-                  : tr("Explore daily strain")}
-                <ArrowRight />
-              </Link>
-            </section>
-            {!strainMode && (
-              <section className="sleep-section">
-                <h2>{tr("Your sleep preferences")}</h2>
-                <label className="flex items-center justify-between gap-4 text-sm">
-                  <Message
-                    text={"Sleep goal{{value0}}"}
-                    values={{
-                      value0: (
-                        <select
-                          aria-label={tr("Sleep goal")}
-                          value={data.preferences.targetMinutes}
-                          onChange={(e) =>
-                            void savePreferences(
-                              data.preferences.automaticReview,
-                              Number(e.target.value)
-                            )
-                          }
-                          className="rounded bg-background p-2"
-                        >
-                          {[420, 450, 480, 510, 540, 570, 600].map((m) => (
-                            <option value={m} key={m}>
-                              {formatHours(m)}
-                            </option>
-                          ))}
-                        </select>
-                      ),
-                    }}
-                  />
-                </label>
-                <label className="mt-5 flex items-center gap-3 text-sm">
-                  <Message
-                    text={"{{value0}}Automatic review after each night syncs"}
-                    values={{
-                      value0: (
-                        <input
-                          type="checkbox"
-                          checked={data.preferences.automaticReview}
-                          onChange={(e) =>
-                            void savePreferences(
-                              e.target.checked,
-                              data.preferences.targetMinutes
-                            )
-                          }
-                        />
-                      ),
-                    }}
-                  />
-                </label>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  {tr(
-                    "Uses your AI allowance and existing AI processing settings. Regular insights are always available."
-                  )}
-                </p>
-              </section>
-            )}
-          </>
+            </p>
+            <Link className="sleep-text-action" to="/health/sleep">
+              {tr("See how you slept")}
+            </Link>
+          </section>
+        )}
+        {data && !strainMode && (
+          <SleepPreferencesForm
+            value={data.preferences}
+            save={(value) => preferences(value)}
+          />
         )}
         {error && (
           <p role="alert" className="sleep-error mt-4">

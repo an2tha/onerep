@@ -164,6 +164,7 @@ export async function deleteUserDataBatch(
     ["healthMetrics", "by_userId"],
     ["externalNutrition", "by_userId_and_date"],
     ["sleepPreferences", "by_userId"],
+    ["sleepGoalHistory", "by_userId"],
     ["sleepReviews", "by_userId"],
     ["healthProfiles", "by_userId"],
     ["bodyMeasurements", "by_userId"],

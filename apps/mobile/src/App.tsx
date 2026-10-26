@@ -1,3 +1,4 @@
+import { TodayInsights } from "@/components/today-insights"
 import { HomeProgrammes } from "@/components/home-programmes"
 import { RestartNudge } from "@/components/restart/restart-nudge"
 import { Message, tr, uiLocale } from "@repo/ui/i18n"
@@ -401,6 +402,7 @@ function Dashboard() {
             <HomeProgrammes />
             {viewingToday && <RestartNudge />}
             {viewingToday && <RecoveryBanner />}
+            <TodayInsights date={dateKey} today={todayKey} />
             {/* The repeats are date-correct rather than today-only: RepeatChips
               queries what was eaten on or before the day being viewed and logs
               onto that same day. Hiding them on a past day took away the one

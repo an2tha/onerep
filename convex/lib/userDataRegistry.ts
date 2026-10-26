@@ -52,6 +52,7 @@ export const userDataRegistry = {
   healthMetrics: "directly_user_owned",
   externalNutrition: "directly_user_owned",
   sleepPreferences: "directly_user_owned",
+  sleepGoalHistory: "directly_user_owned",
   sleepReviews: "directly_user_owned",
   foodLogs: "directly_user_owned",
   waterLogs: "directly_user_owned",

@@ -70,6 +70,8 @@ describe("@repo/ui package boundary", () => {
       // The panel itself is grouped-list primitives from @repo/ui.
       "api-keys-section.tsx",
       "auth-guard.tsx",
+      // Authenticated daily-review queries and saves; views live in @repo/ui/sleep.
+      "today-insights.tsx",
       // Gates app routes using a Convex preference; contains no shared UI.
       "experimental-feature-guard.tsx",
       // The payment UI seam. index.tsx is a gitignored re-export swapped by

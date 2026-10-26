@@ -1,3 +1,4 @@
+import { SleepDurationChart } from "@repo/ui/sleep"
 import { Message, tr, uiLocale } from "@repo/ui/i18n"
 import { useId, useState, type ReactNode } from "react"
 import { Link } from "react-router"
@@ -96,7 +97,7 @@ export function HealthSleepStrainOverview() {
   return (
     <section aria-label={tr("Sleep and strain insights")} className="mt-6">
       <Overview
-        title={tr("Sleep quality")}
+        title={tr("Sleep duration")}
         summary={
           data === undefined
             ? tr("Loading your sleep overview…")
@@ -104,36 +105,19 @@ export function HealthSleepStrainOverview() {
               ? tr("{{value0}} · {{value1}} · {{value2}}", {
                   value0: nightDate,
                   value1: duration(night.minutes),
-                  value2: night.band.toLowerCase(),
+                  value2: tr("Goal {{goal}}", { goal: duration(night.target) }),
                 })
-              : tr("Duration, sleep stages, and a focus for tonight")
+              : tr("Duration, recent nights, and a focus for tonight")
         }
-        score={night?.score ?? null}
+        score={null}
         night
       >
+        {data && <SleepDurationChart history={data.history} compact />}
         <p>
-          {night?.tip ??
-            tr(
-              "See how you slept, what shaped your score, and what might help tonight. Sync your wearable to build your first night."
-            )}
+          {tr(
+            "Main sleep against the goal for each night. Open sleep to see timing, recorded coverage, and tonight’s focus."
+          )}
         </p>
-        {night && (
-          <div className="health-insight-values">
-            <span>
-              <Message
-                text={"{{value0}} data confidence"}
-                values={{ value0: night.confidence }}
-              />
-            </span>
-            <span>
-              {night.efficiency === null
-                ? tr("Duration-based estimate")
-                : tr("{{value0}}% recorded efficiency", {
-                    value0: Math.round(night.efficiency),
-                  })}
-            </span>
-          </div>
-        )}
         <Link
           className="health-insight-link"
           to={night ? `/health/sleep?date=${night.date}` : "/health/sleep"}

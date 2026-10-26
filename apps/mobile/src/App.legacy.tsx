@@ -1,3 +1,4 @@
+import { TodayInsights } from "@/components/today-insights"
 import { HomeProgrammes } from "@/components/home-programmes"
 import { ProfileAvatar } from "@/components/profile-avatar"
 import { RecoveryBanner } from "@/components/recovery/recovery-banner"
@@ -1443,6 +1444,7 @@ export default function LegacyApp() {
               </section>
             )}
             {dayOffset === 0 && <div className="mx-[var(--app-page-x)] md:mx-8"><RecoveryBanner /></div>}
+            <div className="mx-[var(--app-page-x)] md:mx-8"><TodayInsights date={selectedDate} today={todayKey} /></div>
             {showWelcomeNudge && recovery !== undefined && !recovery.active && (
               <div className="mx-[var(--app-page-x)] md:mx-8">
                 <WelcomeNudge

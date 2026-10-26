@@ -1,10 +1,14 @@
+import { shiftDate } from "./healthSeries";
+
 /** Versioned, explainable wellness estimates. These are not clinical measures. */
-export const SCORE_VERSION = 1;
+export const SCORE_VERSION = 2;
 export type SleepDay = {
   cardiacMinutes?: Record<string, number>;
   date: string;
   sleepMinutes?: number;
   provider?: string;
+  updatedAt?: number;
+  manualFields?: string[];
   sleepDeepMinutes?: number;
   sleepRemMinutes?: number;
   sleepLightMinutes?: number;
@@ -33,41 +37,56 @@ export const median = (ns: number[]) => {
 };
 const circularDelta = (a: number, b: number) =>
   Math.abs(((a - b + 2160) % 1440) - 720);
-export function scoreSleep(day: SleepDay, history: SleepDay[], target = 480) {
-  if (!valid(day.sleepMinutes) || day.sleepMinutes <= 0) return null;
-  const prior = history
-    .filter((d) => d.date < day.date && d.provider === day.provider)
-    .slice(-28);
-  const minutes = day.mainSleepMinutes ?? day.sleepMinutes;
-  const baseline = median(
-    prior.map((d) => d.mainSleepMinutes ?? d.sleepMinutes).filter(valid),
+export type SleepGoal = { date: string; targetMinutes: number };
+const mainDuration = (day: SleepDay) =>
+  valid(day.mainSleepMinutes) && day.mainSleepMinutes > 0
+    ? day.mainSleepMinutes
+    : day.sleepMinutes;
+export function sleepGoalOn(date: string, goals: SleepGoal[], fallback = 480) {
+  return (
+    [...goals]
+      .filter((goal) => goal.date <= date)
+      .sort((a, b) => b.date.localeCompare(a.date))[0]?.targetMinutes ??
+    fallback
   );
-  const parts: {
-    key: string;
-    label: string;
-    score: number;
-    weight: number;
-    detail: string;
-  }[] = [
-    {
-      key: "duration",
-      label: "Duration",
-      score: clamp((minutes / target) * 100),
-      weight: 40,
-      detail: `${Math.round(minutes)} minutes asleep against your ${target}-minute goal.`,
-    },
-  ];
+}
+
+/** One stable quantity: main-period duration as a percentage of the dated goal.
+ * Other readings explain the night; their availability never changes this percentage.
+ */
+export function scoreSleep(
+  day: SleepDay,
+  history: SleepDay[],
+  target = 480,
+  goals: SleepGoal[] = [],
+  initialTarget = target,
+) {
+  if (!valid(day.sleepMinutes) || day.sleepMinutes <= 0) return null;
+  const minutes = mainDuration(day)!;
+  const source = (d: SleepDay) =>
+    d.manualFields?.includes("sleepMinutes")
+      ? "manual"
+      : (d.provider ?? "unknown");
+  const priorAll = history
+    .filter((d) => d.date < day.date && d.date >= shiftDate(day.date, -28))
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const prior = priorAll.filter((d) => source(d) === source(day));
+  const durations = prior
+    .map(mainDuration)
+    .filter(valid)
+    .filter((n) => n > 0);
+  const baseline = durations.length >= 7 ? median(durations) : null;
+  const sorted = [...durations].sort((a, b) => a - b);
+  const usualRange =
+    baseline === null
+      ? null
+      : {
+          low: sorted[Math.floor((sorted.length - 1) * 0.25)]!,
+          high: sorted[Math.ceil((sorted.length - 1) * 0.75)]!,
+        };
   const awake = valid(day.sleepAwakeMinutes) ? day.sleepAwakeMinutes : null;
   const efficiency =
     awake === null ? null : (minutes / (minutes + awake)) * 100;
-  if (efficiency !== null)
-    parts.push({
-      key: "continuity",
-      label: "Continuity",
-      score: clamp(efficiency),
-      weight: 25,
-      detail: `${Math.round(awake!)} minutes awake during the recorded sleep period; ${Math.round(efficiency)}% recorded sleep efficiency.`,
-    });
   const stages = [
     {
       key: "sleepLightMinutes",
@@ -79,133 +98,151 @@ export function scoreSleep(day: SleepDay, history: SleepDay[], target = 480) {
   ].filter((s): s is { key: string; label: string; minutes: number } =>
     valid(s.minutes),
   );
-  const stageTotal = stages.reduce((sum, s) => sum + s.minutes, 0);
-  const stagesValid =
-    stages.length === 3 &&
-    stageTotal <= minutes + 5 &&
-    stageTotal >= minutes * 0.8;
-  const stageBaseline = median(
-    prior
-      .filter(
-        (d) =>
-          valid(d.sleepDeepMinutes) &&
-          valid(d.sleepRemMinutes) &&
-          valid(d.sleepMinutes) &&
-          d.sleepMinutes > 0,
-      )
-      .map((d) => (d.sleepDeepMinutes! + d.sleepRemMinutes!) / d.sleepMinutes!),
-  );
-  if (
-    stagesValid &&
-    stageBaseline !== null &&
-    prior.filter((d) => valid(d.sleepDeepMinutes) && valid(d.sleepRemMinutes))
-      .length >= 7 &&
-    stageBaseline > 0
-  ) {
-    const ratio = (day.sleepDeepMinutes! + day.sleepRemMinutes!) / minutes;
-    parts.push({
-      key: "stages",
-      label: "Stage pattern",
-      score: clamp(100 - Math.max(0, stageBaseline - ratio) * 100),
-      weight: 20,
-      detail:
-        "A modest adjustment for deep and REM time versus your own device history; stages are estimates.",
-    });
-  }
+  const stageTotal = stages.reduce((sum, stage) => sum + stage.minutes, 0);
+  const validStages = stageTotal <= minutes + 5 ? stages : [];
   const timings = prior.filter(
     (d) => valid(d.sleepStartMinutes) && valid(d.sleepEndMinutes),
   );
-  let timingShift: number | null = null;
-  if (
+  const timingShift =
     valid(day.sleepStartMinutes) &&
     valid(day.sleepEndMinutes) &&
     timings.length >= 7
-  ) {
-    timingShift = median(
-      timings.map(
-        (d) =>
-          (circularDelta(day.sleepStartMinutes!, d.sleepStartMinutes!) +
-            circularDelta(day.sleepEndMinutes!, d.sleepEndMinutes!)) /
-          2,
-      ),
-    );
-    parts.push({
-      key: "consistency",
-      label: "Consistency",
-      score: clamp(100 - timingShift! / 3),
-      weight: 15,
-      detail: `Sleep and wake times differ by about ${Math.round(timingShift!)} minutes from recent nights.`,
-    });
-  }
-  const weight = parts.reduce((s, p) => s + p.weight, 0);
-  const score = Math.round(
-    parts.reduce((s, p) => s + p.score * p.weight, 0) / weight,
-  );
-  const confidence =
-    parts.length === 4
-      ? "High"
-      : awake !== null || stagesValid
-        ? "Medium"
-        : "Low";
-  const recent = [...prior.slice(-6), day];
+      ? median(
+          timings.map(
+            (d) =>
+              (circularDelta(day.sleepStartMinutes!, d.sleepStartMinutes!) +
+                circularDelta(day.sleepEndMinutes!, d.sleepEndMinutes!)) /
+              2,
+          ),
+        )
+      : null;
+  // Include all recorded sources for the calendar-week goal comparison, but
+  // never mix sources when calculating a person's usual range.
+  const recent = [
+    ...history.filter(
+      (d) => d.date >= shiftDate(day.date, -6) && d.date < day.date,
+    ),
+    day,
+  ].filter((d) => valid(d.sleepMinutes) && d.sleepMinutes > 0);
   const shortfall = recent.reduce(
-    (s, d) =>
-      s + (valid(d.sleepMinutes) ? Math.max(0, target - d.sleepMinutes) : 0),
+    (sum, d) =>
+      sum +
+      Math.max(0, sleepGoalOn(d.date, goals, initialTarget) - mainDuration(d)!),
     0,
   );
+  const coverageKeys = [
+    "duration",
+    ...(awake !== null ? ["awake"] : []),
+    ...(validStages.length ? ["stages"] : []),
+    ...(valid(day.sleepStartMinutes) && valid(day.sleepEndMinutes)
+      ? ["timing"]
+      : []),
+  ];
+  const previous = priorAll
+    .filter((d) => valid(d.sleepMinutes) && d.sleepMinutes > 0)
+    .at(-1);
+  const previousCoverage = previous
+    ? [
+        "duration",
+        ...(valid(previous.sleepAwakeMinutes) ? ["awake"] : []),
+        ...([
+          previous.sleepLightMinutes,
+          previous.sleepDeepMinutes,
+          previous.sleepRemMinutes,
+        ].some(valid)
+          ? ["stages"]
+          : []),
+        ...(valid(previous.sleepStartMinutes) && valid(previous.sleepEndMinutes)
+          ? ["timing"]
+          : []),
+      ]
+    : [];
+  const providerChanged = Boolean(previous && source(previous) !== source(day));
+  const coverageChanged = Boolean(
+    previous && coverageKeys.join() !== previousCoverage.join(),
+  );
+  const score = Math.round(clamp((minutes / target) * 100));
   const observations = [
     baseline !== null
-      ? `${Math.round(Math.abs(minutes - baseline))} minutes ${minutes >= baseline ? "more" : "less"} sleep than your baseline.`
-      : "Your baseline will grow as more nights arrive.",
+      ? `${Math.round(Math.abs(minutes - baseline))} minutes ${minutes >= baseline ? "more" : "less"} main sleep than your recent median.`
+      : "Seven recorded nights from the same source are needed for your usual range.",
   ];
-  if (timingShift !== null && timingShift > 60)
-    observations.push("Your sleep schedule shifted by more than an hour.");
-  if (awake !== null && awake > 45)
+  if (providerChanged)
     observations.push(
-      "A noticeable part of the recorded night was spent awake.",
+      "Your sleep source changed. The usual range uses only this source.",
+    );
+  if (coverageChanged)
+    observations.push(
+      "The available readings changed. Duration goal progress still uses only recorded duration.",
     );
   if (stageTotal > minutes + 5)
     observations.push(
-      "Stage totals overlap or exceed sleep duration; stage scoring is excluded.",
+      "Stage totals exceed main sleep duration and are excluded.",
     );
   return {
     date: day.date,
     score,
-    confidence,
     minutes,
     baseline,
+    usualRange,
+    baselineNights: durations.length,
     target,
     efficiency,
     awake,
-    band:
-      score >= 90
-        ? "Restorative"
-        : score >= 75
-          ? "Good"
-          : score >= 60
-            ? "Fair"
-            : "Short or disrupted",
-    parts: parts.map((p) => ({
-      ...p,
-      weight: Math.round((p.weight / weight) * 100),
-    })),
-    stages: stageTotal <= minutes + 5 ? stages : [],
-    unclassifiedMinutes:
-      stageTotal > minutes + 5 ? minutes : Math.max(0, minutes - stageTotal),
+    timingShift,
+    // Retained for older clients. New interfaces show coverageKeys directly.
+    confidence:
+      coverageKeys.length === 4
+        ? "High"
+        : coverageKeys.length > 1
+          ? "Medium"
+          : "Low",
+    coverageKeys,
+    provider: source(day),
+    providerChanged,
+    coverageChanged,
+    updatedAt: day.updatedAt ?? null,
+    band: minutes < target ? "Below duration goal" : "Duration goal met",
+    parts: [
+      {
+        key: "duration",
+        label: "Duration goal progress",
+        score,
+        weight: 100,
+        detail: `${Math.round(minutes)} minutes of main sleep against the ${target}-minute goal for this waking day. Stages and other readings do not affect this percentage.`,
+      },
+    ],
+    stages: validStages,
+    unclassifiedMinutes: Math.max(
+      0,
+      minutes - validStages.reduce((sum, s) => sum + s.minutes, 0),
+    ),
     napMinutes: day.napMinutes ?? null,
+    totalMinutes: day.sleepMinutes,
     startedAt: day.sleepStartedAt ?? null,
     endedAt: day.sleepEndedAt ?? null,
+    startMinutes: day.sleepStartMinutes ?? null,
+    endMinutes: day.sleepEndMinutes ?? null,
     shortfall: Math.round(shortfall),
     shortfallNights: recent.length,
+    shortfallStart: shiftDate(day.date, -6),
     observations,
+    focus:
+      minutes < target - 30
+        ? "duration"
+        : timingShift !== null && timingShift > 60
+          ? "timing"
+          : awake !== null && awake > 45
+            ? "interruptions"
+            : "continue",
     tip:
       minutes < target - 30
-        ? "Try making room for 20–30 extra minutes of sleep tonight, if your schedule allows."
+        ? "Make room for 20–30 extra minutes of sleep tonight, if your schedule allows."
         : timingShift !== null && timingShift > 60
-          ? "Try returning to a familiar sleep and wake window tonight."
+          ? "Consider a familiar sleep and wake window tonight, if it fits your schedule."
           : awake !== null && awake > 45
             ? "Notice whether noise, light, or temperature interrupted you; change one thing tonight."
-            : "Keep the routine that worked and notice how rested you feel tomorrow.",
+            : "Keep your usual routine and notice how rested you feel tomorrow.",
     version: SCORE_VERSION,
   };
 }
@@ -344,6 +381,6 @@ export function scoreStrain(
           : steps !== null
             ? "Steps provide a basic whole-day estimate. Workout overlap cannot be fully removed without energy data."
             : "Whole-day measurements are unavailable. Training alone can still provide a partial score.",
-    version: SCORE_VERSION,
+    version: 1,
   };
 }

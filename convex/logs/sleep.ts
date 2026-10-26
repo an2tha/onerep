@@ -9,11 +9,15 @@ import {
 import { getAuthUser, safeGetAuthUser } from "../lib/auth";
 import {
   scoreSleep,
+  sleepGoalOn,
+  SCORE_VERSION,
   scoreStrain,
   median,
   type LoadSession,
 } from "../lib/sleepStrain";
 import { shiftDate } from "../lib/healthSeries";
+import { buildConnectedReview } from "../lib/connectedReview";
+import { localProgrammeTime } from "../lib/nutritionProgramme";
 import { summarizeRecovery } from "../lib/recovery";
 
 function dateKey(date: string) {
@@ -32,7 +36,16 @@ export async function sleepContext(
 ) {
   dateKey(date);
   const since = shiftDate(date, -55);
-  const [days, imported, logged, prefs, review] = await Promise.all([
+  const [
+    days,
+    imported,
+    logged,
+    prefs,
+    review,
+    goalAnchor,
+    goalChanges,
+    foodDays,
+  ] = await Promise.all([
     ctx.db
       .query("healthMetrics")
       .withIndex("by_userId_and_date", (q) =>
@@ -61,6 +74,28 @@ export async function sleepContext(
         q.eq("userId", userId).eq("date", date),
       )
       .unique(),
+    ctx.db
+      .query("sleepGoalHistory")
+      .withIndex("by_userId_and_date", (q) =>
+        q.eq("userId", userId).lt("date", since),
+      )
+      .order("desc")
+      .first(),
+    ctx.db
+      .query("sleepGoalHistory")
+      .withIndex("by_userId_and_date", (q) =>
+        q.eq("userId", userId).gte("date", since).lte("date", date),
+      )
+      .take(60),
+    ctx.db
+      .query("foodLogs")
+      .withIndex("by_userId_date", (q) =>
+        q
+          .eq("userId", userId)
+          .gte("date", shiftDate(date, -6))
+          .lte("date", date),
+      )
+      .take(8),
   ]);
   const matchesLog = (
     w: (typeof imported)[number],
@@ -132,8 +167,13 @@ export async function sleepContext(
     });
   }
   const day = days.find((d) => d.date === date);
-  const target = prefs?.targetMinutes ?? 480;
-  const sleep = day ? scoreSleep(day, days, target) : null;
+  const goalHistory = [...(goalAnchor ? [goalAnchor] : []), ...goalChanges];
+  const initialTarget =
+    prefs?.initialTargetMinutes ?? prefs?.targetMinutes ?? 480;
+  const target = sleepGoalOn(date, goalHistory, initialTarget);
+  const sleep = day
+    ? scoreSleep(day, days, target, goalHistory, initialTarget)
+    : null;
   const strain = scoreStrain(
     day,
     sessions.filter((s) => s.date === date),
@@ -143,11 +183,14 @@ export async function sleepContext(
     shiftDate(date, index - 27),
   ).map((key) => ({
     date: key,
+    target: sleepGoalOn(key, goalHistory, initialTarget),
     sleep: days.find((d) => d.date === key)
       ? scoreSleep(
           days.find((d) => d.date === key)!,
           days,
-          target,
+          sleepGoalOn(key, goalHistory, initialTarget),
+          goalHistory,
+          initialTarget,
         )
       : null,
     strain: scoreStrain(
@@ -182,8 +225,11 @@ export async function sleepContext(
       .take(3),
   ]);
   const fingerprint = JSON.stringify({
+    version: SCORE_VERSION,
     day: day ?? null,
     target,
+    goalHistory: goalHistory.map((g) => [g.date, g.targetMinutes]),
+    foodDays: foodDays.map((d) => [d.date, d.updatedAt]),
     days: days.map((d) => [d.date, d.updatedAt]),
     sessions,
     goals: goals.map((g) => [g._id, g.updatedAt]),
@@ -199,6 +245,14 @@ export async function sleepContext(
         .map((d) => d.strain.score!),
     ),
     history,
+    connectedReview: buildConnectedReview({
+      date,
+      nights: history.flatMap((d) => (d.sleep ? [d.sleep] : [])),
+      sessions,
+      checkIns,
+      foodDays,
+      trainingIncomplete: imported.length === 500 || logged.length === 300,
+    }),
     recovery,
     goals: goals.map((g) => ({
       title: g.title,
@@ -213,7 +267,9 @@ export async function sleepContext(
     })),
     preferences: {
       automaticReview: prefs?.automaticReview ?? false,
-      targetMinutes: target,
+      targetMinutes: prefs?.targetMinutes ?? 480,
+      bedtimeMinutes: prefs?.bedtimeMinutes ?? null,
+      wakeMinutes: prefs?.wakeMinutes ?? null,
     },
     review,
     previousReview:
@@ -262,21 +318,109 @@ export const context = internalQuery({
   handler: (ctx, args) => sleepContext(ctx, args.userId, args.date),
 });
 export const preferences = mutation({
-  args: { automaticReview: v.boolean(), targetMinutes: v.number() },
+  args: {
+    automaticReview: v.boolean(),
+    targetMinutes: v.number(),
+    bedtimeMinutes: v.optional(v.union(v.number(), v.null())),
+    wakeMinutes: v.optional(v.union(v.number(), v.null())),
+  },
   handler: async (ctx, args) => {
     const user = await getAuthUser(ctx);
     if (
-      !Number.isFinite(args.targetMinutes) ||
+      !Number.isInteger(args.targetMinutes) ||
       args.targetMinutes < 420 ||
       args.targetMinutes > 600
     )
       throw new Error("Choose a sleep goal between 7 and 10 hours.");
-    const existing = await ctx.db
-      .query("sleepPreferences")
+    for (const time of [args.bedtimeMinutes, args.wakeMinutes]) {
+      if (time != null && (!Number.isInteger(time) || time < 0 || time >= 1440))
+        throw new Error("Choose a valid bedtime and wake time.");
+    }
+    const [existing, userPrefs] = await Promise.all([
+      ctx.db
+        .query("sleepPreferences")
+        .withIndex("by_userId", (q) => q.eq("userId", user._id))
+        .unique(),
+      ctx.db
+        .query("userPreferences")
+        .withIndex("by_userId", (q) => q.eq("userId", user._id))
+        .unique(),
+    ]);
+    const effectiveDate = shiftDate(
+      localProgrammeTime(userPrefs?.lastActiveTimezone || "UTC").date,
+      1,
+    );
+    if (args.targetMinutes !== (existing?.targetMinutes ?? 480)) {
+      const goal = await ctx.db
+        .query("sleepGoalHistory")
+        .withIndex("by_userId_and_date", (q) =>
+          q.eq("userId", user._id).eq("date", effectiveDate),
+        )
+        .unique();
+      const fields = {
+        targetMinutes: args.targetMinutes,
+        updatedAt: Date.now(),
+      };
+      if (goal) await ctx.db.patch("sleepGoalHistory", goal._id, fields);
+      else
+        await ctx.db.insert("sleepGoalHistory", {
+          userId: user._id,
+          date: effectiveDate,
+          ...fields,
+        });
+    }
+    const fields = {
+      automaticReview: args.automaticReview,
+      targetMinutes: args.targetMinutes,
+      initialTargetMinutes:
+        existing?.initialTargetMinutes ?? existing?.targetMinutes ?? 480,
+      ...(args.bedtimeMinutes !== undefined
+        ? { bedtimeMinutes: args.bedtimeMinutes ?? undefined }
+        : {}),
+      ...(args.wakeMinutes !== undefined
+        ? { wakeMinutes: args.wakeMinutes ?? undefined }
+        : {}),
+    };
+    if (existing) await ctx.db.patch("sleepPreferences", existing._id, fields);
+    else
+      await ctx.db.insert("sleepPreferences", { userId: user._id, ...fields });
+    return { effectiveDate };
+  },
+});
+
+const insightKey = v.union(
+  v.literal("sleep"),
+  v.literal("training"),
+  v.literal("nutrition"),
+  v.literal("checkIn"),
+);
+export const setTodayInsights = mutation({
+  args: { order: v.array(insightKey), hidden: v.array(insightKey) },
+  handler: async (ctx, args) => {
+    const user = await getAuthUser(ctx);
+    if (
+      args.order.length !== 4 ||
+      new Set(args.order).size !== 4 ||
+      args.hidden.length > 4 ||
+      new Set(args.hidden).size !== args.hidden.length
+    )
+      throw new Error("Choose each summary once.");
+    const prefs = await ctx.db
+      .query("userPreferences")
       .withIndex("by_userId", (q) => q.eq("userId", user._id))
       .unique();
-    if (existing) await ctx.db.patch(existing._id, args);
-    else await ctx.db.insert("sleepPreferences", { userId: user._id, ...args });
+    if (prefs)
+      await ctx.db.patch("userPreferences", prefs._id, {
+        todayInsights: args,
+        updatedAt: Date.now(),
+      });
+    else
+      await ctx.db.insert("userPreferences", {
+        userId: user._id,
+        todayInsights: args,
+        lastActiveTimezone: "UTC",
+        updatedAt: Date.now(),
+      });
   },
 });
 export const claimReview = internalMutation({

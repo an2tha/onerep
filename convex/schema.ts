@@ -165,6 +165,10 @@ export default defineSchema({
         simpleMode: v.optional(v.boolean()),
       }),
     ),
+    todayInsights: v.optional(v.object({
+      order: v.array(v.union(v.literal("sleep"), v.literal("training"), v.literal("nutrition"), v.literal("checkIn"))),
+      hidden: v.array(v.union(v.literal("sleep"), v.literal("training"), v.literal("nutrition"), v.literal("checkIn"))),
+    })),
     enduranceGoals: v.optional(
       v.object({
         hike: v.optional(
@@ -881,7 +885,13 @@ export default defineSchema({
    */
   sleepPreferences: defineTable({
     userId: v.string(), automaticReview: v.boolean(), targetMinutes: v.number(),
+    initialTargetMinutes: v.optional(v.number()),
+    bedtimeMinutes: v.optional(v.number()),
+    wakeMinutes: v.optional(v.number()),
   }).index("by_userId", ["userId"]),
+  sleepGoalHistory: defineTable({
+    userId: v.string(), date: v.string(), targetMinutes: v.number(), updatedAt: v.number(),
+  }).index("by_userId_and_date", ["userId", "date"]).index("by_userId", ["userId"]),
   sleepReviews: defineTable({
     userId: v.string(), date: v.string(), fingerprint: v.string(),
     status: v.union(v.literal("pending"), v.literal("ready"), v.literal("error")),
