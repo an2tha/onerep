@@ -402,7 +402,6 @@ function Dashboard() {
             <HomeProgrammes />
             {viewingToday && <RestartNudge />}
             {viewingToday && <RecoveryBanner />}
-            <TodayInsights date={dateKey} today={todayKey} />
             {/* The repeats are date-correct rather than today-only: RepeatChips
               queries what was eaten on or before the day being viewed and logs
               onto that same day. Hiding them on a past day took away the one
@@ -434,6 +433,9 @@ function Dashboard() {
             </button>
           </div>
         </DashboardHero>
+      </div>
+      <div className="relative z-10 mx-auto w-full max-w-6xl shrink-0 px-[var(--app-page-x)] lg:px-12">
+        <TodayInsights date={dateKey} today={todayKey} />
       </div>
       {/* The phone is only the wheel and one date control. Desktop has room
           for the day's supporting totals in a separate right-hand rail. */}
