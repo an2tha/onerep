@@ -25,6 +25,11 @@
 }
 
 @media (min-width: 1024px) {
+  .dashboard-today {
+    height: 100svh;
+    overflow: hidden;
+  }
+
   .dashboard-today .dashboard-hero-ledger {
     display: none;
   }
@@ -50,10 +55,17 @@
     column-gap: 2rem;
   }
 
-  .dashboard-day-rail {
+  .dashboard-context {
     grid-column: 2;
     grid-row: 1;
     min-width: 0;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    scrollbar-gutter: stable;
+    padding: 0;
+  }
+
+  .dashboard-day-rail {
     max-width: none;
     padding: 0;
   }
@@ -68,6 +80,14 @@
     grid-column: 1;
     grid-row: 1;
     justify-content: flex-start;
+  }
+
+  .dashboard-timeline-viewport {
+    height: 100%;
+  }
+
+  .dashboard-timeline-stage .app-scroll-strip {
+    overscroll-behavior-y: contain;
   }
 
   .dashboard-week-strip {

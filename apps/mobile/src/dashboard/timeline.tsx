@@ -393,7 +393,7 @@ export function DayTimeline({
         and make the sentence the way out of it, since an empty day is
         precisely when the wheel's own + is hardest to notice. */}
       {!loading && entries.length === 0 && (
-        <div className="motion-content-in absolute inset-x-0 top-[30%] z-30 flex flex-col items-center gap-2.5">
+        <div className="motion-content-in pointer-events-none absolute inset-x-0 top-[12%] z-30 flex flex-col items-center gap-2.5">
           <p className="text-[13px] text-muted-foreground">
             {isToday
               ? tr("Nothing logged yet today.")
@@ -402,7 +402,7 @@ export function DayTimeline({
           <button
             type="button"
             onClick={() => onQuickLog?.("past", Math.round(centerMinutes))}
-            className="motion-tactile flex min-h-11 items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-[14px] font-semibold text-foreground"
+            className="motion-tactile pointer-events-auto flex min-h-11 items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-[14px] font-semibold text-foreground"
           >
             <Message
               text={"{{value0}}Add to this day"}

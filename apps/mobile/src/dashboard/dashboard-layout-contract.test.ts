@@ -2,6 +2,7 @@ import { readLocalizedSource as readFileSync } from "../../tests/helpers/localiz
 import { describe, expect, test } from "bun:test"
 
 const app = readFileSync(new URL("../App.tsx", import.meta.url), "utf8")
+const body = readFileSync(new URL("./today-body.tsx", import.meta.url), "utf8")
 const timeline = readFileSync(
   new URL("./timeline.tsx", import.meta.url),
   "utf8"
@@ -21,7 +22,7 @@ describe("responsive dashboard layout", () => {
     expect(styles).toMatch(
       /@media \(min-width: 1024px\)[\s\S]*?\.dashboard-today-body[\s\S]*?grid-template-columns:/
     )
-    expect(app).toContain('className="dashboard-today-body')
+    expect(body).toContain('className="dashboard-today-body')
   })
 
   test("uses one date control and a compact phone summary", () => {
@@ -39,7 +40,7 @@ describe("responsive dashboard layout", () => {
   })
 
   test("lets the mobile timeline fill the space released by the date rail", () => {
-    expect(app).toContain(
+    expect(body).toContain(
       "dashboard-timeline-stage flex min-h-0 flex-1 justify-center"
     )
     expect(

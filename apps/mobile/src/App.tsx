@@ -1,3 +1,4 @@
+import { TodayBody } from "@/dashboard/today-body"
 import { TodayInsights } from "@/components/today-insights"
 import { HomeProgrammes } from "@/components/home-programmes"
 import { RestartNudge } from "@/components/restart/restart-nudge"
@@ -434,9 +435,6 @@ function Dashboard() {
           </div>
         </DashboardHero>
       </div>
-      <div className="relative z-10 mx-auto w-full max-w-6xl shrink-0 px-[var(--app-page-x)] lg:px-12">
-        <TodayInsights date={dateKey} today={todayKey} />
-      </div>
       {/* The phone is only the wheel and one date control. Desktop has room
           for the day's supporting totals in a separate right-hand rail. */}
       <div
@@ -471,111 +469,112 @@ function Dashboard() {
           </>
         )}
       </div>
-      <div className="dashboard-today-body relative z-10 flex min-h-0 flex-1 flex-col">
-        <div
-          style={
-            recovery?.active ||
-            !nutritionPlan?.visibleMetrics.calories ||
-            preferences === undefined ||
-            goals === undefined ||
-            supplementOverview === undefined ||
-            foodEntries === undefined ||
-            waterEntries === undefined
-              ? { display: "none" }
-              : undefined
-          }
-          className="dashboard-day-rail mx-auto hidden w-full max-w-6xl shrink-0 px-[var(--app-page-x)] pt-1 md:px-8 lg:block"
-        >
-          <DayRail
-            className="dashboard-day-rail-grid"
-            dateKey={dateKey}
-            isToday={viewingToday}
-            calories={dayTotals.calories}
-            protein={dayTotals.protein}
-            carbs={dayTotals.carbs}
-            fat={dayTotals.fat}
-            calorieGoal={
-              nutritionPlan?.visibleMetrics.calories
-                ? goals?.effective.calories
+      <TodayBody
+        summary={<TodayInsights date={dateKey} today={todayKey} />}
+        rail={
+          <div
+            style={
+              recovery?.active ||
+              !nutritionPlan?.visibleMetrics.calories ||
+              preferences === undefined ||
+              goals === undefined ||
+              supplementOverview === undefined ||
+              foodEntries === undefined ||
+              waterEntries === undefined
+                ? { display: "none" }
                 : undefined
             }
-            proteinGoal={goals?.effective.protein}
-            carbsGoal={goals?.effective.carbs}
-            fatGoal={goals?.effective.fat}
-            waterTotalMl={hydrationTotalMl}
-            waterGoalMl={preferences?.waterGoalMl ?? 2500}
-            waterEnabled={hydrationOn}
-            supplements={(supplementOverview?.items ?? [])
-              .filter((item) => item.active)
-              .map((item) => ({
-                id: item._id,
-                name: item.name,
-                logId: takenSupplementLogs.get(item._id),
-              }))}
-          />
-          <button
-            type="button"
-            onClick={() =>
-              navigate("/coach", {
-                motion: "forward",
-                state: {
-                  coachMode: "chat",
-                  initialInput: "Create a compact dashboard widget for ",
-                },
-              })
-            }
-            className="dashboard-add-widget motion-tactile mt-4 hidden min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-border bg-card text-[14px] font-semibold text-foreground transition-colors hover:bg-muted lg:flex"
+            className="dashboard-day-rail mx-auto hidden w-full max-w-6xl shrink-0 px-[var(--app-page-x)] pt-1 md:px-8 lg:block"
           >
-            <Message
-              text={"{{value0}}Add widget"}
-              values={{
-                value0: <Plus size={17} weight="bold" aria-hidden="true" />,
-              }}
-            />
-          </button>
-        </div>
-        {/* The ruler is taller than the screen on purpose — scrolling it pans
-            through the hours in place rather than carrying the hero away. */}
-        <div className="dashboard-timeline-stage flex min-h-0 flex-1 justify-center">
-          <div className="h-[max(22rem,calc(100svh-24rem))] min-h-0 w-full max-w-sm lg:h-[60svh]">
-            <DayTimeline
-              // Keyed on the day so switching days re-parks the wheel
-              // instead of holding the hour the last day was left on.
-              key={dateKey}
+            <DayRail
+              className="dashboard-day-rail-grid"
+              dateKey={dateKey}
               isToday={viewingToday}
-              loading={
-                preferences === undefined ||
-                nutritionPlan === undefined ||
-                foodEntries === undefined ||
-                waterEntries === undefined ||
-                supplementEntries === undefined ||
-                workoutLogs === undefined
+              calories={dayTotals.calories}
+              protein={dayTotals.protein}
+              carbs={dayTotals.carbs}
+              fat={dayTotals.fat}
+              calorieGoal={
+                nutritionPlan?.visibleMetrics.calories
+                  ? goals?.effective.calories
+                  : undefined
               }
-              entries={timelineEntries}
-              nowMinutes={nowMinutes}
-              sleepWindow={sleepWindow}
-              onEditEntry={(entry) => selectEntry(entry)}
-              onDeleteEntry={(entry) => selectEntry(entry, true)}
-              onAddEntry={(kind) => openQuickAction(TIMELINE_ADD_ACTIONS[kind])}
-              // The anchor-edge buttons ask before they act: the sheet lets
-              // the user pick workout or food, then either opens that
-              // drawer (the + , for a minute already gone) or sets a
-              // one-shot reminder (the clock, for a minute still ahead).
-              onQuickLog={(phase, minutes) =>
-                setScheduleRequest({ phase, minutes })
-              }
+              proteinGoal={goals?.effective.protein}
+              carbsGoal={goals?.effective.carbs}
+              fatGoal={goals?.effective.fat}
+              waterTotalMl={hydrationTotalMl}
+              waterGoalMl={preferences?.waterGoalMl ?? 2500}
+              waterEnabled={hydrationOn}
+              supplements={(supplementOverview?.items ?? [])
+                .filter((item) => item.active)
+                .map((item) => ({
+                  id: item._id,
+                  name: item.name,
+                  logId: takenSupplementLogs.get(item._id),
+                }))}
             />
+            <button
+              type="button"
+              onClick={() =>
+                navigate("/coach", {
+                  motion: "forward",
+                  state: {
+                    coachMode: "chat",
+                    initialInput: "Create a compact dashboard widget for ",
+                  },
+                })
+              }
+              className="dashboard-add-widget motion-tactile mt-4 hidden min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-border bg-card text-[14px] font-semibold text-foreground transition-colors hover:bg-muted lg:flex"
+            >
+              <Message
+                text={"{{value0}}Add widget"}
+                values={{
+                  value0: <Plus size={17} weight="bold" aria-hidden="true" />,
+                }}
+              />
+            </button>
           </div>
-        </div>
-        <WeekStrip
-          todayKey={todayKey}
-          selectedKey={dateKey}
-          onSelectDay={(day) => setViewedDateKey(day === todayKey ? null : day)}
-          workoutDates={workoutDateSet}
-          foodDates={foodDateSet}
-          className="dashboard-week-strip mt-1 hidden shrink-0 border-t border-border/60 pt-2 pb-3 lg:flex"
-        />
-      </div>
+        }
+        timeline={
+          <DayTimeline
+            // Keyed on the day so switching days re-parks the wheel
+            // instead of holding the hour the last day was left on.
+            key={dateKey}
+            isToday={viewingToday}
+            loading={
+              preferences === undefined ||
+              nutritionPlan === undefined ||
+              foodEntries === undefined ||
+              waterEntries === undefined ||
+              supplementEntries === undefined ||
+              workoutLogs === undefined
+            }
+            entries={timelineEntries}
+            nowMinutes={nowMinutes}
+            sleepWindow={sleepWindow}
+            onEditEntry={(entry) => selectEntry(entry)}
+            onDeleteEntry={(entry) => selectEntry(entry, true)}
+            onAddEntry={(kind) => openQuickAction(TIMELINE_ADD_ACTIONS[kind])}
+            // The anchor-edge buttons ask before they act: the sheet lets
+            // the user pick workout or food, then either opens that
+            // drawer (the + , for a minute already gone) or sets a
+            // one-shot reminder (the clock, for a minute still ahead).
+            onQuickLog={(phase, minutes) =>
+              setScheduleRequest({ phase, minutes })
+            }
+          />
+        }
+        week={
+          <WeekStrip
+            todayKey={todayKey}
+            selectedKey={dateKey}
+            onSelectDay={(day) => setViewedDateKey(day === todayKey ? null : day)}
+            workoutDates={workoutDateSet}
+            foodDates={foodDateSet}
+            className="dashboard-week-strip mt-1 hidden shrink-0 border-t border-border/60 pt-2 pb-3 lg:flex"
+          />
+        }
+      />
       {selection && (
         <EntrySheet
           key={`${selection.date}:${selection.entry.id}:${selection.deleting}`}

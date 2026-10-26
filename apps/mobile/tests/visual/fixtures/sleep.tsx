@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, type CSSProperties } from "react"
 import { createRoot } from "react-dom/client"
 import { Link, MemoryRouter, useLocation } from "react-router"
 import {
@@ -14,11 +14,12 @@ import {
   type SleepPreferencesValue,
 } from "@repo/ui/sleep"
 import { ConnectedReview } from "@repo/ui/sleep"
-import {
-  TodayInsightsView,
-  DEFAULT_INSIGHTS,
-} from "@repo/ui/sleep"
+import { TodayInsightsView, DEFAULT_INSIGHTS } from "@repo/ui/sleep"
 import { DetailAtmosphere } from "../../../src/components/detail-atmosphere"
+import { DashboardHero } from "@repo/ui"
+import { TodayBody } from "../../../src/dashboard/today-body"
+import { DayTimeline } from "../../../src/dashboard/timeline"
+import { WeekStrip } from "../../../src/dashboard/week-strip"
 import "../../../src/styles/index.css"
 import "../../../src/components/sleep-sky.css"
 
@@ -117,6 +118,52 @@ function Fixture() {
       </p>
     </div>
   )
+  if (params.get("surface") === "dashboard")
+    return (
+      <div className="dashboard-home dashboard-today relative flex min-h-svh flex-col bg-background pb-[calc(env(safe-area-inset-bottom,0px)+4.25rem)] lg:pb-0 lg:pl-72 lg:pr-8">
+        <div className="shrink-0" style={{ "--app-hero-min-h": "0rem" } as CSSProperties}>
+          <DashboardHero
+            dateLabel="Monday, October 26"
+            salutation="Good evening"
+            firstName="Alex"
+          />
+        </div>
+        <TodayBody
+          summary={
+            <TodayInsightsView
+              linkComponent={Link}
+              date={anchor}
+              history={history}
+              review={review}
+              settings={settings}
+              save={async (value) => {
+                setSettings(value)
+              }}
+            />
+          }
+          rail={
+            <div className="dashboard-day-rail hidden lg:block">
+              <h2>Nutrition</h2>
+              <p>Food logged today</p>
+              <div style={{ height: 180 }} />
+              <h2>Water</h2>
+              <button type="button">Add a glass of water</button>
+            </div>
+          }
+          timeline={<DayTimeline entries={[]} nowMinutes={20 * 60} />}
+          week={
+            <WeekStrip
+              todayKey={anchor}
+              selectedKey={date}
+              onSelectDay={setDate}
+              workoutDates={new Set()}
+              foodDates={new Set()}
+              className="dashboard-week-strip mt-1 hidden shrink-0 border-t border-border/60 pt-2 pb-3 lg:flex"
+            />
+          }
+        />
+      </div>
+    )
   if (params.get("surface") === "today")
     return (
       <main style={{ maxWidth: 480, margin: "auto", padding: 20 }}>
@@ -139,7 +186,8 @@ function Fixture() {
       <main className="sleep-detail">
         {controls}
         <SleepAnalysis
-          today={anchor} linkComponent={Link}
+          today={anchor}
+          linkComponent={Link}
           night={history.find((d) => d.date === date)?.sleep ?? null}
           history={history}
           date={date}
