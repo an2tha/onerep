@@ -1295,7 +1295,23 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
         }
 
         Task { @MainActor in
-            if let failure = await deleteOwnDay(in: day) {
+            // Check every type we will write before deleting any existing data.
+            // A refused nutrient must not leave an earlier nutrient erased.
+            var requiredTypes = Set(items.flatMap { item in
+                nutrientSamples(for: item, at: day.start).map { $0.quantityType }
+            })
+            if wantsWater, let type = quantityType("DietaryWater") {
+                requiredTypes.insert(type)
+            }
+            guard requiredTypes.allSatisfy({
+                healthStore.authorizationStatus(for: $0) == .sharingAuthorized
+            }) else {
+                call.resolve(writeRefusal("no_permission", "A requested dietary type is not authorized"))
+                return
+            }
+            if let failure = await deleteOwnDay(
+                in: day, nutrition: !items.isEmpty, water: wantsWater
+            ) {
                 call.resolve(
                     writeRefusal(reason(for: failure), failure.localizedDescription)
                 )
@@ -1372,20 +1388,25 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
      the samples this is here to remove are exactly the ones an earlier push of
      ours left behind.
      */
-    private func deleteOwnDay(in day: (start: Date, end: Date)) async -> Error? {
-        let identifiers = [
+    private func deleteOwnDay(
+        in day: (start: Date, end: Date), nutrition: Bool, water: Bool
+    ) async -> Error? {
+        var identifiers = nutrition ? [
             "DietaryEnergyConsumed",
             "DietaryProtein",
             "DietaryCarbohydrates",
             "DietaryFatTotal",
-            "DietaryWater",
-        ]
+        ] : []
+        if water { identifiers.append("DietaryWater") }
         let predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
             HKQuery.predicateForSamples(withStart: day.start, end: day.end, options: []),
             HKQuery.predicateForObjects(from: HKSource.default()),
         ])
         for identifier in identifiers {
             guard let type = quantityType(identifier) else { continue }
+            // A type absent from this write can be unshared. Leave it alone;
+            // HealthKit would reject its deletion and stop the replacement.
+            guard healthStore.authorizationStatus(for: type) == .sharingAuthorized else { continue }
             let failure: Error? = await withCheckedContinuation { continuation in
                 healthStore.deleteObjects(of: type, predicate: predicate) { _, _, error in
                     continuation.resume(returning: error)

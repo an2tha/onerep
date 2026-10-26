@@ -162,6 +162,7 @@ export async function deleteUserDataBatch(
     ["healthWorkoutHeartRateSeries", "by_userId"],
     ["healthWorkouts", "by_userId_and_externalId"],
     ["healthMetrics", "by_userId"],
+    ["externalNutrition", "by_userId_and_date"],
     ["sleepPreferences", "by_userId"],
     ["sleepReviews", "by_userId"],
     ["healthProfiles", "by_userId"],

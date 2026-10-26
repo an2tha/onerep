@@ -389,7 +389,14 @@ class HealthConnectPlugin : Plugin() {
         }
 
         return runCatching {
-            hc.deleteRecords(NutritionRecord::class, TimeRangeFilter.between(dayStart, dayEnd))
+            if (wantsNutrition) {
+                hc.deleteRecords(NutritionRecord::class, TimeRangeFilter.between(dayStart, dayEnd))
+            }
+            if (wantsWater) {
+                // Clear this app's old hydrationMl:<date> records as well as
+                // the current hydration:<date> record before replacing water.
+                hc.deleteRecords(HydrationRecord::class, TimeRangeFilter.between(dayStart, dayEnd))
+            }
             hc.insertRecords(written)
             JSObject().put("saved", true).put("written", written.size)
         }.getOrElse { error -> writeRefusal(reasonFor(error), error.message) }
@@ -529,7 +536,12 @@ class HealthConnectPlugin : Plugin() {
         return runCatching {
             // Our own day, cleared first: the items are the day, so an edit has
             // to replace what was there rather than join it.
-            hc.deleteRecords(NutritionRecord::class, TimeRangeFilter.between(dayStart, dayEnd))
+            if (items.isNotEmpty()) {
+                hc.deleteRecords(NutritionRecord::class, TimeRangeFilter.between(dayStart, dayEnd))
+            }
+            if (wantsWater) {
+                hc.deleteRecords(HydrationRecord::class, TimeRangeFilter.between(dayStart, dayEnd))
+            }
             hc.insertRecords(written)
             JSObject().put("saved", true).put("written", written.size)
         }.getOrElse { error -> writeRefusal(reasonFor(error), error.message) }
@@ -2004,8 +2016,8 @@ class HealthConnectPlugin : Plugin() {
      * washes the records older builds left stacked, which the upsert key alone
      * could never match.
      *
-     * The water record keeps its `hydration:<date>` id and is upserted rather
-     * than deleted: a day has one water total by construction.
+     * When water is supplied, replace our hydration records too, including
+     * the legacy hydrationMl:<date> ID. Omitted water is left untouched.
      */
     @PluginMethod
     fun saveNutritionItems(call: PluginCall) {
