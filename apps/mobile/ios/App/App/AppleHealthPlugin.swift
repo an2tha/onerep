@@ -1117,13 +1117,10 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
                 types.insert(type)
             }
         }
-        // Food entries are written as food correlations, so the correlation
-        // type has to be in the share request — a write of a type nobody asked
-        // for is refused, and the refusal arrives on the day the user logged a
-        // meal rather than at review time.
-        if let food = HKObjectType.correlationType(forIdentifier: .food) {
-            types.insert(food)
-        }
+        // Food correlations inherit authorization from their nutrient samples.
+        // Requesting the correlation itself raises an Objective-C exception
+        // before the completion handler runs, terminating the app at startup.
+        // https://developer.apple.com/documentation/healthkit/hkcorrelationquery
         return types
     }
 

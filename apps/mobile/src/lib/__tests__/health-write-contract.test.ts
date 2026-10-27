@@ -413,6 +413,22 @@ describe("rewriting a past day asks the store that needs to be asked", () => {
     expect(swift).toContain("func saveNutritionItems")
   })
 
+  test("iOS authorizes nutrient samples, never food correlations", () => {
+    const shareTypes = swift.slice(
+      swift.indexOf("private func healthShareTypes"),
+      swift.indexOf("@objc func saveDailyMetric")
+    )
+    const readTypes = swift.slice(
+      swift.indexOf("private func healthReadTypes"),
+      swift.indexOf("private func serializeWorkouts")
+    )
+    expect(shareTypes).toContain("dailyQuantities().filter(\\.writable)")
+    expect(shareTypes).not.toContain("correlationType(")
+    expect(readTypes).not.toContain("correlationType(")
+    // Correlations remain valid for saving foods after nutrient authorization.
+    expect(swift).toContain("let correlation = HKCorrelation(")
+  })
+
   test("both shells implement the items write the app prefers", () => {
     expect(kotlin).toContain("fun saveNutritionItems")
     expect(swift).toContain("func saveNutritionItems")
