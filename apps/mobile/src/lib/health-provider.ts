@@ -164,6 +164,9 @@ export type HealthNutritionItemsWrite = {
    * delete.
    */
   cleared?: boolean
+  /** Delete only the emptied part of a previously written day. */
+  clearNutrition?: boolean
+  clearWater?: boolean
 }
 
 type HealthWorkoutQuery = {
@@ -605,10 +608,10 @@ export async function saveHealthNutritionItems(
   if (!active) return { saved: false, reason: "unavailable" }
 
   if (!active.saveNutritionItems) {
-    // An older shell has no per-item writer and no way to delete a day. The
-    // repair pass washes an emptied day later, so a refusal here would put a
-    // permanent failure on Settings for a state that is correct.
-    if (options.cleared) return { saved: true, written: 0 }
+    // An old shell cannot confirm deletion. Keep the clear pending.
+    if (options.cleared || options.clearNutrition || options.clearWater) {
+      return { saved: false, reason: "unavailable" }
+    }
     const totals = options.items.reduce(
       (acc, item) => ({
         calories: acc.calories + item.calories,

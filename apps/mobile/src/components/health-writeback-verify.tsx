@@ -122,6 +122,8 @@ function CheckRunner({
   // The comparison has to measure what the write-back actually sends, and it
   // sends no water at all while the tracker is off.
   const hydrationOn = useHydrationEnabled()
+  const latestHydrationOn = useRef(hydrationOn)
+  latestHydrationOn.current = hydrationOn
   const dayKeys = useMemo(
     () => Array.from({ length: CHECK_DAYS }, (_, i) => offsetDateKey(localDateKey(), -i)),
     []
@@ -252,7 +254,7 @@ function CheckRunner({
         const appWaterMl =
           water instanceof Error || !water
             ? 0
-            : hydrationOn
+            : latestHydrationOn.current
               ? dayHydrationMl(water, entries)
               : 0
         const store = byDate.get(date)
@@ -272,7 +274,7 @@ function CheckRunner({
     })()
 
     return stopClock
-  }, [settled, dayKeys, settle, failWith, hydrationOn])
+  }, [settled, dayKeys, settle, failWith])
 
   return (
     <div className="px-[var(--app-page-x)]">

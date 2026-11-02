@@ -1288,29 +1288,11 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
         }
         let waterMl = call.getDouble("waterMl")
         let wantsWater = (waterMl ?? 0) > 0
-        // An emptied day: the delete below is the request, not a write.
         let cleared = call.getBool("cleared") ?? false
-
-        if items.isEmpty && !wantsWater {
-            guard cleared else {
-                call.resolve(writeRefusal("invalid_record", "nothing to write for \(date)"))
-                return
-            }
-            Task { @MainActor in
-                // Every meal on the day was removed in the diary, so the day's
-                // own samples go with them. Types we may not share are skipped
-                // inside deleteOwnDay: HealthKit rejects deleting those, and a
-                // refusal there would leave the rest of the day behind.
-                if let failure = await deleteOwnDay(
-                    in: day, nutrition: true, water: true
-                ) {
-                    call.resolve(
-                        writeRefusal(reason(for: failure), failure.localizedDescription)
-                    )
-                    return
-                }
-                call.resolve(["saved": true, "cleared": true])
-            }
+        let clearNutrition = cleared || (call.getBool("clearNutrition") ?? false)
+        let clearWater = cleared || (call.getBool("clearWater") ?? false)
+        if items.isEmpty && !wantsWater && !clearNutrition && !clearWater {
+            call.resolve(writeRefusal("invalid_record", "nothing to write for \(date)"))
             return
         }
 
@@ -1320,7 +1302,13 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
             var requiredTypes = Set(items.flatMap { item in
                 nutrientSamples(for: item, at: day.start).map { $0.quantityType }
             })
-            if wantsWater, let type = quantityType("DietaryWater") {
+            // An explicit clear must not silently skip a revoked dietary type.
+            if clearNutrition {
+                for identifier in ["DietaryEnergyConsumed", "DietaryProtein", "DietaryCarbohydrates", "DietaryFatTotal"] {
+                    if let type = quantityType(identifier) { requiredTypes.insert(type) }
+                }
+            }
+            if wantsWater || clearWater, let type = quantityType("DietaryWater") {
                 requiredTypes.insert(type)
             }
             guard requiredTypes.allSatisfy({
@@ -1330,11 +1318,15 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
                 return
             }
             if let failure = await deleteOwnDay(
-                in: day, nutrition: !items.isEmpty, water: wantsWater
+                in: day, nutrition: !items.isEmpty || clearNutrition, water: wantsWater || clearWater
             ) {
                 call.resolve(
                     writeRefusal(reason(for: failure), failure.localizedDescription)
                 )
+                return
+            }
+            if items.isEmpty && !wantsWater {
+                call.resolve(["saved": true, "written": 0, "cleared": true])
                 return
             }
             call.resolve(

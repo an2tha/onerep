@@ -192,7 +192,7 @@ function Dashboard() {
   useNutritionHealthWriteBack(
     todayKey,
     viewingToday ? foodEntries : undefined,
-    viewingToday ? hydrationTotalMl : 0
+    viewingToday && waterEntries !== undefined ? hydrationTotalMl : undefined
   )
   // And the permissions that push depends on, repaired once per launch. A
   // phone whose preference says write-back is on while its grants predate it is

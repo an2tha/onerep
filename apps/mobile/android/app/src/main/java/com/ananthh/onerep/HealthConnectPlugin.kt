@@ -449,7 +449,8 @@ class HealthConnectPlugin : Plugin() {
         date: String,
         items: List<NutritionItem>,
         waterMl: Double?,
-        cleared: Boolean,
+        clearNutrition: Boolean,
+        clearWater: Boolean,
     ): JSObject {
         val day = runCatching { LocalDate.parse(date) }.getOrNull()
             ?: return writeRefusal("invalid_record", "unparseable date '$date'")
@@ -458,9 +459,8 @@ class HealthConnectPlugin : Plugin() {
         // and a zero-volume record would claim a day of drinking nothing.
         val wantsWater = waterMl != null && waterMl > 0.0
         val wantsNutrition = items.isNotEmpty()
-        // `cleared` is a day the diary emptied: there is nothing to write and
-        // the point of the call is the delete below, so it is not a refusal.
-        if (!wantsNutrition && !wantsWater && !cleared) {
+        // A clear requests deletion even when no replacement records remain.
+        if (!wantsNutrition && !wantsWater && !clearNutrition && !clearWater) {
             return writeRefusal("invalid_record", "nothing to write for $date")
         }
 
@@ -478,17 +478,11 @@ class HealthConnectPlugin : Plugin() {
         val nutritionWrite = HealthPermission.getWritePermission(NutritionRecord::class)
         val waterWrite = HealthPermission.getWritePermission(HydrationRecord::class)
         val missing = mutableListOf<String>()
-        if (wantsNutrition && !granted.contains(nutritionWrite)) {
+        if ((wantsNutrition || clearNutrition) && !granted.contains(nutritionWrite)) {
             missing.add("NUTRITION")
         }
-        if (wantsWater && !granted.contains(waterWrite)) {
+        if ((wantsWater || clearWater) && !granted.contains(waterWrite)) {
             missing.add("HYDRATION")
-        }
-        // Clearing can only remove what we were allowed to write; with neither
-        // permission there is nothing to delete and saying "saved" would be a
-        // claim about a store we never touched.
-        if (cleared && !granted.contains(nutritionWrite) && !granted.contains(waterWrite)) {
-            return writeRefusal("no_permission", "clearing $date needs write access")
         }
         if (missing.isNotEmpty()) {
             // The whole day is refused rather than half-written: a day whose
@@ -542,21 +536,12 @@ class HealthConnectPlugin : Plugin() {
         }
 
         return runCatching {
-            // Our own day, cleared first: the items are the day, so an edit has
-            // to replace what was there rather than join it. `cleared` is the
-            // same rule with nothing put back — every meal removed is a day the
-            // store has to forget, not one it may keep showing as eaten.
-            if (wantsNutrition || cleared) {
-                // Only a class we were allowed to write: a type we may not share
-                // is one the store would refuse to delete anyway.
-                if (granted.contains(nutritionWrite)) {
-                    hc.deleteRecords(NutritionRecord::class, TimeRangeFilter.between(dayStart, dayEnd))
-                }
+            // Check every requested type before deleting or replacing either one.
+            if (wantsNutrition || clearNutrition) {
+                hc.deleteRecords(NutritionRecord::class, TimeRangeFilter.between(dayStart, dayEnd))
             }
-            if (wantsWater || cleared) {
-                if (granted.contains(waterWrite)) {
-                    hc.deleteRecords(HydrationRecord::class, TimeRangeFilter.between(dayStart, dayEnd))
-                }
+            if (wantsWater || clearWater) {
+                hc.deleteRecords(HydrationRecord::class, TimeRangeFilter.between(dayStart, dayEnd))
             }
             // An empty clear has nothing to insert, and the SDK refuses an empty
             // batch rather than treating it as a no-op.
@@ -2083,7 +2068,8 @@ class HealthConnectPlugin : Plugin() {
                     date = date,
                     items = items,
                     waterMl = waterMl,
-                    cleared = cleared,
+                    clearNutrition = cleared || call.getBoolean("clearNutrition") == true,
+                    clearWater = cleared || call.getBoolean("clearWater") == true,
                 )
             }
             call.resolve(result)

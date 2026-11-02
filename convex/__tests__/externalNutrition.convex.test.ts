@@ -48,6 +48,30 @@ test("a day emptied in the other app stops being shown", async () => {
   ).toEqual([]);
 });
 
+test("the sync write cap preserves stored days that were not processed", async () => {
+  const { t, owner } = await setup();
+  const days = Array.from({ length: 46 }, (_, index) => ({
+    date: new Date(Date.UTC(2026, 8, 11 + index)).toISOString().slice(0, 10),
+    nutrients: { dietaryEnergyKcal: 400 },
+    sources: ["Food app"],
+  }));
+  // The last submitted day is already stored but sits outside the write budget.
+  expect(days[45].date).toBe("2026-10-26");
+  const result = await owner.mutation(api.logs.externalIntake.sync, {
+    provider: "health_connect",
+    days,
+    windowStart: days[0].date,
+  });
+  expect(result).toEqual({ written: 45, removed: 0 });
+  const stored = await t.run((ctx) =>
+    ctx.db.query("externalNutrition").collect(),
+  );
+  expect(stored).toHaveLength(46);
+  expect(stored.find((row) => row.date === "2026-10-26")?.nutrients).toEqual({
+    dietaryEnergyKcal: 800,
+  });
+});
+
 test("export and bounded deletion isolate each account's imported nutrition", async () => {
   const { t, owner } = await setup();
   const other = t.withIdentity({ tokenIdentifier: "test|other-nutrition" });
