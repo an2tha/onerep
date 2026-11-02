@@ -125,6 +125,39 @@ const ROUTES: Route[] = [
     summary: "Add one entry to a day's food diary.",
   },
   {
+    method: "GET",
+    path: "/v1/recipes",
+    tool: "list_recipes",
+    summary:
+      "My Recipes with ingredients and nutrition totals. Optional ?limit= up to 100 and ?cursor= for the next page.",
+    args: ({ query }) => ({
+      limit: query.has("limit") ? Number(query.get("limit")) : undefined,
+      cursor: query.get("cursor") ?? undefined,
+    }),
+  },
+  {
+    method: "POST",
+    path: "/v1/recipes",
+    tool: "save_recipe",
+    summary: "Save a meal to My Recipes without logging it to a day.",
+  },
+  {
+    method: "POST",
+    path: "/v1/recipes/:id",
+    tool: "update_recipe",
+    summary:
+      "Update supplied recipe fields. Ingredient amounts and nutrition per 100g determine macros.",
+    args: ({ params, body }) => ({ ...body, id: params.id }),
+  },
+  {
+    method: "DELETE",
+    path: "/v1/recipes/:id",
+    tool: "delete_recipe",
+    summary:
+      "Remove a saved recipe, preserving diary entries. Undoable from the app.",
+    args: ({ params }) => ({ id: params.id }),
+  },
+  {
     method: "POST",
     path: "/v1/weight",
     tool: "log_weight",

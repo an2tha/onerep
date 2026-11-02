@@ -23,7 +23,7 @@ async function requireUser(ctx: MutationCtx | QueryCtx) {
   return user;
 }
 
-const recipeIngredientValidator = v.object({
+export const recipeIngredientValidator = v.object({
   id: v.string(),
   name: v.string(),
   grams: v.number(),

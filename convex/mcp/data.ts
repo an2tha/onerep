@@ -7,6 +7,8 @@ import { recordUndoableAction } from "../ai/coachState";
 import { applyManualHealthMetric } from "../logs/healthMetrics";
 import { listCustomMetricsWithEntries } from "../lib/customProgressMetrics";
 import { platformMetric } from "../lib/platformHealthMetrics";
+import { recipeIngredientValidator } from "../logs/recipes";
+import { paginationOptsValidator } from "convex/server";
 import {
   applyNutritionTargets,
   describeNutritionTargets,
@@ -70,6 +72,193 @@ function dayTotals(entries: unknown[]) {
     { calories: 0, protein: 0, carbs: 0, fat: 0 },
   );
 }
+
+const RECIPE_FIELDS = {
+  name: v.optional(v.string()),
+  recipeType: v.optional(v.union(v.literal("quick"), v.literal("detailed"))),
+  description: v.optional(v.string()),
+  servings: v.optional(v.number()),
+  prepMinutes: v.optional(v.number()),
+  cookMinutes: v.optional(v.number()),
+  category: v.optional(v.string()),
+  notes: v.optional(v.string()),
+  originCountry: v.optional(v.string()),
+  tags: v.optional(v.array(v.string())),
+  steps: v.optional(v.array(v.string())),
+  ingredients: v.optional(v.array(recipeIngredientValidator)),
+};
+
+type RecipeFields = Partial<Pick<Doc<"recipes">, keyof typeof RECIPE_FIELDS>>;
+
+function validateRecipeFields(fields: RecipeFields) {
+  if (fields.name !== undefined) {
+    fields.name = fields.name.trim();
+    if (!fields.name || fields.name.length > 120)
+      throw new Error("name must contain 1 to 120 characters");
+  }
+  for (const key of ["servings", "prepMinutes", "cookMinutes"] as const) {
+    const value = fields[key];
+    if (
+      value !== undefined &&
+      (!Number.isFinite(value) || value < (key === "servings" ? 1 : 0))
+    )
+      throw new Error(
+        `${key} must be a finite number, at least ${key === "servings" ? 1 : 0}`,
+      );
+  }
+  if (fields.ingredients !== undefined) {
+    if (!fields.ingredients.length || fields.ingredients.length > 100)
+      throw new Error("Send between 1 and 100 ingredients");
+    const ids = new Set<string>();
+    for (const ingredient of fields.ingredients) {
+      ingredient.name = ingredient.name.trim();
+      if (!ingredient.name || ingredient.name.length > 120)
+        throw new Error("Ingredient names must contain 1 to 120 characters");
+      if (!ingredient.id || ids.has(ingredient.id))
+        throw new Error("Ingredient ids must be nonempty and unique");
+      ids.add(ingredient.id);
+      if (!(ingredient.grams > 0))
+        throw new Error("Ingredient grams must be positive");
+      for (const [key, value] of Object.entries(ingredient)) {
+        if (typeof value === "number" && (!Number.isFinite(value) || value < 0))
+          throw new Error(
+            `Ingredient ${key} must be a finite, non-negative number`,
+          );
+      }
+    }
+  }
+  return fields;
+}
+
+function shapeRecipe(recipe: Doc<"recipes">) {
+  const totals = recipe.ingredients.reduce(
+    (sum, item) => ({
+      calories: sum.calories + (item.caloriesPer100 * item.grams) / 100,
+      protein: sum.protein + (item.proteinPer100 * item.grams) / 100,
+      carbs: sum.carbs + (item.carbsPer100 * item.grams) / 100,
+      fat: sum.fat + (item.fatPer100 * item.grams) / 100,
+    }),
+    { calories: 0, protein: 0, carbs: 0, fat: 0 },
+  );
+  const servings = Math.max(1, recipe.servings ?? 1);
+  const perServing = {
+    calories: Math.round(totals.calories / servings),
+    protein: Math.round(totals.protein / servings),
+    carbs: Math.round(totals.carbs / servings),
+    fat: Math.round(totals.fat / servings),
+  };
+  const fields = Object.fromEntries(
+    Object.keys(RECIPE_FIELDS)
+      .filter((key) => recipe[key as keyof Doc<"recipes">] !== undefined)
+      .map((key) => [key, recipe[key as keyof Doc<"recipes">]]),
+  );
+  return { ...fields, id: recipe._id, servings, totals, perServing };
+}
+
+export const listRecipes = internalQuery({
+  args: { userId: v.string(), paginationOpts: paginationOptsValidator },
+  handler: async (ctx, args) => {
+    if (
+      !Number.isInteger(args.paginationOpts.numItems) ||
+      args.paginationOpts.numItems < 1 ||
+      args.paginationOpts.numItems > 100
+    )
+      throw new Error("limit must be an integer between 1 and 100");
+    const result = await ctx.db
+      .query("recipes")
+      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .order("desc")
+      .paginate(args.paginationOpts);
+    return {
+      recipes: result.page.map(shapeRecipe),
+      nextCursor: result.isDone ? null : result.continueCursor,
+    };
+  },
+});
+
+export const saveRecipe = internalMutation({
+  args: {
+    userId: v.string(),
+    ...RECIPE_FIELDS,
+    name: v.string(),
+    ingredients: v.array(recipeIngredientValidator),
+  },
+  handler: async (ctx, { userId, ...input }) => {
+    validateRecipeFields(input);
+    const now = Date.now();
+    const id = await ctx.db.insert("recipes", {
+      ...input,
+      userId,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await recordUndoableAction(ctx, {
+      userId,
+      kind: "api_save_recipe",
+      summary: `Saved recipe: ${input.name}`,
+      targetType: "recipe",
+      targetId: id,
+      undoPayload: { kind: "delete_recipe", id },
+    });
+    return { ok: true, recipe: shapeRecipe((await ctx.db.get(id))!) };
+  },
+});
+
+export const updateRecipe = internalMutation({
+  args: { userId: v.string(), id: v.id("recipes"), ...RECIPE_FIELDS },
+  handler: async (ctx, { userId, id, ...input }) => {
+    const existing = await ctx.db.get(id);
+    if (!existing || existing.userId !== userId)
+      throw new Error("Recipe not found or access denied");
+    const fields = validateRecipeFields(
+      Object.fromEntries(
+        Object.entries(input).filter(([, value]) => value !== undefined),
+      ),
+    );
+    if (!Object.keys(fields).length)
+      throw new Error("Send at least one recipe field to update");
+    const previous = Object.fromEntries(
+      Object.keys(fields).map((key) => [
+        key,
+        existing[key as keyof Doc<"recipes">] ?? null,
+      ]),
+    );
+    await ctx.db.patch(id, { ...fields, updatedAt: Date.now() });
+    await recordUndoableAction(ctx, {
+      userId,
+      kind: "api_update_recipe",
+      summary: `Updated recipe: ${fields.name ?? existing.name}`,
+      targetType: "recipe",
+      targetId: id,
+      undoPayload: { kind: "restore_recipe_fields", id, fields: previous },
+    });
+    return { ok: true, recipe: shapeRecipe((await ctx.db.get(id))!) };
+  },
+});
+
+export const deleteRecipe = internalMutation({
+  args: { userId: v.string(), id: v.id("recipes") },
+  handler: async (ctx, { userId, id }) => {
+    const existing = await ctx.db.get(id);
+    if (!existing || existing.userId !== userId)
+      throw new Error("Recipe not found or access denied");
+    // Keep photos attached to the snapshot's id so undo can restore them.
+    await ctx.db.delete(id);
+    await recordUndoableAction(ctx, {
+      userId,
+      kind: "api_delete_recipe",
+      summary: `Deleted recipe: ${existing.name}`,
+      targetType: "recipe",
+      targetId: id,
+      undoPayload: {
+        kind: "restore_deleted_recipe",
+        id,
+        body: stripSystemFields(existing),
+      },
+    });
+    return { ok: true, id };
+  },
+});
 
 function summarizeWorkout(log: {
   date: string;

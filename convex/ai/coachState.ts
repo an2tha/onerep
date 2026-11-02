@@ -635,6 +635,14 @@ export const recordAction = mutation({
   },
   handler: async (ctx, args) => {
     const user = await getAuthUser(ctx);
+    if (
+      isRecord(args.undoPayload) &&
+      ["restore_recipe_fields", "restore_deleted_recipe"].includes(
+        String(args.undoPayload.kind),
+      )
+    ) {
+      throw new Error("This undo action can only be recorded by the server");
+    }
     return await insertActionEvent(ctx, { userId: user._id, ...args });
   },
 });
@@ -1169,6 +1177,47 @@ async function undoPayload(ctx: MutationCtx, userId: string, payload: unknown) {
   // a delete means putting the stored document back as it was. Both are
   // written against ids captured at the time, so a later edit by the user is
   // never silently reverted along with the agent's change.
+
+  if (
+    payload.kind === "restore_recipe_fields" &&
+    typeof payload.id === "string" &&
+    isRecord(payload.fields)
+  ) {
+    const id = ctx.db.normalizeId("recipes", payload.id);
+    const recipe = id ? await ctx.db.get(id) : null;
+    if (!recipe || recipe.userId !== userId)
+      throw new Error("Recipe not found");
+    const fields = Object.fromEntries(
+      Object.entries(payload.fields).map(([key, value]) => [
+        key,
+        value === null ? undefined : value,
+      ]),
+    );
+    await ctx.db.patch(recipe._id, { ...fields, updatedAt: Date.now() });
+    return;
+  }
+
+  if (
+    payload.kind === "restore_deleted_recipe" &&
+    typeof payload.id === "string" &&
+    isRecord(payload.body)
+  ) {
+    const body = payload.body as Omit<Doc<"recipes">, "_id" | "_creationTime">;
+    if (body.userId !== userId) throw new Error("Recipe not found");
+    const id = await ctx.db.insert("recipes", body);
+    for (const uploadId of body.photoUploadIds ?? []) {
+      const upload = await ctx.db.get(uploadId);
+      if (
+        !upload ||
+        upload.userId !== userId ||
+        upload.attachedTable !== "recipes" ||
+        upload.attachedDocumentId !== payload.id
+      )
+        throw new Error("Recipe photo not found or attachment changed");
+      await ctx.db.patch(uploadId, { attachedDocumentId: String(id) });
+    }
+    return;
+  }
 
   if (
     payload.kind === "remove_water_entry" &&

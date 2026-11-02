@@ -4,6 +4,7 @@ import {
   PLATFORM_METRICS,
 } from "../lib/platformHealthMetrics";
 import type { ActionCtx } from "../_generated/server";
+import type { Doc, Id } from "../_generated/dataModel";
 
 /**
  * The tool catalog.
@@ -1066,8 +1067,208 @@ export const CUSTOM_METRIC_TOOLS: McpTool[] = [
   },
 ];
 
+const RECIPE_PROPERTIES = {
+  name: { type: "string", minLength: 1, maxLength: 120 },
+  recipeType: { type: "string", enum: ["quick", "detailed"] },
+  description: { type: "string" },
+  servings: { type: "number", minimum: 1, default: 1 },
+  prepMinutes: { type: "number", minimum: 0 },
+  cookMinutes: { type: "number", minimum: 0 },
+  category: { type: "string" },
+  notes: { type: "string" },
+  originCountry: { type: "string" },
+  tags: { type: "array", items: { type: "string" } },
+  steps: { type: "array", items: { type: "string" } },
+  ingredients: {
+    type: "array",
+    minItems: 1,
+    maxItems: 100,
+    description:
+      "Ingredients for the whole recipe. Nutrition values are per 100 grams, calories in kcal and macros in grams. Totals and per-serving macros are calculated from these values. On update this replaces the ingredient list; preserve ids and any optional nutrition values from list_recipes.",
+    items: {
+      type: "object",
+      properties: {
+        id: {
+          type: "string",
+          minLength: 1,
+          description: "Preserve when editing. Generated if omitted.",
+        },
+        name: { type: "string", minLength: 1, maxLength: 120 },
+        grams: { type: "number", exclusiveMinimum: 0 },
+        displayAmount: { type: "number", minimum: 0 },
+        displayUnit: { type: "string" },
+        servingLabel: { type: "string" },
+        ...Object.fromEntries(
+          [
+            "caloriesPer100",
+            "proteinPer100",
+            "carbsPer100",
+            "fatPer100",
+            "fiberPer100",
+            "sugarPer100",
+            "saturatedFatPer100",
+            "transFatPer100",
+            "cholesterolPer100",
+            "sodiumPer100",
+            "potassiumPer100",
+            "calciumPer100",
+            "ironPer100",
+            "magnesiumPer100",
+            "phosphorusPer100",
+            "zincPer100",
+            "vitaminCPer100",
+            "vitaminAPer100",
+            "vitaminDPer100",
+            "vitaminB12Per100",
+            "caffeinePer100",
+            "alcoholPer100",
+          ].map((key) => [key, { type: "number", minimum: 0 }]),
+        ),
+      },
+      required: [
+        "name",
+        "grams",
+        "caloriesPer100",
+        "proteinPer100",
+        "carbsPer100",
+        "fatPer100",
+      ],
+      additionalProperties: false,
+    },
+  },
+};
+
+function recipeFields(args: Record<string, unknown>) {
+  for (const key of Object.keys(args)) {
+    if (key !== "id" && !(key in RECIPE_PROPERTIES))
+      throw new Error(`Unknown recipe field: ${key}`);
+  }
+  const fields = Object.fromEntries(
+    Object.keys(RECIPE_PROPERTIES)
+      .filter((key) => args[key] !== undefined)
+      .map((key) => [key, args[key]]),
+  );
+  if (fields.ingredients !== undefined) {
+    if (!Array.isArray(fields.ingredients))
+      throw new Error("ingredients must be an array");
+    fields.ingredients = fields.ingredients.map((ingredient: unknown) => {
+      if (
+        !ingredient ||
+        typeof ingredient !== "object" ||
+        Array.isArray(ingredient)
+      )
+        throw new Error("Each ingredient must be an object");
+      return {
+        ...ingredient,
+        id: "id" in ingredient ? ingredient.id : crypto.randomUUID(),
+      };
+    });
+  }
+  return fields as Partial<
+    Pick<Doc<"recipes">, keyof typeof RECIPE_PROPERTIES>
+  >;
+}
+
+const RECIPE_ID_PROPERTY = {
+  type: "string",
+  minLength: 1,
+  description: "The recipe id returned by list_recipes or save_recipe.",
+};
+
+const RECIPE_TOOLS: McpTool[] = [
+  {
+    name: "list_recipes",
+    title: "List saved recipes",
+    description:
+      "Lists this user's My Recipes with ingredients, whole-recipe nutrition totals and perServing calories/macros. Newest first. Follow nextCursor to see more recipes.",
+    scope: "read",
+    inputSchema: {
+      type: "object",
+      properties: {
+        limit: { type: "integer", minimum: 1, maximum: 100, default: 20 },
+        cursor: {
+          type: "string",
+          description:
+            "nextCursor from the previous page. Omit for the first page.",
+        },
+      },
+      additionalProperties: false,
+    },
+    run: (ctx, userId, args) =>
+      ctx.runQuery(internal.mcp.data.listRecipes, {
+        userId,
+        paginationOpts: {
+          numItems: args.limit === undefined ? 20 : (args.limit as number),
+          cursor: args.cursor === undefined ? null : (args.cursor as string),
+        },
+      }),
+  },
+  {
+    name: "save_recipe",
+    title: "Save to My Recipes",
+    description:
+      "Creates a saved meal in My Recipes without logging food to any day. Supply ingredient amounts and nutrition per 100g; recipe calories and macros are calculated automatically. servings defaults to 1. Returns the saved recipe and its id. Use update_recipe to edit an existing recipe.",
+    scope: "write",
+    inputSchema: {
+      type: "object",
+      properties: RECIPE_PROPERTIES,
+      required: ["name", "ingredients"],
+      additionalProperties: false,
+    },
+    run: (ctx, userId, args) => {
+      if (args.id !== undefined)
+        throw new Error("Use update_recipe with an existing recipe id");
+      const fields = recipeFields(args);
+      return ctx.runMutation(internal.mcp.data.saveRecipe, {
+        userId,
+        ...fields,
+        name: fields.name!,
+        ingredients: fields.ingredients!,
+      });
+    },
+  },
+  {
+    name: "update_recipe",
+    title: "Update a saved recipe",
+    description:
+      "Updates only supplied fields of an existing My Recipes meal. Read list_recipes first. To correct macros, send the ingredient list with corrected amounts or nutrition per 100g. Ingredients are replaced as a whole; omitted recipe fields, photos and sharing settings are preserved. Does not alter diary entries.",
+    scope: "write",
+    inputSchema: {
+      type: "object",
+      properties: { id: RECIPE_ID_PROPERTY, ...RECIPE_PROPERTIES },
+      required: ["id"],
+      additionalProperties: false,
+    },
+    run: (ctx, userId, args) =>
+      ctx.runMutation(internal.mcp.data.updateRecipe, {
+        userId,
+        id: args.id as Id<"recipes">,
+        ...recipeFields(args),
+      }),
+  },
+  {
+    name: "delete_recipe",
+    title: "Delete a saved recipe",
+    description:
+      "Removes a meal from My Recipes. Requires delete access. Existing diary entries are preserved. The action can be undone from the app's action history.",
+    scope: "delete",
+    inputSchema: {
+      type: "object",
+      properties: { id: RECIPE_ID_PROPERTY },
+      required: ["id"],
+      additionalProperties: false,
+    },
+    run: (ctx, userId, args) =>
+      ctx.runMutation(internal.mcp.data.deleteRecipe, {
+        userId,
+        id: args.id as Id<"recipes">,
+      }),
+  },
+];
+
 export const MCP_TOOLS: McpTool[] = [
   ...CORE_TOOLS,
+  ...RECIPE_TOOLS,
   ...HEALTH_TOOLS,
   ...CUSTOM_METRIC_TOOLS,
   ...DELETE_TOOLS,

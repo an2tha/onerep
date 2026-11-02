@@ -357,6 +357,49 @@ describe("the REST API", () => {
     expect(UNROUTED_TOOLS).toEqual([]);
   });
 
+  test("saved recipes can be created, listed, updated and deleted through the shared tools", async () => {
+    const t = convexTest(schema, modules);
+    const key = "rest-recipes";
+    await grantKey(t, key, ["read", "write", "delete"]);
+    const created = await call(t, "POST", "/v1/recipes", {
+      key,
+      body: {
+        name: "Oats",
+        servings: 2,
+        ingredients: [
+          {
+            name: "Oats",
+            grams: 100,
+            caloriesPer100: 380,
+            proteinPer100: 13,
+            carbsPer100: 68,
+            fatPer100: 7,
+          },
+        ],
+      },
+    });
+    expect(created.status).toBe(200);
+    const id = created.body.recipe.id;
+    const listed = await call(t, "GET", "/v1/recipes?limit=1", { key });
+    expect(listed.status).toBe(200);
+    expect(listed.body.recipes[0]).toMatchObject({
+      id,
+      perServing: { calories: 190 },
+    });
+    const updated = await call(t, "POST", `/v1/recipes/${id}`, {
+      key,
+      body: { servings: 1 },
+    });
+    expect(updated.status).toBe(200);
+    expect(updated.body.recipe.perServing.calories).toBe(380);
+    expect((await call(t, "DELETE", `/v1/recipes/${id}`, { key })).status).toBe(
+      200,
+    );
+    expect((await call(t, "GET", "/v1/recipes", { key })).body.recipes).toEqual(
+      [],
+    );
+  });
+
   test("no route deletes anything", async () => {
     const t = convexTest(schema, modules);
     await grantKey(t, "rest-nodelete", ["read", "write"]);
