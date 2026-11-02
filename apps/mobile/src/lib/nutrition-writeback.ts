@@ -32,6 +32,7 @@ import {
 import { hydrationEnabledFor } from "./hydration"
 import { refreshHealthWriteAccess } from "./health-write-access"
 import { reportHealthWriteOutcome } from "./health-write-report"
+import { createNutritionWriteQueue } from "./nutrition-writeback-queue"
 
 /**
  * What a push is keyed on: everything about the day that reaches the store.
@@ -60,6 +61,21 @@ function signatureFor(
   return [...parts, `water:${Math.round(waterMl)}`].join("|")
 }
 
+// Keep successful writes across dashboard remounts, isolated by account and day.
+const writeDay = createNutritionWriteQueue(async (options) => {
+  const result = await saveHealthNutritionItems(options)
+  reportHealthWriteOutcome({
+    saved: result.saved ? (result.written ?? 1) : 0,
+    refused: result.saved ? 0 : 1,
+    ...(result.reason ? { reason: result.reason } : {}),
+    ...(result.message ? { message: result.message } : {}),
+  })
+  if (!result.saved && result.reason === "no_permission") {
+    void refreshHealthWriteAccess()
+  }
+  return result
+})
+
 export function useNutritionHealthWriteBack(
   dateKey: string,
   foodEntries: readonly HealthNutritionItemSource[] | undefined,
@@ -76,44 +92,26 @@ export function useNutritionHealthWriteBack(
   // With the tracker off nothing is written for hydration at all: an absent
   // metric is the honest record of "not tracked", where a zero would claim the
   // day was spent drinking nothing.
-  const water = hydrationEnabledFor(preferences) ? (waterTotalMl ?? 0) : 0
+  const hydrationEnabled = hydrationEnabledFor(preferences)
+  const water = hydrationEnabled ? (waterTotalMl ?? 0) : 0
+  const ready =
+    foodEntries !== undefined &&
+    (!hydrationEnabled || waterTotalMl !== undefined)
+  const accountId = preferences?.userId
   const signature = signatureFor(items, water)
 
   useEffect(() => {
-    if (!writeEnabled) return
-    // An entirely empty day has nothing to say; skipping it also stops an
-    // old write from being shadowed by a fresh zero before the query lands.
-    if (items.length === 0 && water <= 0) return
-
-    // The debounce is the whole trick: food logging arrives in bursts —
-    // three entries in ten seconds — and one settled write per quiet period is
-    // what keeps the store showing the day as it stands rather than as the sum
-    // of every intermediate state. Each push replaces the day rather than
-    // adding to it, but the burst is still not worth four round trips.
+    if (!writeEnabled || !ready || !accountId) return
     const timer = window.setTimeout(() => {
-      void (async () => {
-        const result = await saveHealthNutritionItems({
-          date: dateKey,
-          items,
-          ...(water > 0 ? { waterMl: Math.round(water) } : {}),
-        })
-        reportHealthWriteOutcome({
-          // The store's own count when it gave one; one write either way.
-          saved: result.saved ? (result.written ?? 1) : 0,
-          refused: result.saved ? 0 : 1,
-          ...(result.reason ? { reason: result.reason } : {}),
-          ...(result.message ? { message: result.message } : {}),
-        })
-        // A refusal for want of permission is the store correcting the app's
-        // own account of itself, so the write-access row hears it too.
-        if (!result.saved && result.reason === "no_permission") {
-          void refreshHealthWriteAccess()
-        }
-      })()
+      void writeDay(accountId, {
+        date: dateKey,
+        items,
+        waterMl: waterTotalMl,
+        hydrationEnabled,
+      })
     }, 1500)
     return () => window.clearTimeout(timer)
-    // The signature is the dependency on purpose: it changes when, and only
-    // when, something the store would see has changed.
+    // The signature includes every item field sent to the health store.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dateKey, signature, writeEnabled])
+  }, [accountId, dateKey, signature, writeEnabled, ready, hydrationEnabled])
 }

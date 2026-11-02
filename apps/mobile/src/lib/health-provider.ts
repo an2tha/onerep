@@ -154,6 +154,19 @@ export type HealthNutritionItemsWrite = {
   date: string
   items: HealthNutritionItemWrite[]
   waterMl?: number
+  /**
+   * The day is empty now, so the store should forget it.
+   *
+   * Without this an emptied day is indistinguishable from one that never had
+   * food: the caller sends nothing, and the record this app wrote earlier stays
+   * in the store claiming a meal the diary no longer has. Only set it for a day
+   * that was written before — an empty day that was never filed has nothing to
+   * delete.
+   */
+  cleared?: boolean
+  /** Delete only the emptied part of a previously written day. */
+  clearNutrition?: boolean
+  clearWater?: boolean
 }
 
 type HealthWorkoutQuery = {
@@ -595,6 +608,10 @@ export async function saveHealthNutritionItems(
   if (!active) return { saved: false, reason: "unavailable" }
 
   if (!active.saveNutritionItems) {
+    // An old shell cannot confirm deletion. Keep the clear pending.
+    if (options.cleared || options.clearNutrition || options.clearWater) {
+      return { saved: false, reason: "unavailable" }
+    }
     const totals = options.items.reduce(
       (acc, item) => ({
         calories: acc.calories + item.calories,

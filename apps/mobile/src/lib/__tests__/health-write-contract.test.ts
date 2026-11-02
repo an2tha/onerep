@@ -33,6 +33,9 @@ type ItemCall = {
     fat: number
   }[]
   waterMl?: number
+  cleared?: boolean
+  clearNutrition?: boolean
+  clearWater?: boolean
 }
 
 const plugin: Record<string, unknown> = {}
@@ -378,6 +381,104 @@ describe("the write-back no longer fires and forgets", () => {
   })
 })
 
+describe("the read-back check measures what the write-back sends", () => {
+  const verify = readFileSync(
+    new URL("../../components/health-writeback-verify.tsx", import.meta.url),
+    "utf8"
+  )
+
+  test("expected calories come from the same rounded items", () => {
+    // Rounding the unrounded sum reported a day that had every record as
+    // "less than sent": 100.4 + 100.4 is stored as 200, not 201.
+    expect(verify).toContain("toHealthNutritionItems(entries).reduce(")
+  })
+
+  test("no water is expected while the tracker is off", () => {
+    expect(verify).toContain("useHydrationEnabled()")
+    expect(verify).toContain(": latestHydrationOn.current")
+    expect(verify).toContain("latestHydrationOn.current = hydrationOn")
+    expect(verify).not.toContain("[settled, dayKeys, settle, failWith, hydrationOn]")
+  })
+})
+
+describe("a day emptied in the diary is emptied in the store", () => {
+  const writeback = readFileSync(
+    new URL("../nutrition-writeback.ts", import.meta.url),
+    "utf8"
+  )
+  const kotlin = readFileSync(
+    new URL(
+      "../../../android/app/src/main/java/com/ananthh/onerep/HealthConnectPlugin.kt",
+      import.meta.url
+    ),
+    "utf8"
+  )
+  const swift = readFileSync(
+    new URL("../../../ios/App/App/AppleHealthPlugin.swift", import.meta.url),
+    "utf8"
+  )
+
+  test("the clear reaches the shell, and an old shell cannot confirm deletion", async () => {
+    plugin.saveNutritionItems = async (options: ItemCall) => {
+      calls.items.push(options)
+      return { saved: true, written: 0 }
+    }
+
+    expect(
+      await saveHealthNutritionItems({
+        date: "2026-10-16",
+        items: [],
+        cleared: true,
+      })
+    ).toEqual({ saved: true, written: 0 })
+    expect(calls.items[0]).toMatchObject({
+      date: "2026-10-16",
+      items: [],
+      cleared: true,
+    })
+
+    // An older shell cannot confirm deletion, so keep the day pending.
+    delete plugin.saveNutritionItems
+    expect(
+      await saveHealthNutritionItems({
+        date: "2026-10-16",
+        items: [],
+        cleared: true,
+      })
+    ).toEqual({ saved: false, reason: "unavailable" })
+  })
+
+  test("partial clears reach the native writer without clearing the other type", async () => {
+    plugin.saveNutritionItems = async (options: ItemCall) => {
+      calls.items.push(options)
+      return { saved: true, written: 1 }
+    }
+    await saveHealthNutritionItems({
+      date: "2026-10-16", items: [], waterMl: 500, clearNutrition: true,
+    })
+    expect(calls.items[0]).toMatchObject({ clearNutrition: true, waterMl: 500 })
+    expect(calls.items[0].clearWater).toBeUndefined()
+    delete plugin.saveNutritionItems
+    expect(await saveHealthNutritionItems({
+      date: "2026-10-16", items: [], clearNutrition: true,
+    })).toEqual({ saved: false, reason: "unavailable" })
+  })
+
+  test("only loaded diary data enters the write queue", () => {
+    expect(writeback).toContain("foodEntries !== undefined")
+    expect(writeback).toContain("if (!writeEnabled || !ready || !accountId) return")
+  })
+
+  test("both shells read the clear and delete rather than refuse", () => {
+    expect(kotlin).toContain("clearNutrition: Boolean")
+    expect(kotlin).toContain("(wantsNutrition || clearNutrition)")
+    // An empty clear has nothing to insert, and the SDK refuses an empty batch.
+    expect(kotlin).toContain("if (written.isNotEmpty()) hc.insertRecords(written)")
+    expect(swift).toContain('call.getBool("cleared")')
+    expect(swift).toContain("nutrition: !items.isEmpty || clearNutrition, water: wantsWater || clearWater")
+  })
+})
+
 describe("rewriting a past day asks the store that needs to be asked", () => {
   const repair = readFileSync(
     new URL("../../components/health-writeback-repair.tsx", import.meta.url),
@@ -464,13 +565,13 @@ describe("native replacement preserves unrelated and unauthorized data", () => {
         .split("\n    private ")[0]!
       const replacement = body.slice(body.indexOf("return runCatching {"))
       expect(replacement).toMatch(
-        /if \(wantsWater\) \{[^}]*deleteRecords\(HydrationRecord::class/s
+        /if \(wantsWater(?: \|\| clearWater)?\) \{[\s\S]*?deleteRecords\(HydrationRecord::class/
       )
       expect(replacement.indexOf("HydrationRecord::class")).toBeLessThan(
         replacement.indexOf("hc.insertRecords")
       )
       expect(replacement).toMatch(
-        /if \((?:wantsNutrition|items.isNotEmpty\(\))\) \{\s*hc.deleteRecords\(NutritionRecord::class/s
+        /if \((?:wantsNutrition(?: \|\| clearNutrition)?|items.isNotEmpty\(\))\) \{[\s\S]*?deleteRecords\(NutritionRecord::class/
       )
     }
   })
@@ -481,14 +582,30 @@ describe("native replacement preserves unrelated and unauthorized data", () => {
       swift.indexOf("private func dayRange(")
     )
     const permission = write.indexOf("guard requiredTypes.allSatisfy")
-    const cleanup = write.indexOf("await deleteOwnDay(")
+    // Deletion and replacement both require permission before cleanup.
+    const cleanup = write.indexOf("await deleteOwnDay(", permission)
     expect(permission).toBeGreaterThan(0)
     expect(permission).toBeLessThan(cleanup)
     expect(write.slice(permission, cleanup)).toContain(
       'writeRefusal("no_permission"'
     )
     expect(write.slice(permission, cleanup)).toContain("return")
-    expect(write).toContain("nutrition: !items.isEmpty, water: wantsWater")
+    expect(write).toContain("nutrition: !items.isEmpty || clearNutrition, water: wantsWater || clearWater")
+  })
+
+  test("Android requires every cleared type before deleting any records", () => {
+    const write = kotlin.slice(kotlin.indexOf("private suspend fun writeNutritionItems("))
+      .split("\n    private ")[0]!
+    expect(write).toContain("(wantsNutrition || clearNutrition) && !granted.contains(nutritionWrite)")
+    expect(write).toContain("(wantsWater || clearWater) && !granted.contains(waterWrite)")
+    expect(write.indexOf('writeRefusal("no_permission"')).toBeLessThan(write.indexOf("hc.deleteRecords"))
+  })
+
+  test("iOS checks cleared types and reports zero writes for deletion", () => {
+    const write = swift.slice(swift.indexOf("@objc func saveNutritionItems("), swift.indexOf("private func dayRange("))
+    expect(write).toContain("if clearNutrition {")
+    expect(write).toContain('if wantsWater || clearWater, let type = quantityType("DietaryWater")')
+    expect(write).toContain('["saved": true, "written": 0, "cleared": true]')
   })
 
   test("iOS cleanup skips unshared types and omitted water", () => {

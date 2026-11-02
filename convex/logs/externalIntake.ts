@@ -62,10 +62,20 @@ export const sync = mutation({
     const now = Date.now()
     let written = 0
 
-    const days = args.days.filter((day) => isDateKey(day.date))
-    const seen = new Set(days.map((day) => day.date))
+    const validDays = args.days.filter((day) => isDateKey(day.date))
+    const days = validDays.slice(0, MAX_DAYS_PER_SYNC)
+    /**
+     * Stored days and submitted days outside the write budget keep their rows.
+     *
+     * A day that arrives emptied is precisely the one whose stored row has to
+     * go — that is a meal somebody deleted in the other app. Counting it as
+     * "seen" because it was submitted left the row in place for ever, which is
+     * the opposite of what the prune below is for.
+     */
+    // Days outside the write budget were not checked for emptiness.
+    const seen = new Set(validDays.slice(MAX_DAYS_PER_SYNC).map((day) => day.date))
 
-    for (const day of days.slice(0, MAX_DAYS_PER_SYNC)) {
+    for (const day of days) {
       const nutrients: Record<string, number> = {}
       for (const [key, value] of Object.entries(day.nutrients)) {
         // The catalogue's bounds, not ours: a third-party app can write a
@@ -115,6 +125,7 @@ export const sync = mutation({
         })
       }
       written += 1
+      seen.add(day.date)
     }
 
     let removed = 0

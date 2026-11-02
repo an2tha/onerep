@@ -1285,8 +1285,10 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
         }
         let waterMl = call.getDouble("waterMl")
         let wantsWater = (waterMl ?? 0) > 0
-
-        if items.isEmpty && !wantsWater {
+        let cleared = call.getBool("cleared") ?? false
+        let clearNutrition = cleared || (call.getBool("clearNutrition") ?? false)
+        let clearWater = cleared || (call.getBool("clearWater") ?? false)
+        if items.isEmpty && !wantsWater && !clearNutrition && !clearWater {
             call.resolve(writeRefusal("invalid_record", "nothing to write for \(date)"))
             return
         }
@@ -1297,7 +1299,13 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
             var requiredTypes = Set(items.flatMap { item in
                 nutrientSamples(for: item, at: day.start).map { $0.quantityType }
             })
-            if wantsWater, let type = quantityType("DietaryWater") {
+            // An explicit clear must not silently skip a revoked dietary type.
+            if clearNutrition {
+                for identifier in ["DietaryEnergyConsumed", "DietaryProtein", "DietaryCarbohydrates", "DietaryFatTotal"] {
+                    if let type = quantityType(identifier) { requiredTypes.insert(type) }
+                }
+            }
+            if wantsWater || clearWater, let type = quantityType("DietaryWater") {
                 requiredTypes.insert(type)
             }
             guard requiredTypes.allSatisfy({
@@ -1307,11 +1315,15 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
                 return
             }
             if let failure = await deleteOwnDay(
-                in: day, nutrition: !items.isEmpty, water: wantsWater
+                in: day, nutrition: !items.isEmpty || clearNutrition, water: wantsWater || clearWater
             ) {
                 call.resolve(
                     writeRefusal(reason(for: failure), failure.localizedDescription)
                 )
+                return
+            }
+            if items.isEmpty && !wantsWater {
+                call.resolve(["saved": true, "written": 0, "cleared": true])
                 return
             }
             call.resolve(

@@ -2787,7 +2787,7 @@ export default function Nutrition() {
   useNutritionHealthWriteBack(
     dateKey,
     foodLogs === undefined ? undefined : entries,
-    waterTotal
+    waterEntries === undefined ? undefined : waterTotal
   )
   const waterGoal = preferences?.waterGoalMl ?? 2500
 

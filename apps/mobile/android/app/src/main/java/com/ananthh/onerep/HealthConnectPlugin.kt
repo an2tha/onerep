@@ -449,6 +449,8 @@ class HealthConnectPlugin : Plugin() {
         date: String,
         items: List<NutritionItem>,
         waterMl: Double?,
+        clearNutrition: Boolean,
+        clearWater: Boolean,
     ): JSObject {
         val day = runCatching { LocalDate.parse(date) }.getOrNull()
             ?: return writeRefusal("invalid_record", "unparseable date '$date'")
@@ -456,7 +458,9 @@ class HealthConnectPlugin : Plugin() {
         // Zero is not a value here: the caller omits water it is not tracking,
         // and a zero-volume record would claim a day of drinking nothing.
         val wantsWater = waterMl != null && waterMl > 0.0
-        if (items.isEmpty() && !wantsWater) {
+        val wantsNutrition = items.isNotEmpty()
+        // A clear requests deletion even when no replacement records remain.
+        if (!wantsNutrition && !wantsWater && !clearNutrition && !clearWater) {
             return writeRefusal("invalid_record", "nothing to write for $date")
         }
 
@@ -471,15 +475,13 @@ class HealthConnectPlugin : Plugin() {
 
         val granted = runCatching { hc.permissionController.getGrantedPermissions() }
             .getOrElse { error -> return writeRefusal(reasonFor(error), error.message) }
+        val nutritionWrite = HealthPermission.getWritePermission(NutritionRecord::class)
+        val waterWrite = HealthPermission.getWritePermission(HydrationRecord::class)
         val missing = mutableListOf<String>()
-        if (items.isNotEmpty() &&
-            !granted.contains(HealthPermission.getWritePermission(NutritionRecord::class))
-        ) {
+        if ((wantsNutrition || clearNutrition) && !granted.contains(nutritionWrite)) {
             missing.add("NUTRITION")
         }
-        if (wantsWater &&
-            !granted.contains(HealthPermission.getWritePermission(HydrationRecord::class))
-        ) {
+        if ((wantsWater || clearWater) && !granted.contains(waterWrite)) {
             missing.add("HYDRATION")
         }
         if (missing.isNotEmpty()) {
@@ -534,15 +536,16 @@ class HealthConnectPlugin : Plugin() {
         }
 
         return runCatching {
-            // Our own day, cleared first: the items are the day, so an edit has
-            // to replace what was there rather than join it.
-            if (items.isNotEmpty()) {
+            // Check every requested type before deleting or replacing either one.
+            if (wantsNutrition || clearNutrition) {
                 hc.deleteRecords(NutritionRecord::class, TimeRangeFilter.between(dayStart, dayEnd))
             }
-            if (wantsWater) {
+            if (wantsWater || clearWater) {
                 hc.deleteRecords(HydrationRecord::class, TimeRangeFilter.between(dayStart, dayEnd))
             }
-            hc.insertRecords(written)
+            // An empty clear has nothing to insert, and the SDK refuses an empty
+            // batch rather than treating it as a no-op.
+            if (written.isNotEmpty()) hc.insertRecords(written)
             JSObject().put("saved", true).put("written", written.size)
         }.getOrElse { error -> writeRefusal(reasonFor(error), error.message) }
     }
@@ -2055,10 +2058,19 @@ class HealthConnectPlugin : Plugin() {
             }
         }
         val waterMl = call.getDouble("waterMl")
+        // An emptied day: the caller is asking for the delete, not for a write.
+        val cleared = call.getBoolean("cleared") == true
 
         scope.launch {
             val result = withContext(Dispatchers.IO) {
-                writeNutritionItems(hc = hc, date = date, items = items, waterMl = waterMl)
+                writeNutritionItems(
+                    hc = hc,
+                    date = date,
+                    items = items,
+                    waterMl = waterMl,
+                    clearNutrition = cleared || call.getBoolean("clearNutrition") == true,
+                    clearWater = cleared || call.getBoolean("clearWater") == true,
+                )
             }
             call.resolve(result)
         }
