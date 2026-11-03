@@ -1,5 +1,6 @@
 import { tr } from "@repo/ui/i18n"
 import { Capacitor, registerPlugin } from "@capacitor/core"
+import { logDevWarn } from "./utils"
 
 /**
  * The platform health store, behind one interface.
@@ -755,7 +756,12 @@ export function supportsHealthSettingsDeepLink() {
 
 export async function openHealthSettings() {
   if (!supportsHealthSettingsDeepLink()) return
-  await healthConnect.openHealthSettings?.()
+  const active = healthConnect.openHealthSettings
+  if (!active) {
+    logDevWarn("[onerep.health] Health Connect settings surface unavailable")
+    return
+  }
+  await active()
 }
 
 /**
@@ -764,5 +770,10 @@ export async function openHealthSettings() {
  */
 export async function openHealthProviderListing() {
   if (healthProvider() !== "health_connect") return
-  await healthConnect.openProviderListing?.()
+  const active = healthConnect.openProviderListing
+  if (!active) {
+    logDevWarn("[onerep.health] Health Connect provider listing unavailable")
+    return
+  }
+  await active()
 }
