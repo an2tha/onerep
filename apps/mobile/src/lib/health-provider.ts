@@ -299,12 +299,17 @@ type HealthPlugin = {
     date: string
     metrics: string[]
   }): Promise<HealthDeleteResult>
-  openHealthSettings?(): Promise<void>
-  openProviderListing?(): Promise<void>
+}
+
+type HealthConnectLinks = {
+  openHealthSettings(): Promise<void>
+  openProviderListing(): Promise<void>
 }
 
 const appleHealth = registerPlugin<HealthPlugin>("AppleHealth")
-const healthConnect = registerPlugin<HealthPlugin>("HealthConnect")
+const healthConnect = registerPlugin<HealthPlugin & HealthConnectLinks>(
+  "HealthConnect"
+)
 
 /** Which store this platform uses, or null on web. */
 export function healthProvider(): HealthProvider | null {
@@ -754,26 +759,33 @@ export function supportsHealthSettingsDeepLink() {
   return healthProvider() === "health_connect"
 }
 
-export async function openHealthSettings() {
+/** Capacitor exposes a callable proxy even when an older Android shell lacks the method. */
+async function openHealthConnectLink(method: keyof HealthConnectLinks) {
   if (!supportsHealthSettingsDeepLink()) return
-  const active = healthConnect.openHealthSettings
-  if (!active) {
-    logDevWarn("[onerep.health] Health Connect settings surface unavailable")
-    return
+  try {
+    await healthConnect[method]()
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      "code" in error &&
+      error.code === "UNIMPLEMENTED"
+    ) {
+      logDevWarn(`[onerep.health] HealthConnect.${method} unavailable`, error)
+      return
+    }
+    throw error
   }
-  await active()
+}
+
+/** Open OneRep's permissions in Health Connect. */
+export function openHealthSettings() {
+  return openHealthConnectLink("openHealthSettings")
 }
 
 /**
  * Android only. Health Connect is a separately-installed app before Android 14,
  * so "not available" is a recoverable state rather than a dead end.
  */
-export async function openHealthProviderListing() {
-  if (healthProvider() !== "health_connect") return
-  const active = healthConnect.openProviderListing
-  if (!active) {
-    logDevWarn("[onerep.health] Health Connect provider listing unavailable")
-    return
-  }
-  await active()
+export function openHealthProviderListing() {
+  return openHealthConnectLink("openProviderListing")
 }

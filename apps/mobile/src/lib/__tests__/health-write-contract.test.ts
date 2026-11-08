@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test"
+import { beforeEach, describe, expect, mock, spyOn, test } from "bun:test"
+import * as utils from "../utils"
 import { readFileSync } from "node:fs"
 
 /**
@@ -58,6 +59,8 @@ mock.module("@capacitor/core", () => ({
 
 const {
   getHealthWriteAccess,
+  openHealthProviderListing,
+  openHealthSettings,
   healthStoreNeedsDailyCleanup,
   saveHealthDailyMetric,
   saveHealthNutritionDay,
@@ -623,4 +626,38 @@ describe("native replacement preserves unrelated and unauthorized data", () => {
       cleanup.indexOf("healthStore.deleteObjects")
     )
   })
+})
+
+describe("Health Connect deep links", () => {
+  for (const [method, open] of [
+    ["openHealthSettings", openHealthSettings],
+    ["openProviderListing", openHealthProviderListing],
+  ] as const) {
+    test(`${method} warns when the native proxy rejects a missing method`, async () => {
+      const error = Object.assign(new Error("Missing native method"), {
+        code: "UNIMPLEMENTED",
+      })
+      plugin[method] = mock().mockRejectedValue(error)
+      const warn = spyOn(utils, "logDevWarn").mockImplementation(() => {})
+      try {
+        await open()
+        expect(warn).toHaveBeenCalledWith(expect.stringContaining(method), error)
+      } finally {
+        warn.mockRestore()
+      }
+    })
+
+    test(`${method} propagates launch failures and skips other platforms`, async () => {
+      const error = new Error("Unable to open activity")
+      const launch = mock()
+        .mockRejectedValueOnce(error)
+        .mockResolvedValue(undefined)
+      plugin[method] = launch
+      await expect(open()).rejects.toBe(error)
+      await open()
+      platform = "ios"
+      await open()
+      expect(launch).toHaveBeenCalledTimes(2)
+    })
+  }
 })
