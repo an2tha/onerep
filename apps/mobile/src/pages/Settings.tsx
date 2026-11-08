@@ -99,6 +99,16 @@ import { walkthroughStatusLabel } from "@/lib/walkthrough/resolve"
 import type { TourChapter } from "@/lib/walkthrough/types"
 import type { Id } from "../../../../convex/_generated/dataModel"
 
+function showHealthLinkError(error: unknown) {
+  toast.error(
+    translateError(
+      error instanceof Error
+        ? error.message
+        : tr("Something went wrong. Try again.")
+    )
+  )
+}
+
 /** "21:30" ↔ minutes-of-day, for the quiet-hours inputs. */
 function minutesToTimeValue(minutes: number) {
   const clamped = Math.min(1439, Math.max(0, Math.trunc(minutes)))
@@ -1182,7 +1192,7 @@ export default function Settings({
       // Health Connect owns its own permission screen; re-asking from here
       // would only produce the same denial a second time.
       if (supportsHealthSettingsDeepLink()) {
-        await openHealthSettings()
+        await openHealthSettings().catch(showHealthLinkError)
         return
       }
       await enableHealthImport()
@@ -3074,7 +3084,9 @@ export default function Settings({
                             )
                       }
                       onClick={() => {
-                        void openHealthProviderListing()
+                        void openHealthProviderListing().catch(
+                          showHealthLinkError
+                        )
                       }}
                     />
                   </GroupedList>
@@ -3229,7 +3241,7 @@ export default function Settings({
                             "Open OneRep's page in Health Connect to change or withdraw access"
                           )}
                           onClick={() => {
-                            void openHealthSettings()
+                            void openHealthSettings().catch(showHealthLinkError)
                           }}
                         />
                       )}
