@@ -7,6 +7,7 @@ mkdirSync(out, { recursive: true });
 for (const name of [
   "assets",
   "sdk",
+  "licenses",
   "developers.html",
   "app-icon.svg",
   "favicon.svg",
@@ -15,7 +16,7 @@ for (const name of [
 ]) {
   cpSync(path.join(dist, name), path.join(out, name), { recursive: true });
 }
-cpSync(path.join(dist, "developers.html"), path.join(out, "index.html"));
+cpSync(path.join(dist, "developer-home.html"), path.join(out, "index.html"));
 // Pages exposes each .html file at its extensionless URL. React Router must
 // see /login and /sso-callback throughout the authentication handoff.
 for (const route of ["login", "sso-callback", "verify-email-required", "email-verified", "reset-password", "onboarding"]) {

@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OneRep for developers</title>
+    <meta
+      name="description"
+      content="Build training, nutrition and health integrations with the OneRep SDK. Connect accounts with OAuth and explore the API."
+    />
+    <link rel="icon" href="/app-icon.svg" />
+    <link rel="stylesheet" href="/src/pages/developer-console.css" />
+  </head>
+  <body class="dp dp-landing">
+    <header class="dp-bar">
+      <div class="dp-width dp-topline">
+        <a class="dp-brand" href="/" aria-label="OneRep Developers home"
+          ><img src="/app-icon.svg" alt="" />OneRep <span>Developers</span></a
+        >
+        <nav aria-label="Developer resources">
+          <a href="/developers#sdk">SDK guide</a
+          ><a href="/developers#reference">API reference</a
+          ><a class="dp-button" href="/developers"
+            >Open console <span aria-hidden="true">↗</span></a
+          >
+        </nav>
+      </div>
+    </header>
+    <main>
+      <section class="dp-hero dp-width">
+        <div class="dp-hero-copy">
+          <h1>Build on<br /><em>OneRep.</em></h1>
+          <p>
+            Bring workouts, nutrition, and health data into your app with the
+            OneRep SDK. Each connection starts with the athlete’s permission.
+          </p>
+          <div class="dp-actions">
+            <a class="dp-button" href="/developers"
+              >Open developer console <span aria-hidden="true">↗</span></a
+            ><a class="dp-textlink" href="/developers#sdk"
+              >Read the guide <span aria-hidden="true">→</span></a
+            >
+          </div>
+        </div>
+        <div class="dp-hero-art">
+          <div class="dp-art-grid" aria-hidden="true"></div>
+          <img
+            class="dp-sculpture"
+            src="/src/assets/developers/training-world.webp"
+            alt=""
+            fetchpriority="high"
+          />
+          <div class="dp-mini-code">
+            <div class="dp-code-heading">
+              <span>workouts.ts</span><span>TypeScript</span>
+            </div>
+            <pre><code><i>const</i> sessions = <i>await</i> api.call(
+  <b>"list_workouts"</b>, { limit: <strong>5</strong> }
+);</code></pre>
+          </div>
+        </div>
+      </section>
+      <section class="dp-explore">
+        <div class="dp-width dp-explore-inner">
+          <div>
+            <h2>Explore <br />the API.</h2>
+            <a class="dp-textlink" href="/developers#reference"
+              >Full reference <span aria-hidden="true">→</span></a
+            >
+          </div>
+          <div class="dp-domain-links">
+            <a href="/developers?q=workout#reference"
+              ><span
+                ><strong>Training</strong
+                ><small>Workouts, exercises, and programmes.</small></span
+              ><b aria-hidden="true">↗</b></a
+            >
+            <a href="/developers?q=food#reference"
+              ><span
+                ><strong>Nutrition</strong
+                ><small>Food diaries, recipes, and daily targets.</small></span
+              ><b aria-hidden="true">↗</b></a
+            >
+            <a href="/developers?q=health#reference"
+              ><span
+                ><strong>Health</strong
+                ><small
+                  >Sleep, activity, and recovery measurements.</small
+                ></span
+              ><b aria-hidden="true">↗</b></a
+            >
+          </div>
+        </div>
+      </section>
+    </main>
+    <footer class="dp-width dp-footer">
+      <span>OneRep Developers</span
+      ><a href="https://onerep.life/">OneRep home ↗</a>
+    </footer>
+    <script type="module">
+      if (["#sdk", "#applications", "#reference"].includes(location.hash)) {
+        location.replace("/developers" + location.search + location.hash)
+      }
+    </script>
+  </body>
+</html>

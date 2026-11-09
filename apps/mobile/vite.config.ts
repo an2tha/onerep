@@ -179,7 +179,7 @@ export default defineConfig(({ command, mode }) => {
     ],
     build: {
       rollupOptions: {
-        input: { app: path.resolve(__dirname, "index.html"), developers: path.resolve(__dirname, "developers.html") },
+        input: { app: path.resolve(__dirname, "index.html"), developers: path.resolve(__dirname, "developers.html"), developerHome: path.resolve(__dirname, "developer-home.html") },
         output: {
           manualChunks(id) {
             if (!id.includes("node_modules")) return undefined
