@@ -1,0 +1,1444 @@
+{
+  "list_routines": {
+    "input": {
+      "limit": 10
+    },
+    "path": "/v1/routines?limit=10",
+    "response": {
+      "items": [
+        {
+          "exerciseData": {},
+          "focus": "Strength",
+          "id": "0000000000000000000010003presets",
+          "items": [
+            "squat"
+          ],
+          "name": "Lower body"
+        }
+      ],
+      "nextCursor": null
+    }
+  },
+  "list_schedules": {
+    "input": {
+      "limit": 10
+    },
+    "path": "/v1/schedules?limit=10",
+    "response": {
+      "items": [
+        {
+          "id": "00000000000000000010004schedules",
+          "presetOrder": [
+            "0000000000000000000010003presets"
+          ],
+          "routine": {
+            "Monday": "0000000000000000000010003presets"
+          }
+        }
+      ],
+      "nextCursor": null
+    }
+  },
+  "list_saved_meals": {
+    "input": {
+      "limit": 10
+    },
+    "path": "/v1/saved-meals?limit=10",
+    "response": {
+      "items": [
+        {
+          "entries": [
+            {
+              "calories": 150,
+              "carbs": 27,
+              "fat": 3,
+              "name": "Oats",
+              "protein": 5
+            }
+          ],
+          "id": "000000000000000010005mealPresets",
+          "meal": "breakfast",
+          "name": "Breakfast oats"
+        }
+      ],
+      "nextCursor": null
+    }
+  },
+  "list_custom_foods": {
+    "input": {
+      "limit": 10
+    },
+    "path": "/v1/custom-foods?limit=10",
+    "response": {
+      "items": [
+        {
+          "id": "000000000000000010006customFoods",
+          "name": "Rolled oats",
+          "nutrientsPerServing": {
+            "calories": 150,
+            "carbs": 27,
+            "fat": 3,
+            "protein": 5
+          },
+          "servingGrams": 40,
+          "servingLabel": "½ cup"
+        }
+      ],
+      "nextCursor": null
+    }
+  },
+  "list_meal_prep": {
+    "input": {
+      "limit": 10
+    },
+    "path": "/v1/meal-prep?limit=10",
+    "response": {
+      "items": [
+        {
+          "id": "00000000000010007mealPrepBatches",
+          "meal": "breakfast",
+          "name": "Overnight oats",
+          "nutrientsPerServing": {
+            "calories": 150,
+            "carbs": 27,
+            "fat": 3,
+            "protein": 5
+          },
+          "preppedOn": "2026-05-18",
+          "servingsLogged": 1,
+          "servingsTotal": 3,
+          "storage": "fridge"
+        }
+      ],
+      "nextCursor": null
+    }
+  },
+  "list_fasts": {
+    "input": {
+      "limit": 10
+    },
+    "path": "/v1/fasts?limit=10",
+    "response": {
+      "items": [
+        {
+          "endDate": "2026-05-18",
+          "endedAt": 1779105600000,
+          "id": "00000000000010008fastingSessions",
+          "protocol": "custom",
+          "startDate": "2026-05-17",
+          "startedAt": 1779055200000,
+          "targetMinutes": 840
+        }
+      ],
+      "nextCursor": null
+    }
+  },
+  "list_grocery_lists": {
+    "input": {
+      "limit": 10
+    },
+    "path": "/v1/grocery-lists?limit=10",
+    "response": {
+      "items": [
+        {
+          "id": "00000000000000010009groceryLists",
+          "items": [
+            {
+              "checked": false,
+              "id": "oats",
+              "key": "rolled-oats",
+              "manual": true,
+              "name": "Rolled oats"
+            }
+          ],
+          "name": "Breakfast shop"
+        }
+      ],
+      "nextCursor": null
+    }
+  },
+  "list_supplements": {
+    "input": {
+      "limit": 10
+    },
+    "path": "/v1/supplements?limit=10",
+    "response": {
+      "items": [
+        {
+          "active": true,
+          "category": "creatine",
+          "defaultServingQuantity": 1,
+          "form": "powder",
+          "id": "00000000000010010supplementItems",
+          "name": "Creatine",
+          "nutrientsPerServing": {
+            "creatine": 5
+          },
+          "schedule": {
+            "type": "daily"
+          },
+          "servingLabel": "1 scoop"
+        }
+      ],
+      "nextCursor": null
+    }
+  },
+  "list_trails": {
+    "input": {
+      "limit": 10
+    },
+    "path": "/v1/trails?limit=10",
+    "response": {
+      "items": [
+        {
+          "distanceMeters": 4200,
+          "id": "00000000000000010011hikingTrails",
+          "name": "Lake loop"
+        }
+      ],
+      "nextCursor": null
+    }
+  },
+  "search_exercises": {
+    "input": {
+      "query": "Squat",
+      "limit": 5
+    },
+    "path": "/v1/exercises?query=Squat&limit=5",
+    "response": [
+      {
+        "category": "strength",
+        "color": "#78716c",
+        "description": "Bend your knees and hips, then stand.",
+        "equipment": null,
+        "force": null,
+        "id": "squat",
+        "instructions": [
+          "Bend your knees and hips, then stand."
+        ],
+        "level": "beginner",
+        "mechanic": null,
+        "muscle": "Quadriceps · Glutes",
+        "name": "Squat",
+        "primaryMuscles": [
+          "quadriceps"
+        ],
+        "secondaryMuscles": [
+          "glutes"
+        ],
+        "sets": "3 × 8–12 reps"
+      }
+    ]
+  },
+  "list_programmes": {
+    "input": {},
+    "path": "/v1/programmes",
+    "response": {
+      "guided": [],
+      "nutrition": [
+        {
+          "baselineCalories": 2200,
+          "changePercent": 0,
+          "eatingStart": "08:00",
+          "fastingHours": 12,
+          "fat": 70,
+          "goal": "maintain",
+          "id": "0000000010013nutritionProgrammes",
+          "protein": 120,
+          "startDate": "2026-05-18",
+          "weeks": 4
+        }
+      ]
+    }
+  },
+  "list_routes": {
+    "input": {},
+    "path": "/v1",
+    "response": {
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/v1/routines",
+          "summary": "Saved workout routines and exercises."
+        },
+        {
+          "method": "GET",
+          "path": "/v1/schedules",
+          "summary": "Weekly workout schedule and routine order."
+        },
+        {
+          "method": "GET",
+          "path": "/v1/saved-meals",
+          "summary": "Reusable meals and their entries."
+        },
+        {
+          "method": "GET",
+          "path": "/v1/custom-foods",
+          "summary": "Personal food catalogue and nutrients per serving."
+        },
+        {
+          "method": "GET",
+          "path": "/v1/meal-prep",
+          "summary": "Prepared batches, portions and storage dates."
+        },
+        {
+          "method": "GET",
+          "path": "/v1/fasts",
+          "summary": "Fasting sessions, targets and completion times."
+        },
+        {
+          "method": "GET",
+          "path": "/v1/grocery-lists",
+          "summary": "Saved shopping lists and checked items."
+        },
+        {
+          "method": "GET",
+          "path": "/v1/supplements",
+          "summary": "Supplement catalogue, serving sizes and schedules."
+        },
+        {
+          "method": "GET",
+          "path": "/v1/trails",
+          "summary": "Saved hiking trails and distances."
+        },
+        {
+          "method": "GET",
+          "path": "/v1/exercises",
+          "summary": "Search shared and personal exercises by name."
+        },
+        {
+          "method": "GET",
+          "path": "/v1/programmes",
+          "summary": "Recent guided plans and nutrition programme targets."
+        },
+        {
+          "method": "GET",
+          "path": "/v1",
+          "summary": "This route list, and what your key is allowed to do."
+        },
+        {
+          "method": "GET",
+          "path": "/v1/me",
+          "summary": "Your key's scopes and hourly budget. Use it to check a key works."
+        },
+        {
+          "method": "GET",
+          "path": "/v1/goals",
+          "summary": "Calorie and macro targets, water goal, weight unit, stated goal."
+        },
+        {
+          "method": "GET",
+          "path": "/v1/insights",
+          "summary": "Computed analysis: per-lift progression verdicts, measured recovery vs baseline, six monthly summaries. Optional ?date= anchors the windows."
+        },
+        {
+          "method": "GET",
+          "path": "/v1/days",
+          "summary": "Per-day totals between ?start= and ?end=, inclusive. Both required."
+        },
+        {
+          "method": "GET",
+          "path": "/v1/days/:date",
+          "summary": "Everything logged on one YYYY-MM-DD."
+        },
+        {
+          "method": "GET",
+          "path": "/v1/workouts",
+          "summary": "Recent sessions, newest first. Optional ?limit= up to 50."
+        },
+        {
+          "method": "POST",
+          "path": "/v1/workouts",
+          "summary": "Record a completed session."
+        },
+        {
+          "method": "GET",
+          "path": "/v1/measurements",
+          "summary": "Recent weigh-ins and measurements. Optional ?limit= up to 100."
+        },
+        {
+          "method": "POST",
+          "path": "/v1/goals",
+          "summary": "Set daily calorie, macro and water targets. Omitted fields are left alone; null clears one."
+        },
+        {
+          "method": "POST",
+          "path": "/v1/water",
+          "summary": "Add a drink to a day's water log."
+        },
+        {
+          "method": "POST",
+          "path": "/v1/food",
+          "summary": "Add one entry to a day's food diary."
+        },
+        {
+          "method": "GET",
+          "path": "/v1/recipes",
+          "summary": "My Recipes with ingredients and nutrition totals. Optional ?limit= up to 100 and ?cursor= for the next page."
+        },
+        {
+          "method": "POST",
+          "path": "/v1/recipes",
+          "summary": "Save a meal to My Recipes without logging it to a day."
+        },
+        {
+          "method": "POST",
+          "path": "/v1/recipes/:id",
+          "summary": "Update supplied recipe fields. Ingredient amounts and nutrition per 100g determine macros."
+        },
+        {
+          "method": "POST",
+          "path": "/v1/weight",
+          "summary": "Record body weight for a date, replacing that day's weigh-in."
+        },
+        {
+          "method": "POST",
+          "path": "/v1/body-measurements",
+          "summary": "Write or correct any part of a day's check-in; omitted fields are left alone."
+        },
+        {
+          "method": "POST",
+          "path": "/v1/rest-days",
+          "summary": "Mark dates as deliberate rest."
+        },
+        {
+          "method": "GET",
+          "path": "/v1/health/days",
+          "summary": "Sleep, steps, resting heart rate, HRV and active energy per day between ?start= and ?end=, inclusive. Both required."
+        },
+        {
+          "method": "POST",
+          "path": "/v1/health/days/:date",
+          "summary": "Correct one field of a day's readings and keep the sync off it. Body: {field, value}, value null to release it."
+        },
+        {
+          "method": "GET",
+          "path": "/v1/health/workouts",
+          "summary": "Sessions imported from Apple Health or Health Connect, newest first. Optional ?limit= up to 50."
+        },
+        {
+          "method": "POST",
+          "path": "/v1/health/workouts",
+          "summary": "Record an activity session the phone cannot see."
+        },
+        {
+          "method": "GET",
+          "path": "/v1/custom-metrics",
+          "summary": "The user's own tracked metrics and their recent values. Optional ?tab= and ?days=."
+        },
+        {
+          "method": "POST",
+          "path": "/v1/custom-metrics",
+          "summary": "Define a new custom metric, optionally bound to a health signal."
+        },
+        {
+          "method": "POST",
+          "path": "/v1/custom-metrics/:metricId",
+          "summary": "Change a metric definition without losing its history; null clears target or healthMetricKey."
+        },
+        {
+          "method": "POST",
+          "path": "/v1/custom-metrics/:metricId/values",
+          "summary": "Set one metric's value for a date. Body: {date, value}, value null to clear the day."
+        },
+        {
+          "method": "GET",
+          "path": "/v1/health/metrics",
+          "summary": "The Apple Health and Health Connect catalogue a custom metric can bind to. Optional ?group= and ?all=true."
+        }
+      ]
+    }
+  },
+  "get_access": {
+    "input": {},
+    "path": "/v1/me",
+    "response": {
+      "subject": "34502a6872bd6286b13629a17d79de57bd6fe510238586089760141c5b508d4c",
+      "scopes": [
+        "read",
+        "write"
+      ],
+      "limits": {
+        "readPerHour": 600,
+        "writePerHour": 60,
+        "deletePerHour": 30
+      }
+    }
+  },
+  "set_nutrition_targets": {
+    "input": {
+      "protein": 120,
+      "waterMl": 2000
+    },
+    "path": "/v1/goals",
+    "body": {
+      "protein": 120,
+      "waterMl": 2000
+    },
+    "response": {
+      "changed": [
+        "protein",
+        "waterMl"
+      ],
+      "ok": true,
+      "targets": {
+        "calories": null,
+        "carbs": null,
+        "fat": null,
+        "protein": 120,
+        "waterMl": 2000
+      }
+    }
+  },
+  "get_goals": {
+    "input": {},
+    "path": "/v1/goals",
+    "response": {
+      "customGoals": {
+        "protein": 120
+      },
+      "goal": null,
+      "waterGoalMl": 2000,
+      "weightUnit": "kg"
+    }
+  },
+  "log_water": {
+    "input": {
+      "date": "2026-05-18",
+      "amountMl": 350
+    },
+    "path": "/v1/water",
+    "body": {
+      "date": "2026-05-18",
+      "amountMl": 350
+    },
+    "response": {
+      "amountMl": 350,
+      "date": "2026-05-18",
+      "entryId": "example-water-entry",
+      "ok": true
+    }
+  },
+  "log_food": {
+    "input": {
+      "date": "2026-05-18",
+      "name": "Rolled oats",
+      "meal": "breakfast",
+      "calories": 150,
+      "protein": 5,
+      "carbs": 27,
+      "fat": 3
+    },
+    "path": "/v1/food",
+    "body": {
+      "date": "2026-05-18",
+      "name": "Rolled oats",
+      "meal": "breakfast",
+      "calories": 150,
+      "protein": 5,
+      "carbs": 27,
+      "fat": 3
+    },
+    "response": {
+      "date": "2026-05-18",
+      "entryId": "example-food-entry",
+      "logged": "Rolled oats",
+      "ok": true
+    }
+  },
+  "log_workout": {
+    "input": {
+      "date": "2026-05-18",
+      "durationMinutes": 35,
+      "exercises": [
+        {
+          "name": "Squat",
+          "sets": [
+            {
+              "reps": 8,
+              "weightKg": 50
+            }
+          ]
+        }
+      ]
+    },
+    "path": "/v1/workouts",
+    "body": {
+      "date": "2026-05-18",
+      "durationMinutes": 35,
+      "exercises": [
+        {
+          "name": "Squat",
+          "sets": [
+            {
+              "reps": 8,
+              "weightKg": 50
+            }
+          ]
+        }
+      ]
+    },
+    "response": {
+      "date": "2026-05-18",
+      "exercises": 1,
+      "ok": true,
+      "sessionId": "example-session"
+    }
+  },
+  "list_workouts": {
+    "input": {
+      "limit": 5
+    },
+    "path": "/v1/workouts?limit=5",
+    "response": [
+      {
+        "date": "2026-05-18",
+        "durationMinutes": 35,
+        "exercises": [
+          {
+            "name": "Squat",
+            "reps": [
+              8
+            ],
+            "sets": 1,
+            "weightKg": [
+              50
+            ]
+          }
+        ],
+        "sessionId": "example-session"
+      }
+    ]
+  },
+  "log_weight": {
+    "input": {
+      "date": "2026-05-18",
+      "weightKg": 72.5
+    },
+    "path": "/v1/weight",
+    "body": {
+      "date": "2026-05-18",
+      "weightKg": 72.5
+    },
+    "response": {
+      "date": "2026-05-18",
+      "ok": true,
+      "weightKg": 72.5
+    }
+  },
+  "log_body_measurement": {
+    "input": {
+      "date": "2026-05-18",
+      "waistCm": 80
+    },
+    "path": "/v1/body-measurements",
+    "body": {
+      "date": "2026-05-18",
+      "waistCm": 80
+    },
+    "response": {
+      "changed": [
+        "waistCm"
+      ],
+      "created": false,
+      "date": "2026-05-18",
+      "ok": true
+    }
+  },
+  "list_body_measurements": {
+    "input": {
+      "limit": 5
+    },
+    "path": "/v1/measurements?limit=5",
+    "response": [
+      {
+        "armsCm": null,
+        "basalMetabolicRateKcal": null,
+        "bodyFatPct": null,
+        "boneMassKg": null,
+        "calvesCm": null,
+        "chestCm": null,
+        "date": "2026-05-18",
+        "hipsCm": null,
+        "id": "0000000000010024bodyMeasurements",
+        "leanBodyMassKg": null,
+        "neckCm": null,
+        "notes": null,
+        "source": "manual",
+        "thighsCm": null,
+        "waistCm": 80,
+        "weightKg": 72.5
+      }
+    ]
+  },
+  "mark_rest_day": {
+    "input": {
+      "dates": [
+        "2026-05-17"
+      ]
+    },
+    "path": "/v1/rest-days",
+    "body": {
+      "dates": [
+        "2026-05-17"
+      ]
+    },
+    "response": {
+      "marked": 1,
+      "ok": true
+    }
+  },
+  "get_day": {
+    "input": {
+      "date": "2026-05-18"
+    },
+    "path": "/v1/days/2026-05-18",
+    "response": {
+      "date": "2026-05-18",
+      "nutrition": {
+        "calories": 150,
+        "carbs": 27,
+        "entries": [
+          {
+            "calories": 150,
+            "id": "example-food-entry",
+            "meal": "breakfast",
+            "name": "Rolled oats",
+            "protein": 5
+          }
+        ],
+        "fat": 3,
+        "protein": 5
+      },
+      "restDay": false,
+      "waterEntries": [
+        {
+          "amountMl": 350,
+          "id": "example-water-entry"
+        }
+      ],
+      "waterMl": 350,
+      "workouts": [
+        {
+          "date": "2026-05-18",
+          "durationMinutes": 35,
+          "exercises": [
+            {
+              "name": "Squat",
+              "reps": [
+                8
+              ],
+              "sets": 1,
+              "weightKg": [
+                50
+              ]
+            }
+          ],
+          "sessionId": "example-session"
+        }
+      ]
+    }
+  },
+  "get_range": {
+    "input": {
+      "start": "2026-05-12",
+      "end": "2026-05-18"
+    },
+    "path": "/v1/days?start=2026-05-12&end=2026-05-18",
+    "response": {
+      "end": "2026-05-18",
+      "nutrition": [
+        {
+          "calories": 150,
+          "carbs": 27,
+          "date": "2026-05-18",
+          "fat": 3,
+          "protein": 5
+        }
+      ],
+      "restDays": [
+        "2026-05-17"
+      ],
+      "start": "2026-05-12",
+      "workouts": [
+        {
+          "date": "2026-05-18",
+          "durationMinutes": 35,
+          "exercises": [
+            {
+              "name": "Squat",
+              "reps": [
+                8
+              ],
+              "sets": 1,
+              "weightKg": [
+                50
+              ]
+            }
+          ],
+          "sessionId": "example-session"
+        }
+      ]
+    }
+  },
+  "set_health_metric": {
+    "input": {
+      "date": "2026-05-18",
+      "field": "steps",
+      "value": 8200
+    },
+    "path": "/v1/health/days/2026-05-18",
+    "body": {
+      "field": "steps",
+      "value": 8200
+    },
+    "response": {
+      "created": true,
+      "date": "2026-05-18",
+      "field": "steps",
+      "manualFields": [
+        "steps"
+      ],
+      "ok": true,
+      "value": 8200
+    }
+  },
+  "get_health_days": {
+    "input": {
+      "start": "2026-05-12",
+      "end": "2026-05-18"
+    },
+    "path": "/v1/health/days?start=2026-05-12&end=2026-05-18",
+    "response": {
+      "days": [
+        {
+          "activeEnergyKcal": null,
+          "date": "2026-05-18",
+          "hrvMs": null,
+          "manualFields": [
+            "steps"
+          ],
+          "provider": "manual",
+          "restingHeartRateBpm": null,
+          "sleepMinutes": null,
+          "steps": 8200
+        }
+      ],
+      "end": "2026-05-18",
+      "start": "2026-05-12"
+    }
+  },
+  "log_health_workout": {
+    "input": {
+      "date": "2026-05-18",
+      "activityType": "walking",
+      "durationMinutes": 30,
+      "externalId": "lake-walk-0518",
+      "totalDistanceMeters": 2400
+    },
+    "path": "/v1/health/workouts",
+    "body": {
+      "date": "2026-05-18",
+      "activityType": "walking",
+      "durationMinutes": 30,
+      "externalId": "lake-walk-0518",
+      "totalDistanceMeters": 2400
+    },
+    "response": {
+      "externalId": "lake-walk-0518",
+      "id": "000000000000010031healthWorkouts",
+      "ok": true,
+      "updated": false
+    }
+  },
+  "list_health_workouts": {
+    "input": {
+      "limit": 5
+    },
+    "path": "/v1/health/workouts?limit=5",
+    "response": [
+      {
+        "activeEnergyKcal": null,
+        "activityName": "Workout",
+        "activityType": "walking",
+        "avgHeartRateBpm": null,
+        "date": "2026-05-18",
+        "durationMinutes": 30,
+        "externalId": "lake-walk-0518",
+        "id": "000000000000010031healthWorkouts",
+        "linkedSessionId": null,
+        "maxHeartRateBpm": null,
+        "provider": "api",
+        "sourceName": null,
+        "startedAt": "2026-05-18T12:00:00.000Z",
+        "totalDistanceMeters": 2400
+      }
+    ]
+  },
+  "get_training_insights": {
+    "input": {
+      "date": "2026-05-18"
+    },
+    "path": "/v1/insights?date=2026-05-18",
+    "response": {
+      "history": null,
+      "programming": {
+        "deload": null,
+        "lifts": [
+          {
+            "bestE1rm": 62.7,
+            "lastDate": "2026-05-18",
+            "latestE1rm": 62.7,
+            "name": "Squat",
+            "sessions": 1,
+            "status": "new",
+            "suggestion": null,
+            "trendPctPerWeek": null
+          }
+        ],
+        "totalSessions": 1,
+        "weeklySets": [
+          {
+            "sets": 1,
+            "week": "2026-W21"
+          }
+        ],
+        "windowDays": 84
+      },
+      "recovery": {
+        "days": 1,
+        "hrv": null,
+        "notes": [],
+        "restingHeartRate": null,
+        "sleep": null,
+        "status": "unknown",
+        "steps": null,
+        "windowDays": 28
+      }
+    }
+  },
+  "save_recipe": {
+    "input": {
+      "name": "Breakfast oats",
+      "servings": 1,
+      "ingredients": [
+        {
+          "id": "oats",
+          "name": "Oats",
+          "grams": 40,
+          "caloriesPer100": 375,
+          "proteinPer100": 12.5,
+          "carbsPer100": 67.5,
+          "fatPer100": 7.5
+        }
+      ]
+    },
+    "path": "/v1/recipes",
+    "body": {
+      "name": "Breakfast oats",
+      "servings": 1,
+      "ingredients": [
+        {
+          "id": "oats",
+          "name": "Oats",
+          "grams": 40,
+          "caloriesPer100": 375,
+          "proteinPer100": 12.5,
+          "carbsPer100": 67.5,
+          "fatPer100": 7.5
+        }
+      ]
+    },
+    "response": {
+      "ok": true,
+      "recipe": {
+        "id": "0000000000000000000010033recipes",
+        "ingredients": [
+          {
+            "caloriesPer100": 375,
+            "carbsPer100": 67.5,
+            "fatPer100": 7.5,
+            "grams": 40,
+            "id": "oats",
+            "name": "Oats",
+            "proteinPer100": 12.5
+          }
+        ],
+        "name": "Breakfast oats",
+        "perServing": {
+          "calories": 150,
+          "carbs": 27,
+          "fat": 3,
+          "protein": 5
+        },
+        "servings": 1,
+        "totals": {
+          "calories": 150,
+          "carbs": 27,
+          "fat": 3,
+          "protein": 5
+        }
+      }
+    }
+  },
+  "list_recipes": {
+    "input": {
+      "limit": 10
+    },
+    "path": "/v1/recipes?limit=10",
+    "response": {
+      "nextCursor": null,
+      "recipes": [
+        {
+          "id": "0000000000000000000010033recipes",
+          "ingredients": [
+            {
+              "caloriesPer100": 375,
+              "carbsPer100": 67.5,
+              "fatPer100": 7.5,
+              "grams": 40,
+              "id": "oats",
+              "name": "Oats",
+              "proteinPer100": 12.5
+            }
+          ],
+          "name": "Breakfast oats",
+          "perServing": {
+            "calories": 150,
+            "carbs": 27,
+            "fat": 3,
+            "protein": 5
+          },
+          "servings": 1,
+          "totals": {
+            "calories": 150,
+            "carbs": 27,
+            "fat": 3,
+            "protein": 5
+          }
+        }
+      ]
+    }
+  },
+  "update_recipe": {
+    "input": {
+      "id": "0000000000000000000010033recipes",
+      "name": "Morning oats"
+    },
+    "path": "/v1/recipes/0000000000000000000010033recipes",
+    "body": {
+      "name": "Morning oats"
+    },
+    "response": {
+      "ok": true,
+      "recipe": {
+        "id": "0000000000000000000010033recipes",
+        "ingredients": [
+          {
+            "caloriesPer100": 375,
+            "carbsPer100": 67.5,
+            "fatPer100": 7.5,
+            "grams": 40,
+            "id": "oats",
+            "name": "Oats",
+            "proteinPer100": 12.5
+          }
+        ],
+        "name": "Morning oats",
+        "perServing": {
+          "calories": 150,
+          "carbs": 27,
+          "fat": 3,
+          "protein": 5
+        },
+        "servings": 1,
+        "totals": {
+          "calories": 150,
+          "carbs": 27,
+          "fat": 3,
+          "protein": 5
+        }
+      }
+    }
+  },
+  "create_custom_metric": {
+    "input": {
+      "title": "Mobility",
+      "tab": "training",
+      "kind": "number",
+      "unit": "min",
+      "step": 1
+    },
+    "path": "/v1/custom-metrics",
+    "body": {
+      "title": "Mobility",
+      "tab": "training",
+      "kind": "number",
+      "unit": "min",
+      "step": 1
+    },
+    "response": {
+      "accent": "progress",
+      "description": "",
+      "id": "00000010036customProgressMetrics",
+      "kind": "number",
+      "ok": true,
+      "step": 1,
+      "tab": "training",
+      "title": "Mobility",
+      "unit": "min"
+    }
+  },
+  "update_custom_metric": {
+    "input": {
+      "metricId": "00000010036customProgressMetrics",
+      "target": 15
+    },
+    "path": "/v1/custom-metrics/00000010036customProgressMetrics",
+    "body": {
+      "target": 15
+    },
+    "response": {
+      "accent": "progress",
+      "description": "",
+      "id": "00000010036customProgressMetrics",
+      "kind": "number",
+      "ok": true,
+      "step": 1,
+      "tab": "training",
+      "target": 15,
+      "title": "Mobility",
+      "unit": "min"
+    }
+  },
+  "set_custom_metric_value": {
+    "input": {
+      "metricId": "00000010036customProgressMetrics",
+      "date": "2026-05-18",
+      "value": 12
+    },
+    "path": "/v1/custom-metrics/00000010036customProgressMetrics/values",
+    "body": {
+      "date": "2026-05-18",
+      "value": 12
+    },
+    "response": {
+      "created": true,
+      "date": "2026-05-18",
+      "ok": true,
+      "value": 12
+    }
+  },
+  "list_custom_metrics": {
+    "input": {
+      "tab": "training",
+      "days": 7
+    },
+    "path": "/v1/custom-metrics?tab=training&days=7",
+    "response": [
+      {
+        "accent": "progress",
+        "description": "",
+        "entries": [
+          {
+            "date": "2026-05-18",
+            "source": "manual",
+            "value": 12
+          }
+        ],
+        "healthMetricKey": null,
+        "healthMetricLabel": null,
+        "id": "00000010036customProgressMetrics",
+        "kind": "number",
+        "step": 1,
+        "tab": "training",
+        "target": 15,
+        "title": "Mobility",
+        "unit": "min"
+      }
+    ]
+  },
+  "list_platform_metrics": {
+    "input": {
+      "group": "vitals"
+    },
+    "path": "/v1/health/metrics?group=vitals",
+    "response": [
+      {
+        "key": "heartRateBpm",
+        "label": "Heart rate",
+        "detail": "Every reading, averaged over the day",
+        "group": "vitals",
+        "unit": "bpm",
+        "aggregation": "average",
+        "apple": "heartRate",
+        "google": "HeartRate",
+        "gap": null,
+        "min": 20,
+        "max": 250,
+        "bindable": true
+      },
+      {
+        "key": "bloodGlucoseMmolL",
+        "label": "Blood glucose",
+        "detail": "Finger-prick or continuous monitor readings",
+        "group": "vitals",
+        "unit": "mmol/L",
+        "aggregation": "average",
+        "apple": "bloodGlucose",
+        "google": "BloodGlucose",
+        "gap": null,
+        "min": 1,
+        "max": 40,
+        "bindable": true
+      },
+      {
+        "key": "bloodPressureSystolic",
+        "label": "Blood pressure (systolic)",
+        "detail": "The upper number",
+        "group": "vitals",
+        "unit": "mmHg",
+        "aggregation": "average",
+        "apple": "bloodPressureSystolic",
+        "google": "BloodPressure",
+        "gap": null,
+        "min": 50,
+        "max": 260,
+        "bindable": true
+      },
+      {
+        "key": "bloodPressureDiastolic",
+        "label": "Blood pressure (diastolic)",
+        "detail": "The lower number",
+        "group": "vitals",
+        "unit": "mmHg",
+        "aggregation": "average",
+        "apple": "bloodPressureDiastolic",
+        "google": "BloodPressure",
+        "gap": null,
+        "min": 30,
+        "max": 200,
+        "bindable": true
+      },
+      {
+        "key": "oxygenSaturationPct",
+        "label": "Blood oxygen",
+        "detail": "SpO2, as a percentage",
+        "group": "vitals",
+        "unit": "%",
+        "aggregation": "average",
+        "apple": "oxygenSaturation",
+        "google": "OxygenSaturation",
+        "gap": null,
+        "min": 50,
+        "max": 100,
+        "bindable": true
+      },
+      {
+        "key": "respiratoryRateBpm",
+        "label": "Respiratory rate",
+        "detail": "Breaths per minute",
+        "group": "vitals",
+        "unit": "breaths/min",
+        "aggregation": "average",
+        "apple": "respiratoryRate",
+        "google": "RespiratoryRate",
+        "gap": null,
+        "min": 3,
+        "max": 80,
+        "bindable": true
+      },
+      {
+        "key": "bodyTemperatureC",
+        "label": "Body temperature",
+        "detail": "Measured temperature",
+        "group": "vitals",
+        "unit": "°C",
+        "aggregation": "latest",
+        "apple": "bodyTemperature",
+        "google": "BodyTemperature",
+        "gap": null,
+        "min": 25,
+        "max": 45,
+        "bindable": true
+      },
+      {
+        "key": "basalBodyTemperatureC",
+        "label": "Basal body temperature",
+        "detail": "Waking temperature, before getting up",
+        "group": "vitals",
+        "unit": "°C",
+        "aggregation": "latest",
+        "apple": "basalBodyTemperature",
+        "google": "BasalBodyTemperature",
+        "gap": null,
+        "min": 25,
+        "max": 45,
+        "bindable": true
+      },
+      {
+        "key": "walkingHeartRateAvgBpm",
+        "label": "Walking heart rate",
+        "detail": "Average rate over a steady walk, a slower-moving companion to resting rate",
+        "group": "vitals",
+        "unit": "bpm",
+        "aggregation": "average",
+        "apple": "walkingHeartRateAverage",
+        "google": null,
+        "gap": "Health Connect stores raw heart rate samples without labelling which came from walking.",
+        "min": 40,
+        "max": 200,
+        "bindable": true
+      },
+      {
+        "key": "heartRateRecoveryBpm",
+        "label": "Heart rate recovery",
+        "detail": "Drop in beats per minute in the first minute after hard effort",
+        "group": "vitals",
+        "unit": "bpm",
+        "aggregation": "max",
+        "apple": "heartRateRecoveryOneMinute",
+        "google": null,
+        "gap": "Health Connect has no heart rate recovery type.",
+        "min": 1,
+        "max": 100,
+        "bindable": true
+      },
+      {
+        "key": "wristTemperatureC",
+        "label": "Wrist temperature",
+        "detail": "Overnight skin temperature from a watch worn to bed",
+        "group": "vitals",
+        "unit": "°C",
+        "aggregation": "latest",
+        "apple": "appleSleepingWristTemperature",
+        "google": null,
+        "gap": "Health Connect reports a change from your baseline rather than an absolute temperature; see skin temperature change.",
+        "min": 25,
+        "max": 45,
+        "bindable": true
+      },
+      {
+        "key": "skinTemperatureDeltaC",
+        "label": "Skin temperature change",
+        "detail": "How far last night's skin temperature sat from your own baseline",
+        "group": "vitals",
+        "unit": "°C",
+        "aggregation": "latest",
+        "apple": null,
+        "google": "SkinTemperature",
+        "gap": "Apple Health reports an absolute wrist temperature instead; see wrist temperature.",
+        "min": -10,
+        "max": 10,
+        "bindable": true
+      }
+    ]
+  },
+  "delete_recipe": {
+    "input": {
+      "id": "0000000000000000000010033recipes"
+    },
+    "path": "/v1/recipes/0000000000000000000010033recipes",
+    "response": {
+      "id": "0000000000000000000010033recipes",
+      "ok": true
+    }
+  },
+  "delete_custom_metric": {
+    "input": {
+      "metricId": "00000010036customProgressMetrics"
+    },
+    "path": "/v1/custom-metrics/00000010036customProgressMetrics",
+    "response": {
+      "deleted": "Mobility",
+      "entries": 1,
+      "ok": true,
+      "widgets": 0
+    }
+  },
+  "delete_body_measurement": {
+    "input": {
+      "id": "0000000000010024bodyMeasurements"
+    },
+    "path": "/v1/measurements/0000000000010024bodyMeasurements",
+    "response": {
+      "date": "2026-05-18",
+      "id": "0000000000010024bodyMeasurements",
+      "ok": true
+    }
+  },
+  "delete_food_entry": {
+    "input": {
+      "date": "2026-05-18",
+      "entryId": "example-food-entry"
+    },
+    "path": "/v1/food/2026-05-18/example-food-entry",
+    "response": {
+      "date": "2026-05-18",
+      "entryId": "example-food-entry",
+      "ok": true
+    }
+  },
+  "delete_water_entry": {
+    "input": {
+      "date": "2026-05-18",
+      "entryId": "example-water-entry"
+    },
+    "path": "/v1/water/2026-05-18/example-water-entry",
+    "response": {
+      "date": "2026-05-18",
+      "entryId": "example-water-entry",
+      "ok": true
+    }
+  },
+  "delete_workout": {
+    "input": {
+      "date": "2026-05-18",
+      "sessionId": "example-session"
+    },
+    "path": "/v1/workouts/2026-05-18/example-session",
+    "response": {
+      "date": "2026-05-18",
+      "ok": true,
+      "sessionId": "example-session"
+    }
+  },
+  "unmark_rest_days": {
+    "input": {
+      "dates": [
+        "2026-05-17"
+      ]
+    },
+    "path": "/v1/rest-days",
+    "body": {
+      "dates": [
+        "2026-05-17"
+      ]
+    },
+    "response": {
+      "ok": true,
+      "unmarked": 1
+    }
+  },
+  "delete_health_day": {
+    "input": {
+      "date": "2026-05-18"
+    },
+    "path": "/v1/health/days/2026-05-18",
+    "response": {
+      "date": "2026-05-18",
+      "ok": true
+    }
+  },
+  "delete_health_workout": {
+    "input": {
+      "id": "000000000000010031healthWorkouts"
+    },
+    "path": "/v1/health/workouts/000000000000010031healthWorkouts",
+    "response": {
+      "date": "2026-05-18",
+      "id": "000000000000010031healthWorkouts",
+      "ok": true
+    }
+  }
+}

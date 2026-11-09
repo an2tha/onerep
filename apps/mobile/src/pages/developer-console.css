@@ -886,10 +886,98 @@
   }
 }
 @media (max-width: 360px) {
-  .dp .dp-topline { padding-inline: 12px; gap: 6px; }
-  .dp .dp-brand { font-size: 20px; }
-  .dp .dp-brand img { width: 26px; height: 26px; }
-  .dp .dp-brand span { margin-left: 3px; padding-left: 6px; font-size: 12px; }
-  .dp .dp-topline nav { gap: 0; }
-  .dp .dp-topline nav > .dp-secondary { padding-inline: 10px; }
+  .dp .dp-topline {
+    padding-inline: 12px;
+    gap: 6px;
+  }
+  .dp .dp-brand {
+    font-size: 20px;
+  }
+  .dp .dp-brand img {
+    width: 26px;
+    height: 26px;
+  }
+  .dp .dp-brand span {
+    margin-left: 3px;
+    padding-left: 6px;
+    font-size: 12px;
+  }
+  .dp .dp-topline nav {
+    gap: 0;
+  }
+  .dp .dp-topline nav > .dp-secondary {
+    padding-inline: 10px;
+  }
+}
+.dp-reference-help {
+  margin-bottom: 22px;
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+}
+.dp-reference-help summary {
+  font-weight: 650;
+}
+.dp-reference-help a {
+  text-decoration: underline;
+}
+.dp-reference-help p,
+.dp-example-section > p {
+  margin: 10px 0;
+}
+.dp-reference-help h3 {
+  margin-top: 18px;
+}
+.dp-example-section {
+  margin-top: 24px;
+  min-width: 0;
+}
+.dp-example-section h3,
+.dp-reference-help h3 {
+  font-size: 21px;
+}
+.dp-example-heading,
+.dp-example-options {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.dp-example-heading {
+  justify-content: space-between;
+}
+.dp-example-options {
+  gap: 2px;
+  background: #e8ecdf;
+  border-radius: 8px;
+  padding: 3px;
+}
+.dp-example-options button,
+.dp-example-switch {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+}
+.dp-example-options button[aria-pressed="true"] {
+  background: var(--forest);
+  color: white;
+}
+.dp-example-switch {
+  color: var(--forest);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.dp-example-section .dp-code {
+  margin-top: 10px;
+}
+.dp-example-section pre {
+  max-height: 25rem;
+}
+.dp-example-section a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }

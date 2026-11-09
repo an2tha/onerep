@@ -19,6 +19,11 @@ import { operations } from "../../../../packages/sdk/src/operations"
 import { version } from "../../../../packages/sdk/package.json"
 import { signOutApp } from "../lib/auth-client"
 import sculpture from "../assets/developers/progress-world.webp"
+import {
+  referenceExamples,
+  requestExample,
+  type Operation,
+} from "./developer-reference/requests"
 import "./developer-console.css"
 
 const archive = `/sdk/onerep-sdk-${version}.tgz`
@@ -362,6 +367,148 @@ function Quickstart() {
   )
 }
 
+const idSources: Partial<
+  Record<Operation["operation"], Operation["operation"]>
+> = {
+  delete_recipe: "list_recipes",
+  update_recipe: "list_recipes",
+  update_custom_metric: "list_custom_metrics",
+  set_custom_metric_value: "list_custom_metrics",
+  delete_custom_metric: "list_custom_metrics",
+  delete_body_measurement: "list_body_measurements",
+  delete_health_workout: "list_health_workouts",
+  delete_food_entry: "get_day",
+  delete_water_entry: "get_day",
+  delete_workout: "list_workouts",
+}
+
+function Endpoint({ item }: { item: Operation }) {
+  const [open, setOpen] = useState(
+    () => new URLSearchParams(location.search).get("q") === item.operation,
+  )
+  const idSource = idSources[item.operation]
+  const [language, setLanguage] = useState<"curl" | "sdk">("curl")
+  const [showType, setShowType] = useState(false)
+  const example = referenceExamples[item.operation]
+  const input = Object.keys(example.input).length > 0
+  return (
+    <details
+      open={open}
+      onToggle={(event) => setOpen(event.currentTarget.open)}
+    >
+      <summary>
+        <span className={`dp-method m-${item.method.toLowerCase()}`}>
+          {item.method}
+        </span>
+        <span>
+          <strong>{item.operation}</strong>
+          <code>{item.path}</code>
+        </span>
+        <Plus className="dp-expand" />
+      </summary>
+      {open && (
+        <div className="dp-endpoint-body">
+          <p>{item.summary}</p>
+          <p className="dp-permission">
+            Permission ·{" "}
+            {item.scope === "delete"
+              ? "Personal key with delete access"
+              : (item.scope ?? "Any grant")}
+          </p>
+
+          <section className="dp-example-section" aria-label="Operation inputs">
+            <div className="dp-example-heading">
+              <h3>Input</h3>
+              {input && (
+                <button
+                  className="dp-example-switch"
+                  aria-pressed={showType}
+                  onClick={() => setShowType(!showType)}
+                >
+                  {showType ? "Show example" : "Show type"}
+                </button>
+              )}
+            </div>
+            {input ? (
+              <CodeBlock
+                title={showType ? "SDK input type" : "SDK input"}
+                text={
+                  showType
+                    ? item.input.replaceAll("; ", ";\n  ")
+                    : JSON.stringify(example.input, null, 2)
+                }
+              />
+            ) : (
+              <p>This operation takes no parameters.</p>
+            )}
+            {idSource && (
+              <p>
+                Replace the sample ID with one returned by{" "}
+                <a
+                  href={`?q=${idSource}#reference`}
+                  target="_blank"
+                  rel="noopener"
+                  aria-label={`${idSource} (opens in a new tab)`}
+                >
+                  <code>{idSource}</code> <span aria-hidden="true">↗</span>
+                </a>
+                .
+              </p>
+            )}
+          </section>
+
+          <section className="dp-example-section" aria-label="Request example">
+            <div className="dp-example-heading">
+              <h3>Request</h3>
+              <div
+                className="dp-example-options"
+                role="group"
+                aria-label="Request format"
+              >
+                <button
+                  aria-pressed={language === "curl"}
+                  onClick={() => setLanguage("curl")}
+                >
+                  cURL
+                </button>
+                <button
+                  aria-pressed={language === "sdk"}
+                  onClick={() => setLanguage("sdk")}
+                >
+                  JavaScript SDK
+                </button>
+              </div>
+            </div>
+            <CodeBlock
+              title={language === "curl" ? "Terminal" : "example.mjs"}
+              text={requestExample(item, language)}
+            />
+          </section>
+
+          <section
+            className="dp-example-section dp-example-response"
+            aria-label="Response example"
+          >
+            <h3>Example response</h3>
+            <CodeBlock
+              title="200 OK · application/json"
+              text={JSON.stringify(example.response, null, 2)}
+            />
+            {example.response &&
+              typeof example.response === "object" &&
+              "nextCursor" in example.response && (
+                <p>
+                  Pass a non-null <code>nextCursor</code> as the next request’s{" "}
+                  <code>cursor</code>. A null cursor marks the last page.
+                </p>
+              )}
+          </section>
+        </div>
+      )}
+    </details>
+  )
+}
+
 function Reference() {
   const [query, setQuery] = useState(
     () => new URLSearchParams(location.search).get("q") ?? "",
@@ -377,6 +524,43 @@ function Reference() {
   )
   return (
     <>
+      <details className="dp-reference-help">
+        <summary>Using the examples</summary>
+        <p>
+          Set <code>ONEREP_ACCESS_TOKEN</code> to the athlete’s OAuth access
+          token in your shell. Delete examples use{" "}
+          <code>ONEREP_DELETE_KEY</code>, a personal key with delete access. Run
+          SDK examples in Node.js after <a href="#sdk">installing the SDK</a>.
+        </p>
+        <p>
+          The requests and responses use a sample account. Dates use YYYY-MM-DD.
+          Requests that write or delete data act on the account associated with
+          your token.
+        </p>
+        <h3>Handling errors</h3>
+        <p>
+          REST errors include <code>error.code</code> and{" "}
+          <code>error.message</code>. The SDK throws <code>OneRepError</code>{" "}
+          with <code>status</code> and <code>code</code>. A 401 means the token
+          is missing, expired, or revoked. A 403 means the grant lacks
+          permission. For 429, wait the number of seconds in{" "}
+          <code>Retry-After</code>.
+        </p>
+        <CodeBlock
+          title="403 Forbidden · application/json"
+          text={JSON.stringify(
+            {
+              error: {
+                code: "insufficient_scope",
+                message:
+                  "This key has read access, and POST /v1/water needs write.",
+              },
+            },
+            null,
+            2,
+          )}
+        />
+      </details>
       <div className="dp-filters">
         <label className="dp-search">
           <MagnifyingGlass />
@@ -404,30 +588,7 @@ function Reference() {
       </p>
       <div className="dp-endpoints">
         {results.map((item) => (
-          <details key={item.operation}>
-            <summary>
-              <span className={`dp-method m-${item.method.toLowerCase()}`}>
-                {item.method}
-              </span>
-              <span>
-                <strong>{item.operation}</strong>
-                <code>{item.path}</code>
-              </span>
-              <Plus className="dp-expand" />
-            </summary>
-            <div className="dp-endpoint-body">
-              <p>{item.summary}</p>
-              <p className="dp-permission">
-                Permission · {item.scope ?? "Any grant"}
-              </p>
-              {item.input !== "Record<string, never>" && (
-                <CodeBlock
-                  title="SDK input"
-                  text={item.input.replaceAll("; ", ";\n  ")}
-                />
-              )}
-            </div>
-          </details>
+          <Endpoint key={item.operation} item={item} />
         ))}
       </div>
       {!results.length && (
@@ -531,7 +692,9 @@ export default function DeveloperConsole() {
                   : "Explore the REST routes and their SDK operations. OAuth grants support read and write. Deletes require a personal delete key."}
             </p>
           </div>
-          {isAuthenticated && <Applications active={section.id === "applications"} />}
+          {isAuthenticated && (
+            <Applications active={section.id === "applications"} />
+          )}
           {section.id === "applications" ? (
             <>
               {isLoading ? (
