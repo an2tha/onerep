@@ -377,9 +377,19 @@ describe("the token endpoint", () => {
       client_id: client.client_id,
       client_secret: client.client_secret,
     };
+    const invalid = { ...fields, code_verifier: "x".repeat(64) };
+    expect((await postForm(t, "/oauth/token", invalid)).status).toBe(400);
     const first = await postForm(t, "/oauth/token", fields);
     expect(first.status).toBe(200);
 
+    expect((await postForm(t, "/oauth/token", invalid)).status).toBe(400);
+    expect(
+      (
+        await t.fetch("/v1/me", {
+          headers: { Authorization: "Bearer " + first.body.access_token },
+        })
+      ).status,
+    ).toBe(200);
     const second = await postForm(t, "/oauth/token", fields);
     expect(second.status).toBe(400);
     expect(second.body.error).toBe("invalid_grant");
@@ -656,7 +666,7 @@ describe("what the user sees and can undo", () => {
     expect(await asAlice.query(api.mcp.oauth.listClients)).toHaveLength(1);
   });
 
-  test("deleting a client cuts the tokens it was issued", async () => {
+  test("removing a registered app cuts another account’s access and refresh tokens", async () => {
     const t = convexTest(schema, modules);
     const asAlice = t.withIdentity({ name: "alice" });
     const { clientId, clientSecret } = await asAlice.action(
@@ -665,7 +675,7 @@ describe("what the user sees and can undo", () => {
     );
 
     const verifier = "v".repeat(64);
-    const code = await authorizeAs(t, "alice", {
+    const code = await authorizeAs(t, "bob", {
       clientId,
       challenge: await challengeFor(verifier),
     });
@@ -678,6 +688,10 @@ describe("what the user sees and can undo", () => {
       client_secret: clientSecret,
     });
 
+    const headers = { Authorization: `Bearer ${granted.body.access_token}` };
+    const me = await t.fetch("/v1/me", { headers });
+    expect(me.status).toBe(200);
+    expect((await me.json()).subject).toMatch(/^[0-9a-f]{64}$/);
     const [row] = await asAlice.query(api.mcp.oauth.listClients);
     await asAlice.mutation(api.mcp.oauth.revokeClient, { id: row.id });
 
@@ -690,6 +704,17 @@ describe("what the user sees and can undo", () => {
       body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize" }),
     });
     expect(mcp.status).toBe(401);
+    expect((await t.fetch("/v1/me", { headers })).status).toBe(401);
+    expect(
+      (
+        await postForm(t, "/oauth/token", {
+          grant_type: "refresh_token",
+          refresh_token: granted.body.refresh_token,
+          client_id: clientId,
+          client_secret: clientSecret,
+        })
+      ).status,
+    ).not.toBe(200);
   });
 
   test("revocation is honoured, and an unknown token still answers 200", async () => {
@@ -728,4 +753,55 @@ describe("what the user sees and can undo", () => {
     const nonsense = await postForm(t, "/oauth/revoke", { token: "nope" });
     expect(nonsense.status).toBe(200);
   });
+});
+
+test("console public clients use PKCE and reject executable callbacks", async () => {
+  const t = convexTest(schema, modules);
+  const owner = t.withIdentity({ name: "developer" });
+  for (const redirect of [
+    "javascript:alert(1)",
+    "data:text/html,unsafe",
+    "https://client.example/cb#fragment",
+  ]) {
+    await expect(
+      owner.action(api.mcp.oauth.createClient, {
+        clientName: "Test",
+        redirectUris: [redirect],
+        publicClient: true,
+      }),
+    ).rejects.toThrow();
+    expect(
+      (await registerClient(t, { redirect_uris: [redirect] })).status,
+    ).toBe(400);
+  }
+  const { clientId, clientSecret } = await owner.action(
+    api.mcp.oauth.createClient,
+    { clientName: "Web client", redirectUris: [REDIRECT], publicClient: true },
+  );
+  expect(clientSecret).toBe("");
+  const verifier = "z".repeat(64);
+  const code = await authorizeAs(t, "athlete", {
+    clientId,
+    challenge: await challengeFor(verifier),
+  });
+  const { body } = await postForm(t, "/oauth/token", {
+    grant_type: "authorization_code",
+    client_id: clientId,
+    code,
+    code_verifier: verifier,
+    redirect_uri: REDIRECT,
+  });
+  const headers = { Authorization: "Bearer " + body.access_token };
+  expect((await t.fetch("/v1/workouts", { headers })).status).toBe(200);
+  expect((await t.fetch("/v1/water", { method: "POST", headers })).status).toBe(
+    403,
+  );
+  const rotate = () =>
+    postForm(t, "/oauth/token", {
+      grant_type: "refresh_token",
+      client_id: clientId,
+      refresh_token: body.refresh_token,
+    });
+  const attempts = await Promise.all([rotate(), rotate()]);
+  expect(attempts.map((r) => r.status).sort()).toEqual([200, 400]);
 });

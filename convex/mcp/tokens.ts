@@ -1,3 +1,4 @@
+import { activeClient } from "./clientPolicy";
 import { v } from "convex/values";
 import {
   action,
@@ -213,7 +214,13 @@ export const resolve = internalQuery({
     // An expired OAuth token is refused here rather than swept by a cron, so
     // the deadline is real the second it passes and not whenever we next look.
     if (row.expiresAt !== undefined && row.expiresAt <= Date.now()) return null;
-    return { id: row._id, userId: row.userId, scopes: row.scopes };
+    if (row.clientId && !(await activeClient(ctx, row.clientId))) return null;
+    return {
+      id: row._id,
+      userId: row.userId,
+      clientId: row.clientId,
+      scopes: row.scopes,
+    };
   },
 });
 
@@ -235,11 +242,16 @@ export const touch = internalMutation({
     const row = await ctx.db.get(args.id);
     if (!row || row.revokedAt !== undefined) throw new Error("Token revoked");
 
+    if (
+      (row.expiresAt ?? Infinity) <= Date.now() ||
+      (row.clientId && !(await activeClient(ctx, row.clientId)))
+    )
+      throw new Error("Token revoked");
     const scope = args.scope ?? (args.write ? "write" : "read");
     await claimRateLimit(
       ctx,
       row.userId,
-      `mcp:${scope}:${args.id}`,
+      `mcp:${scope}:${row.clientId ?? args.id}`,
       KEY_RATE_LIMITS[scope],
       KEY_RATE_LIMITS.windowMs,
     );

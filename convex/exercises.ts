@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { query } from "./_generated/server";
+import { internalQuery, query } from "./_generated/server";
 import type { QueryCtx } from "./_generated/server";
 import type { Doc } from "./_generated/dataModel";
 import { safeGetAuthUser } from "./lib/auth";
@@ -46,10 +46,10 @@ function filterByCategories<T extends { category: string }>(
 /** The caller's custom exercises matching the same query/category filters. */
 async function searchCustomExercises(
   ctx: QueryCtx,
+  userId: string | undefined,
   args: { searchText: string; categories: ExerciseCategory[]; limit: number },
 ): Promise<CustomExerciseDoc[]> {
-  const user = await safeGetAuthUser(ctx);
-  if (!user) return [];
+  if (!userId) return [];
 
   const take = Math.min(Math.max(args.limit, 10), MAX_CUSTOM_MATCHES);
 
@@ -58,7 +58,7 @@ async function searchCustomExercises(
       await ctx.db
         .query("customExercises")
         .withSearchIndex("search_name", (q) =>
-          q.search("name", args.searchText).eq("userId", user._id),
+          q.search("name", args.searchText).eq("userId", userId),
         )
         .take(take),
       args.categories,
@@ -68,12 +68,83 @@ async function searchCustomExercises(
   return filterByCategories(
     await ctx.db
       .query("customExercises")
-      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
       .take(MAX_CUSTOM_MATCHES),
     args.categories,
   ).sort(
     (a, b) => (b.lastUsedAt ?? b.updatedAt) - (a.lastUsedAt ?? a.updatedAt),
   );
+}
+
+async function searchForUser(
+  ctx: QueryCtx,
+  userId: string | undefined,
+  args: {
+    query?: string;
+    categories?: ExerciseCategory[];
+    limit?: number;
+  },
+): Promise<ClientExercise[]> {
+  const limit = clampLimit(args.limit);
+  const searchText = (args.query ?? "").trim();
+  const categories = uniqueCategories(args.categories);
+  const takeMore = Math.min(Math.max(limit * 3, limit), 100);
+  let docs: ExerciseDoc[] = [];
+
+  if (searchText) {
+    docs = filterByCategories(
+      await ctx.db
+        .query("exercises")
+        .withSearchIndex("search_name", (q) =>
+          q.search("name", searchText).eq("userId", GLOBAL_EXERCISE_USER_ID),
+        )
+        .take(categories.length > 0 ? takeMore : limit),
+      categories,
+    );
+  } else if (categories.length > 0) {
+    for (const category of categories) {
+      docs.push(
+        ...(await ctx.db
+          .query("exercises")
+          .withIndex("by_userId_and_category", (q) =>
+            q.eq("userId", GLOBAL_EXERCISE_USER_ID).eq("category", category),
+          )
+          .take(takeMore)),
+      );
+    }
+  } else {
+    docs = await ctx.db
+      .query("exercises")
+      .withIndex("by_userId", (q) => q.eq("userId", GLOBAL_EXERCISE_USER_ID))
+      .take(limit);
+  }
+
+  const custom = await searchCustomExercises(ctx, userId, {
+    searchText,
+    categories,
+    limit,
+  });
+
+  const seen = new Set<string>();
+  const result: ClientExercise[] = [];
+
+  // The caller's own exercises lead — they're the ones they went out of their
+  // way to create, and there are never enough of them to crowd out the catalog.
+  for (const doc of custom) {
+    const id = customExerciseClientId(doc._id);
+    if (seen.has(id)) continue;
+    seen.add(id);
+    result.push(toClientExercise(id, doc, { custom: true }));
+    if (result.length >= limit) return result;
+  }
+
+  for (const doc of docs) {
+    if (seen.has(doc.exerciseId)) continue;
+    seen.add(doc.exerciseId);
+    result.push(toClientExercise(doc.exerciseId, doc));
+    if (result.length >= limit) break;
+  }
+  return result;
 }
 
 export const search = query({
@@ -82,68 +153,17 @@ export const search = query({
     categories: v.optional(v.array(exerciseCategoryValidator)),
     limit: v.optional(v.number()),
   },
-  handler: async (ctx, args): Promise<ClientExercise[]> => {
-    const limit = clampLimit(args.limit);
-    const searchText = (args.query ?? "").trim();
-    const categories = uniqueCategories(args.categories);
-    const takeMore = Math.min(Math.max(limit * 3, limit), 100);
-    let docs: ExerciseDoc[] = [];
+  handler: async (ctx, args) =>
+    searchForUser(ctx, (await safeGetAuthUser(ctx))?._id, args),
+});
 
-    if (searchText) {
-      docs = filterByCategories(
-        await ctx.db
-          .query("exercises")
-          .withSearchIndex("search_name", (q) =>
-            q.search("name", searchText).eq("userId", GLOBAL_EXERCISE_USER_ID),
-          )
-          .take(categories.length > 0 ? takeMore : limit),
-        categories,
-      );
-    } else if (categories.length > 0) {
-      for (const category of categories) {
-        docs.push(
-          ...(await ctx.db
-            .query("exercises")
-            .withIndex("by_userId_and_category", (q) =>
-              q.eq("userId", GLOBAL_EXERCISE_USER_ID).eq("category", category),
-            )
-            .take(takeMore)),
-        );
-      }
-    } else {
-      docs = await ctx.db
-        .query("exercises")
-        .withIndex("by_userId", (q) => q.eq("userId", GLOBAL_EXERCISE_USER_ID))
-        .take(limit);
-    }
-
-    const custom = await searchCustomExercises(ctx, {
-      searchText,
-      categories,
-      limit,
-    });
-
-    const seen = new Set<string>();
-    const result: ClientExercise[] = [];
-
-    // The caller's own exercises lead — they're the ones they went out of their
-    // way to create, and there are never enough of them to crowd out the catalog.
-    for (const doc of custom) {
-      const id = customExerciseClientId(doc._id);
-      if (seen.has(id)) continue;
-      seen.add(id);
-      result.push(toClientExercise(id, doc, { custom: true }));
-      if (result.length >= limit) return result;
-    }
-
-    for (const doc of docs) {
-      if (seen.has(doc.exerciseId)) continue;
-      seen.add(doc.exerciseId);
-      result.push(toClientExercise(doc.exerciseId, doc));
-      if (result.length >= limit) break;
-    }
-    return result;
+export const searchForApp = internalQuery({
+  args: {
+    userId: v.string(),
+    query: v.optional(v.string()),
+    limit: v.optional(v.number()),
   },
+  handler: (ctx, args) => searchForUser(ctx, args.userId, args),
 });
 
 /**

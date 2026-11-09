@@ -7073,5 +7073,10 @@
   "Days with food recorded. Logs may be incomplete.": "Days with food recorded. Logs may be incomplete.",
   "Energy {{value}}/5": "Energy {{value}}/5",
   "Sleep quality {{sleep}}/5 · Soreness {{soreness}}/5": "Sleep quality {{sleep}}/5 · Soreness {{soreness}}/5",
-  "How you feel adds context to your readings.": "How you feel adds context to your readings."
+  "How you feel adds context to your readings.": "How you feel adds context to your readings.",
+  "Add your OpenRouter API key and AI features run on it, with no monthly cap and no Pro required. You pay OpenRouter directly for what you use.": "Add your OpenRouter API key and AI features run on it, with no monthly cap and no Pro required. You pay OpenRouter directly for what you use.",
+  "Key saved. AI now runs on your key": "Key saved. AI now runs on your key",
+  "Personal OpenRouter keys are available only on self-hosted servers.": "Personal OpenRouter keys are available only on self-hosted servers.",
+  "Removing…": "Removing…",
+  "Remove": "Remove"
 }

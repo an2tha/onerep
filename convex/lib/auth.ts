@@ -18,6 +18,8 @@ export const trustedOrigins = Array.from(
       siteUrl,
       "https://onerep-mobile.pages.dev",
       "https://app.onerep.life",
+      "https://developers.onerep.life",
+      "https://onerep-developers.pages.dev",
       "https://onerep-mobile-latest.onrender.com",
       "http://localhost:5173",
       "http://127.0.0.1:5173",

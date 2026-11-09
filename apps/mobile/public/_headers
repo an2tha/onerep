@@ -43,3 +43,11 @@
 
 /favicon.ico
   Cache-Control: public, max-age=604800, must-revalidate
+
+/oauth/consent
+  Content-Security-Policy: frame-ancestors 'none'
+  Referrer-Policy: no-referrer
+
+/developers.html
+  Content-Security-Policy: frame-ancestors 'none'
+  Referrer-Policy: no-referrer

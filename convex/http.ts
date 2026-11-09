@@ -118,6 +118,7 @@ http.route({
   method: "GET",
   handler: protectedResourceMetadata,
 });
+http.route({ path: "/.well-known/oauth-protected-resource/v1", method: "GET", handler: protectedResourceMetadata });
 http.route({
   path: "/.well-known/oauth-authorization-server",
   method: "GET",

@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { v, type ObjectType } from "convex/values";
 import {
   action,
   internalMutation,
@@ -10,6 +10,7 @@ import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 import { getAuthUser, safeGetAuthUser } from "../lib/auth";
+import { activeClient, validCallback } from "./clientPolicy";
 import { randomSecret, sha256Hex } from "./tokens";
 
 /**
@@ -84,11 +85,8 @@ function safeLabel(value: string | undefined, fallback: string) {
 export const clientByClientId = internalQuery({
   args: { clientId: v.string() },
   handler: async (ctx, args) => {
-    const row = await ctx.db
-      .query("mcpOauthClients")
-      .withIndex("by_clientId", (q) => q.eq("clientId", args.clientId))
-      .unique();
-    if (!row || row.revokedAt !== undefined) return null;
+    const row = await activeClient(ctx, args.clientId);
+    if (!row) return null;
     return {
       id: row._id,
       clientId: row.clientId,
@@ -172,6 +170,7 @@ export const createClient = action({
   args: {
     clientName: v.string(),
     redirectUris: v.array(v.string()),
+    publicClient: v.optional(v.boolean()),
   },
   handler: async (
     ctx,
@@ -183,31 +182,22 @@ export const createClient = action({
     if (redirectUris.length === 0) {
       throw new Error("A client needs at least one redirect URI.");
     }
-    for (const uri of redirectUris) {
-      // http is allowed only on loopback, which is where desktop clients park
-      // their callback listener. Anywhere else it is a credential over the
-      // open wire, and the client can go get a certificate.
-      let parsed: URL;
-      try {
-        parsed = new URL(uri);
-      } catch {
-        throw new Error(`Not a URL: ${uri}`);
-      }
-      const loopback =
-        parsed.hostname === "localhost" ||
-        parsed.hostname === "127.0.0.1" ||
-        parsed.hostname === "[::1]";
-      if (parsed.protocol === "http:" && !loopback) {
-        throw new Error(`Redirect URIs must use https: ${uri}`);
-      }
+    if (redirectUris.length > 10 || !redirectUris.every(validCallback)) {
+      throw new Error(
+        "Register up to ten HTTPS, loopback, or reverse-domain native callbacks, without credentials or fragments.",
+      );
     }
 
     const clientId = randomSecret(CLIENT_ID_PREFIX, 16);
-    const clientSecret = randomSecret(CLIENT_SECRET_PREFIX);
+    const clientSecret = args.publicClient
+      ? ""
+      : randomSecret(CLIENT_SECRET_PREFIX);
 
     await ctx.runMutation(internal.mcp.oauth.storeManualClient, {
       clientId,
-      clientSecretHash: await sha256Hex(clientSecret),
+      clientSecretHash: clientSecret
+        ? await sha256Hex(clientSecret)
+        : undefined,
       clientName: args.clientName,
       redirectUris,
     });
@@ -219,7 +209,7 @@ export const createClient = action({
 export const storeManualClient = internalMutation({
   args: {
     clientId: v.string(),
-    clientSecretHash: v.string(),
+    clientSecretHash: v.optional(v.string()),
     clientName: v.string(),
     redirectUris: v.array(v.string()),
   },
@@ -315,7 +305,10 @@ export const approve = action({
       clientId: args.clientId,
     });
     if (!client) throw new Error("That app is no longer registered.");
-    if (!redirectAllowed(client.redirectUris, args.redirectUri)) {
+    if (
+      !validCallback(args.redirectUri) ||
+      !redirectAllowed(client.redirectUris, args.redirectUri)
+    ) {
       // Never redirect to an address the client did not register, not even to
       // report an error. That is the whole shape of the attack.
       throw new Error("That app asked to be sent somewhere it isn't allowed.");
@@ -333,7 +326,7 @@ export const approve = action({
       return { redirectTo: target.toString() };
     }
 
-    if (args.codeChallenge.length < 43) {
+    if (!/^[A-Za-z0-9_-]{43}$/.test(args.codeChallenge)) {
       throw new Error("That app sent a malformed PKCE challenge.");
     }
 
@@ -380,9 +373,14 @@ export const storeAuthCode = internalMutation({
 // Token issuance
 // ---------------------------------------------------------------------------
 
+const tokenHashes = {
+  accessTokenHash: v.string(),
+  accessTokenPrefix: v.string(),
+  refreshTokenHash: v.string(),
+};
+
 export type RedeemResult =
-  | { ok: true; userId: string; scopes: Scope[]; codeChallenge: string }
-  | { ok: false; reason: string };
+  { ok: true; scopes: Scope[] } | { ok: false; reason: string };
 
 /**
  * Burns an authorization code and reports what it was worth.
@@ -393,6 +391,9 @@ export type RedeemResult =
  */
 export const redeemAuthCode = internalMutation({
   args: {
+    ...tokenHashes,
+    clientName: v.string(),
+    challenge: v.string(),
     codeHash: v.string(),
     clientId: v.string(),
     redirectUri: v.string(),
@@ -404,12 +405,6 @@ export const redeemAuthCode = internalMutation({
       .unique();
 
     if (!row) return { ok: false, reason: "That code is not valid." };
-    if (row.consumedAt !== undefined) {
-      // Cut the grant it already produced: either this is a replay or the
-      // client is confused, and both are better resolved by starting again.
-      await revokeGrant(ctx, row.userId, row.clientId);
-      return { ok: false, reason: "That code has already been used." };
-    }
     if (row.expiresAt <= Date.now()) {
       return { ok: false, reason: "That code has expired." };
     }
@@ -420,13 +415,29 @@ export const redeemAuthCode = internalMutation({
       return { ok: false, reason: "Redirect URI does not match the request." };
     }
 
-    await ctx.db.patch(row._id, { consumedAt: Date.now() });
-    return {
-      ok: true,
+    if (row.codeChallenge !== args.challenge) {
+      return {
+        ok: false,
+        reason: "The code_verifier does not match the authorization request.",
+      };
+    }
+    if (row.consumedAt !== undefined) {
+      // Cut the grant it already produced: either this is a replay or the
+      // client is confused, and both are better resolved by starting again.
+      await revokeGrant(ctx, row.userId, row.clientId);
+      return { ok: false, reason: "That code has already been used." };
+    }
+    await storeGrant(ctx, {
       userId: row.userId,
+      clientId: row.clientId,
       scopes: row.scopes,
-      codeChallenge: row.codeChallenge,
-    };
+      clientName: args.clientName,
+      accessTokenHash: args.accessTokenHash,
+      accessTokenPrefix: args.accessTokenPrefix,
+      refreshTokenHash: args.refreshTokenHash,
+    });
+    await ctx.db.patch(row._id, { consumedAt: Date.now() });
+    return { ok: true, scopes: row.scopes };
   },
 });
 
@@ -454,70 +465,81 @@ async function revokeGrant(ctx: MutationCtx, userId: string, clientId: string) {
   }
 }
 
-export const issueGrant = internalMutation({
-  args: {
-    userId: v.string(),
-    clientId: v.string(),
-    clientName: v.string(),
-    scopes: v.array(scopeValidator),
-    accessTokenHash: v.string(),
-    accessTokenPrefix: v.string(),
-    refreshTokenHash: v.string(),
-    /** Set when this replaces an earlier refresh token rather than starting fresh. */
-    supersedes: v.optional(v.id("mcpRefreshTokens")),
-  },
-  handler: async (ctx, args) => {
-    const now = Date.now();
+const grantArgs = {
+  ...tokenHashes,
+  userId: v.string(),
+  clientId: v.string(),
+  clientName: v.string(),
+  scopes: v.array(scopeValidator),
+  supersedes: v.optional(v.id("mcpRefreshTokens")),
+};
 
-    if (args.supersedes !== undefined) {
-      const previous = await ctx.db.get(args.supersedes);
-      await ctx.db.patch(args.supersedes, { revokedAt: now });
-      // Only the access token this refresh token minted. Rotation is worth
-      // nothing if the old pair keeps working, and worth less than nothing if
-      // it takes the user's other machine down with it.
-      if (previous?.accessTokenId) {
-        const stale = await ctx.db.get(previous.accessTokenId);
-        if (stale && stale.revokedAt === undefined) {
-          await ctx.db.patch(stale._id, { revokedAt: now });
-        }
-      }
-    } else {
-      const tokens = await ctx.db
-        .query("mcpTokens")
-        .withIndex("by_userId", (q) => q.eq("userId", args.userId))
-        .collect();
-      const live = tokens.filter(
-        (row) =>
-          row.clientId !== undefined &&
-          row.revokedAt === undefined &&
-          (row.expiresAt ?? Infinity) > now,
-      );
-      if (live.length >= MAX_CONNECTIONS) {
-        throw new Error("CONNECTION_LIMIT");
+async function storeGrant(
+  ctx: MutationCtx,
+  args: ObjectType<typeof grantArgs>,
+) {
+  const now = Date.now();
+
+  if (!(await activeClient(ctx, args.clientId)))
+    throw new Error("INVALID_GRANT");
+  if (args.supersedes !== undefined) {
+    const previous = await ctx.db.get(args.supersedes);
+    if (
+      !previous ||
+      previous.revokedAt !== undefined ||
+      previous.expiresAt <= now
+    )
+      throw new Error("INVALID_GRANT");
+    await ctx.db.patch(args.supersedes, { revokedAt: now });
+    // Only the access token this refresh token minted. Rotation is worth
+    // nothing if the old pair keeps working, and worth less than nothing if
+    // it takes the user's other machine down with it.
+    if (previous?.accessTokenId) {
+      const stale = await ctx.db.get(previous.accessTokenId);
+      if (stale && stale.revokedAt === undefined) {
+        await ctx.db.patch(stale._id, { revokedAt: now });
       }
     }
+  } else {
+    const tokens = await ctx.db
+      .query("mcpTokens")
+      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .collect();
+    const live = tokens.filter(
+      (row) =>
+        row.clientId !== undefined &&
+        row.revokedAt === undefined &&
+        (row.expiresAt ?? Infinity) > now,
+    );
+    if (live.length >= MAX_CONNECTIONS) {
+      throw new Error("CONNECTION_LIMIT");
+    }
+  }
 
-    const accessTokenId = await ctx.db.insert("mcpTokens", {
-      userId: args.userId,
-      name: args.clientName,
-      tokenHash: args.accessTokenHash,
-      prefix: args.accessTokenPrefix,
-      scopes: args.scopes,
-      createdAt: now,
-      clientId: args.clientId,
-      expiresAt: now + ACCESS_TOKEN_TTL_MS,
-    });
+  const accessTokenId = await ctx.db.insert("mcpTokens", {
+    userId: args.userId,
+    name: args.clientName,
+    tokenHash: args.accessTokenHash,
+    prefix: args.accessTokenPrefix,
+    scopes: args.scopes,
+    createdAt: now,
+    clientId: args.clientId,
+    expiresAt: now + ACCESS_TOKEN_TTL_MS,
+  });
 
-    await ctx.db.insert("mcpRefreshTokens", {
-      tokenHash: args.refreshTokenHash,
-      clientId: args.clientId,
-      userId: args.userId,
-      scopes: args.scopes,
-      accessTokenId,
-      createdAt: now,
-      expiresAt: now + REFRESH_TOKEN_TTL_MS,
-    });
-  },
+  await ctx.db.insert("mcpRefreshTokens", {
+    tokenHash: args.refreshTokenHash,
+    clientId: args.clientId,
+    userId: args.userId,
+    scopes: args.scopes,
+    accessTokenId,
+    createdAt: now,
+    expiresAt: now + REFRESH_TOKEN_TTL_MS,
+  });
+}
+export const issueGrant = internalMutation({
+  args: grantArgs,
+  handler: storeGrant,
 });
 
 export type RefreshResult =
@@ -598,12 +620,21 @@ export const listConnections = query({
       .order("desc")
       .collect();
 
+    const refresh = await ctx.db
+      .query("mcpRefreshTokens")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .collect();
+    const renewable = new Set(
+      refresh
+        .filter((row) => row.revokedAt === undefined && row.expiresAt > now)
+        .map((row) => row.accessTokenId),
+    );
     return tokens
       .filter(
         (row) =>
           row.clientId !== undefined &&
           row.revokedAt === undefined &&
-          (row.expiresAt ?? Infinity) > now,
+          ((row.expiresAt ?? Infinity) > now || renewable.has(row._id)),
       )
       .map((row) => ({
         id: row._id,

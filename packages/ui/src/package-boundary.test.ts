@@ -69,6 +69,8 @@ describe("@repo/ui package boundary", () => {
       // Mints and revokes API keys over Convex, and reaches for the clipboard.
       // The panel itself is grouped-list primitives from @repo/ui.
       "api-keys-section.tsx",
+      // Reads personal key availability and handles authenticated saves and removals.
+      "ai-key-settings.tsx",
       "auth-guard.tsx",
       // Authenticated daily-review queries and saves; views live in @repo/ui/sleep.
       "today-insights.tsx",

@@ -1,7 +1,12 @@
 import { httpAction } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { RATE_LIMITED } from "../lib/rateLimits";
-import { findTool, MCP_TOOLS, type ToolScope } from "../mcp/tools";
+import {
+  findTool,
+  MCP_TOOLS,
+  LIBRARY_COLLECTIONS,
+  type ToolScope,
+} from "../mcp/tools";
 import { KEY_RATE_LIMITS, sha256Hex } from "../mcp/tokens";
 import { RESOURCE_METADATA_URL } from "../mcp/oauthServer";
 
@@ -39,6 +44,29 @@ type Route = {
 };
 
 const ROUTES: Route[] = [
+  ...LIBRARY_COLLECTIONS.map(({ name, path, description }): Route => ({
+    method: "GET",
+    path,
+    tool: "list_" + name,
+    summary: description,
+    args: ({ query }) =>
+      optional({ limit: query.get("limit"), cursor: query.get("cursor") }),
+  })),
+  {
+    method: "GET",
+    path: "/v1/exercises",
+    tool: "search_exercises",
+    summary: "Search shared and personal exercises by name.",
+    args: ({ query }) =>
+      optional({ query: query.get("query"), limit: query.get("limit") }),
+  },
+  {
+    method: "GET",
+    path: "/v1/programmes",
+    tool: "list_programmes",
+    summary: "Recent guided plans and nutrition programme targets.",
+    args: () => ({}),
+  },
   {
     method: "GET",
     path: "/v1",
@@ -358,6 +386,7 @@ function headers() {
     "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, Authorization",
     "Access-Control-Max-Age": "86400",
+    "Access-Control-Expose-Headers": "Retry-After",
     // Somebody's food diary has no business sitting in a proxy cache.
     "Cache-Control": "no-store",
   });
@@ -403,7 +432,7 @@ function retryAfterSeconds() {
 
 function unauthorized(message: string) {
   return fail(401, "unauthorized", message, {
-    "WWW-Authenticate": `Bearer realm="OneRep", error="invalid_token", resource_metadata="${RESOURCE_METADATA_URL}"`,
+    "WWW-Authenticate": `Bearer realm="OneRep", error="invalid_token", resource_metadata="${RESOURCE_METADATA_URL}/v1"`,
   });
 }
 
@@ -560,6 +589,13 @@ export const restApi = httpAction(async (ctx, request) => {
     return json(
       pathname === "/v1/me"
         ? {
+            ...(key.clientId
+              ? {
+                  subject: await sha256Hex(
+                    JSON.stringify([key.clientId, key.userId]),
+                  ),
+                }
+              : {}),
             scopes,
             limits: {
               readPerHour: KEY_RATE_LIMITS.read,
@@ -599,6 +635,9 @@ export const restApi = httpAction(async (ctx, request) => {
 
 /** Exported for the docs test, which checks every route is written down. */
 export const API_ROUTES = ROUTES.map((route) => ({
+  operation:
+    route.tool ?? (route.path === "/v1" ? "list_routes" : "get_access"),
+  summary: route.summary,
   method: route.method,
   path: route.path,
   scope: (route.tool ? findTool(route.tool)?.scope : null) ?? null,

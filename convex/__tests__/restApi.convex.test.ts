@@ -874,3 +874,38 @@ describe("health data over the API", () => {
     ).toBe(true);
   });
 });
+
+test("library pages are scoped to the bearer owner and omit trail share credentials", async () => {
+  const t = convexTest(schema, modules);
+  const key = "library-test";
+  await grantKey(t, key, ["read"]);
+  await t.run(async (ctx) => {
+    const owner = (await ctx.db.query("mcpTokens").first())!.userId;
+    for (const [userId, name] of [
+      [owner, "Hill"],
+      [owner, "Valley"],
+      ["another-account", "Private"],
+    ]) {
+      await ctx.db.insert("hikingTrails", {
+        userId,
+        name,
+        description: "Test route",
+        distanceMeters: 300,
+        shareToken: "secret",
+      });
+    }
+  });
+  const first = await call(t, "GET", "/v1/trails?limit=1", { key });
+  expect(first.status).toBe(200);
+  expect(first.body.items).toHaveLength(1);
+  const second = await call(
+    t,
+    "GET",
+    "/v1/trails?limit=1&cursor=" + encodeURIComponent(first.body.nextCursor),
+    { key },
+  );
+  const items = [...first.body.items, ...second.body.items];
+  expect(items.map((item) => item.name).sort()).toEqual(["Hill", "Valley"]);
+  for (const item of items)
+    expect(Object.keys(item).sort()).toEqual(["distanceMeters", "id", "name"]);
+});

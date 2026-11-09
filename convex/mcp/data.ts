@@ -1709,3 +1709,227 @@ export const deleteCustomMetric = internalMutation({
     };
   },
 });
+
+export const listProgrammes = internalQuery({
+  args: { userId: v.string() },
+  handler: async (ctx, { userId }) => {
+    const [guided, nutrition] = await Promise.all([
+      ctx.db
+        .query("guidedProgrammes")
+        .withIndex("by_userId", (q) => q.eq("userId", userId))
+        .order("desc")
+        .take(20),
+      ctx.db
+        .query("nutritionProgrammes")
+        .withIndex("by_userId", (q) => q.eq("userId", userId))
+        .order("desc")
+        .take(20),
+    ]);
+    return {
+      guided: guided.map((p) => ({
+        id: p._id,
+        track: p.track,
+        status: p.status,
+        startDate: p.startDate,
+        plan: p.plan,
+      })),
+      nutrition: nutrition.map((p) => ({
+        id: p._id,
+        goal: p.goal,
+        startDate: p.startDate,
+        weeks: p.weeks,
+        endedDate: p.endedDate,
+        baselineCalories: p.baselineCalories,
+        changePercent: p.changePercent,
+        protein: p.protein,
+        fat: p.fat,
+        fastingHours: p.fastingHours,
+        eatingStart: p.eatingStart,
+      })),
+    };
+  },
+});
+
+async function shapePage<T, R>(
+  result: Promise<{ page: T[]; isDone: boolean; continueCursor: string }>,
+  project: (row: T) => R,
+) {
+  const page = await result;
+  return {
+    items: page.page.map(project),
+    nextCursor: page.isDone ? null : page.continueCursor,
+  };
+}
+
+export const libraryPage = internalQuery({
+  args: {
+    userId: v.string(),
+    collection: v.union(
+      v.literal("routines"),
+      v.literal("schedules"),
+      v.literal("saved_meals"),
+      v.literal("custom_foods"),
+      v.literal("meal_prep"),
+      v.literal("fasts"),
+      v.literal("grocery_lists"),
+      v.literal("supplements"),
+      v.literal("trails"),
+    ),
+    limit: v.number(),
+    cursor: v.union(v.string(), v.null()),
+  },
+  handler: (ctx, { userId, collection, limit, cursor }) => {
+    if (!Number.isInteger(limit) || limit < 1 || limit > 50)
+      throw new Error("limit must be an integer between 1 and 50");
+    const page = { numItems: limit, cursor, maximumBytesRead: 1500000 };
+    switch (collection) {
+      case "routines":
+        return shapePage(
+          ctx.db
+            .query("presets")
+            .withIndex("by_userId", (q) => q.eq("userId", userId))
+            .order("desc")
+            .paginate(page),
+          (row) => ({
+            id: row._id,
+            name: row.name,
+            items: row.items,
+            exerciseData: row.exerciseData,
+            focus: row.focus,
+            duration: row.duration,
+            steps: row.steps,
+          }),
+        );
+      case "schedules":
+        return shapePage(
+          ctx.db
+            .query("schedules")
+            .withIndex("by_userId", (q) => q.eq("userId", userId))
+            .order("desc")
+            .paginate(page),
+          (row) => ({
+            id: row._id,
+            routine: row.routine,
+            presetOrder: row.presetOrder,
+          }),
+        );
+      case "saved_meals":
+        return shapePage(
+          ctx.db
+            .query("mealPresets")
+            .withIndex("by_userId", (q) => q.eq("userId", userId))
+            .order("desc")
+            .paginate(page),
+          (row) => ({
+            id: row._id,
+            name: row.name,
+            meal: row.meal,
+            entries: row.entries,
+          }),
+        );
+      case "custom_foods":
+        return shapePage(
+          ctx.db
+            .query("customFoods")
+            .withIndex("by_userId", (q) => q.eq("userId", userId))
+            .order("desc")
+            .paginate(page),
+          (row) => ({
+            id: row._id,
+            name: row.name,
+            brand: row.brand,
+            servingLabel: row.servingLabel,
+            servingGrams: row.servingGrams,
+            barcode: row.barcode,
+            nutrientsPerServing: row.nutrientsPerServing,
+            favorite: row.favorite,
+          }),
+        );
+      case "meal_prep":
+        return shapePage(
+          ctx.db
+            .query("mealPrepBatches")
+            .withIndex("by_userId", (q) => q.eq("userId", userId))
+            .order("desc")
+            .paginate(page),
+          (row) => ({
+            id: row._id,
+            name: row.name,
+            meal: row.meal,
+            preppedOn: row.preppedOn,
+            useByOn: row.useByOn,
+            storage: row.storage,
+            servingsTotal: row.servingsTotal,
+            servingsLogged: row.servingsLogged,
+            nutrientsPerServing: row.nutrientsPerServing,
+            archivedAt: row.archivedAt,
+          }),
+        );
+      case "fasts":
+        return shapePage(
+          ctx.db
+            .query("fastingSessions")
+            .withIndex("by_userId", (q) => q.eq("userId", userId))
+            .order("desc")
+            .paginate(page),
+          (row) => ({
+            id: row._id,
+            startedAt: row.startedAt,
+            endedAt: row.endedAt,
+            targetMinutes: row.targetMinutes,
+            protocol: row.protocol,
+            startDate: row.startDate,
+            endDate: row.endDate,
+            endedEarly: row.endedEarly,
+          }),
+        );
+      case "grocery_lists":
+        return shapePage(
+          ctx.db
+            .query("groceryLists")
+            .withIndex("by_userId", (q) => q.eq("userId", userId))
+            .order("desc")
+            .paginate(page),
+          (row) => ({
+            id: row._id,
+            name: row.name,
+            items: row.items,
+            archivedAt: row.archivedAt,
+          }),
+        );
+      case "supplements":
+        return shapePage(
+          ctx.db
+            .query("supplementItems")
+            .withIndex("by_userId", (q) => q.eq("userId", userId))
+            .order("desc")
+            .paginate(page),
+          (row) => ({
+            id: row._id,
+            name: row.name,
+            brand: row.brand,
+            category: row.category,
+            form: row.form,
+            servingLabel: row.servingLabel,
+            defaultServingQuantity: row.defaultServingQuantity,
+            active: row.active,
+            schedule: row.schedule,
+            nutrientsPerServing: row.nutrientsPerServing,
+          }),
+        );
+      case "trails":
+        return shapePage(
+          ctx.db
+            .query("hikingTrails")
+            .withIndex("by_userId", (q) => q.eq("userId", userId))
+            .order("desc")
+            .paginate(page),
+          (row) => ({
+            id: row._id,
+            name: row.name,
+            distanceMeters: row.distanceMeters,
+          }),
+        );
+    }
+  },
+});

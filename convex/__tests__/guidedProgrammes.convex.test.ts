@@ -579,6 +579,86 @@ test("generation action refunds malformed output, retries successfully, and cach
     (await owner.query(api.guidedProgrammes.get, { id })).generationStatus,
   ).toBe("complete");
 });
+test("a six-week training preview corrects a prose deload flag within the original reservation", async () => {
+  const { owner } = await setup();
+  const id = await owner.mutation(api.guidedProgrammes.saveDraft, {
+    track: "training",
+    settings: { ...settings, goal: "Build muscle", weeks: 6 },
+  });
+  const plan = structuredClone(trainingPlan);
+  const block = plan.training!.mesocycles[0]!;
+  block.endWeek = 6;
+  const provider =
+    await vi.importActual<typeof import("../ai/provider")>("../ai/provider");
+  vi.mocked(requestOpenAiJson)
+    .mockReset()
+    .mockImplementation(provider.requestOpenAiJson);
+  vi.stubEnv("OPENROUTER_API_KEY", "test-key");
+  vi.stubEnv("AI_PROCESSOR_APPROVED", "true");
+  const invalidPlan = {
+    ...plan,
+    training: {
+      ...plan.training,
+      mesocycles: [
+        { ...block, deload: "No formal deload. Keep effort moderate." },
+      ],
+    },
+  };
+  let allowCorrection = false;
+  const fetchModel = vi.fn(async (_input: unknown, init: RequestInit) => {
+    const body = JSON.parse(String(init.body));
+    expect(body.response_format.type).toBe("json_schema");
+    const { strict, schema } = body.response_format.json_schema;
+    expect(strict).toBe(true);
+    const blocks = schema.properties.training.properties.mesocycles;
+    expect(blocks.items.properties.deload.type).toBe("boolean");
+    const correcting = body.messages
+      .at(-1)
+      .content.includes("mesocycles.0.deload");
+    return Response.json({
+      choices: [
+        {
+          index: 0,
+          finish_reason: "stop",
+          message: {
+            role: "assistant",
+            content: JSON.stringify(
+              correcting && allowCorrection ? plan : invalidPlan,
+            ),
+          },
+        },
+      ],
+    });
+  });
+  vi.stubGlobal("fetch", fetchModel);
+  try {
+    const generate = () =>
+      owner.action(api.ai.guidedProgramme.generate, {
+        id,
+        requestId: "six-weeks",
+      });
+    await expect(generate()).rejects.toThrow("tokens were returned");
+    expect(fetchModel).toHaveBeenCalledTimes(2);
+    expect((await owner.query(api.ai.usage.getMonthlyUsage, {})).count).toBe(0);
+    expect(
+      (await owner.query(api.guidedProgrammes.get, { id })).generationStatus,
+    ).toBe("failed");
+
+    allowCorrection = true;
+    await generate();
+    await generate(); // Replaying the completed request must reuse the preview.
+    expect(fetchModel).toHaveBeenCalledTimes(4);
+    expect((await owner.query(api.ai.usage.getMonthlyUsage, {})).count).toBe(5);
+    expect(await owner.query(api.guidedProgrammes.get, { id })).toMatchObject({
+      generationStatus: "complete",
+      plan: { training: { mesocycles: [block] } },
+    });
+  } finally {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+    vi.mocked(requestOpenAiJson).mockReset();
+  }
+});
 test("insufficient remaining quota prevents provider calls and leaves no stranded running draft", async () => {
   const { owner } = await setup();
   const id = await owner.mutation(api.guidedProgrammes.saveDraft, {

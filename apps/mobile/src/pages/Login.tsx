@@ -21,6 +21,7 @@ import { captureFeatureUsage } from "@/lib/analytics"
 import {
   getAuthCallbackUrl,
   getEmailVerificationCallbackUrl,
+  isDeveloperConsoleOrigin,
   getSocialCallbackUrl,
   rememberPendingVerification,
 } from "@/lib/auth-redirects"
@@ -111,7 +112,8 @@ export default function Login() {
   const convexAuth = useConvexAuth()
   const requestedMode =
     searchParams.get("mode") === "signup" ? "signup" : "signin"
-  const nextPath = safeAuthRedirectPath(searchParams.get("next"))
+  const nextPath = safeAuthRedirectPath(searchParams.get("next") ?? (isDeveloperConsoleOrigin() ? "/developers" : "/"))
+  const newUserNext = nextPath === "/developers" || nextPath.startsWith("/oauth/consent?") ? nextPath : "/onboarding"
   const [mode, setMode] = useState<LoginMode>(requestedMode)
   const [modeDirection, setModeDirection] = useState<"forward" | "back">(
     "forward"
@@ -220,7 +222,7 @@ export default function Login() {
         authClient.signIn.social({
           provider: "google",
           callbackURL: getSocialCallbackUrl(nextPath),
-          newUserCallbackURL: getSocialCallbackUrl("/onboarding", {
+          newUserCallbackURL: getSocialCallbackUrl(newUserNext, {
             isNewUser: true,
           }),
           errorCallbackURL: getAuthCallbackUrl("/login"),
@@ -289,7 +291,7 @@ export default function Login() {
         authClient.signIn.social({
           provider: "apple",
           callbackURL: getSocialCallbackUrl(nextPath),
-          newUserCallbackURL: getSocialCallbackUrl("/onboarding", {
+          newUserCallbackURL: getSocialCallbackUrl(newUserNext, {
             isNewUser: true,
           }),
           errorCallbackURL: getAuthCallbackUrl("/login"),
@@ -356,7 +358,7 @@ export default function Login() {
         authClient.signIn.oauth2({
           providerId: "oidc",
           callbackURL: getSocialCallbackUrl(nextPath),
-          newUserCallbackURL: getSocialCallbackUrl("/onboarding", {
+          newUserCallbackURL: getSocialCallbackUrl(newUserNext, {
             isNewUser: true,
           }),
           errorCallbackURL: getAuthCallbackUrl("/login"),
@@ -488,7 +490,7 @@ export default function Login() {
           setMessage(tr("Account created. Opening OneRep…"))
           return
         }
-        rememberPendingVerification(trimmedEmail, "/onboarding")
+        rememberPendingVerification(trimmedEmail, newUserNext)
         navigate("/verify-email-required", { replace: true })
         return
       }

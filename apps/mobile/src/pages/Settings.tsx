@@ -25,8 +25,7 @@ import {
   UserCircle,
   X,
 } from "@phosphor-icons/react"
-import { useAction, useMutation, useQuery } from "convex/react"
-import { ConvexError } from "convex/values"
+import { useMutation, useQuery } from "convex/react"
 import { supportsLiveWorkoutStatusSetting } from "@/lib/workout-live-activity"
 import { registeredPushToken, unregisterForCoachPush } from "@/lib/coach-push"
 import { promptForCoachPush } from "@/components/coach-push-registration"
@@ -211,6 +210,7 @@ import {
 import { useAiFeatureGate } from "@/lib/ai-access"
 import { useMomentPreview } from "@/lib/full-screen-events"
 import { MOMENT_IDS, type MomentId } from "@/lib/moments"
+import { AiKeySettings } from "@/components/ai-key-settings"
 import { ApiKeysSection } from "@/components/api-keys-section"
 import { resolveConvexSiteUrl } from "@/lib/service-urls"
 import { serverOverride } from "@/lib/server-config"
@@ -262,6 +262,7 @@ export type SettingsView =
   | "targets"
   | "preferences"
   | "nutrition"
+  | "coach"
   | "reminders"
   | "privacy"
   | "health"
@@ -284,6 +285,7 @@ const SETTINGS_VIEW_TITLE_KEYS: Record<SettingsView, string> = {
   targets: "settings.titles.targets",
   preferences: "settings.titles.preferences",
   nutrition: "settings.titles.nutrition",
+  coach: "nav.coach",
   reminders: "settings.titles.reminders",
   privacy: "settings.titles.privacy",
   health: "settings.titles.health",
@@ -375,27 +377,6 @@ export default function Settings({
   const upgradePrice = /\d/.test(billing.monthlyPrice ?? "")
     ? billing.monthlyPrice
     : null
-  const byokStatus = useQuery(api.ai.byok.getStatus, {})
-  const saveByokKey = useAction(api.ai.byok.setKey)
-  const removeByokKey = useMutation(api.ai.byok.removeKey)
-  const [byokInput, setByokInput] = useState("")
-  const [byokBusy, setByokBusy] = useState(false)
-  /**
-   * Where OneRep sells Pro, a personal OpenRouter key is a way around the
-   * paywall, so the input is not offered. A key saved before that — or on a
-   * self-hosted deployment, where Pro is comped and there is nothing to walk
-   * around — still gets its row, because a key we are quietly spending
-   * requests on has to remain removable.
-   */
-  const byokSection: "open" | "legacy" | "hidden" =
-    byokStatus === undefined
-      ? "hidden"
-      : byokStatus.available !== false
-        ? "open"
-        : byokStatus.configured
-          ? "legacy"
-          : "hidden"
-
   const healthSync = preferences?.healthSync
   const wearableConsent =
     setupWearableConsent ??
@@ -1861,6 +1842,12 @@ export default function Settings({
                     onClick={() => showView("nutrition")}
                   />
                   <DisclosureRow
+                    title={tr("Coach")}
+                    detail={tr("OpenRouter API key")}
+                    leading={<ChatCircleDots size={20} weight="regular" />}
+                    onClick={() => showView("coach")}
+                  />
+                  <DisclosureRow
                     title={tr("Reminders")}
                     value={
                       activeReminderCount > 0
@@ -2090,97 +2077,7 @@ export default function Settings({
                     showUpgrade={billing.canUpgrade}
                   />
                 </GroupedList>
-                {byokSection !== "hidden" && (
-                  <SettingsSectionLabel
-                    title={tr("Your own AI key")}
-                    detail={
-                      byokSection === "open"
-                        ? tr(
-                            "Add your OpenRouter API key and AI features run on it — no monthly cap, no Pro required. You pay OpenRouter directly for what you use."
-                          )
-                        : tr(
-                            "Your key is still serving your AI requests. Remove it and the included allowance takes over."
-                          )
-                    }
-                  />
-                )}
-                {byokStatus?.configured ? (
-                  <GroupedList label={tr("Your OpenRouter key")}>
-                    <ListRow
-                      title={tr("Key ending in {{value0}}", {
-                        value0: byokStatus.last4,
-                      })}
-                      detail={tr(
-                        "AI requests use your key. Remove it to go back to the included allowance."
-                      )}
-                      value={byokBusy ? "Removing…" : "Remove"}
-                      disabled={byokBusy}
-                      onClick={() => {
-                        setByokBusy(true)
-                        void (async () => {
-                          try {
-                            await removeByokKey({})
-                            toast.success(tr("Key removed"))
-                          } catch (error) {
-                            toast.error(
-                              translateError(
-                                error instanceof Error
-                                  ? error.message
-                                  : tr("Couldn't remove the key")
-                              )
-                            )
-                          } finally {
-                            setByokBusy(false)
-                          }
-                        })()
-                      }}
-                    />
-                  </GroupedList>
-                ) : byokSection === "open" ? (
-                  <div className="flex items-center gap-2 px-[var(--app-page-x)]">
-                    <input
-                      type="password"
-                      autoComplete="off"
-                      placeholder={tr("sk-or-…")}
-                      value={byokInput}
-                      aria-label={tr("OpenRouter API key")}
-                      onChange={(event) => setByokInput(event.target.value)}
-                      className="h-11 flex-1 rounded-xl border border-border bg-transparent px-3 outline-none"
-                    />
-                    <PrimaryButton
-                      aria-label={tr("Save OpenRouter key")}
-                      disabled={
-                        byokBusy || !byokInput.trim().startsWith("sk-or-")
-                      }
-                      onClick={async () => {
-                        setByokBusy(true)
-                        try {
-                          // Verified against OpenRouter server-side before it saves.
-                          await saveByokKey({ key: byokInput.trim() })
-                          setByokInput("")
-                          toast.success(
-                            tr("Key saved — AI now runs on your key")
-                          )
-                          trackUmami("byok_key_saved")
-                        } catch (error) {
-                          toast.error(
-                            translateError(
-                              error instanceof ConvexError
-                                ? String(error.data)
-                                : tr(
-                                    "This API key is invalid. Check it and try again."
-                                  )
-                            )
-                          )
-                        } finally {
-                          setByokBusy(false)
-                        }
-                      }}
-                    >
-                      {byokBusy ? tr("Verifying…") : tr("Save")}
-                    </PrimaryButton>
-                  </div>
-                ) : null}
+                <AiKeySettings />
                 <SettingsSectionLabel title={tr("Session")} />
                 <GroupedList label={tr("Session actions")}>
                   <ListRow
@@ -2855,6 +2752,10 @@ export default function Settings({
               </>
             )}
 
+            {activeView === "coach" && (
+              <AiKeySettings onOpenServer={() => showView("server")} />
+            )}
+
             {activeView === "reminders" && (
               <>
                 <SettingsSectionIntro>
@@ -3009,6 +2910,12 @@ export default function Settings({
                         </div>
                       </SettingsRow>
                     </>
+                  )}
+                  {!setupView && (
+                    <DisclosureRow
+                      title={tr("Your own AI key")}
+                      onClick={() => showView("coach")}
+                    />
                   )}
                 </GroupedList>
 

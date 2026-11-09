@@ -1,4 +1,4 @@
-import { ChatOpenAI } from "@langchain/openai";
+import { ChatOpenAI, type ChatOpenAICallOptions } from "@langchain/openai";
 // The `/web` entrypoint, not the root one: the root entrypoint reaches for
 // `node:async_hooks`, which the Convex default runtime does not have.
 import { Annotation, END, START, StateGraph } from "@langchain/langgraph/web";
@@ -43,6 +43,7 @@ type AiJsonRequest = {
   system: string;
   user: string;
   image?: AiImage;
+  schema?: z.ZodObject;
   maxTokens: number;
   temperature?: number;
   /** Names this caller in the `[ai-usage]` log lines. */
@@ -506,6 +507,7 @@ export async function requestOpenAiJson({
   system,
   user,
   image,
+  schema,
   maxTokens,
   temperature,
   apiKey,
@@ -532,45 +534,72 @@ export async function requestOpenAiJson({
     ...(temperature === undefined || isGpt5 ? {} : { temperature }),
   });
 
-  const messages = [
+  const jsonSchema = schema && z.toJSONSchema(schema);
+  const messages: BaseMessage[] = [
     new SystemMessage(system),
     userMessage(user, image ? [image] : undefined),
   ];
-  try {
-    let result;
-    try {
-      result = await chat.invoke(messages, {
-        response_format: { type: "json_object" },
-      });
-    } catch (formatError) {
-      const status = providerErrorStatus(formatError);
-      const detail = describeProviderError(formatError);
-      if ((status !== 400 && status !== 422) || !/response[_ ]format|json[_ ]object|structured output|json mode/i.test(detail)) throw formatError;
-      // `json_object` is an OpenAI-ism. Plenty of the models the catalog can
-      // now route to reject the parameter outright, and before this retry
-      // that rejection silently became the canned fallback reply — the worst
-      // answer in the codebase, dressed up as a working feature. Ask once
-      // more with no format constraint and salvage the JSON from the prose.
-      console.warn(`[ai] ${label}: retrying without response_format`, {
-        error:
-          formatError instanceof Error ? formatError.message : "unknown error",
-      });
-      result = await chat.invoke(messages);
-    }
+  let responseFormat: ChatOpenAICallOptions["response_format"] = jsonSchema
+    ? {
+        type: "json_schema",
+        json_schema: { name: "result", strict: true, schema: jsonSchema },
+      }
+    : { type: "json_object" };
+  const readOutput = (result: AIMessage) => {
     logUsage(label, result, config.model);
-    // A model that ran out of room mid-object leaves JSON that cannot parse,
-    // and the caller's catch-all turns that into a canned reply. Name the
-    // real cause here: "invalid JSON" sends whoever reads the log hunting a
-    // formatting bug that does not exist.
     if (finishReasonOf(result) === "length") {
       throw new Error(
         `Model output hit the ${maxTokens}-token ceiling before finishing its JSON`,
       );
     }
-    const output = extractJsonObject(messageText(result.content));
-    return JSON.stringify(output);
+    return extractJsonObject(messageText(result.content));
+  };
+  try {
+    let result;
+    try {
+      result = await chat.invoke(messages, { response_format: responseFormat });
+    } catch (formatError) {
+      const status = providerErrorStatus(formatError);
+      const detail = describeProviderError(formatError);
+      if (
+        (status !== 400 && status !== 422) ||
+        !/response[_ ]format|json[_ ](?:object|schema)|structured output|json mode/i.test(
+          detail,
+        )
+      )
+        throw formatError;
+      console.warn(`[ai] ${label}: retrying without response_format`, {
+        error:
+          formatError instanceof Error ? formatError.message : "unknown error",
+      });
+      responseFormat = undefined;
+      if (jsonSchema) {
+        messages[0] = new SystemMessage(
+          `${system}\nRequired JSON schema: ${JSON.stringify(jsonSchema)}`,
+        );
+      }
+      result = await chat.invoke(messages);
+    }
+    const output = readOutput(result);
+    if (!schema) return JSON.stringify(output);
+    const checked = schema.safeParse(output);
+    if (checked.success) return JSON.stringify(checked.data);
+
+    // Some providers accept the format parameter but still return free-form fields.
+    const issue = checked.error.issues[0]!;
+    const correction = new HumanMessage(
+      `Correct every field that violates the schema, including ${issue.path.join(".")} (${issue.message}). Return the complete corrected object.`,
+    );
+    const corrected = await chat.invoke(
+      [...messages, new AIMessage(JSON.stringify(output)), correction],
+      { response_format: responseFormat },
+    );
+    return JSON.stringify(schema.parse(readOutput(corrected)));
   } catch (error) {
-    throw new AiProviderError(`Model request failed: ${describeProviderError(error)}`, providerErrorStatus(error));
+    throw new AiProviderError(
+      `Model request failed: ${describeProviderError(error)}`,
+      providerErrorStatus(error),
+    );
   }
 }
 

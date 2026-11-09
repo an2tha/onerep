@@ -4,9 +4,9 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "dev": "vite --host",
+    "dev": "bun ../../scripts/package-sdk.ts && vite --host",
     "dev:ios": "concurrently -n vite,cap -c blue,green \"vite --host\" \"wait-on tcp:5173 && bunx cap run ios --target-name 'iPhone 16e'\"",
-    "build": "tsc -b && vite build",
+    "build": "bun ../../scripts/package-sdk.ts && tsc -b && vite build",
     "lint": "eslint .",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "typecheck": "tsc -b",

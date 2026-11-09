@@ -27,7 +27,7 @@ OneRep is an open-source personal fitness app for the web, PWA, iOS, and Android
 - **Training:** Switch between Strength and Endurance. Plan strength presets and a weekly routine, log sets and rest, or record walks, runs, rides, and hikes. Outdoor sessions can record GPS routes. Save and share hiking trails.
 - **Progress and Health:** Follow body, nutrition, and training trends. On supported phones, choose which Apple Health or Health Connect metrics to sync. Correct readings when needed.
 - **Recovery mode:** When you are unwell, explicitly start a resting plan that can defer training and quiet reminders. Check in, ease back when ready, and finish the plan yourself.
-- **Coach:** Ask for briefings, meal and recipe help, or training changes. Review proposed writes before applying them. Bring your own OpenRouter key if you prefer to pay your AI provider directly.
+- **Coach:** Ask for briefings, meal and recipe help, or training changes. Review proposed writes before applying them. On a self-hosted server that accepts personal keys, open **Settings → Coach** to add your OpenRouter API key.
 - **Your data:** Export your account, use the REST API or MCP endpoint, and self-host the backend and food datasource.
 
 See the [feature guides](https://docs.onerep.life/introduction) for the details and platform limits.

@@ -768,6 +768,15 @@ describe("upgrading is findable", () => {
   })
 })
 
+test("Settings opens personal AI key management from the Coach row", () => {
+  const row = SETTINGS_SOURCE.split("<DisclosureRow").find((text) =>
+    text.trimStart().startsWith('title="Coach"')
+  )
+  assert.ok(row)
+  assert.match(row, /showView\("coach"\)/)
+  assert.match(SETTINGS_SOURCE, /activeView === "coach" && \(\s*<AiKeySettings/)
+})
+
 describe("agent access is findable", () => {
   const KEYS_PANEL = readFileSync(
     new URL("../components/api-keys-section.tsx", import.meta.url),

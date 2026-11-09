@@ -1,3 +1,4 @@
+import { validCallback } from "./clientPolicy";
 import { httpAction, type ActionCtx } from "../_generated/server";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
@@ -80,14 +81,17 @@ export const preflight = httpAction(async () => {
  * authorization server — which happens to be the same deployment, but a client
  * is not entitled to assume that.
  */
-export const protectedResourceMetadata = httpAction(async () => {
+export const protectedResourceMetadata = httpAction(async (_ctx, request) => {
+  const rest = new URL(request.url).pathname.endsWith("/v1");
   return json(
     {
-      resource: RESOURCE_URL,
+      resource: rest ? `${convexSiteUrl}/v1` : RESOURCE_URL,
       authorization_servers: [convexSiteUrl],
       scopes_supported: ["read", "write"],
       bearer_methods_supported: ["header"],
-      resource_documentation: "https://onerep.life/mcp",
+      resource_documentation: rest
+        ? "https://developers.onerep.life"
+        : "https://onerep.life/mcp",
     },
     200,
     { "Cache-Control": "public, max-age=3600" },
@@ -152,31 +156,11 @@ export const register = httpAction(async (ctx, request) => {
     return oauthError("invalid_redirect_uri", "Too many redirect URIs.");
   }
 
-  for (const uri of redirectUris) {
-    let parsed: URL;
-    try {
-      parsed = new URL(uri);
-    } catch {
-      return oauthError("invalid_redirect_uri", `Not a URL: ${uri}`);
-    }
-    const loopback =
-      parsed.hostname === "localhost" ||
-      parsed.hostname === "127.0.0.1" ||
-      parsed.hostname === "[::1]";
-    // https everywhere, except loopback — which is where a desktop client
-    // parks its callback listener and is not a network hop at all — and
-    // private schemes, which are how a native app gets called back.
-    const privateScheme =
-      parsed.protocol !== "http:" && parsed.protocol !== "https:";
-    if (parsed.protocol === "http:" && !loopback) {
-      return oauthError(
-        "invalid_redirect_uri",
-        `Redirect URIs must use https unless they are loopback: ${uri}`,
-      );
-    }
-    if (privateScheme && !/^[a-z][a-z0-9+.-]*:$/.test(parsed.protocol)) {
-      return oauthError("invalid_redirect_uri", `Unsupported scheme: ${uri}`);
-    }
+  if (!redirectUris.every(validCallback)) {
+    return oauthError(
+      "invalid_redirect_uri",
+      "Use HTTPS, loopback HTTP or a reverse-domain native callback, without credentials or fragments.",
+    );
   }
 
   // A client that says it will authenticate gets a secret; one that says it
@@ -291,7 +275,10 @@ export const authorize = httpAction(async (ctx, request) => {
       "That client is not registered with OneRep, or its registration was removed.",
     );
   }
-  if (!client.redirectUris.includes(redirectUri)) {
+  if (
+    !validCallback(redirectUri) ||
+    !client.redirectUris.includes(redirectUri)
+  ) {
     return errorPage(
       "That redirect is not allowed",
       "The app asked to be sent to an address it never registered. This is refused on purpose.",
@@ -419,29 +406,12 @@ export const token = httpAction(async (ctx, request) => {
       );
     }
 
-    const redeemed: RedeemResult = await ctx.runMutation(
-      internal.mcp.oauth.redeemAuthCode,
-      { codeHash: await sha256Hex(code), clientId, redirectUri },
-    );
-    // Tested with `in` rather than the `ok` flag: this project compiles
-    // without strictNullChecks, and a boolean discriminant does not narrow a
-    // union there. Presence of the property does.
-    if ("reason" in redeemed) {
-      return oauthError("invalid_grant", redeemed.reason);
-    }
-
-    if ((await sha256Base64Url(verifier)) !== redeemed.codeChallenge) {
-      return oauthError(
-        "invalid_grant",
-        "The code_verifier does not match the challenge from the authorization request.",
-      );
-    }
-
     return issue(ctx, {
-      userId: redeemed.userId,
       clientId,
       clientName: client.clientName,
-      scopes: redeemed.scopes,
+      codeHash: await sha256Hex(code),
+      redirectUri,
+      challenge: await sha256Base64Url(verifier),
     });
   }
 
@@ -495,29 +465,42 @@ export const token = httpAction(async (ctx, request) => {
 
 async function issue(
   ctx: ActionCtx,
-  args: {
-    userId: string;
-    clientId: string;
-    clientName: string;
-    scopes: ("read" | "write")[];
-    supersedes?: Id<"mcpRefreshTokens">;
-  },
+  args: { clientId: string; clientName: string } & (
+    | { codeHash: string; redirectUri: string; challenge: string }
+    | {
+        userId: string;
+        scopes: ("read" | "write")[];
+        supersedes: Id<"mcpRefreshTokens">;
+      }
+  ),
 ) {
   const accessToken = mintToken();
   const refreshToken = randomSecret(REFRESH_TOKEN_PREFIX);
-
+  const hashes = {
+    accessTokenHash: await sha256Hex(accessToken),
+    accessTokenPrefix: secretPrefix(accessToken, TOKEN_PREFIX),
+    refreshTokenHash: await sha256Hex(refreshToken),
+  };
+  let scopes: ("read" | "write")[];
   try {
-    await ctx.runMutation(internal.mcp.oauth.issueGrant, {
-      userId: args.userId,
-      clientId: args.clientId,
-      clientName: args.clientName,
-      scopes: args.scopes,
-      accessTokenHash: await sha256Hex(accessToken),
-      accessTokenPrefix: secretPrefix(accessToken, TOKEN_PREFIX),
-      refreshTokenHash: await sha256Hex(refreshToken),
-      supersedes: args.supersedes,
-    });
+    if ("codeHash" in args) {
+      const redeemed: RedeemResult = await ctx.runMutation(
+        internal.mcp.oauth.redeemAuthCode,
+        { ...args, ...hashes },
+      );
+      if ("reason" in redeemed)
+        return oauthError("invalid_grant", redeemed.reason);
+      scopes = redeemed.scopes;
+    } else {
+      await ctx.runMutation(internal.mcp.oauth.issueGrant, {
+        ...args,
+        ...hashes,
+      });
+      scopes = args.scopes;
+    }
   } catch (error) {
+    if (error instanceof Error && error.message.includes("INVALID_GRANT"))
+      return oauthError("invalid_grant", "The grant is no longer active.");
     if (error instanceof Error && error.message.includes("CONNECTION_LIMIT")) {
       return oauthError(
         "access_denied",
@@ -534,7 +517,7 @@ async function issue(
       token_type: "Bearer",
       expires_in: Math.floor(ACCESS_TOKEN_TTL_MS / 1000),
       refresh_token: refreshToken,
-      scope: args.scopes.join(" "),
+      scope: scopes.join(" "),
     },
     200,
     { "Cache-Control": "no-store" },

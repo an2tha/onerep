@@ -41,7 +41,7 @@
         "VITE_OTA_MANIFEST_URL",
         "VITE_OTA_ORIGIN"
       ],
-      "inputs": ["$TURBO_DEFAULT$", ".env*"]
+      "inputs": ["$TURBO_DEFAULT$", ".env*", "$TURBO_ROOT$/packages/sdk/**", "$TURBO_ROOT$/scripts/*sdk.ts", "$TURBO_ROOT$/convex/api/rest.ts", "$TURBO_ROOT$/convex/mcp/tools.ts"]
     },
     "lint": {
       "dependsOn": ["^lint"]

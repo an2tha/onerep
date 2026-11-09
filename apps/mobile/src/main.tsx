@@ -790,6 +790,7 @@ function LegacyNutritionRedirect() {
 }
 
 const router = createBrowserRouter([
+  { path: "/developers", loader: () => { window.location.replace("/developers.html"); return null }, element: null },
   {
     element: <NavSync />,
     children: [

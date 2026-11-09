@@ -7167,5 +7167,10 @@
   "Review this night alongside how rested you felt and the routine you had at the time.": "Analise esta noite tendo em conta o descanso que sentia e a rotina que tinha na altura.",
   "Seven-day period: {{start}} to {{end}}.": "Período de sete dias: de {{start}} a {{end}}.",
   "{{shortfall}} below dated goals across {{count}} recorded nights in this period. Missing nights are unknown. This is a main-sleep goal comparison, not a repayment target.": "Nas {{count}} noites registadas neste período, faltaram {{shortfall}} face aos respetivos objetivos. As noites sem dados são desconhecidas. É uma comparação do sono principal com os objetivos, não uma quantidade a recuperar.",
-  "Edit current sleep plan": "Editar o plano de sono atual"
+  "Edit current sleep plan": "Editar o plano de sono atual",
+  "Add your OpenRouter API key and AI features run on it, with no monthly cap and no Pro required. You pay OpenRouter directly for what you use.": "Adicione a sua chave API da OpenRouter para usar as funcionalidades de IA sem limite mensal e sem precisar do Pro. Paga diretamente à OpenRouter pelo que utilizar.",
+  "Key saved. AI now runs on your key": "Chave guardada. A IA usa agora a sua chave",
+  "Personal OpenRouter keys are available only on self-hosted servers.": "As chaves pessoais da OpenRouter só estão disponíveis em servidores alojados por si.",
+  "Removing…": "A remover…",
+  "Remove": "Remover"
 }

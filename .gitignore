@@ -132,3 +132,6 @@ scripts/workout-studio/studio.blend
 # Reproducible onboarding Blender sources and downloaded scans.
 scripts/workout-studio/pavilion-assets/
 scripts/workout-studio/pavilion.blend*
+
+# Installable SDK built alongside the developer console
+apps/mobile/public/sdk/

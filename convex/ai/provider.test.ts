@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { readFileSync, readdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import * as z from "zod";
 import {
   DEFAULT_OPENROUTER_MODEL,
   disclosedProvider,
@@ -197,23 +198,61 @@ test("HTTP 200 rate-limit envelopes preserve 429 instead of crashing or retrying
   } finally { globalThis.fetch = previousFetch; }
 });
 
-test("a genuine JSON-format rejection retries once without that parameter", async () => {
-  process.env.OPENROUTER_API_KEY = "test-key";
-  process.env.AI_PROCESSOR_APPROVED = "true";
-  const previousFetch = globalThis.fetch;
-  const requests: Array<Record<string, unknown>> = [];
-  globalThis.fetch = (async (_input, init) => {
-    requests.push(JSON.parse(String(init?.body)));
-    return requests.length === 1
-      ? new Response(JSON.stringify({ error: { message: "response_format json_object is unsupported", code: 400 } }), { status: 400, headers: { "Content-Type": "application/json" } })
-      : new Response(JSON.stringify({ id: "ok", object: "chat.completion", choices: [{ index: 0, finish_reason: "stop", message: { role: "assistant", content: '{"ok":true}' } }] }), { status: 200, headers: { "Content-Type": "application/json" } });
-  }) as typeof fetch;
-  try {
-    expect(await requestOpenAiJson({ system: "JSON only", user: "test", model: DEFAULT_OPENROUTER_MODEL, maxTokens: 32 })).toBe('{"ok":true}');
-    expect(requests).toHaveLength(2);
-    expect(requests[1]?.response_format).toBeUndefined();
-  } finally { globalThis.fetch = previousFetch; }
-});
+test.each([undefined, z.strictObject({ ok: z.boolean() })])(
+  "a JSON-format rejection retries once and preserves any required schema",
+  async (schema) => {
+    process.env.OPENROUTER_API_KEY = "test-key";
+    process.env.AI_PROCESSOR_APPROVED = "true";
+    const previousFetch = globalThis.fetch;
+    const requests: Array<Record<string, unknown>> = [];
+    globalThis.fetch = (async (_input, init) => {
+      requests.push(JSON.parse(String(init?.body)));
+      return requests.length === 1
+        ? new Response(
+            JSON.stringify({
+              error: {
+                message: "response_format json_object is unsupported",
+                code: 400,
+              },
+            }),
+            { status: 400, headers: { "Content-Type": "application/json" } },
+          )
+        : new Response(
+            JSON.stringify({
+              id: "ok",
+              object: "chat.completion",
+              choices: [
+                {
+                  index: 0,
+                  finish_reason: "stop",
+                  message: { role: "assistant", content: '{"ok":true}' },
+                },
+              ],
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          );
+    }) as typeof fetch;
+    try {
+      expect(
+        await requestOpenAiJson({
+          system: "JSON only",
+          user: "test",
+          model: DEFAULT_OPENROUTER_MODEL,
+          maxTokens: 32,
+          schema,
+        }),
+      ).toBe('{"ok":true}');
+      expect(requests).toHaveLength(2);
+      expect(requests[1]?.response_format).toBeUndefined();
+      if (schema) {
+        const messages = requests[1]?.messages as { content: string }[];
+        expect(messages[0]?.content).toContain('"ok":{"type":"boolean"}');
+      }
+    } finally {
+      globalThis.fetch = previousFetch;
+    }
+  },
+);
 
 test("a transient rate-limit envelope can recover on the bounded retry", async () => {
   process.env.OPENROUTER_API_KEY = "test-key";

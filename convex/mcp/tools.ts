@@ -120,7 +120,113 @@ function nullableTargets(args: Record<string, unknown>) {
   return out;
 }
 
+export const LIBRARY_COLLECTIONS = [
+  {
+    name: "routines",
+    path: "/v1/routines",
+    description: "Saved workout routines and exercises.",
+  },
+  {
+    name: "schedules",
+    path: "/v1/schedules",
+    description: "Weekly workout schedule and routine order.",
+  },
+  {
+    name: "saved_meals",
+    path: "/v1/saved-meals",
+    description: "Reusable meals and their entries.",
+  },
+  {
+    name: "custom_foods",
+    path: "/v1/custom-foods",
+    description: "Personal food catalogue and nutrients per serving.",
+  },
+  {
+    name: "meal_prep",
+    path: "/v1/meal-prep",
+    description: "Prepared batches, portions and storage dates.",
+  },
+  {
+    name: "fasts",
+    path: "/v1/fasts",
+    description: "Fasting sessions, targets and completion times.",
+  },
+  {
+    name: "grocery_lists",
+    path: "/v1/grocery-lists",
+    description: "Saved shopping lists and checked items.",
+  },
+  {
+    name: "supplements",
+    path: "/v1/supplements",
+    description: "Supplement catalogue, serving sizes and schedules.",
+  },
+  {
+    name: "trails",
+    path: "/v1/trails",
+    description: "Saved hiking trails and distances.",
+  },
+] as const;
+
+const libraryTools: McpTool[] = LIBRARY_COLLECTIONS.map(
+  ({ name, description }) => ({
+    name: "list_" + name,
+    title: description,
+    description,
+    scope: "read",
+    inputSchema: {
+      type: "object",
+      properties: {
+        limit: { type: "integer", minimum: 1, maximum: 50 },
+        cursor: { type: "string" },
+      },
+      additionalProperties: false,
+    },
+    run: (ctx, userId, args) =>
+      ctx.runQuery(internal.mcp.data.libraryPage, {
+        userId,
+        collection: name,
+        limit: optionalNumber(args.limit, "limit") ?? 20,
+        cursor: typeof args.cursor === "string" ? args.cursor : null,
+      }),
+  }),
+);
+
 const CORE_TOOLS: McpTool[] = [
+  {
+    name: "search_exercises",
+    title: "Search exercises",
+    scope: "read",
+    description:
+      "Search the shared exercise library and your own exercises by name.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        query: { type: "string" },
+        limit: { type: "integer", maximum: 50 },
+      },
+      additionalProperties: false,
+    },
+    run: (ctx, userId, args) =>
+      ctx.runQuery(internal.exercises.searchForApp, {
+        userId,
+        query: typeof args.query === "string" ? args.query : undefined,
+        limit: optionalNumber(args.limit, "limit"),
+      }),
+  },
+  {
+    name: "list_programmes",
+    title: "Training and nutrition programmes",
+    scope: "read",
+    description: "Your 20 most recent guided plans and nutrition programmes.",
+    inputSchema: {
+      type: "object",
+      properties: {},
+      additionalProperties: false,
+    },
+    run: (ctx, userId) =>
+      ctx.runQuery(internal.mcp.data.listProgrammes, { userId }),
+  },
   {
     name: "get_day",
     title: "Get one day",
@@ -1268,6 +1374,7 @@ const RECIPE_TOOLS: McpTool[] = [
 
 export const MCP_TOOLS: McpTool[] = [
   ...CORE_TOOLS,
+  ...libraryTools,
   ...RECIPE_TOOLS,
   ...HEALTH_TOOLS,
   ...CUSTOM_METRIC_TOOLS,

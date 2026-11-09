@@ -56,8 +56,16 @@ export function getAuthCallbackUrl(path: string) {
  * must always resolve to the hosted web app, which serves the same
  * reset/verify screens and works with no native app involved.
  */
+export function isDeveloperConsoleOrigin() {
+  return typeof window !== "undefined" && [
+    "https://developers.onerep.life",
+    "https://onerep-developers.pages.dev",
+  ].includes(window.location.origin)
+}
+
 export function getEmailCallbackUrl(path: string) {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`
+  if (isDeveloperConsoleOrigin()) return window.location.origin + normalizedPath
   const configured = import.meta.env.VITE_APP_URL as string | undefined
 
   return `${trimTrailingSlash(configured || DEFAULT_APP_URL)}${normalizedPath}`

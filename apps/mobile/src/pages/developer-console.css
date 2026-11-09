@@ -1,0 +1,163 @@
+.dev-console {
+  height: 100dvh;
+  overflow: auto;
+  background: #f6f6f2;
+  color: #212824;
+  font:
+    16px/1.5 system-ui,
+    sans-serif;
+  color-scheme: light;
+}
+.dev-console header,
+.dev-layout {
+  max-width: 1100px;
+  margin: auto;
+  padding: 24px clamp(18px, 4vw, 48px);
+}
+.dev-console header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid #cbd2cb;
+}
+.dev-console header span {
+  border-left: 1px solid #b5beb6;
+  margin-left: 4px;
+  padding-left: 14px;
+}
+.dev-layout {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: 48px;
+}
+.dev-console nav {
+  align-self: start;
+  position: sticky;
+  top: 24px;
+  display: grid;
+  gap: 12px;
+}
+.dev-console a {
+  color: #20533e;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.dev-console section {
+  padding: 12px 0 32px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #cbd2cb;
+  scroll-margin-top: 16px;
+}
+.dev-console h1,
+.dev-console h2,
+.dev-console h3 {
+  font-weight: 650;
+  letter-spacing: -0.035em;
+}
+.dev-console h1 {
+  font-size: clamp(32px, 5vw, 48px);
+}
+.dev-console h2 {
+  font-size: 28px;
+}
+.dev-console h3 {
+  font-size: 20px;
+  margin-top: 20px;
+}
+.dev-console p {
+  margin: 8px 0 16px;
+  max-width: 70ch;
+}
+.dev-console pre {
+  overflow: auto;
+  background: #192821;
+  color: #e6f2e9;
+  padding: 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  margin: 12px 0;
+}
+.dev-console label {
+  display: grid;
+  gap: 6px;
+  margin: 14px 0;
+  font-weight: 550;
+}
+.dev-console input,
+.dev-console select,
+.dev-console textarea {
+  width: 100%;
+  max-width: 640px;
+  padding: 10px;
+  background: white;
+  border: 1px solid #849088;
+  border-radius: 4px;
+  color: inherit;
+}
+.dev-console small {
+  font-size: 14px;
+  font-weight: 400;
+  color: #44564c;
+}
+.dev-console button,
+.dev-console .dev-primary {
+  display: inline-block;
+  padding: 9px 14px;
+  cursor: pointer;
+  border: 1px solid #85978b;
+  border-radius: 5px;
+  margin-right: 6px;
+  text-decoration: none;
+}
+.dev-console .dev-primary {
+  background: #204e39;
+  color: white;
+  border-color: #204e39;
+}
+.dev-console button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+.dev-console :focus-visible {
+  outline: 3px solid #367f59;
+  outline-offset: 3px;
+}
+.dev-reference li,
+.dev-apps li {
+  padding: 16px 0;
+  border-bottom: 1px solid #d4dbd5;
+  overflow-wrap: anywhere;
+}
+.dev-reference small {
+  float: right;
+}
+.dev-reference code,
+.dev-apps code,
+.dev-apps small {
+  display: block;
+}
+.dev-reference p {
+  margin: 4px 0;
+  color: #44564c;
+}
+.dev-console [role="alert"] {
+  color: #8a291c;
+}
+@media (max-width: 720px) {
+  .dev-layout {
+    display: block;
+  }
+  .dev-console nav {
+    display: flex;
+    gap: 16px;
+    position: static;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+  .dev-console header {
+    padding-block: 14px;
+  }
+}
+
+.dev-signout { margin-left:auto }
+.dev-reference summary { cursor:pointer; color:#20533e }
