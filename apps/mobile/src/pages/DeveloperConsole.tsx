@@ -1,18 +1,87 @@
-import { useEffect, useState, type FormEvent } from "react"
+import { useEffect, useRef, useState, type FormEvent } from "react"
 import { useAction, useConvexAuth, useMutation, useQuery } from "convex/react"
+import {
+  ArrowDown,
+  ArrowRight,
+  ArrowUpRight,
+  BookOpen,
+  BracketsCurly,
+  Check,
+  Copy,
+  Cube,
+  MagnifyingGlass,
+  Plus,
+  TerminalWindow,
+} from "@phosphor-icons/react"
 import { api } from "../../../../convex/_generated/api"
 import type { Id } from "../../../../convex/_generated/dataModel"
 import { operations } from "../../../../packages/sdk/src/operations"
+import { version } from "../../../../packages/sdk/package.json"
 import { signOutApp } from "../lib/auth-client"
+import sculpture from "../assets/developers/progress-world.webp"
 import "./developer-console.css"
 
-const archive = "/sdk/onerep-sdk-0.1.1.tgz"
+const archive = `/sdk/onerep-sdk-${version}.tgz`
 const install = `npm install ${window.location.origin}${archive}`
+const sections = [
+  { id: "applications", title: "Applications", icon: Cube },
+  { id: "sdk", title: "SDK quickstart", icon: TerminalWindow },
+  { id: "reference", title: "API reference", icon: BracketsCurly },
+] as const
 
-function Applications() {
-  const clients = useQuery(api.mcp.oauth.listClients)
+function currentSection() {
+  return (
+    sections.find((item) => "#" + item.id === window.location.hash) ??
+    sections[0]
+  )
+}
+
+function CopyButton({ value, label }: { value: string; label: string }) {
+  const [status, setStatus] = useState("")
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  useEffect(() => () => clearTimeout(timer.current), [])
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(value)
+      setStatus("Copied")
+    } catch {
+      setStatus("Select the text to copy")
+    }
+    clearTimeout(timer.current)
+    timer.current = setTimeout(() => setStatus(""), 2500)
+  }
+  return (
+    <button
+      type="button"
+      className="dp-copy"
+      onClick={copy}
+      aria-label={`Copy ${label}`}
+    >
+      {status === "Copied" ? <Check /> : <Copy />}
+      <span aria-live="polite">{status || "Copy"}</span>
+    </button>
+  )
+}
+
+function CodeBlock({ title, text }: { title: string; text: string }) {
+  return (
+    <div className="dp-code">
+      <div className="dp-code-heading">
+        <span>{title}</span>
+        <CopyButton label={title} value={text} />
+      </div>
+      <pre>
+        <code>{text}</code>
+      </pre>
+    </div>
+  )
+}
+
+function Applications({ active }: { active: boolean }) {
+  const clients = useQuery(api.mcp.oauth.listClients, active ? {} : "skip")
   const create = useAction(api.mcp.oauth.createClient)
   const revoke = useMutation(api.mcp.oauth.revokeClient)
+  const [registering, setRegistering] = useState(false)
   const [credentials, setCredentials] = useState<{
     clientId: string
     clientSecret: string
@@ -23,8 +92,7 @@ function Applications() {
   async function register(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (busy) return
-    const form = event.currentTarget
-    const fields = new FormData(form)
+    const fields = new FormData(event.currentTarget)
     setBusy(true)
     setError("")
     try {
@@ -35,7 +103,7 @@ function Applications() {
           publicClient: fields.get("type") === "public",
         }),
       )
-      form.reset()
+      setRegistering(false)
     } catch {
       setError(
         "Registration failed. Check the callback URLs and your connection. Each account can have ten applications.",
@@ -56,68 +124,44 @@ function Applications() {
       setBusy(false)
     }
   }
-
+  // Keep one-time credentials in memory until Done, even if the user reads
+  // the SDK guide during registration. Only render them in Applications.
+  if (!active && credentials) return null
   return (
-    <>
-      {clients === undefined ? (
-        <p role="status">Loading applications…</p>
-      ) : clients.length === 0 ? (
-        <p>You have no registered applications.</p>
-      ) : (
-        <ul className="dev-apps">
-          {clients.map((client) => (
-            <li key={client.id}>
-              <strong>{client.clientName}</strong>
-              <code>{client.clientId}</code>
-              {client.redirectUris.map((uri) => (
-                <small key={uri}>{uri}</small>
-              ))}
-              {removing === client.id ? (
-                <div>
-                  <p>Removing this app disconnects every user.</p>
-                  <button
-                    disabled={busy}
-                    onClick={() => void remove(client.id)}
-                  >
-                    Remove application
-                  </button>
-                  <button disabled={busy} onClick={() => setRemoving(null)}>
-                    Cancel
-                  </button>
-                </div>
-              ) : (
-                <button onClick={() => setRemoving(client.id)}>
-                  Remove {client.clientName}
-                </button>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
+    <div hidden={!active}>
       {credentials ? (
-        <div role="status" className="dev-credentials">
-          <h3>Application registered</h3>
-          <label>
-            Client ID
-            <input readOnly value={credentials.clientId} />
-          </label>
+        <section className="dp-panel">
+          <h2>Application registered</h2>
+          <CodeBlock title="Client ID" text={credentials.clientId} />
           {credentials.clientSecret && (
-            <label>
-              Client secret
-              <input readOnly value={credentials.clientSecret} />
-              <small>
-                Save this in your server’s secret store before closing.
-              </small>
-            </label>
+            <>
+              <p>
+                Save the client secret in your server’s secret store. It is
+                shown only once.
+              </p>
+              <CodeBlock
+                title="Client secret"
+                text={credentials.clientSecret}
+              />
+            </>
           )}
-          <button onClick={() => setCredentials(null)}>Done</button>
-        </div>
-      ) : (
-        <form onSubmit={register}>
-          <h3>Register an application</h3>
+          <button className="dp-button" onClick={() => setCredentials(null)}>
+            Done <Check />
+          </button>
+        </section>
+      ) : registering ? (
+        <form className="dp-panel dp-form" onSubmit={register}>
+          <h2>Register an application</h2>
           <label>
             Application name
-            <input name="name" maxLength={80} required pattern=".*\S.*" />
+            <input
+              autoFocus
+              name="name"
+              maxLength={80}
+              required
+              pattern=".*\S.*"
+            />
+            <small>Shown to athletes when they connect.</small>
           </label>
           <label>
             Application type
@@ -133,7 +177,7 @@ function Applications() {
             <textarea
               name="callback"
               required
-              rows={2}
+              rows={3}
               placeholder="https://example.org/oauth/callback"
             />
             <small>
@@ -141,134 +185,398 @@ function Applications() {
               testing, or a reverse-domain scheme for a native app.
             </small>
           </label>
-          <button className="dev-primary" disabled={busy}>
-            {busy ? "Saving…" : "Register application"}
-          </button>
+          <div className="dp-actions">
+            <button className="dp-button" disabled={busy}>
+              {busy ? "Registering…" : "Register application"}
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              className="dp-secondary"
+              onClick={() => {
+                setRegistering(false)
+                setError("")
+              }}
+            >
+              Cancel
+            </button>
+          </div>
         </form>
+      ) : clients?.length === 0 ? (
+        <section className="dp-welcome">
+          <div>
+            <h2>
+              Register your
+              <br />
+              first application.
+            </h2>
+            <p>
+              Choose the name athletes will see and where OneRep should return
+              them after consent.
+            </p>
+            <button
+              className="dp-button"
+              onClick={() => {
+                setRegistering(true)
+                setError("")
+              }}
+            >
+              <Plus /> Register app
+            </button>
+          </div>
+          <img src={sculpture} alt="" />
+        </section>
+      ) : (
+        <section className="dp-panel">
+          <div className="dp-panel-title">
+            <h2>
+              Registered applications{" "}
+              {clients && <small>({clients.length})</small>}
+            </h2>
+            <button
+              className="dp-button"
+              onClick={() => {
+                setRegistering(true)
+                setError("")
+                setRemoving(null)
+              }}
+            >
+              <Plus /> Register app
+            </button>
+          </div>
+          {clients === undefined ? (
+            <p role="status">Loading applications…</p>
+          ) : (
+            <ul className="dp-apps">
+              {clients.map((client) => (
+                <li key={client.id}>
+                  <div className="dp-app-name">
+                    <span aria-hidden="true">
+                      {Array.from(String(client.clientName))[0]?.toUpperCase()}
+                    </span>
+                    <h3>{client.clientName}</h3>
+                  </div>
+                  <div className="dp-client-id">
+                    <code>{client.clientId}</code>
+                    <CopyButton value={client.clientId} label="client ID" />
+                  </div>
+                  <details>
+                    <summary>Callback URLs and settings</summary>
+                    {client.redirectUris.map((uri, i) => (
+                      <code className="dp-uri" key={i}>
+                        {uri}
+                      </code>
+                    ))}
+                    {removing === client.id ? (
+                      <div>
+                        <p>Removing this application disconnects every user.</p>
+                        <div className="dp-actions">
+                          <button
+                            disabled={busy}
+                            className="dp-danger"
+                            onClick={() => void remove(client.id)}
+                          >
+                            Remove application
+                          </button>
+                          <button
+                            disabled={busy}
+                            className="dp-secondary"
+                            onClick={() => setRemoving(null)}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        className="dp-danger"
+                        onClick={() => setRemoving(client.id)}
+                      >
+                        Remove application
+                      </button>
+                    )}
+                  </details>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       )}
       {error && <p role="alert">{error}</p>}
+    </div>
+  )
+}
+
+const start = `import { OneRep, OneRepOAuth } from "@onerep/sdk";
+
+const oauth = new OneRepOAuth({ clientId, redirectUri });
+const { url, transaction } = await oauth.authorize(["read"]);`
+const callback = `const tokens = await oauth.exchange(callbackUrl, transaction);
+const api = new OneRep({ accessToken: tokens.access_token });
+
+const { subject } = await api.call("get_access");
+const workouts = await api.call("list_workouts", { limit: 5 });`
+
+function Quickstart() {
+  return (
+    <div className="dp-guide">
+      <section>
+        <h2>Install the SDK</h2>
+        <p>
+          The package includes JavaScript, TypeScript declarations, and the
+          integration guide.
+        </p>
+        <CodeBlock title="Terminal" text={install} />
+        <a className="dp-textlink dp-archive-link" download href={archive}>
+          <ArrowDown />
+          Download SDK v{version}
+        </a>
+      </section>
+      <section>
+        <h2>Request access</h2>
+        <p>
+          Register an application under <a href="#applications">Applications</a>
+          . Save the transaction in the initiating user’s session, then redirect
+          their browser to <code>url</code>. Confidential server apps also pass
+          their client secret to the constructor.
+        </p>
+        <CodeBlock title="connect.ts" text={start} />
+      </section>
+      <section>
+        <h2>Read the training log</h2>
+        <p>
+          At your callback, take the saved transaction from the session. The
+          subject identifies this account within your application.
+        </p>
+        <CodeBlock title="callback.ts" text={callback} />
+      </section>
+      <section>
+        <h2>Manage the connection</h2>
+        <p>
+          Store tokens per user. Refresh with{" "}
+          <code>oauth.refresh(refreshToken)</code> and save both replacement
+          tokens. Disconnect with <code>oauth.revoke(refreshToken)</code>.
+        </p>
+      </section>
+    </div>
+  )
+}
+
+function Reference() {
+  const [query, setQuery] = useState(
+    () => new URLSearchParams(location.search).get("q") ?? "",
+  )
+  const [scope, setScope] = useState("all")
+  const results = operations.filter(
+    (item) =>
+      (scope === "all" || item.scope === scope) &&
+      [item.operation, item.method, item.path, item.summary, item.scope]
+        .join(" ")
+        .toLowerCase()
+        .includes(query.trim().toLowerCase()),
+  )
+  return (
+    <>
+      <div className="dp-filters">
+        <label className="dp-search">
+          <MagnifyingGlass />
+          <input
+            type="search"
+            aria-label="Search operations"
+            placeholder="Search operations or routes"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </label>
+        <select
+          aria-label="Filter by permission"
+          value={scope}
+          onChange={(e) => setScope(e.target.value)}
+        >
+          <option value="all">All permissions</option>
+          <option value="read">Read</option>
+          <option value="write">Write</option>
+          <option value="delete">Delete</option>
+        </select>
+      </div>
+      <p className="dp-count" role="status">
+        {results.length} of {operations.length} operations
+      </p>
+      <div className="dp-endpoints">
+        {results.map((item) => (
+          <details key={item.operation}>
+            <summary>
+              <span className={`dp-method m-${item.method.toLowerCase()}`}>
+                {item.method}
+              </span>
+              <span>
+                <strong>{item.operation}</strong>
+                <code>{item.path}</code>
+              </span>
+              <Plus className="dp-expand" />
+            </summary>
+            <div className="dp-endpoint-body">
+              <p>{item.summary}</p>
+              <p className="dp-permission">
+                Permission · {item.scope ?? "Any grant"}
+              </p>
+              {item.input !== "Record<string, never>" && (
+                <CodeBlock
+                  title="SDK input"
+                  text={item.input.replaceAll("; ", ";\n  ")}
+                />
+              )}
+            </div>
+          </details>
+        ))}
+      </div>
+      {!results.length && (
+        <div className="dp-panel">
+          <h2>No matching operations</h2>
+          <button
+            className="dp-secondary"
+            onClick={() => {
+              setQuery("")
+              setScope("all")
+            }}
+          >
+            Clear filters
+          </button>
+        </div>
+      )}
     </>
   )
 }
 
 export default function DeveloperConsole() {
   const { isLoading, isAuthenticated } = useConvexAuth()
-  const [sessionError, setSessionError] = useState("")
-  const [filter, setFilter] = useState("")
-  const results = operations.filter((item) =>
-    (item.operation + item.path + item.scope)
-      .toLowerCase()
-      .includes(filter.toLowerCase()),
-  )
+  const [section, setSection] = useState(currentSection)
+  const [error, setError] = useState("")
   useEffect(() => {
-    const previous = document.title
-    document.title = "Developer console | OneRep"
-    return () => {
-      document.title = previous
+    function navigate() {
+      setSection(currentSection())
+      window.scrollTo(0, 0)
     }
+    window.addEventListener("hashchange", navigate)
+    return () => window.removeEventListener("hashchange", navigate)
   }, [])
+  useEffect(() => {
+    document.title = `${section.title} | OneRep Developers`
+  }, [section])
   return (
-    <main className="dev-console">
-      <header>
-        <img src="/app-icon.svg" alt="" width="32" height="32" />
-        <strong>OneRep</strong>
-        <span>Developers</span>
-        {isAuthenticated && <button className="dev-signout" onClick={async () => {
-          try { await signOutApp(); window.location.assign("/developers") }
-          catch { setSessionError("Sign out failed. Check your connection and try again.") }
-        }}>Sign out</button>}
-      </header>
-      {sessionError && <p role="alert">{sessionError}</p>}
-      <div className="dev-layout">
-        <nav aria-label="Developer console">
-          <a href="#applications">Applications</a>
-          <a href="#sdk">SDK quickstart</a>
-          <a href="#reference">API reference</a>
-        </nav>
-        <div className="dev-content">
-          <section id="applications">
-            <h1>Applications</h1>
-            <p>
-              Register the app name people will see when they connect their
-              OneRep account.
-            </p>
-            {isLoading ? (
-              <p role="status">Checking your session…</p>
-            ) : isAuthenticated ? (
-              <Applications />
+    <div className="dp-workspace">
+      <header className="dp-bar">
+        <div className="dp-topline">
+          <a className="dp-brand" href="/">
+            <img src="/app-icon.svg" alt="" />
+            OneRep <span>Developers</span>
+          </a>
+          <nav aria-label="Account">
+            <a href="https://onerep.life/">
+              OneRep home <ArrowUpRight />
+            </a>
+            {isAuthenticated ? (
+              <button
+                className="dp-secondary"
+                onClick={async () => {
+                  try {
+                    await signOutApp()
+                    location.assign("/")
+                  } catch {
+                    setError("Sign out failed. Try again.")
+                  }
+                }}
+              >
+                Sign out
+              </button>
             ) : (
-              <a className="dev-primary" href="/login?next=%2Fdevelopers">
-                Sign in to manage applications
+              <a className="dp-secondary" href="/login?next=%2Fdevelopers">
+                Sign in <ArrowRight />
               </a>
             )}
-          </section>
-          <section id="sdk">
-            <h2>SDK quickstart</h2>
-            <p>
-              Install the JavaScript and TypeScript SDK. The package includes
-              the integration guide.
-            </p>
-            <pre>{install}</pre>
-            <a href={archive} download>
-              Download SDK v0.1.1
-            </a>
-            <h3>Connect an account</h3>
-            <pre>{`import { OneRep, OneRepOAuth } from "@onerep/sdk";
-
-const oauth = new OneRepOAuth({ clientId, redirectUri });
-const { url, transaction } = await oauth.authorize(["read"]);`}</pre>
-            <p>
-              Save the transaction in the initiating user’s session, then
-              redirect them to <code>url</code>. At your callback, retrieve and
-              remove that transaction. Server apps also pass their client secret
-              to the constructor.
-            </p>
-            <pre>{`const tokens = await oauth.exchange(callbackUrl, transaction);
-const api = new OneRep({ accessToken: tokens.access_token });
-const { subject } = await api.call("get_access");
-const workouts = await api.call("list_workouts", { limit: 5 });`}</pre>
-            <p>
-              The subject identifies this account within your application. Store
-              tokens per user. Refresh with{" "}
-              <code>oauth.refresh(refreshToken)</code> and save both replacement
-              tokens. Disconnect with <code>oauth.revoke(refreshToken)</code>.
-            </p>
-          </section>
-          <section id="reference">
-            <h2>API reference</h2>
-            <p>
-              Request read access for health and training data. Add write access
-              to update a user’s log. Delete operations require a personal
-              delete key.
-            </p>
-            <label>
-              Find an operation
-              <input
-                type="search"
-                value={filter}
-                onChange={(event) => setFilter(event.target.value)}
-                placeholder="Search by operation, route or permission"
-              />
-            </label>
-            <ul className="dev-reference">
-              {results.map((item) => (
-                <li key={item.operation}>
-                  <strong>{item.operation}</strong>
-                  <small>{item.scope ?? "Any grant"}</small>
-                  <code>
-                    {item.method} {item.path}
-                  </code>
-                  <p>{item.summary}</p>
-                  {item.input !== "Record<string, never>" && <details><summary>SDK input</summary><pre>{item.input.replaceAll("; ", ";\n  ")}</pre></details>}
-                </li>
-              ))}
-            </ul>
-            {results.length === 0 && (
-              <p role="status">No matching operations.</p>
-            )}
-          </section>
+          </nav>
         </div>
+      </header>
+      <div className="dp-shell">
+        <aside className="dp-sidebar">
+          <nav aria-label="Console sections">
+            {sections.map(({ id, title, icon: Icon }) => (
+              <a
+                key={id}
+                href={`#${id}`}
+                aria-current={section.id === id ? "page" : undefined}
+              >
+                <Icon />
+                {title}
+              </a>
+            ))}
+          </nav>
+          <a className="dp-download" href={archive} download>
+            <span>
+              <strong>OneRep SDK</strong>
+              <small>v{version} · .tgz</small>
+            </span>
+            <ArrowDown />
+          </a>
+        </aside>
+        <main className="dp-main">
+          {error && <p role="alert">{error}</p>}
+          <div className="dp-heading">
+            <h1>{section.title}</h1>
+            <p>
+              {section.id === "applications"
+                ? "Manage the apps that connect to OneRep accounts."
+                : section.id === "sdk"
+                  ? "Connect your first account with JavaScript or TypeScript."
+                  : "Explore the REST routes and their SDK operations. OAuth grants support read and write. Deletes require a personal delete key."}
+            </p>
+          </div>
+          {isAuthenticated && <Applications active={section.id === "applications"} />}
+          {section.id === "applications" ? (
+            <>
+              {isLoading ? (
+                <p role="status">Checking your session…</p>
+              ) : !isAuthenticated ? (
+                <section className="dp-welcome">
+                  <div>
+                    <h2>
+                      Connect your
+                      <br />
+                      first application.
+                    </h2>
+                    <p>
+                      Sign in to register an OAuth client and configure its
+                      callbacks.
+                    </p>
+                    <a className="dp-button" href="/login?next=%2Fdevelopers">
+                      Sign in to OneRep <ArrowRight />
+                    </a>
+                  </div>
+                  <img src={sculpture} alt="" />
+                </section>
+              ) : null}
+              <div className="dp-resource-links">
+                <a href="#sdk">
+                  <TerminalWindow />
+                  <strong>SDK quickstart</strong>
+                  <span>From install to first request.</span>
+                  <ArrowUpRight />
+                </a>
+                <a href="#reference">
+                  <BookOpen />
+                  <strong>API reference</strong>
+                  <span>Browse {operations.length} operations.</span>
+                  <ArrowUpRight />
+                </a>
+              </div>
+            </>
+          ) : section.id === "sdk" ? (
+            <Quickstart />
+          ) : (
+            <Reference />
+          )}
+        </main>
       </div>
-    </main>
+    </div>
   )
 }
